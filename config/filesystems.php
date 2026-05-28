@@ -38,6 +38,22 @@ return [
             'report' => false,
         ],
 
+        /*
+         * Private disk: every customer-facing upload (logos, contracts,
+         * imports) lives here. Never served directly — access goes through
+         * FileUploadService::getSignedUrl(), which produces short-lived
+         * signed URLs. The dedicated `url` keeps it from colliding with
+         * the default `local` disk also served at /storage.
+         */
+        'private' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/uploads'),
+            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/private',
+            'serve' => true,
+            'throw' => false,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

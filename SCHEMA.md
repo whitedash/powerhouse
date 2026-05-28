@@ -194,3 +194,17 @@ completed_at nullable, created_at, updated_at
 
 ## settings
 key VARCHAR(255) UNIQUE, value TEXT nullable, updated_at
+
+## webhook_events
+id, source VARCHAR(50), event_id VARCHAR(255),
+event_type VARCHAR(100), payload JSON,
+processed_at nullable, created_at
+-- UNIQUE(source, event_id) — idempotency key. No updated_at.
+
+---
+
+## API key storage rule (no schema changes — convention)
+Whenever a future table stores an API key issued *by us* (e.g. for
+external products to call back into Powerhouse), the key column
+must store `hash('sha256', $rawKey)` only. The raw key is shown to
+the user once on creation and never again. Compare with `hash_equals()`.

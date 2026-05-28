@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Http\Middleware\RequirePkce;
+use App\Listeners\DetectMassExport;
 use App\Listeners\LogSecurityEvent;
 use App\Models\CommissionLedger;
 use App\Models\Customer;
@@ -39,6 +41,20 @@ class AppServiceProvider extends ServiceProvider
         $this->registerRateLimiters();
         $this->registerSlowQueryListener();
         $this->registerSecurityEventListeners();
+        $this->enforcePkceOnAuthorize();
+    }
+
+    private function enforcePkceOnAuthorize(): void
+    {
+        // Passport registers /oauth/authorize in its own service provider,
+        // which boots before AppServiceProvider. We walk the resolved route
+        // collection and attach RequirePkce to the named Passport authorize
+        // route. Implicit grant is NOT enabled (no Passport::enableImplicitGrant()).
+        $route = $this->app['router']->getRoutes()->getByName('passport.authorizations.authorize');
+
+        if ($route) {
+            $route->middleware(RequirePkce::class);
+        }
     }
 
     private function registerRateLimiters(): void
@@ -99,6 +115,10 @@ class AppServiceProvider extends ServiceProvider
 
     private function registerSecurityEventListeners(): void
     {
+        // LogSecurityEvent has multiple non-`handle` methods, so explicit
+        // listener mapping is required. DetectMassExport's `handle()` is
+        // auto-discovered by Laravel via its typed event parameter — adding
+        // it here would register a second listener and double-count.
         Event::listen(Login::class, [LogSecurityEvent::class, 'onLogin']);
         Event::listen(Failed::class, [LogSecurityEvent::class, 'onFailed']);
         Event::listen(Logout::class, [LogSecurityEvent::class, 'onLogout']);

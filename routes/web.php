@@ -28,15 +28,18 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
     Route::get('/', InternalDashboardController::class)->name('internal.dashboard');
 
-    Route::get('/customers', [InternalCustomerController::class, 'index'])->name('internal.customers.index');
+    // List/search endpoints — 60/min/user to slow bulk scraping
+    Route::middleware('throttle:60,1')->group(function () {
+        Route::get('/customers', [InternalCustomerController::class, 'index'])->name('internal.customers.index');
+        Route::get('/invoices', [InternalInvoiceController::class, 'index'])->name('internal.invoices.index');
+        Route::get('/referrers', [InternalReferrerController::class, 'index'])->name('internal.referrers.index');
+    });
+
     Route::post('/customers', [InternalCustomerController::class, 'store'])->name('internal.customers.store');
     Route::get('/customers/{id}', [InternalCustomerController::class, 'show'])->name('internal.customers.show');
 
-    Route::get('/invoices', [InternalInvoiceController::class, 'index'])->name('internal.invoices.index');
     Route::get('/invoices/new', [InternalInvoiceController::class, 'create'])->name('internal.invoices.create');
     Route::get('/invoices/{id}', [InternalInvoiceController::class, 'show'])->name('internal.invoices.show');
-
-    Route::get('/referrers', [InternalReferrerController::class, 'index'])->name('internal.referrers.index');
     Route::get('/domains', [InternalDomainController::class, 'index'])->name('internal.domains.index');
     Route::get('/support', [InternalSupportController::class, 'index'])->name('internal.support.index');
     Route::get('/provisioning', [InternalProvisioningController::class, 'index'])->name('internal.provisioning.index');
@@ -85,3 +88,30 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [StaffLoginController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
+
+/*
+|--------------------------------------------------------------------------
+| Webhooks (commented until controllers land)
+|--------------------------------------------------------------------------
+|
+| Webhook routes must:
+|   - bypass CSRF (no browser session)
+|   - sit behind the vendor-specific signature middleware
+|   - dedupe via WebhookIdempotencyService inside the controller
+|
+| Both routes intentionally stay commented out until the controllers
+| exist; we don't want a 404-but-CSRF-exempt surface in production.
+|
+| Route::post('/webhooks/stripe', \App\Http\Controllers\Webhooks\StripeWebhookController::class)
+//     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+//     ->middleware([\App\Http\Middleware\VerifyStripeWebhook::class, 'throttle:120,1'])
+//     ->name('webhooks.stripe');
+|
+| Route::post('/webhooks/postmark', \App\Http\Controllers\Webhooks\PostmarkWebhookController::class)
+//     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+//     ->middleware([\App\Http\Middleware\VerifyPostmarkWebhook::class, 'throttle:120,1'])
+//     ->name('webhooks.postmark');
+|
+| Export endpoints (when built): throttle:10,1
+| API endpoints (when built):    throttle:120,1
+*/

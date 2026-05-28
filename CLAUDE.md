@@ -33,6 +33,16 @@ for every layout, component, and interaction pattern.
 - Never commit .env
 - Never hardcode credentials
 - Never guess column names — always check SCHEMA.md first
+- **Never** use `==` or `===` to compare tokens, signatures, API
+  keys, or any cryptographic value. **Always** use `hash_equals()`.
+- **Never** use `$file->getClientOriginalName()` for stored filenames.
+  **Never** store uploads in `public/`. **Always** route uploads
+  through `App\Services\FileUploadService`.
+- **Never** process a webhook without (1) verifying the signature via
+  a `VerifyWebhookSignature` subclass, (2) checking idempotency via
+  `WebhookIdempotencyService`, (3) excluding the route from CSRF.
+- **Never** accept a URL from user input without `App\Rules\NotInternalUrl`
+  in the validation chain. This is what stops SSRF.
 
 ## Key files
 - SCHEMA.md — complete database schema (source of truth)
@@ -50,6 +60,17 @@ for every layout, component, and interaction pattern.
   a policy (`$user->can('action', Model::class)`).
 - All persistence inside transactions.
 - Every mutation logged to `activity_log`.
+
+## ID-handling rule (IDOR prevention)
+Every controller method that accepts an ID **must**:
+1. Use `findOrFail()` — never `find()`. `find()` returns null on miss
+   and a null check is easy to forget.
+2. Call `$this->authorizeOrFail('action', $model)` (from the
+   `AuthorizesWithPolicy` trait) or `Gate::authorize(...)`.
+
+For portal-side queries, use `Customer::forPortalUser($cid)` — never
+trust an `id` from the request. For referrer-side queries, scope
+every read with `where('referrer_id', auth()->user()->referrer->id)`.
 
 ## Restore to main rule
 Always restore to main branch before starting a new session

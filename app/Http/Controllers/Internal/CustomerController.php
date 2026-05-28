@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Events\PaginatedListAccessed;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCustomerRequest;
 use App\Models\ActivityLog;
@@ -38,6 +39,10 @@ class CustomerController extends Controller
     public function index(Request $request): Response
     {
         Gate::authorize('viewAny', Customer::class);
+
+        if ($request->user()) {
+            PaginatedListAccessed::dispatch($request->user()->id, $request->path());
+        }
 
         $filters = [
             'search' => trim((string) $request->query('search', '')),

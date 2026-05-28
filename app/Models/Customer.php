@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -106,5 +107,14 @@ class Customer extends Model
         return $this->belongsToMany(AccountGroup::class, 'customer_group_memberships', 'customer_id', 'group_id')
             ->withPivot('role')
             ->withTimestamps();
+    }
+
+    /**
+     * Constrain a query to the single customer a portal user belongs to.
+     * Use everywhere portal-side: `Customer::forPortalUser($cid)->firstOrFail()`.
+     */
+    public function scopeForPortalUser(Builder $query, int $customerId): Builder
+    {
+        return $query->where('id', $customerId);
     }
 }
