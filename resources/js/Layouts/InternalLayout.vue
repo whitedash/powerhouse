@@ -1,6 +1,12 @@
 <script setup>
 import { computed } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import {
+    Menu,
+    MenuButton,
+    MenuItem,
+    MenuItems,
+} from '@headlessui/vue';
 import {
     IconLayoutDashboard,
     IconUsers,
@@ -18,12 +24,30 @@ import {
     IconSearch,
     IconBell,
     IconChevronDown,
+    IconLogout,
 } from '@tabler/icons-vue';
 
 const props = defineProps({
     title: { type: String, default: '' },
     breadcrumbs: { type: Array, default: () => [] },
     activeNav: { type: String, default: '' },
+});
+
+const page = usePage();
+
+const me = computed(() => {
+    const user = page.props.auth?.user;
+    if (! user) {
+        return { initials: '?', name: 'Guest', role: '', avatarClass: 'av-icon' };
+    }
+    const parts = (user.name || '').trim().split(/\s+/);
+    const initials = ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? parts[0]?.[1] ?? '')).toUpperCase() || '?';
+    const role = user.role === 'super_admin' ? 'Super Admin'
+        : user.role === 'staff' ? 'Whitedash Staff'
+        : user.role === 'referrer' ? 'Referrer'
+        : '';
+    const avatarClass = user.role === 'super_admin' ? 'av-admin' : 'av-2';
+    return { initials, name: user.name, role, avatarClass };
 });
 
 const sections = [
@@ -40,30 +64,28 @@ const sections = [
     {
         label: 'Products',
         items: [
-            { key: 'maavelus',     label: 'Maavelus',      href: '#', icon: IconToolsKitchen2 },
-            { key: 'myorderpad',   label: 'MyOrderPad',    href: '#', icon: IconClipboardList },
+            { key: 'maavelus',      label: 'Maavelus',      href: '#', icon: IconToolsKitchen2 },
+            { key: 'myorderpad',    label: 'MyOrderPad',    href: '#', icon: IconClipboardList },
             { key: 'whitedash_b2b', label: 'Whitedash B2B', href: '#', icon: IconBuildingStore },
-            { key: 'smscube',      label: 'SMScube',       href: '#', icon: IconMessage2 },
+            { key: 'smscube',       label: 'SMScube',       href: '#', icon: IconMessage2 },
         ],
     },
     {
         label: 'Account',
         items: [
-            { key: 'support',  label: 'Support',      href: '/support',  icon: IconHeadset,    count: '3', countClass: 'red' },
-            { key: 'settings', label: 'Settings',     href: '/settings', icon: IconSettings },
-            { key: 'help',     label: 'Help & docs',  href: '#',         icon: IconHelpCircle },
+            { key: 'support',  label: 'Support',     href: '/support',  icon: IconHeadset,    count: '3', countClass: 'red' },
+            { key: 'settings', label: 'Settings',    href: '/settings', icon: IconSettings },
+            { key: 'help',     label: 'Help & docs', href: '#',         icon: IconHelpCircle },
         ],
     },
 ];
 
-const me = {
-    initials: 'AP',
-    name: 'Apostolos P.',
-    role: 'Super Admin',
-};
-
 const visibleCrumbs = computed(() => props.breadcrumbs ?? []);
 const lastCrumbIndex = computed(() => visibleCrumbs.value.length - 1);
+
+function logout() {
+    router.post('/logout');
+}
 </script>
 
 <template>
@@ -98,16 +120,31 @@ const lastCrumbIndex = computed(() => visibleCrumbs.value.length - 1);
 
             <div class="sidebar-spacer" />
 
-            <div class="sidebar-user">
-                <div class="avatar av-admin">{{ me.initials }}</div>
-                <div>
-                    <div class="name">{{ me.name }}</div>
-                    <div class="role">{{ me.role }}</div>
+            <Menu as="div" class="sidebar-user-menu">
+                <div class="sidebar-user">
+                    <div class="avatar" :class="me.avatarClass">{{ me.initials }}</div>
+                    <div>
+                        <div class="name">{{ me.name }}</div>
+                        <div class="role">{{ me.role }}</div>
+                    </div>
+                    <MenuButton class="dots" aria-label="Account menu">
+                        <IconDots :size="18" stroke-width="1.75" />
+                    </MenuButton>
                 </div>
-                <span class="dots" role="button" aria-label="Account menu">
-                    <IconDots :size="18" stroke-width="1.75" />
-                </span>
-            </div>
+                <MenuItems class="user-menu-popover">
+                    <MenuItem v-slot="{ active }">
+                        <button
+                            type="button"
+                            class="user-menu-item"
+                            :class="{ active }"
+                            @click="logout"
+                        >
+                            <IconLogout :size="16" stroke-width="1.75" />
+                            <span>Sign out</span>
+                        </button>
+                    </MenuItem>
+                </MenuItems>
+            </Menu>
         </aside>
 
         <main class="main">
@@ -138,14 +175,29 @@ const lastCrumbIndex = computed(() => visibleCrumbs.value.length - 1);
 
                 <div class="divider" />
 
-                <div class="avatar-wrap">
-                    <div class="avatar av-admin">{{ me.initials }}</div>
-                    <div>
-                        <div class="name">{{ me.name }}</div>
-                        <div class="role">{{ me.role }}</div>
-                    </div>
-                    <span class="chev"><IconChevronDown :size="16" stroke-width="1.75" /></span>
-                </div>
+                <Menu as="div" class="topbar-user-menu">
+                    <MenuButton class="avatar-wrap">
+                        <div class="avatar" :class="me.avatarClass">{{ me.initials }}</div>
+                        <div>
+                            <div class="name">{{ me.name }}</div>
+                            <div class="role">{{ me.role }}</div>
+                        </div>
+                        <span class="chev"><IconChevronDown :size="16" stroke-width="1.75" /></span>
+                    </MenuButton>
+                    <MenuItems class="user-menu-popover topbar-user-popover">
+                        <MenuItem v-slot="{ active }">
+                            <button
+                                type="button"
+                                class="user-menu-item"
+                                :class="{ active }"
+                                @click="logout"
+                            >
+                                <IconLogout :size="16" stroke-width="1.75" />
+                                <span>Sign out</span>
+                            </button>
+                        </MenuItem>
+                    </MenuItems>
+                </Menu>
             </div>
 
             <div class="content">
@@ -154,3 +206,57 @@ const lastCrumbIndex = computed(() => visibleCrumbs.value.length - 1);
         </main>
     </div>
 </template>
+
+<style scoped>
+.sidebar-user-menu {
+    position: relative;
+}
+
+.topbar-user-menu {
+    position: relative;
+}
+
+.user-menu-popover {
+    position: absolute;
+    z-index: 30;
+    min-width: 180px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    padding: 4px;
+    outline: 0;
+}
+
+.sidebar-user-menu .user-menu-popover {
+    bottom: calc(100% + 6px);
+    left: 10px;
+    right: 10px;
+}
+
+.topbar-user-popover {
+    top: calc(100% + 6px);
+    right: 0;
+}
+
+.user-menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    color: var(--text-primary);
+    font: 500 13px/1.2 'Inter', sans-serif;
+    text-align: left;
+}
+
+.user-menu-item.active,
+.user-menu-item:hover {
+    background: var(--neutral-bg);
+    color: var(--accent);
+}
+</style>

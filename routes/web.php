@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\StaffLoginController;
 use App\Http\Controllers\Internal\CustomerController as InternalCustomerController;
 use App\Http\Controllers\Internal\DashboardController as InternalDashboardController;
 use App\Http\Controllers\Internal\DomainController as InternalDomainController;
@@ -69,5 +70,16 @@ Route::prefix('partners')->middleware(['auth', 'role:referrer'])->group(function
     Route::get('/payouts', ReferrerPayoutController::class)->name('referrer.payouts');
 });
 
-// Placeholder login route so middleware redirects resolve.
-Route::get('/login', fn () => 'Staff login (placeholder)')->name('login');
+/*
+|--------------------------------------------------------------------------
+| Staff authentication (session-based, web guard)
+|--------------------------------------------------------------------------
+*/
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [StaffLoginController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [StaffLoginController::class, 'login']);
+});
+
+Route::post('/logout', [StaffLoginController::class, 'logout'])
+    ->middleware('auth')
+    ->name('logout');
