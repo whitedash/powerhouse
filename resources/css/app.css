@@ -1350,3 +1350,32 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     box-shadow: var(--shadow-sm);
     overflow: hidden;
 }
+
+/* ─────────────────────────────────────────────────────────────────
+ * Card header chrome — verbatim from
+ * design/Customer · The Aegean Kitchen.html lines 402–419.
+ *
+ * Same class of miss as the `.card` fix above: Phase 4 appended every
+ * NEW class for the detail page but missed the design's foundational
+ * card-header rules. The only `.card-header`-prefixed selector that
+ * shipped was `.card-header .h-icon.gold` — a modifier rule for a
+ * parent (`.h-icon`) that didn't have a base rule, so the gold
+ * background painted a full-width block instead of a 28×28 chip.
+ * ───────────────────────────────────────────────────────────────── */
+.card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex; align-items: center; gap: 10px;
+    min-height: 52px;
+}
+.card-header .h-icon {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    background: var(--neutral-bg);
+    color: var(--text-secondary);
+    display: grid; place-items: center;
+    font-size: 16px;
+}
+.card-header h3 { margin: 0; font: 600 15px/1.2 'Inter', sans-serif; letter-spacing: -.005em; }
+.card-header .sub { font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+.card-header .right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
