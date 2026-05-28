@@ -21,12 +21,14 @@ class StoreInvoiceRequest extends FormRequest
             'type' => ['required', Rule::in(['subscription', 'service'])],
             'issue_date' => ['required', 'date'],
             'due_date' => ['required', 'date', 'after_or_equal:issue_date'],
-            'vat_rate' => ['required', 'numeric', 'between:0,100'],
-            'notes' => ['nullable', 'string', 'max:5000'],
-            'lines' => ['required', 'array', 'min:1'],
+            'vat_rate' => ['required', Rule::in([0, 5, 20])],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'lines' => ['required', 'array', 'min:1', 'max:20'],
             'lines.*.description' => ['required', 'string', 'max:500'],
-            'lines.*.quantity' => ['required', 'numeric', 'gt:0'],
-            'lines.*.unit_price' => ['required', 'numeric', 'gte:0'],
+            'lines.*.note' => ['nullable', 'string', 'max:500'],
+            'lines.*.quantity' => ['required', 'numeric', 'min:0.001', 'max:9999'],
+            'lines.*.unit_price' => ['required', 'numeric', 'min:0', 'max:999999'],
+            'send_after_create' => ['nullable', 'boolean'],
         ];
     }
 }

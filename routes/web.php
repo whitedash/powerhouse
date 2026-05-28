@@ -43,6 +43,7 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
     Route::delete('/customers/{id}/archive', [InternalCustomerController::class, 'archive'])->name('internal.customers.archive');
 
     Route::get('/invoices/new', [InternalInvoiceController::class, 'create'])->name('internal.invoices.create');
+    Route::post('/invoices', [InternalInvoiceController::class, 'store'])->name('internal.invoices.store');
     Route::get('/invoices/{id}', [InternalInvoiceController::class, 'show'])->name('internal.invoices.show');
     Route::post('/invoices/{id}/mark-paid', [InternalInvoiceController::class, 'markPaid'])->name('internal.invoices.mark-paid');
     Route::post('/invoices/{id}/void', [InternalInvoiceController::class, 'voidInvoice'])->name('internal.invoices.void');

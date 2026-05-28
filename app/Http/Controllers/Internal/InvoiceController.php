@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Internal;
 
 use App\Events\PaginatedListAccessed;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreInvoiceRequest;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\InvoiceLine;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -149,11 +151,119 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         Gate::authorize('create', Invoice::class);
 
-        return Inertia::render('Internal/Invoices/Create');
+        $today = Carbon::today();
+
+        $customers = Customer::whereNull('archived_at')
+            ->with('primaryContact:id,customer_id,email')
+            ->orderBy('name')
+            ->get(['id', 'name', 'city', 'country', 'created_at'])
+            ->map(fn (Customer $c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'city' => $c->city,
+                'country' => $c->country,
+                'billing_email' => $c->primaryContact?->email,
+                'created_at' => $c->created_at?->toIso8601String(),
+            ])
+            ->values();
+
+        return Inertia::render('Internal/Invoices/Create', [
+            'customers' => $customers,
+            'billing_entities' => BillingEntity::where('is_active', true)
+                ->orderBy('name')
+                ->get([
+                    'id', 'name', 'legal_name', 'company_number', 'vat_number',
+                    'address', 'bank_name', 'sort_code', 'account_number',
+                    'account_name', 'postmark_sender_email',
+                ]),
+            'next_number' => $this->previewNextInvoiceNumber(),
+            'today' => $today->toDateString(),
+            'default_due_date' => $today->copy()->addDays(14)->toDateString(),
+            'vat_rates' => [0, 5, 20],
+            'payment_terms' => ['Net 7', 'Net 14', 'Net 30', 'Due on receipt'],
+            'types' => self::TYPES,
+            'preselected_customer_id' => $request->query('customer_id')
+                ? (int) $request->query('customer_id')
+                : null,
+        ]);
+    }
+
+    public function store(StoreInvoiceRequest $request): RedirectResponse
+    {
+        Gate::authorize('create', Invoice::class);
+
+        $data = $request->validated();
+        $sendAfter = (bool) ($data['send_after_create'] ?? false);
+
+        $invoice = DB::transaction(function () use ($data, $request, $sendAfter) {
+            // Pessimistic-lock the latest INV-#### row so two simultaneous
+            // creates can't both claim the same number. The lock holds for
+            // the rest of the transaction.
+            $number = $this->generateNextInvoiceNumberLocked();
+
+            $lines = collect($data['lines']);
+            $subtotal = $lines->reduce(
+                fn (float $carry, array $l) => $carry + round((float) $l['quantity'] * (float) $l['unit_price'], 2),
+                0.0,
+            );
+            $vatRate = (float) $data['vat_rate'];
+            $vatAmount = round($subtotal * ($vatRate / 100), 2);
+            $total = round($subtotal + $vatAmount, 2);
+
+            $invoice = Invoice::create([
+                'number' => $number,
+                'customer_id' => $data['customer_id'],
+                'billing_entity_id' => $data['billing_entity_id'],
+                'type' => $data['type'],
+                'status' => $sendAfter ? 'sent' : 'draft',
+                'subtotal' => $subtotal,
+                'vat_rate' => $vatRate,
+                'vat_amount' => $vatAmount,
+                'total' => $total,
+                'amount_paid' => 0,
+                'issue_date' => $data['issue_date'],
+                'due_date' => $data['due_date'],
+                'notes' => $data['notes'] ?? null,
+                'sent_at' => $sendAfter ? now() : null,
+                'created_by' => $request->user()->id,
+            ]);
+
+            foreach ($data['lines'] as $i => $line) {
+                InvoiceLine::create([
+                    'invoice_id' => $invoice->id,
+                    'description' => $line['description'],
+                    'note' => $line['note'] ?? null,
+                    'quantity' => (float) $line['quantity'],
+                    'unit_price' => (float) $line['unit_price'],
+                    'amount' => round((float) $line['quantity'] * (float) $line['unit_price'], 2),
+                    'sort_order' => $i,
+                ]);
+            }
+
+            $this->logActivity($request, 'invoice.created', $invoice, after: [
+                'number' => $number,
+                'total' => $total,
+                'customer_id' => $data['customer_id'],
+            ]);
+
+            if ($sendAfter) {
+                $this->logActivity($request, 'invoice.sent', $invoice, after: ['number' => $number]);
+            }
+
+            // Outstanding count changes for any new sent invoice; draft
+            // doesn't affect the badge but the cache key cost is trivial.
+            Cache::forget('nav.invoices_outstanding');
+
+            return $invoice;
+        });
+
+        return redirect()
+            ->route('internal.invoices.show', $invoice->id)
+            ->with('success', "Invoice {$invoice->number} created successfully.");
     }
 
     public function show(int $id): Response
@@ -352,6 +462,38 @@ class InvoiceController extends Controller
         });
 
         return back()->with('success', 'Invoice marked as sent. Email delivery will be added in a future sprint.');
+    }
+
+    /**
+     * Read-only preview of the next INV-#### number for the create form.
+     * The authoritative number is assigned inside the store() transaction.
+     */
+    private function previewNextInvoiceNumber(): string
+    {
+        $last = Invoice::where('number', 'like', 'INV-%')
+            ->orderByDesc('id')
+            ->value('number');
+
+        $seq = $last ? ((int) substr($last, -4)) + 1 : 1;
+
+        return 'INV-'.str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Hot path during store(): pessimistic-lock the latest INV-#### row,
+     * derive the next number, return it. Must be called inside an open
+     * DB::transaction so the lock survives until COMMIT.
+     */
+    private function generateNextInvoiceNumberLocked(): string
+    {
+        $last = Invoice::where('number', 'like', 'INV-%')
+            ->orderByDesc('id')
+            ->lockForUpdate()
+            ->value('number');
+
+        $seq = $last ? ((int) substr($last, -4)) + 1 : 1;
+
+        return 'INV-'.str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
     }
 
     private function buildSummary(): array
