@@ -723,7 +723,7 @@ function discard() {
                             </button>
                             <a
                                 v-if="isEdit"
-                                :href="`/invoices/${invoice.id}/pdf`"
+                                :href="`/invoices/${invoice.id}/preview-pdf`"
                                 target="_blank"
                                 rel="noopener"
                                 class="preview-link"
@@ -731,7 +731,13 @@ function discard() {
                                 <IconEye :size="15" stroke-width="1.75" />
                                 Preview PDF
                             </a>
-                            <button v-else type="button" class="preview-link">
+                            <button
+                                v-else
+                                type="button"
+                                class="preview-link disabled"
+                                disabled
+                                title="Save the invoice first to preview PDF"
+                            >
                                 <IconEye :size="15" stroke-width="1.75" />
                                 Preview PDF
                             </button>

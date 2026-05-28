@@ -21,6 +21,27 @@ class InvoiceController extends Controller
 
     public function downloadPdf(int $id, Request $request): \Symfony\Component\HttpFoundation\Response
     {
+        [$invoice, $portalUser] = $this->loadInvoiceForPdf($id);
+        $this->logActivity($request, 'invoice.pdf_downloaded', $invoice, $portalUser);
+
+        return $this->buildPdf($invoice)->download('invoice-'.$invoice->number.'.pdf');
+    }
+
+    public function previewPdf(int $id, Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        [$invoice, $portalUser] = $this->loadInvoiceForPdf($id);
+        $this->logActivity($request, 'invoice.pdf_previewed', $invoice, $portalUser);
+
+        // ->stream() emits Content-Disposition: inline so the browser
+        // opens the PDF in a new tab instead of forcing a download.
+        return $this->buildPdf($invoice)->stream('invoice-'.$invoice->number.'.pdf');
+    }
+
+    /**
+     * @return array{0: Invoice, 1: PortalUser}
+     */
+    private function loadInvoiceForPdf(int $id): array
+    {
         /** @var PortalUser|null $portalUser */
         $portalUser = Auth::guard('portal')->user();
         abort_unless($portalUser instanceof PortalUser, 401);
@@ -38,24 +59,35 @@ class InvoiceController extends Controller
             ->where('customer_id', $portalUser->customer_id)
             ->findOrFail($id);
 
-        $address = $invoice->billingEntity->address ?? [];
+        return [$invoice, $portalUser];
+    }
 
+    private function buildPdf(Invoice $invoice): \Barryvdh\DomPDF\PDF
+    {
+        return Pdf::loadView('pdf.invoice', [
+            'invoice' => $invoice,
+            'address' => $invoice->billingEntity->address ?? [],
+            'billing_email' => $invoice->customer?->primaryContact?->email,
+        ])
+            ->setPaper('a4', 'portrait')
+            ->setOptions([
+                'dpi' => 96,
+                'defaultFont' => 'Arial',
+                'isRemoteEnabled' => false,
+                'isPhpEnabled' => false,
+            ]);
+    }
+
+    private function logActivity(Request $request, string $action, Invoice $invoice, PortalUser $portalUser): void
+    {
         ActivityLog::create([
             'user_id' => $portalUser->id,
             'user_role' => 'portal',
-            'action' => 'invoice.pdf_downloaded',
+            'action' => $action,
             'entity_type' => 'invoice',
             'entity_id' => $invoice->id,
             'ip_address' => $request->ip(),
             'user_agent' => substr((string) $request->userAgent(), 0, 500),
         ]);
-
-        $pdf = Pdf::loadView('pdf.invoice', [
-            'invoice' => $invoice,
-            'address' => $address,
-            'billing_email' => $invoice->customer?->primaryContact?->email,
-        ])->setPaper('a4', 'portrait');
-
-        return $pdf->download('invoice-'.$invoice->number.'.pdf');
     }
 }

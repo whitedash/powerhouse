@@ -344,6 +344,24 @@ class InvoiceController extends Controller
 
     public function downloadPdf(int $id, Request $request): \Symfony\Component\HttpFoundation\Response
     {
+        $invoice = $this->loadInvoiceForPdf($id);
+        $this->logActivity($request, 'invoice.pdf_downloaded', $invoice);
+
+        return $this->buildPdf($invoice)->download('invoice-'.$invoice->number.'.pdf');
+    }
+
+    public function previewPdf(int $id, Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $invoice = $this->loadInvoiceForPdf($id);
+        $this->logActivity($request, 'invoice.pdf_previewed', $invoice);
+
+        // ->stream() emits Content-Disposition: inline so the browser
+        // opens the PDF in a new tab instead of forcing a download.
+        return $this->buildPdf($invoice)->stream('invoice-'.$invoice->number.'.pdf');
+    }
+
+    private function loadInvoiceForPdf(int $id): Invoice
+    {
         $invoice = Invoice::with([
             'customer',
             'customer.primaryContact',
@@ -353,17 +371,26 @@ class InvoiceController extends Controller
 
         Gate::authorize('view', $invoice);
 
-        $address = $invoice->billingEntity->address ?? [];
+        return $invoice;
+    }
 
-        $this->logActivity($request, 'invoice.pdf_downloaded', $invoice);
-
-        $pdf = Pdf::loadView('pdf.invoice', [
+    private function buildPdf(Invoice $invoice): \Barryvdh\DomPDF\PDF
+    {
+        return Pdf::loadView('pdf.invoice', [
             'invoice' => $invoice,
-            'address' => $address,
+            'address' => $invoice->billingEntity->address ?? [],
             'billing_email' => $invoice->customer?->primaryContact?->email,
-        ])->setPaper('a4', 'portrait');
-
-        return $pdf->download('invoice-'.$invoice->number.'.pdf');
+        ])
+            ->setPaper('a4', 'portrait')
+            // 96 DPI gives dompdf a larger pixel canvas (794×1123 vs the
+            // default 595×842 at 72 DPI), which reduces rounding clip on
+            // wide columns. defaultFont must match what the blade declares.
+            ->setOptions([
+                'dpi' => 96,
+                'defaultFont' => 'Arial',
+                'isRemoteEnabled' => false,
+                'isPhpEnabled' => false,
+            ]);
     }
 
     public function store(StoreInvoiceRequest $request): RedirectResponse

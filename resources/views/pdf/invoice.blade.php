@@ -88,9 +88,13 @@
 <meta charset="UTF-8">
 <title>Invoice {{ $invoice->number }} — {{ $entity?->name }}</title>
 <style>
+  /* dompdf honours @page margin and applies it as the printable area;
+     keep .page free of fixed height so content flows naturally onto
+     one page without an absolute footer and without padding it past
+     the printable surface (which used to trigger a blank page 2). */
   @page {
-    size: A4;
-    margin: 0;
+    size: A4 portrait;
+    margin: 18mm;
   }
   * {
     margin: 0;
@@ -102,14 +106,20 @@
     color: #0F172A;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 11px;
-    line-height: 1.5;
+    line-height: 1.45;
   }
   .page {
-    width: 210mm;
-    height: 297mm;
     background: #FFFFFF;
-    padding: 20mm;
-    position: relative;
+  }
+
+  .no-break {
+    page-break-inside: avoid;
+  }
+  .clearfix {
+    clear: both;
+    display: block;
+    line-height: 0;
+    font-size: 0;
   }
 
   /* ---- generic helpers ---- */
@@ -119,9 +129,6 @@
     color: #94A3B8;
     letter-spacing: 2px;
     text-transform: uppercase;
-  }
-  .clear {
-    clear: both;
   }
   table {
     border-collapse: collapse;
@@ -169,10 +176,10 @@
     color: #F59E0B;
   }
   .invoice-word {
-    font-size: 36px;
+    font-size: 30px;
     font-weight: bold;
     color: #0F172A;
-    letter-spacing: 4px;
+    letter-spacing: 3px;
     line-height: 1;
   }
   .invoice-num {
@@ -196,7 +203,7 @@
   .divider {
     border: none;
     border-top: 2px solid #F59E0B;
-    margin: 20px 0;
+    margin: 14px 0;
   }
 
   /* ---- billing grid ---- */
@@ -207,7 +214,7 @@
   }
   .billing-grid td {
     vertical-align: top;
-    padding: 16px;
+    padding: 12px 14px;
   }
   .billing-grid .col-name {
     font-size: 13px;
@@ -236,11 +243,16 @@
     margin-top: 3px;
   }
 
-  /* ---- line items ---- */
+  /* ---- line items ----
+     table-layout: fixed forces dompdf to honour declared column widths
+     rather than auto-shrinking the rightmost (Amount) column when the
+     description text is long. <colgroup> below the table also adds an
+     explicit-width belt. */
   .items {
     width: 100%;
-    margin-top: 28px;
+    margin-top: 20px;
     border: none;
+    table-layout: fixed;
   }
   .items thead th {
     background: #F1F5F9;
@@ -251,15 +263,16 @@
     letter-spacing: 1.5px;
     text-transform: uppercase;
     text-align: left;
-    padding: 9px 10px;
+    padding: 8px 10px;
   }
   .items thead th.right {
     text-align: right;
   }
   .items tbody td {
     border-bottom: 1px solid #EEF2F7;
-    padding: 12px 10px;
+    padding: 10px 10px;
     vertical-align: top;
+    word-wrap: break-word;
   }
   .items tbody tr.even td {
     background: #FAFBFC;
@@ -292,14 +305,16 @@
   .totals-table {
     width: 100%;
     border: none;
-    margin-top: 18px;
+    margin-top: 14px;
+    table-layout: fixed;
   }
   .totals-inner {
     width: 100%;
     border: none;
+    table-layout: fixed;
   }
   .totals-inner td {
-    padding: 6px 10px;
+    padding: 5px 10px;
     font-size: 12px;
     color: #64748B;
   }
@@ -346,14 +361,14 @@
     background: #F8FAFC;
     border: 1px solid #E2E8F0;
     border-left: 4px solid #F59E0B;
-    padding: 16px;
-    margin-top: 24px;
+    padding: 12px 14px;
+    margin-top: 18px;
   }
   .notes-box {
     background: #F8FAFC;
     border: 1px solid #E2E8F0;
-    padding: 16px;
-    margin-top: 16px;
+    padding: 12px 14px;
+    margin-top: 12px;
   }
   .pay-detail-table {
     width: 100%;
@@ -393,14 +408,16 @@
     margin-top: 8px;
   }
 
-  /* ---- footer ---- */
+  /* ---- footer ----
+     Rendered inline (was previously position: absolute bottom: 20mm,
+     which together with .page { height: 297mm } caused content to
+     collide with the page edge and tip onto a blank second page). */
   .footer {
-    position: absolute;
-    left: 20mm;
-    right: 20mm;
-    bottom: 20mm;
+    width: 100%;
     border-top: 1px solid #E2E8F0;
-    padding-top: 12px;
+    margin-top: 20px;
+    padding-top: 10px;
+    table-layout: fixed;
   }
   .footer td {
     font-size: 10px;
@@ -417,16 +434,24 @@
   <div class="page">
 
     <!-- ============ HEADER ============ -->
-    <table class="header-table">
+    <table class="header-table no-break" width="100%" cellpadding="0" cellspacing="0">
+      <colgroup>
+        <col style="width: 55%;">
+        <col style="width: 45%;">
+      </colgroup>
       <tbody><tr>
         <!-- FROM / brand -->
-        <td style="width: 58%;">
-          <table style="border: none;">
+        <td width="55%" valign="top">
+          <table width="100%" cellpadding="0" cellspacing="0" style="border: none;">
+            <colgroup>
+              <col style="width: 52px;">
+              <col>
+            </colgroup>
             <tbody><tr>
-              <td style="vertical-align: top; padding-right: 12px;">
+              <td width="52" valign="top" style="padding-right: 12px;">
                 <div class="brand-mark">W</div>
               </td>
-              <td style="vertical-align: top;">
+              <td valign="top">
                 <div class="company-name">{{ $entity?->name }}</div>
                 @if($entityMetaLine)
                   <div class="meta-line">{{ $entityMetaLine }}</div>
@@ -435,9 +460,7 @@
             </tr>
           </tbody></table>
           @if($entityAddressLine)
-            <div class="address">
-              {{ $entityAddressLine }}
-            </div>
+            <div class="address">{{ $entityAddressLine }}</div>
           @endif
           @if($entity?->postmark_sender_email)
             <div class="email-gold">{{ $entity->postmark_sender_email }}</div>
@@ -445,20 +468,26 @@
         </td>
 
         <!-- INVOICE / status -->
-        <td style="width: 42%; text-align: right; vertical-align: top;">
+        <td width="45%" valign="top" align="right">
           <div class="invoice-word">INVOICE</div>
           <div class="invoice-num">{{ $invoice->number }}</div>
           <div><span class="status-badge" style="background: {{ $sc['bg'] }}; color: {{ $sc['fg'] }}; border: 1px solid {{ $sc['border'] }};">{{ $statusLabel }}</span></div>
         </td>
       </tr>
     </tbody></table>
+    <div class="clearfix"></div>
 
     <hr class="divider">
 
     <!-- ============ BILLING GRID ============ -->
-    <table class="billing-grid">
+    <table class="billing-grid no-break" width="100%" cellpadding="0" cellspacing="0" style="table-layout: fixed;">
+      <colgroup>
+        <col style="width: 40%;">
+        <col style="width: 30%;">
+        <col style="width: 30%;">
+      </colgroup>
       <tbody><tr>
-        <td style="width: 40%;">
+        <td width="40%" valign="top">
           <div class="label">Bill To</div>
           <div class="col-name">{{ $customer?->name ?? '—' }}</div>
           @if($contactName || $customerAddressLine)
@@ -472,7 +501,7 @@
             <div class="email-gold" style="margin-top: 4px;">{{ $billing_email }}</div>
           @endif
         </td>
-        <td style="width: 30%;">
+        <td width="30%" valign="top">
           <div class="pair">
             <div class="label">Invoice Date</div>
             <div class="val">{{ $issueDate ?? '—' }}</div>
@@ -482,7 +511,7 @@
             <div class="val">{{ $dueDate ?? '—' }}</div>
           </div>
         </td>
-        <td style="width: 30%;">
+        <td width="30%" valign="top">
           <div class="pair">
             <div class="label">Payment Ref</div>
             <div class="val-mono">{{ $invoice->number }}</div>
@@ -496,38 +525,52 @@
     </tbody></table>
 
     <!-- ============ LINE ITEMS ============ -->
-    <table class="items">
+    <table class="items" width="100%" cellpadding="0" cellspacing="0">
+      <colgroup>
+        <col style="width: 55%;">
+        <col style="width: 10%;">
+        <col style="width: 17%;">
+        <col style="width: 18%;">
+      </colgroup>
       <thead>
         <tr>
-          <th style="width: 58%;">Description</th>
-          <th class="right" style="width: 8%;">Qty</th>
-          <th class="right" style="width: 17%;">Unit Price</th>
-          <th class="right" style="width: 17%;">Amount</th>
+          <th width="55%">Description</th>
+          <th width="10%" class="right">Qty</th>
+          <th width="17%" class="right">Unit Price</th>
+          <th width="18%" class="right">Amount</th>
         </tr>
       </thead>
       <tbody>
         @foreach($invoice->lines as $i => $line)
           <tr class="{{ $i % 2 === 0 ? 'odd' : 'even' }}">
-            <td>
+            <td width="55%">
               <div class="desc">{{ $line->description }}</div>
               @if($line->note)
                 <div class="desc-note">{{ $line->note }}</div>
               @endif
             </td>
-            <td class="num">{{ rtrim(rtrim(number_format((float) $line->quantity, 3, '.', ''), '0'), '.') }}</td>
-            <td class="num">{{ $gbp($line->unit_price) }}</td>
-            <td class="amt">{{ $gbp($line->amount) }}</td>
+            <td width="10%" class="num">{{ rtrim(rtrim(number_format((float) $line->quantity, 3, '.', ''), '0'), '.') }}</td>
+            <td width="17%" class="num">{{ $gbp($line->unit_price) }}</td>
+            <td width="18%" class="amt">{{ $gbp($line->amount) }}</td>
           </tr>
         @endforeach
       </tbody>
     </table>
 
     <!-- ============ TOTALS ============ -->
-    <table class="totals-table">
+    <table class="totals-table no-break" width="100%" cellpadding="0" cellspacing="0">
+      <colgroup>
+        <col style="width: 50%;">
+        <col style="width: 50%;">
+      </colgroup>
       <tbody><tr>
-        <td style="width: 55%;"></td>
-        <td style="width: 45%;">
-          <table class="totals-inner">
+        <td width="50%"></td>
+        <td width="50%" align="right">
+          <table class="totals-inner" width="100%" cellpadding="0" cellspacing="0">
+            <colgroup>
+              <col>
+              <col style="width: 120px;">
+            </colgroup>
             <tbody><tr>
               <td class="t-label">Subtotal</td>
               <td class="t-val">{{ $gbp($subtotal) }}</td>
@@ -616,10 +659,14 @@
     @endif
 
     <!-- ============ FOOTER ============ -->
-    <table class="footer">
+    <table class="footer" width="100%" cellpadding="0" cellspacing="0">
+      <colgroup>
+        <col style="width: 50%;">
+        <col style="width: 50%;">
+      </colgroup>
       <tbody><tr>
-        <td>{{ implode(' · ', $legalParts) }}</td>
-        <td class="f-right">Generated by Powerhouse · Whitedash Holdings</td>
+        <td width="50%">{{ implode(' · ', $legalParts) }}</td>
+        <td width="50%" class="f-right">Generated by Powerhouse · Whitedash Holdings</td>
       </tr>
     </tbody></table>
 
