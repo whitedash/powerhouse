@@ -72,6 +72,25 @@ For portal-side queries, use `Customer::forPortalUser($cid)` — never
 trust an `id` from the request. For referrer-side queries, scope
 every read with `where('referrer_id', auth()->user()->referrer->id)`.
 
+## Nav badge cache keys
+Sidebar badges are notification signals, not stats. Counts are cached
+(60s TTL) and shared via `HandleInertiaRequests::share().nav`. Whenever
+a controller changes a status that could affect a badge, forget the
+relevant key — stale counts beat fresh ones for ~60s anyway, but a
+just-resolved overdue invoice should disappear *immediately* not after
+a coffee break:
+
+| Key | Trigger to forget |
+|---|---|
+| `nav.invoices_overdue` | any invoice status change |
+| `nav.invoices_outstanding` | any invoice status change |
+| `nav.support_sla_breached` | any ticket status / SLA change |
+| `nav.support_open` | any ticket status change |
+
+Rule: `Cache::forget('nav.invoices_overdue')` etc. inside the
+controller transaction *before* the response returns. Pair invoice
+keys; pair support keys.
+
 ## Restore to main rule
 Always restore to main branch before starting a new session
 unless explicitly told otherwise.

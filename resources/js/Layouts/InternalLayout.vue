@@ -50,13 +50,37 @@ const me = computed(() => {
     return { initials, name: user.name, role, avatarClass };
 });
 
-const sections = [
+/*
+ * Sidebar badges are NOT a stats panel — they're a notification system.
+ * Every badge here means "needs your attention right now." Totals belong
+ * on the dashboard KPI cards. Counts come from server-side cached
+ * queries shared via HandleInertiaRequests::share().nav.
+ */
+const nav = computed(() => page.props.nav);
+
+const invoicesBadge = computed(() => {
+    const overdue = nav.value?.invoices_overdue ?? 0;
+    const outstanding = nav.value?.invoices_outstanding ?? 0;
+    if (overdue > 0) return { count: overdue, cls: 'red' };
+    if (outstanding > 0) return { count: outstanding, cls: 'amber' };
+    return null;
+});
+
+const supportBadge = computed(() => {
+    const breached = nav.value?.support_sla_breached ?? 0;
+    const open = nav.value?.support_open ?? 0;
+    if (breached > 0) return { count: breached, cls: 'red' };
+    if (open > 0) return { count: open, cls: 'amber' };
+    return null;
+});
+
+const sections = computed(() => [
     {
         label: 'Workspace',
         items: [
             { key: 'overview',      label: 'Overview',      href: '/',           icon: IconLayoutDashboard },
-            { key: 'customers',     label: 'Customers',     href: '/customers',  icon: IconUsers,         count: '847' },
-            { key: 'invoices',      label: 'Invoices',      href: '/invoices',   icon: IconReceipt,       count: '7',  countClass: 'amber' },
+            { key: 'customers',     label: 'Customers',     href: '/customers',  icon: IconUsers },
+            { key: 'invoices',      label: 'Invoices',      href: '/invoices',   icon: IconReceipt,    badge: invoicesBadge.value },
             { key: 'subscriptions', label: 'Subscriptions', href: '#',           icon: IconCreditCard },
             { key: 'analytics',     label: 'Analytics',     href: '#',           icon: IconChartLine },
         ],
@@ -73,12 +97,12 @@ const sections = [
     {
         label: 'Account',
         items: [
-            { key: 'support',  label: 'Support',     href: '/support',  icon: IconHeadset,    count: '3', countClass: 'red' },
+            { key: 'support',  label: 'Support',     href: '/support',  icon: IconHeadset,   badge: supportBadge.value },
             { key: 'settings', label: 'Settings',    href: '/settings', icon: IconSettings },
             { key: 'help',     label: 'Help & docs', href: '#',         icon: IconHelpCircle },
         ],
     },
-];
+]);
 
 const visibleCrumbs = computed(() => props.breadcrumbs ?? []);
 const lastCrumbIndex = computed(() => visibleCrumbs.value.length - 1);
@@ -111,10 +135,10 @@ function logout() {
                     <component :is="item.icon" :size="18" stroke-width="1.75" />
                     <span>{{ item.label }}</span>
                     <span
-                        v-if="item.count"
+                        v-if="item.badge"
                         class="count"
-                        :class="item.countClass"
-                    >{{ item.count }}</span>
+                        :class="item.badge.cls"
+                    >{{ item.badge.count }}</span>
                 </Link>
             </template>
 
