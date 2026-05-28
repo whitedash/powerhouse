@@ -7,7 +7,7 @@
    `php artisan db:show --table=TABLE_NAME`
 
 ## Stack
-- Laravel 11 + Inertia.js + Vue 3 + Vite + Tailwind
+- Laravel 13 + Inertia.js + Vue 3 + Vite + Tailwind v4
 - Laravel Passport (OAuth 2.0 server)
 - MySQL
 
@@ -20,7 +20,7 @@
   Never hardcode hex values.
 
 ## Design system
-All UI must reference the CSS variables in resources/js/app.css.
+All UI must reference the CSS variables in resources/css/app.css.
 The 16 screen HTML files in /design are the source of truth
 for every layout, component, and interaction pattern.
 

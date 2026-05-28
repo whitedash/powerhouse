@@ -1,0 +1,1410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Powerhouse — Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg-navy: #0F172A;
+    --accent: #F59E0B;
+    --content-bg: #F8FAFC;
+    --card-bg: #FFFFFF;
+    --border: #E2E8F0;
+    --border-soft: #EEF2F7;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+    --info: #3B82F6;
+
+    --success-bg: #ECFDF5;
+    --danger-bg:  #FEF2F2;
+    --warning-bg: #FFFBEB;
+    --info-bg:    #EFF6FF;
+    --neutral-bg: #F1F5F9;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.05);
+    --shadow-md: 0 4px 12px -2px rgba(15,23,42,.08), 0 1px 3px rgba(15,23,42,.04);
+    --shadow-lg: 0 24px 48px -12px rgba(15,23,42,.18), 0 2px 4px rgba(15,23,42,.04);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 400 14px/1.5 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: #E5E9F0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ─── Artboard / shell ──────────────────────────── */
+  .app {
+    width: 1440px;
+    margin: 0 auto;
+    background: var(--content-bg);
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 980px;
+  }
+
+  /* ─── Sidebar ───────────────────────────────────── */
+  .sidebar {
+    background: var(--bg-navy);
+    color: #fff;
+    padding: 20px 14px 16px;
+    display: flex; flex-direction: column;
+    gap: 2px;
+    position: sticky; top: 0;
+    height: 100vh;
+    min-height: 980px;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 10px 18px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    margin-bottom: 14px;
+  }
+  .brand-mark {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), #FBBF24);
+    display: grid; place-items: center;
+    color: var(--bg-navy);
+    font: 700 14px/1 'Inter', sans-serif;
+    box-shadow: 0 2px 6px rgba(245,158,11,.35);
+  }
+  .logo-name { font: 600 15px/1.1 'Inter', sans-serif; letter-spacing: -.01em; }
+  .logo-sub  { font: 500 10px/1 'Inter', sans-serif; color: rgba(255,255,255,.45); letter-spacing: .12em; text-transform: uppercase; margin-top: 3px; }
+
+  .nav-section {
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .14em;
+    color: rgba(255,255,255,.35);
+    padding: 14px 10px 6px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 11px;
+    padding: 8px 10px;
+    color: rgba(255,255,255,.7);
+    font: 500 13.5px/1.2 'Inter', sans-serif; letter-spacing: -.005em;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background .12s, color .12s;
+    position: relative;
+  }
+  .nav-item .ti { font-size: 18px; }
+  .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .nav-item.active {
+    background: rgba(245,158,11,.14);
+    color: var(--accent);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+  .nav-item .count {
+    margin-left: auto;
+    font: 600 11px/1 'Inter', sans-serif;
+    background: rgba(255,255,255,.1);
+    color: rgba(255,255,255,.7);
+    padding: 3px 7px;
+    border-radius: 999px;
+  }
+  .nav-item.active .count { background: rgba(245,158,11,.22); color: var(--accent); }
+  .count.amber { background: rgba(245,158,11,.18); color: #FCD34D; }
+  .count.red   { background: rgba(239,68,68,.2);  color: #FCA5A5; }
+  .sidebar-spacer { flex: 1; }
+  .sidebar-user {
+    margin-top: 12px;
+    padding: 12px 10px;
+    border-top: 1px solid rgba(255,255,255,.08);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .avatar {
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: #fff;
+    font: 600 12px/1 'Inter', sans-serif; letter-spacing: -.01em;
+    flex-shrink: 0;
+  }
+  .av-1 { background: linear-gradient(135deg, #6366F1, #8B5CF6); }
+  .av-2 { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-3 { background: linear-gradient(135deg, #10B981, #059669); }
+  .av-4 { background: linear-gradient(135deg, #EF4444, #DB2777); }
+  .av-5 { background: linear-gradient(135deg, #3B82F6, #06B6D4); }
+  .av-6 { background: linear-gradient(135deg, #0EA5E9, #6366F1); }
+  .av-7 { background: linear-gradient(135deg, #14B8A6, #06B6D4); }
+  .av-admin { background: linear-gradient(135deg, #1E293B, #475569); border: 1px solid rgba(245,158,11,.4); }
+  .av-icon { background: var(--neutral-bg); color: var(--text-secondary); }
+  .sidebar-user .avatar { width: 32px; height: 32px; font-size: 11px; }
+  .sidebar-user .name { font: 500 13px/1.2 'Inter', sans-serif; color: #fff; letter-spacing: -.005em; }
+  .sidebar-user .role { font: 400 11px/1.2 'Inter', sans-serif; color: rgba(255,255,255,.45); margin-top: 2px; }
+  .sidebar-user .dots {
+    margin-left: auto;
+    color: rgba(255,255,255,.4);
+    cursor: pointer;
+  }
+
+  /* ─── Main area ─────────────────────────────────── */
+  .main {
+    display: flex; flex-direction: column;
+    min-width: 0;
+  }
+  .topbar {
+    height: 64px;
+    border-bottom: 1px solid var(--border);
+    background: #fff;
+    padding: 0 24px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .breadcrumb {
+    display: flex; align-items: center; gap: 6px;
+    font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary);
+  }
+  .breadcrumb .sep { color: var(--text-tertiary); }
+  .breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+  .topbar-title { font: 600 20px/1.2 'Inter', sans-serif; letter-spacing: -.01em; margin-top: 2px; }
+  .topbar-search {
+    margin-left: auto;
+    position: relative;
+    width: 320px;
+  }
+  .topbar-search input {
+    width: 100%; height: 36px;
+    border: 1px solid transparent;
+    background: var(--content-bg);
+    border-radius: var(--radius-md);
+    padding: 0 38px 0 34px;
+    font: 400 13px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: 0;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+  .topbar-search input::placeholder { color: var(--text-tertiary); }
+  .topbar-search input:focus {
+    background: #fff;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(245,158,11,.18);
+  }
+  .topbar-search .ti {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--text-tertiary); font-size: 18px;
+  }
+  .topbar-search .kbd {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    font: 500 10px/1 'JetBrains Mono', monospace;
+    color: var(--text-tertiary);
+    border: 1px solid var(--border);
+    background: #fff;
+    padding: 3px 5px;
+    border-radius: 4px;
+  }
+  .bell-btn {
+    position: relative;
+    width: 36px; height: 36px;
+    border-radius: var(--radius-md);
+    display: grid; place-items: center;
+    color: var(--text-secondary);
+    background: transparent; border: 0; cursor: pointer;
+    transition: background .12s;
+  }
+  .bell-btn:hover { background: var(--neutral-bg); }
+  .bell-btn .ti { font-size: 20px; }
+  .bell-btn::after {
+    content: ""; position: absolute;
+    top: 8px; right: 8px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--danger);
+    border: 2px solid #fff;
+  }
+  .avatar-wrap {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 10px 4px 4px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .avatar-wrap:hover { background: var(--neutral-bg); }
+  .avatar-wrap .avatar { width: 30px; height: 30px; font-size: 11px; }
+  .avatar-wrap .name { font: 500 13px/1.2 'Inter', sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .avatar-wrap .role { font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+  .topbar .divider { width: 1px; height: 28px; background: var(--border); }
+
+  /* ─── Content ───────────────────────────────────── */
+  .content {
+    padding: 24px;
+    display: flex; flex-direction: column;
+    gap: 20px;
+  }
+
+  /* Greeting line */
+  .greet {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .greet h1 {
+    margin: 0;
+    font: 700 24px/1.2 'Inter', sans-serif; letter-spacing: -.015em;
+  }
+  .greet .sub { font: 400 13px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 4px; }
+  .greet-actions { display: flex; gap: 10px; }
+
+  /* ─── Buttons ───────────────────────────────────── */
+  .btn {
+    appearance: none; border: 0; cursor: pointer;
+    font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em;
+    padding: 0 14px; height: 34px;
+    border-radius: var(--radius-md);
+    display: inline-flex; align-items: center; gap: 7px;
+    transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
+    white-space: nowrap;
+  }
+  .btn .ti { font-size: 15px; }
+  .btn-primary   { background: var(--accent); color: var(--bg-navy); font-weight: 600; box-shadow: 0 1px 2px rgba(245,158,11,.3); }
+  .btn-primary:hover { background: #E08C09; }
+  .btn-secondary { background: #fff; color: var(--text-primary); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .btn-secondary:hover { background: var(--neutral-bg); border-color: #CBD5E1; }
+  .btn-ghost     { background: transparent; color: var(--text-primary); }
+  .btn-ghost:hover { background: var(--neutral-bg); }
+  .btn-link      { background: transparent; color: var(--text-primary); font-weight: 500; padding: 0 4px; height: auto; }
+  .btn-link:hover { color: var(--accent); }
+  .btn-sm { height: 28px; padding: 0 10px; font-size: 12px; border-radius: var(--radius-sm); }
+
+  /* ─── Badges ────────────────────────────────────── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font: 500 11.5px/1.4 'Inter', sans-serif; letter-spacing: -.005em;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge-active   { color: #047857; background: var(--success-bg); border-color: #A7F3D0; }
+  .badge-inactive { color: #475569; background: var(--neutral-bg); border-color: #E2E8F0; }
+  .badge-pending  { color: #B45309; background: var(--warning-bg); border-color: #FDE68A; }
+  .badge-overdue  { color: #B91C1C; background: var(--danger-bg); border-color: #FECACA; }
+  .badge-trial    { color: #1D4ED8; background: var(--info-bg); border-color: #BFDBFE; }
+  .badge-soon     { color: #64748B; background: var(--neutral-bg); border-color: #E2E8F0; }
+  .badge-soon::before { background: #94A3B8; }
+
+  .pill {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--neutral-bg);
+    color: var(--text-secondary);
+    font: 500 11px/1.4 'Inter', sans-serif; letter-spacing: -.005em;
+  }
+
+  /* ─── KPI cards ─────────────────────────────────── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+  }
+  .kpi {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px 14px;
+    box-shadow: var(--shadow-sm);
+    display: flex; flex-direction: column;
+    gap: 14px;
+    min-height: 134px;
+    position: relative;
+  }
+  .kpi-top { display: flex; align-items: flex-start; justify-content: space-between; }
+  .kpi-icon {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-md);
+    display: grid; place-items: center;
+    background: rgba(245,158,11,.12);
+    color: #B45309;
+    font-size: 18px;
+  }
+  .kpi-value {
+    font: 700 28px/1.1 'Inter', sans-serif;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .kpi-value .unit { font: 600 16px/1 'Inter', sans-serif; color: var(--text-secondary); margin-left: 2px; }
+  .kpi-label {
+    font: 500 11px/1.2 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .12em;
+    color: var(--text-secondary);
+    margin-top: -8px;
+  }
+  .kpi-mid { display: flex; flex-direction: column; gap: 4px; }
+  .kpi-foot {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: auto;
+  }
+  .trend-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 7px;
+    border-radius: 6px;
+    font: 600 11.5px/1 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .trend-pill.up    { background: var(--success-bg); color: #047857; }
+  .trend-pill.down  { background: var(--danger-bg);  color: #B91C1C; }
+  .trend-pill.warn  { background: var(--warning-bg); color: #B45309; }
+  .trend-pill.red   { background: var(--danger-bg);  color: #B91C1C; }
+  .trend-pill .ti { font-size: 13px; }
+  .kpi-sub { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary); }
+
+  /* ─── Main grid ─────────────────────────────────── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1.857fr 1fr; /* ≈ 65/35 */
+    gap: 16px;
+    align-items: start;
+  }
+  .col { display: flex; flex-direction: column; gap: 16px; }
+
+  /* ─── Card scaffolding ──────────────────────────── */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+  }
+  .card.shadow-sm { box-shadow: var(--shadow-sm); }
+  .card.attention { box-shadow: var(--shadow-md), inset 3px 0 0 var(--danger); }
+
+  .card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex; align-items: center; gap: 10px;
+    min-height: 52px;
+  }
+  .card-header .h-icon {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    background: var(--neutral-bg);
+    color: var(--text-secondary);
+    display: grid; place-items: center;
+    font-size: 16px;
+  }
+  .card-header .h-icon.gold { background: rgba(245,158,11,.12); color: #B45309; }
+  .card-header .h-icon.red  { background: var(--danger-bg);  color: var(--danger); }
+  .card-header h3 { margin: 0; font: 600 15px/1.2 'Inter', sans-serif; letter-spacing: -.005em; }
+  .card-header .sub { font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+  .card-header .right { margin-left: auto; display: flex; align-items: center; gap: 10px; font: 400 12px/1.2 'Inter', sans-serif; color: var(--text-tertiary); }
+
+  /* ─── Products panel ────────────────────────────── */
+  .prod-table { padding: 0; }
+  .prod-row {
+    display: grid;
+    grid-template-columns: 44px 1fr 140px 130px 110px 76px;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-soft);
+    transition: background .12s;
+  }
+  .prod-row:last-child { border-bottom: 0; }
+  .prod-row:hover { background: #FBFCFE; }
+  .prod-row.soon { opacity: .82; }
+  .prod-logo {
+    width: 36px; height: 36px;
+    border-radius: 9px;
+    display: grid; place-items: center;
+    color: #fff;
+    font: 700 14px/1 'Inter', sans-serif;
+  }
+  .prod-logo.maa { background: linear-gradient(135deg, #F59E0B, #F97316); color: var(--bg-navy); box-shadow: 0 1px 4px rgba(245,158,11,.3); }
+  .prod-logo.mop { background: linear-gradient(135deg, #14B8A6, #06B6D4); }
+  .prod-logo.wdb { background: linear-gradient(135deg, #6366F1, #8B5CF6); }
+  .prod-logo.sms { background: var(--neutral-bg); color: var(--text-secondary); border: 1px dashed var(--border); }
+  .prod-meta .pname { font: 600 14px/1.3 'Inter', sans-serif; letter-spacing: -.005em; }
+  .prod-meta .pdesc { font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+  .prod-stat {
+    font: 500 13px/1.3 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .prod-stat .sub { display: block; font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+  .prod-row .view-link {
+    justify-self: end;
+    font: 500 12.5px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    text-decoration: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    transition: background .12s, color .12s;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .prod-row .view-link:hover { background: var(--neutral-bg); color: var(--accent); }
+
+  /* ─── Activity panel ────────────────────────────── */
+  .activity { padding: 0; }
+  .act-row {
+    display: grid;
+    grid-template-columns: 32px 1fr auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .act-row:last-child { border-bottom: 0; }
+  .act-ic {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .act-ic.gold    { background: rgba(245,158,11,.12); color: #B45309; }
+  .act-ic.green   { background: var(--success-bg); color: var(--success); }
+  .act-ic.red     { background: var(--danger-bg);  color: var(--danger); }
+  .act-ic.blue    { background: var(--info-bg);    color: var(--info); }
+  .act-ic.neutral { background: var(--neutral-bg); color: var(--text-secondary); }
+  .act-text {
+    font: 400 13px/1.5 'Inter', sans-serif;
+    color: var(--text-primary);
+  }
+  .act-text .em { font-weight: 500; }
+  .act-text .muted { color: var(--text-secondary); }
+  .act-time {
+    font: 400 12px/1 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* ─── Attention panel ───────────────────────────── */
+  .att-list { padding: 6px 0; }
+  .att-row {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 18px;
+    border-bottom: 1px solid var(--border-soft);
+    transition: background .12s;
+  }
+  .att-row:hover { background: #FBFCFE; }
+  .att-row:last-child { border-bottom: 0; }
+  .pri-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    justify-self: center;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .pri-dot.red   { background: var(--danger);  box-shadow: 0 0 0 3px rgba(239,68,68,.15); }
+  .pri-dot.amber { background: var(--warning); box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+  .att-title { font: 500 13px/1.3 'Inter', sans-serif; letter-spacing: -.005em; }
+  .att-sub   { font: 400 11.5px/1.3 'Inter', sans-serif; color: var(--text-secondary); margin-top: 3px; }
+  .att-link {
+    font: 500 12px/1 'Inter', sans-serif;
+    color: var(--accent);
+    text-decoration: none;
+    padding: 4px 6px;
+    border-radius: 5px;
+    transition: background .12s;
+    white-space: nowrap;
+  }
+  .att-link:hover { background: var(--warning-bg); }
+  .card-foot {
+    padding: 11px 18px;
+    border-top: 1px solid var(--border-soft);
+    background: #FBFCFE;
+    display: flex; justify-content: flex-end;
+  }
+  .foot-link {
+    font: 500 12.5px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    text-decoration: none;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .foot-link:hover { color: var(--accent); }
+
+  /* ─── Tasks panel ───────────────────────────────── */
+  .tasks { padding: 4px 0; }
+  .task-row {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 18px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .task-row:last-child { border-bottom: 0; }
+  .task-row:hover { background: #FBFCFE; }
+  .cb {
+    width: 16px; height: 16px;
+    border: 1.5px solid #CBD5E1;
+    border-radius: var(--radius-sm);
+    background: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color .12s, background .12s;
+  }
+  .cb:hover { border-color: var(--accent); }
+  .cb.checked {
+    background: var(--accent); border-color: var(--accent);
+    display: grid; place-items: center;
+  }
+  .cb.checked::after {
+    content: ""; width: 8px; height: 4px;
+    border: 2px solid var(--bg-navy);
+    border-top: 0; border-right: 0;
+    transform: rotate(-45deg) translate(1px, -1px);
+  }
+  .task-text { font: 400 13px/1.4 'Inter', sans-serif; }
+  .task-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+  .due {
+    font: 500 11.5px/1 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .due.red   { color: var(--danger); }
+  .due.amber { color: #B45309; }
+  .due.muted { color: var(--text-secondary); }
+
+  /* ─── Quick stats ───────────────────────────────── */
+  .qstats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .qstat {
+    padding: 14px 18px;
+    border-right: 1px solid var(--border-soft);
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .qstat:nth-child(2n) { border-right: 0; }
+  .qstat:nth-last-child(-n+2) { border-bottom: 0; }
+  .qstat-label {
+    font: 500 11px/1.2 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .12em;
+    color: var(--text-secondary);
+  }
+  .qstat-value {
+    font: 700 20px/1.2 'Inter', sans-serif;
+    letter-spacing: -.01em;
+    font-variant-numeric: tabular-nums;
+    margin-top: 6px;
+  }
+  .qstat-value .delta {
+    font: 500 11px/1 'Inter', sans-serif;
+    margin-left: 6px;
+    color: var(--text-secondary);
+  }
+  .qstat-value .delta.good { color: var(--success); }
+  .qstat-value .delta.bad  { color: var(--danger); }
+
+  /* ─── Footer row ────────────────────────────────── */
+  .footer-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .ref-row, .ref-head {
+    display: grid;
+    grid-template-columns: 36px 1fr 110px 110px 110px;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .ref-head {
+    height: 38px;
+    padding: 0 18px;
+    background: #FBFCFE;
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--text-tertiary);
+  }
+  .ref-head > .num { text-align: right; }
+  .ref-row:last-child { border-bottom: 0; }
+  .ref-row:hover { background: #FBFCFE; }
+  .ref-name { font: 500 13.5px/1.3 'Inter', sans-serif; letter-spacing: -.005em; }
+  .ref-sub  { font: 400 11.5px/1.3 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+  .ref-num  {
+    font: 500 13px/1.3 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .ref-num .sub {
+    display: block;
+    font: 400 11px/1.2 'Inter', sans-serif;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    text-align: right;
+  }
+  .ref-num.gold { color: #B45309; }
+
+  .health-head, .health-row {
+    display: grid;
+    grid-template-columns: 1.4fr 90px 110px 130px;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+  }
+  .health-head {
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .12em;
+    color: var(--text-tertiary);
+    background: #FBFCFE;
+    border-bottom: 1px solid var(--border-soft);
+    height: 38px;
+    padding: 0 18px;
+  }
+  .health-row {
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .health-row:last-child { border-bottom: 0; }
+  .health-row:hover { background: #FBFCFE; }
+  .h-name { font: 500 13.5px/1.3 'Inter', sans-serif; letter-spacing: -.005em; display: flex; align-items: center; gap: 8px; }
+  .h-name .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 3px rgba(16,185,129,.18); }
+  .h-name .dot.neutral { background: #94A3B8; box-shadow: 0 0 0 3px rgba(148,163,184,.18); }
+  .h-uptime { font: 500 13px/1 'Inter', sans-serif; font-variant-numeric: tabular-nums; }
+  .h-checked { font: 400 12px/1 'Inter', sans-serif; color: var(--text-secondary); }
+  .h-muted { color: var(--text-tertiary); }
+
+  /* small icon-only button */
+  .icon-btn {
+    width: 28px; height: 28px;
+    display: grid; place-items: center;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border: 0; background: transparent;
+  }
+  .icon-btn:hover { background: var(--neutral-bg); color: var(--text-primary); }
+  .icon-btn .ti { font-size: 18px; }
+
+  /* status messaging in attention card */
+  .att-count {
+    background: var(--danger-bg);
+    color: #B91C1C;
+    border: 1px solid #FECACA;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font: 600 11.5px/1.4 'Inter', sans-serif;
+  }
+
+  /* ─── PRINT ─── */
+  @page {
+    size: 1488px 1640px;
+    margin: 0;
+  }
+  @media print {
+    html, body {
+      background: #fff !important;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .app {
+      width: 1440px;
+      margin: 24px auto;
+      min-height: 0;
+      box-shadow: none;
+    }
+    /* Sidebar must stop being sticky/100vh so the grid row sets its height */
+    .sidebar {
+      position: static !important;
+      top: auto !important;
+      height: auto !important;
+      min-height: 0 !important;
+    }
+    /* Prevent any element from being clipped horizontally */
+    .topbar, .content { overflow: visible !important; }
+
+    /* Keep cards from splitting if the page extends */
+    .kpi, .card, .att-row, .task-row, .prod-row, .act-row, .ref-row, .health-row {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .main-grid, .footer-row, .kpi-row {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    /* Trim the page-bottom whitespace */
+    .greet-actions .btn { box-shadow: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app" data-screen-label="01 Powerhouse Overview">
+
+  <!-- ─── Sidebar ─── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="brand-mark">W</div>
+      <div>
+        <div class="logo-name">Powerhouse</div>
+        <div class="logo-sub">Whitedash</div>
+      </div>
+    </div>
+
+    <div class="nav-section">Workspace</div>
+    <div class="nav-item active"><i class="ti ti-layout-dashboard"></i>Overview</div>
+    <div class="nav-item"><i class="ti ti-users"></i>Customers<span class="count">847</span></div>
+    <div class="nav-item"><i class="ti ti-receipt"></i>Invoices<span class="count amber">7</span></div>
+    <div class="nav-item"><i class="ti ti-credit-card"></i>Subscriptions</div>
+    <div class="nav-item"><i class="ti ti-chart-line"></i>Analytics</div>
+
+    <div class="nav-section">Products</div>
+    <div class="nav-item"><i class="ti ti-tools-kitchen-2"></i>Maavelus</div>
+    <div class="nav-item"><i class="ti ti-clipboard-list"></i>MyOrderPad</div>
+    <div class="nav-item"><i class="ti ti-building-store"></i>Whitedash B2B</div>
+    <div class="nav-item"><i class="ti ti-message-2"></i>SMScube</div>
+
+    <div class="nav-section">Account</div>
+    <div class="nav-item"><i class="ti ti-headset"></i>Support<span class="count red">3</span></div>
+    <div class="nav-item"><i class="ti ti-settings"></i>Settings</div>
+    <div class="nav-item"><i class="ti ti-help-circle"></i>Help &amp; docs</div>
+
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-user">
+      <div class="avatar av-admin">AP</div>
+      <div>
+        <div class="name">Apostolos P.</div>
+        <div class="role">Super Admin</div>
+      </div>
+      <i class="ti ti-dots dots"></i>
+    </div>
+  </aside>
+
+  <!-- ─── Main ─── -->
+  <main class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div>
+        <div class="breadcrumb"><span>Powerhouse</span><span class="sep">/</span><span>Workspace</span><span class="sep">/</span><span class="current">Overview</span></div>
+        <div class="topbar-title">Overview</div>
+      </div>
+      <div class="topbar-search">
+        <i class="ti ti-search"></i>
+        <input placeholder="Search customers, invoices, products…">
+        <span class="kbd">⌘K</span>
+      </div>
+      <button class="bell-btn" aria-label="Notifications"><i class="ti ti-bell"></i></button>
+      <div class="divider"></div>
+      <div class="avatar-wrap">
+        <div class="avatar av-admin">AP</div>
+        <div>
+          <div class="name">Apostolos P.</div>
+          <div class="role">Super Admin</div>
+        </div>
+        <i class="ti ti-chevron-down" style="color: var(--text-tertiary); font-size: 16px;"></i>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- Greeting -->
+      <div class="greet">
+        <div>
+          <h1>Good morning, Apostolos</h1>
+          <div class="sub">Wednesday, 27 May 2026 · 4 things need your attention today.</div>
+        </div>
+        <div class="greet-actions">
+          <button class="btn btn-secondary"><i class="ti ti-download"></i>Export report</button>
+          <button class="btn btn-primary"><i class="ti ti-plus"></i>New customer</button>
+        </div>
+      </div>
+
+      <!-- ─── KPI ROW ─── -->
+      <div class="kpi-row">
+
+        <div class="kpi">
+          <div class="kpi-top">
+            <div class="kpi-icon"><i class="ti ti-users"></i></div>
+          </div>
+          <div class="kpi-mid">
+            <div class="kpi-value">847</div>
+            <div class="kpi-label">Active accounts</div>
+          </div>
+          <div class="kpi-foot">
+            <span class="trend-pill up"><i class="ti ti-trending-up"></i>+12</span>
+            <span class="kpi-sub">this month</span>
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-top">
+            <div class="kpi-icon"><i class="ti ti-currency-pound"></i></div>
+          </div>
+          <div class="kpi-mid">
+            <div class="kpi-value">£18,420</div>
+            <div class="kpi-label">MRR · all products</div>
+          </div>
+          <div class="kpi-foot">
+            <span class="trend-pill up"><i class="ti ti-trending-up"></i>+£840</span>
+            <span class="kpi-sub">vs last month</span>
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-top">
+            <div class="kpi-icon"><i class="ti ti-receipt"></i></div>
+          </div>
+          <div class="kpi-mid">
+            <div class="kpi-value">7</div>
+            <div class="kpi-label">Awaiting payment</div>
+          </div>
+          <div class="kpi-foot">
+            <span class="trend-pill warn"><i class="ti ti-alert-triangle"></i>£3,240</span>
+            <span class="kpi-sub">outstanding</span>
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-top">
+            <div class="kpi-icon"><i class="ti ti-headset"></i></div>
+          </div>
+          <div class="kpi-mid">
+            <div class="kpi-value">3</div>
+            <div class="kpi-label">Need attention</div>
+          </div>
+          <div class="kpi-foot">
+            <span class="trend-pill red"><i class="ti ti-alert-circle"></i>2 overdue</span>
+            <span class="kpi-sub">SLA</span>
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-top">
+            <div class="kpi-icon"><i class="ti ti-calendar-x"></i></div>
+          </div>
+          <div class="kpi-mid">
+            <div class="kpi-value">4</div>
+            <div class="kpi-label">Domains / SSL · 30d</div>
+          </div>
+          <div class="kpi-foot">
+            <span class="trend-pill red"><i class="ti ti-alarm"></i>1 critical</span>
+            <span class="kpi-sub">&lt; 7 days</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ─── MAIN GRID ─── -->
+      <div class="main-grid">
+
+        <!-- LEFT COLUMN -->
+        <div class="col">
+
+          <!-- Panel A · Products -->
+          <div class="card">
+            <div class="card-header">
+              <div class="h-icon gold"><i class="ti ti-layout-grid"></i></div>
+              <div>
+                <h3>Products</h3>
+                <div class="sub">3 active · 1 in build</div>
+              </div>
+              <div class="right">
+                <span>Total MRR <strong style="color: var(--text-primary); font-weight: 600;">£18,420</strong></span>
+                <button class="icon-btn"><i class="ti ti-dots"></i></button>
+              </div>
+            </div>
+            <div class="prod-table">
+
+              <div class="prod-row">
+                <div class="prod-logo maa">M</div>
+                <div class="prod-meta">
+                  <div class="pname">Maavelus</div>
+                  <div class="pdesc">Restaurant SaaS platform · point of sale &amp; back-office</div>
+                </div>
+                <div class="prod-stat">34 restaurants<span class="sub">active</span></div>
+                <div class="prod-stat">£3,366<span class="sub">MRR</span></div>
+                <div><span class="badge badge-active">Active</span></div>
+                <a href="#" class="view-link">View<i class="ti ti-arrow-right" style="font-size: 14px;"></i></a>
+              </div>
+
+              <div class="prod-row">
+                <div class="prod-logo mop">O</div>
+                <div class="prod-meta">
+                  <div class="pname">MyOrderPad</div>
+                  <div class="pdesc">Hospitality procurement &amp; supplier ordering</div>
+                </div>
+                <div class="prod-stat">312 tenants<span class="sub">active</span></div>
+                <div class="prod-stat">£4,890<span class="sub">MRR</span></div>
+                <div><span class="badge badge-active">Active</span></div>
+                <a href="#" class="view-link">View<i class="ti ti-arrow-right" style="font-size: 14px;"></i></a>
+              </div>
+
+              <div class="prod-row">
+                <div class="prod-logo wdb">B</div>
+                <div class="prod-meta">
+                  <div class="pname">Whitedash B2B</div>
+                  <div class="pdesc">Food wholesale platform · catalogue + accounts</div>
+                </div>
+                <div class="prod-stat">501 accounts<span class="sub">B2B</span></div>
+                <div class="prod-stat">£10,164<span class="sub">MRR</span></div>
+                <div><span class="badge badge-active">Active</span></div>
+                <a href="#" class="view-link">View<i class="ti ti-arrow-right" style="font-size: 14px;"></i></a>
+              </div>
+
+              <div class="prod-row soon">
+                <div class="prod-logo sms"><i class="ti ti-message-2" style="font-size: 18px;"></i></div>
+                <div class="prod-meta">
+                  <div class="pname">SMScube</div>
+                  <div class="pdesc">Messaging platform · in build, targeting Q3 launch</div>
+                </div>
+                <div class="prod-stat" style="color: var(--text-tertiary);">—<span class="sub">no customers yet</span></div>
+                <div class="prod-stat" style="color: var(--text-tertiary);">—<span class="sub">pre-revenue</span></div>
+                <div><span class="badge badge-soon">Coming soon</span></div>
+                <a href="#" class="view-link" style="color: var(--text-tertiary);">Setup<i class="ti ti-arrow-right" style="font-size: 14px;"></i></a>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Panel B · Activity -->
+          <div class="card">
+            <div class="card-header">
+              <div class="h-icon"><i class="ti ti-activity"></i></div>
+              <div>
+                <h3>Activity</h3>
+                <div class="sub">Across all products</div>
+              </div>
+              <div class="right">Last 24 hours</div>
+            </div>
+            <div class="activity">
+
+              <div class="act-row">
+                <div class="act-ic gold"><i class="ti ti-user-plus"></i></div>
+                <div class="act-text">
+                  <span class="em">New customer:</span> The Aegean Kitchen, London &nbsp;
+                  <span class="badge badge-active" style="font-size: 10.5px; padding: 1px 7px;">Maavelus Pro enabled</span>
+                </div>
+                <div></div>
+                <div class="act-time">14m ago</div>
+              </div>
+
+              <div class="act-row">
+                <div class="act-ic green"><i class="ti ti-receipt"></i></div>
+                <div class="act-text">
+                  Invoice <span class="em">#INV-0847</span> paid · <span class="em">£299.00</span> · <span class="muted">Konstrakt Ltd</span>
+                </div>
+                <div></div>
+                <div class="act-time">41m ago</div>
+              </div>
+
+              <div class="act-row">
+                <div class="act-ic red"><i class="ti ti-alert-circle"></i></div>
+                <div class="act-text">
+                  Domain <span class="em">greekbites.co.uk</span> expires in 6 days &nbsp;
+                  <span class="badge badge-overdue" style="font-size: 10.5px; padding: 1px 7px;">Action needed</span>
+                </div>
+                <div></div>
+                <div class="act-time">1h ago</div>
+              </div>
+
+              <div class="act-row">
+                <div class="act-ic blue"><i class="ti ti-user-check"></i></div>
+                <div class="act-text">
+                  Staff invitation accepted · <span class="em">Sofia Papadaki</span> joined as <span class="muted">Whitedash Staff</span>
+                </div>
+                <div></div>
+                <div class="act-time">2h ago</div>
+              </div>
+
+              <div class="act-row">
+                <div class="act-ic gold"><i class="ti ti-message"></i></div>
+                <div class="act-text">
+                  Support ticket <span class="em">#TK-1042</span> escalated · Pitta Fan Leeds · <span class="muted">Delivery billing query</span>
+                </div>
+                <div></div>
+                <div class="act-time">3h ago</div>
+              </div>
+
+              <div class="act-row">
+                <div class="act-ic neutral"><i class="ti ti-rotate-clockwise"></i></div>
+                <div class="act-text">
+                  Maavelus <span class="em">v2.4.1</span> deployed to <span class="em">34 restaurants</span>
+                </div>
+                <div></div>
+                <div class="act-time">5h ago</div>
+              </div>
+
+              <div class="act-row">
+                <div class="act-ic red"><i class="ti ti-credit-card"></i></div>
+                <div class="act-text">
+                  Payment failed · <span class="em">Souvlaki House Manchester</span> · Visa •• 4242 · <span class="muted">retrying in 24h</span>
+                </div>
+                <div></div>
+                <div class="act-time">7h ago</div>
+              </div>
+
+              <div class="act-row">
+                <div class="act-ic green"><i class="ti ti-file-check"></i></div>
+                <div class="act-text">
+                  Contract signed · <span class="em">Olympia Restaurant Group</span> · <span class="muted">social media retainer, 12 months</span>
+                </div>
+                <div></div>
+                <div class="act-time">9h ago</div>
+              </div>
+
+            </div>
+            <div class="card-foot">
+              <a href="#" class="foot-link">View all activity<i class="ti ti-arrow-right" style="font-size: 14px;"></i></a>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="col">
+
+          <!-- Panel C · Attention -->
+          <div class="card attention">
+            <div class="card-header">
+              <div class="h-icon red"><i class="ti ti-alert-triangle"></i></div>
+              <div>
+                <h3>Needs attention</h3>
+                <div class="sub">Sorted by priority</div>
+              </div>
+              <div class="right">
+                <span class="att-count">6 items</span>
+              </div>
+            </div>
+            <div class="att-list">
+
+              <div class="att-row">
+                <span class="pri-dot red"></span>
+                <div>
+                  <div class="att-title">greekbites.co.uk expires in 6 days</div>
+                  <div class="att-sub">SSL also expiring · auto-renew not set</div>
+                </div>
+                <a href="#" class="att-link">Renew →</a>
+              </div>
+
+              <div class="att-row">
+                <span class="pri-dot red"></span>
+                <div>
+                  <div class="att-title">Invoice #INV-0831 overdue 14 days</div>
+                  <div class="att-sub">Souvlaki House · £180.00</div>
+                </div>
+                <a href="#" class="att-link">Chase →</a>
+              </div>
+
+              <div class="att-row">
+                <span class="pri-dot red"></span>
+                <div>
+                  <div class="att-title">Ticket #TK-1042 SLA breached</div>
+                  <div class="att-sub">Pitta Fan Leeds · 18h open</div>
+                </div>
+                <a href="#" class="att-link">View →</a>
+              </div>
+
+              <div class="att-row">
+                <span class="pri-dot amber"></span>
+                <div>
+                  <div class="att-title">Invoice #INV-0839 overdue 7 days</div>
+                  <div class="att-sub">The Athenian · £240.00</div>
+                </div>
+                <a href="#" class="att-link">Chase →</a>
+              </div>
+
+              <div class="att-row">
+                <span class="pri-dot amber"></span>
+                <div>
+                  <div class="att-title">MyOrderPad trial ending in 3 days</div>
+                  <div class="att-sub">Gyros City MCR · no card on file</div>
+                </div>
+                <a href="#" class="att-link">Upgrade →</a>
+              </div>
+
+              <div class="att-row">
+                <span class="pri-dot amber"></span>
+                <div>
+                  <div class="att-title">2 SSL certs expiring in 22 days</div>
+                  <div class="att-sub">domain monitor · across 2 customer sites</div>
+                </div>
+                <a href="#" class="att-link">Review →</a>
+              </div>
+
+            </div>
+            <div class="card-foot">
+              <a href="#" class="foot-link">View all 6<i class="ti ti-arrow-right" style="font-size: 14px;"></i></a>
+            </div>
+          </div>
+
+          <!-- Panel D · Tasks -->
+          <div class="card shadow-sm">
+            <div class="card-header">
+              <div class="h-icon"><i class="ti ti-checkbox"></i></div>
+              <div>
+                <h3>Tasks</h3>
+                <div class="sub">5 open · 2 due today</div>
+              </div>
+              <div class="right">
+                <button class="btn btn-ghost btn-sm"><i class="ti ti-plus"></i>New task</button>
+              </div>
+            </div>
+            <div class="tasks">
+
+              <div class="task-row">
+                <span class="cb" data-cb></span>
+                <div>
+                  <div class="task-text">Follow up on Olympia Group retainer renewal</div>
+                  <div class="task-meta">
+                    <span class="pill">Olympia Restaurant Group</span>
+                  </div>
+                </div>
+                <div class="due red">Due today</div>
+              </div>
+
+              <div class="task-row">
+                <span class="cb" data-cb></span>
+                <div>
+                  <div class="task-text">Send onboarding sequence to The Aegean Kitchen</div>
+                  <div class="task-meta">
+                    <span class="pill">Aegean Kitchen</span>
+                  </div>
+                </div>
+                <div class="due red">Due today</div>
+              </div>
+
+              <div class="task-row">
+                <span class="cb" data-cb></span>
+                <div>
+                  <div class="task-text">Review MyOrderPad pricing tiers for Q3</div>
+                  <div class="task-meta">
+                    <span class="pill">Internal</span>
+                  </div>
+                </div>
+                <div class="due amber">Tomorrow</div>
+              </div>
+
+              <div class="task-row">
+                <span class="cb" data-cb></span>
+                <div>
+                  <div class="task-text">Chase Souvlaki House outstanding balance</div>
+                  <div class="task-meta">
+                    <span class="pill">Souvlaki House</span>
+                  </div>
+                </div>
+                <div class="due muted">30 May</div>
+              </div>
+
+              <div class="task-row">
+                <span class="cb" data-cb></span>
+                <div>
+                  <div class="task-text">QBO connection setup for Maavelus Ltd</div>
+                  <div class="task-meta">
+                    <span class="pill">Internal</span>
+                  </div>
+                </div>
+                <div class="due muted">2 Jun</div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Panel E · Quick stats -->
+          <div class="card shadow-sm">
+            <div class="card-header">
+              <div class="h-icon"><i class="ti ti-chart-bar"></i></div>
+              <div>
+                <h3>This month</h3>
+                <div class="sub">Quick stats · 1 – 27 May</div>
+              </div>
+            </div>
+            <div class="qstats">
+              <div class="qstat">
+                <div class="qstat-label">New customers</div>
+                <div class="qstat-value">12 <span class="delta good">↑ +5</span></div>
+              </div>
+              <div class="qstat">
+                <div class="qstat-label">Churned</div>
+                <div class="qstat-value">1 <span class="delta good">↓ −2</span></div>
+              </div>
+              <div class="qstat">
+                <div class="qstat-label">Invoices raised</div>
+                <div class="qstat-value">47</div>
+              </div>
+              <div class="qstat">
+                <div class="qstat-label">Paid</div>
+                <div class="qstat-value">40 <span class="delta">85%</span></div>
+              </div>
+              <div class="qstat">
+                <div class="qstat-label">Commissions due</div>
+                <div class="qstat-value">£340</div>
+              </div>
+              <div class="qstat">
+                <div class="qstat-label">Avg resolution</div>
+                <div class="qstat-value">4.2<span class="delta">h</span></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ─── FOOTER ROW ─── -->
+      <div class="footer-row">
+
+        <!-- Referral performance -->
+        <div class="card">
+          <div class="card-header">
+            <div class="h-icon"><i class="ti ti-users-group"></i></div>
+            <div>
+              <h3>Referral performance</h3>
+              <div class="sub">3 active referrers · £750 pending payout</div>
+            </div>
+          </div>
+
+          <div class="ref-head">
+            <div></div>
+            <div>Referrer</div>
+            <div class="num">Customers</div>
+            <div class="num">Commission</div>
+            <div class="num">Pending</div>
+          </div>
+
+          <div class="ref-row">
+            <div class="avatar av-2" style="width: 32px; height: 32px;">CP</div>
+            <div>
+              <div class="ref-name">Christos Panagiotis</div>
+              <div class="ref-sub">christos@panagiotis.uk · since Jan 2024</div>
+            </div>
+            <div class="ref-num">24<span class="sub">referrals</span></div>
+            <div class="ref-num">£180<span class="sub">/month</span></div>
+            <div class="ref-num gold">£540<span class="sub">pending</span></div>
+          </div>
+
+          <div class="ref-row">
+            <div class="avatar av-5" style="width: 32px; height: 32px;">SP</div>
+            <div>
+              <div class="ref-name">Sofia Papadaki</div>
+              <div class="ref-sub">sofia@papadaki.gr · since Mar 2025</div>
+            </div>
+            <div class="ref-num">8<span class="sub">referrals</span></div>
+            <div class="ref-num">£60<span class="sub">/month</span></div>
+            <div class="ref-num gold">£120<span class="sub">pending</span></div>
+          </div>
+
+          <div class="ref-row">
+            <div class="avatar av-3" style="width: 32px; height: 32px;">NS</div>
+            <div>
+              <div class="ref-name">Nikos Stavros</div>
+              <div class="ref-sub">nikos@stavros.co.uk · since Nov 2025</div>
+            </div>
+            <div class="ref-num">3<span class="sub">referrals</span></div>
+            <div class="ref-num">£30<span class="sub">/month</span></div>
+            <div class="ref-num gold">£90<span class="sub">pending</span></div>
+          </div>
+
+          <div class="card-foot">
+            <a href="#" class="foot-link">View all referrers<i class="ti ti-arrow-right" style="font-size: 14px;"></i></a>
+          </div>
+        </div>
+
+        <!-- Platform health -->
+        <div class="card">
+          <div class="card-header">
+            <div class="h-icon"><i class="ti ti-server"></i></div>
+            <div>
+              <h3>Platform health</h3>
+              <div class="sub">All systems operational</div>
+            </div>
+            <div class="right" style="color: var(--success); display:flex; align-items: center; gap: 6px;">
+              <span style="width:6px; height:6px; border-radius:50%; background: var(--success); box-shadow: 0 0 0 3px rgba(16,185,129,.18);"></span>
+              <span style="font-weight: 500;">All good</span>
+            </div>
+          </div>
+
+          <div class="health-head">
+            <div>Service</div>
+            <div>Uptime</div>
+            <div>Last check</div>
+            <div style="text-align: right;">Status</div>
+          </div>
+
+          <div class="health-row">
+            <div class="h-name"><span class="dot"></span>Maavelus</div>
+            <div class="h-uptime">99.98%</div>
+            <div class="h-checked">Just now</div>
+            <div style="text-align: right;"><span class="badge badge-active">Operational</span></div>
+          </div>
+
+          <div class="health-row">
+            <div class="h-name"><span class="dot"></span>MyOrderPad</div>
+            <div class="h-uptime">99.95%</div>
+            <div class="h-checked">Just now</div>
+            <div style="text-align: right;"><span class="badge badge-active">Operational</span></div>
+          </div>
+
+          <div class="health-row">
+            <div class="h-name"><span class="dot"></span>Whitedash B2B</div>
+            <div class="h-uptime">99.91%</div>
+            <div class="h-checked">2m ago</div>
+            <div style="text-align: right;"><span class="badge badge-active">Operational</span></div>
+          </div>
+
+          <div class="health-row">
+            <div class="h-name"><span class="dot neutral"></span>SMScube</div>
+            <div class="h-uptime h-muted">—</div>
+            <div class="h-checked h-muted">—</div>
+            <div style="text-align: right;"><span class="badge badge-soon">Coming soon</span></div>
+          </div>
+
+          <div class="health-row">
+            <div class="h-name"><span class="dot"></span>Customer Portal</div>
+            <div class="h-uptime">100%</div>
+            <div class="h-checked">Just now</div>
+            <div style="text-align: right;"><span class="badge badge-active">Operational</span></div>
+          </div>
+
+          <div class="health-row">
+            <div class="h-name"><span class="dot"></span>Powerhouse</div>
+            <div class="h-uptime">100%</div>
+            <div class="h-checked">Just now</div>
+            <div style="text-align: right;"><span class="badge badge-active">Operational</span></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="display: flex; justify-content: space-between; padding-top: 8px; padding-bottom: 8px; color: var(--text-tertiary); font: 400 12px/1.4 'Inter', sans-serif;">
+        <div>Powerhouse v3.2.0 · Whitedash</div>
+        <div>Data refreshed <strong style="color: var(--text-secondary); font-weight: 500;">2 minutes ago</strong> · auto-syncs every 5 min</div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  // Checkbox toggles
+  document.querySelectorAll('[data-cb]').forEach(cb => {
+    cb.addEventListener('click', () => cb.classList.toggle('checked'));
+  });
+
+  // Auto-print once fonts/icons are ready
+  (async () => {
+    try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
+    await new Promise(r => setTimeout(r, 500));
+    window.print();
+  })();
+</script>
+</body>
+</html>

@@ -1,7 +1,73 @@
 <?php
 
+use App\Http\Controllers\Internal\CustomerController as InternalCustomerController;
+use App\Http\Controllers\Internal\DashboardController as InternalDashboardController;
+use App\Http\Controllers\Internal\DomainController as InternalDomainController;
+use App\Http\Controllers\Internal\InvoiceController as InternalInvoiceController;
+use App\Http\Controllers\Internal\ProvisioningController as InternalProvisioningController;
+use App\Http\Controllers\Internal\ReferrerController as InternalReferrerController;
+use App\Http\Controllers\Internal\SettingsController as InternalSettingsController;
+use App\Http\Controllers\Internal\SupportController as InternalSupportController;
+use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
+use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
+use App\Http\Controllers\Portal\ProductController as PortalProductController;
+use App\Http\Controllers\Portal\SettingsController as PortalSettingsController;
+use App\Http\Controllers\Portal\SupportController as PortalSupportController;
+use App\Http\Controllers\Referrer\CommissionController as ReferrerCommissionController;
+use App\Http\Controllers\Referrer\CustomerController as ReferrerCustomerController;
+use App\Http\Controllers\Referrer\DashboardController as ReferrerDashboardController;
+use App\Http\Controllers\Referrer\PayoutController as ReferrerPayoutController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
+/*
+|--------------------------------------------------------------------------
+| Group 1 — Internal (staff)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
+    Route::get('/', InternalDashboardController::class)->name('internal.dashboard');
+
+    Route::get('/customers', [InternalCustomerController::class, 'index'])->name('internal.customers.index');
+    Route::get('/customers/{id}', [InternalCustomerController::class, 'show'])->name('internal.customers.show');
+
+    Route::get('/invoices', [InternalInvoiceController::class, 'index'])->name('internal.invoices.index');
+    Route::get('/invoices/new', [InternalInvoiceController::class, 'create'])->name('internal.invoices.create');
+    Route::get('/invoices/{id}', [InternalInvoiceController::class, 'show'])->name('internal.invoices.show');
+
+    Route::get('/referrers', [InternalReferrerController::class, 'index'])->name('internal.referrers.index');
+    Route::get('/domains', [InternalDomainController::class, 'index'])->name('internal.domains.index');
+    Route::get('/support', [InternalSupportController::class, 'index'])->name('internal.support.index');
+    Route::get('/provisioning', [InternalProvisioningController::class, 'index'])->name('internal.provisioning.index');
+    Route::get('/settings', [InternalSettingsController::class, 'index'])->name('internal.settings.index');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Group 2 — Portal (customer)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('account')->middleware('portal_auth')->group(function () {
+    Route::get('/', PortalDashboardController::class)->name('portal.dashboard');
+    Route::get('/products', [PortalProductController::class, 'index'])->name('portal.products');
+    Route::get('/invoices', [PortalInvoiceController::class, 'index'])->name('portal.invoices');
+    Route::get('/support', [PortalSupportController::class, 'index'])->name('portal.support');
+    Route::get('/settings', [PortalSettingsController::class, 'index'])->name('portal.settings');
+});
+
+// Placeholder portal login route so EnsurePortalUser's redirect() resolves.
+Route::get('/account/login', fn () => 'Portal login (placeholder)')->name('portal.login');
+
+/*
+|--------------------------------------------------------------------------
+| Group 3 — Referrer (partner)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('partners')->middleware(['auth', 'role:referrer'])->group(function () {
+    Route::get('/', ReferrerDashboardController::class)->name('referrer.dashboard');
+    Route::get('/customers', ReferrerCustomerController::class)->name('referrer.customers');
+    Route::get('/commissions', ReferrerCommissionController::class)->name('referrer.commissions');
+    Route::get('/payouts', ReferrerPayoutController::class)->name('referrer.payouts');
+});
+
+// Placeholder login route so middleware redirects resolve.
+Route::get('/login', fn () => 'Staff login (placeholder)')->name('login');

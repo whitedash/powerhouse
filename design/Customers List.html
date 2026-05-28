@@ -1,0 +1,1180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Powerhouse — Customers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg-navy: #0F172A;
+    --accent: #F59E0B;
+    --content-bg: #F8FAFC;
+    --card-bg: #FFFFFF;
+    --border: #E2E8F0;
+    --border-soft: #EEF2F7;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+    --info: #3B82F6;
+    --teal: #0D9488;
+    --purple: #7C3AED;
+    --violet: #8B5CF6;
+
+    --success-bg: #ECFDF5;
+    --danger-bg:  #FEF2F2;
+    --warning-bg: #FFFBEB;
+    --info-bg:    #EFF6FF;
+    --neutral-bg: #F1F5F9;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.05);
+    --shadow-md: 0 4px 12px -2px rgba(15,23,42,.08), 0 1px 3px rgba(15,23,42,.04);
+    --shadow-lg: 0 24px 48px -12px rgba(15,23,42,.18), 0 2px 4px rgba(15,23,42,.04);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 400 14px/1.5 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: #E5E9F0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ─── Shell ─── */
+  .app {
+    width: 1440px;
+    margin: 0 auto;
+    background: var(--content-bg);
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 1100px;
+  }
+
+  /* ─── Sidebar (identical) ─── */
+  .sidebar {
+    background: var(--bg-navy);
+    color: #fff;
+    padding: 20px 14px 16px;
+    display: flex; flex-direction: column;
+    gap: 2px;
+    position: sticky; top: 0;
+    height: 100vh;
+    min-height: 1100px;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; padding: 6px 10px 18px; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 14px; }
+  .brand-mark {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), #FBBF24);
+    display: grid; place-items: center;
+    color: var(--bg-navy);
+    font: 700 14px/1 'Inter', sans-serif;
+    box-shadow: 0 2px 6px rgba(245,158,11,.35);
+  }
+  .logo-name { font: 600 15px/1.1 'Inter', sans-serif; letter-spacing: -.01em; }
+  .logo-sub  { font: 500 10px/1 'Inter', sans-serif; color: rgba(255,255,255,.45); letter-spacing: .12em; text-transform: uppercase; margin-top: 3px; }
+  .nav-section { font: 500 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .14em; color: rgba(255,255,255,.35); padding: 14px 10px 6px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 11px;
+    padding: 8px 10px;
+    color: rgba(255,255,255,.7);
+    font: 500 13.5px/1.2 'Inter', sans-serif; letter-spacing: -.005em;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .nav-item .ti { font-size: 18px; }
+  .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .nav-item.active { background: rgba(245,158,11,.14); color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+  .nav-item .count { margin-left: auto; font: 600 11px/1 'Inter', sans-serif; background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); padding: 3px 7px; border-radius: 999px; }
+  .nav-item.active .count { background: rgba(245,158,11,.22); color: var(--accent); }
+  .count.amber { background: rgba(245,158,11,.18); color: #FCD34D; }
+  .count.red   { background: rgba(239,68,68,.2);  color: #FCA5A5; }
+  .sidebar-spacer { flex: 1; }
+  .sidebar-user { margin-top: 12px; padding: 12px 10px; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; gap: 10px; }
+  .avatar { border-radius: 50%; display: grid; place-items: center; color: #fff; font: 600 12px/1 'Inter', sans-serif; letter-spacing: -.01em; flex-shrink: 0; }
+  .av-1 { background: linear-gradient(135deg, #6366F1, #8B5CF6); }
+  .av-2 { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-3 { background: linear-gradient(135deg, #10B981, #059669); }
+  .av-4 { background: linear-gradient(135deg, #EF4444, #DB2777); }
+  .av-5 { background: linear-gradient(135deg, #3B82F6, #06B6D4); }
+  .av-teal  { background: var(--teal); }
+  .av-amber { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-navy  { background: linear-gradient(135deg, #0F172A, #334155); }
+  .av-grey  { background: linear-gradient(135deg, #64748B, #94A3B8); }
+  .av-admin { background: linear-gradient(135deg, #1E293B, #475569); border: 1px solid rgba(245,158,11,.4); }
+  .sidebar-user .avatar { width: 32px; height: 32px; font-size: 11px; }
+  .sidebar-user .name { font: 500 13px/1.2 'Inter', sans-serif; color: #fff; letter-spacing: -.005em; }
+  .sidebar-user .role { font: 400 11px/1.2 'Inter', sans-serif; color: rgba(255,255,255,.45); margin-top: 2px; }
+  .sidebar-user .dots { margin-left: auto; color: rgba(255,255,255,.4); cursor: pointer; }
+
+  /* ─── Main + topbar (identical pattern) ─── */
+  .main { display: flex; flex-direction: column; min-width: 0; }
+  .topbar { height: 64px; border-bottom: 1px solid var(--border); background: #fff; padding: 0 24px; display: flex; align-items: center; gap: 16px; }
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); }
+  .breadcrumb .sep { color: var(--text-tertiary); }
+  .breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+  .topbar-title { font: 600 20px/1.2 'Inter', sans-serif; letter-spacing: -.01em; margin-top: 2px; }
+  .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .topbar-search { position: relative; width: 260px; }
+  .topbar-search input {
+    width: 100%; height: 36px;
+    border: 1px solid transparent;
+    background: var(--content-bg);
+    border-radius: var(--radius-md);
+    padding: 0 38px 0 34px;
+    font: 400 13px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: 0;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+  .topbar-search input::placeholder { color: var(--text-tertiary); }
+  .topbar-search input:focus { background: #fff; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+  .topbar-search .ti { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 18px; }
+  .topbar-search .kbd { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font: 500 10px/1 'JetBrains Mono', monospace; color: var(--text-tertiary); border: 1px solid var(--border); background: #fff; padding: 3px 5px; border-radius: 4px; }
+  .bell-btn { position: relative; width: 36px; height: 36px; border-radius: var(--radius-md); display: grid; place-items: center; color: var(--text-secondary); background: transparent; border: 0; cursor: pointer; transition: background .12s; }
+  .bell-btn:hover { background: var(--neutral-bg); }
+  .bell-btn .ti { font-size: 20px; }
+  .bell-btn::after { content: ""; position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); border: 2px solid #fff; }
+  .divider-v { width: 1px; height: 28px; background: var(--border); }
+  .avatar-wrap { display: flex; align-items: center; gap: 10px; padding: 4px 10px 4px 4px; border-radius: 999px; cursor: pointer; transition: background .12s; }
+  .avatar-wrap:hover { background: var(--neutral-bg); }
+  .avatar-wrap .avatar { width: 30px; height: 30px; font-size: 11px; }
+  .avatar-wrap .name { font: 500 13px/1.2 'Inter', sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .avatar-wrap .role { font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+
+  /* ─── Buttons ─── */
+  .btn {
+    appearance: none; border: 0; cursor: pointer;
+    font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em;
+    padding: 0 14px; height: 34px;
+    border-radius: var(--radius-md);
+    display: inline-flex; align-items: center; gap: 7px;
+    transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
+    white-space: nowrap;
+  }
+  .btn .ti { font-size: 15px; }
+  .btn-primary { background: var(--accent); color: var(--bg-navy); font-weight: 600; box-shadow: 0 1px 2px rgba(245,158,11,.3); }
+  .btn-primary:hover { background: #E08C09; }
+  .btn-secondary { background: #fff; color: var(--text-primary); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .btn-secondary:hover { background: var(--neutral-bg); border-color: #CBD5E1; }
+  .btn-ghost { background: transparent; color: var(--text-primary); }
+  .btn-ghost:hover { background: var(--neutral-bg); }
+  .btn-sm { height: 30px; padding: 0 10px; font-size: 12.5px; border-radius: var(--radius-sm); }
+  .btn-sm .ti { font-size: 14px; }
+  .btn-ghost-muted { background: transparent; color: var(--text-secondary); border: 0; cursor: pointer; }
+  .btn-ghost-muted:hover { background: var(--neutral-bg); color: var(--text-primary); }
+  .btn-dot {
+    position: relative;
+  }
+  .btn-dot::after {
+    content: ""; position: absolute;
+    top: 4px; right: 4px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid #fff;
+  }
+  .ghost-link {
+    background: transparent; border: 0; cursor: pointer;
+    color: var(--text-primary);
+    font: 500 12.5px/1 'Inter', sans-serif;
+    padding: 6px 8px;
+    border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 4px;
+    transition: background .12s, color .12s;
+    text-decoration: none;
+  }
+  .ghost-link:hover { background: var(--neutral-bg); color: var(--accent); }
+  .ghost-link .ti { font-size: 14px; }
+
+  /* ─── Badges ─── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font: 500 11.5px/1.4 'Inter', sans-serif; letter-spacing: -.005em;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge-active   { color: #047857; background: var(--success-bg); border-color: #A7F3D0; }
+  .badge-inactive { color: #475569; background: var(--neutral-bg); border-color: #E2E8F0; }
+  .badge-pending  { color: #B45309; background: var(--warning-bg); border-color: #FDE68A; }
+  .badge-overdue  { color: #B91C1C; background: var(--danger-bg); border-color: #FECACA; }
+  .badge-trial    { color: #1D4ED8; background: var(--info-bg); border-color: #BFDBFE; }
+  .badge-sm { padding: 2px 7px; font: 500 10.5px/1.4 'Inter', sans-serif; }
+  .badge-sm::before { width: 5px; height: 5px; }
+  .pip {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--neutral-bg);
+    color: var(--text-secondary);
+    font: 500 11px/1.4 'Inter', sans-serif;
+    border: 1px solid var(--border-soft);
+  }
+  .pip.active  { color: #047857; background: var(--success-bg); border-color: #A7F3D0; }
+  .pip.prospect { color: #1D4ED8; background: var(--info-bg); border-color: #BFDBFE; }
+  .pip.lead    { color: #475569; background: var(--neutral-bg); border-color: var(--border); }
+
+  /* ─── Page content ─── */
+  .content { padding: 24px; }
+  .greet { display: flex; align-items: center; justify-content: space-between; }
+  .greet h1 { margin: 0; font: 700 24px/1.2 'Inter', sans-serif; letter-spacing: -.015em; }
+  .greet .sub { font: 400 13px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 4px; }
+  .greet-actions { display: flex; gap: 10px; }
+
+  /* ─── Summary strip ─── */
+  .summary-strip {
+    display: flex; gap: 10px;
+    margin-top: 20px;
+  }
+  .stat-pill {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 8px 14px;
+    display: inline-flex; align-items: center; gap: 10px;
+    font: 500 14px/1 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-pill .d { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .stat-pill .d.gold  { background: var(--accent); }
+  .stat-pill .d.green { background: var(--success); }
+  .stat-pill .d.blue  { background: var(--info); }
+  .stat-pill .d.grey  { background: var(--text-tertiary); }
+  .stat-pill .lbl { color: var(--text-secondary); font-weight: 400; }
+
+  /* ─── Filter bar ─── */
+  .filter-bar {
+    margin-top: 16px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .field-search {
+    position: relative; width: 280px;
+  }
+  .field-search input {
+    width: 100%; height: 36px;
+    border: 1px solid var(--border);
+    background: var(--content-bg);
+    border-radius: var(--radius-md);
+    padding: 0 12px 0 34px;
+    font: 400 13px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: 0;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+  .field-search input::placeholder { color: var(--text-tertiary); }
+  .field-search input:focus { background: #fff; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+  .field-search .ti { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 16px; }
+
+  .dd-btn {
+    height: 36px;
+    padding: 0 10px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--text-primary);
+    font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em;
+    cursor: pointer;
+    transition: border-color .12s, background .12s;
+    white-space: nowrap;
+  }
+  .dd-btn > * { white-space: nowrap; }
+  .dd-btn:hover { background: var(--neutral-bg); border-color: #CBD5E1; }
+  .dd-btn .ti { font-size: 16px; color: var(--text-secondary); }
+  .dd-btn .lead { color: var(--text-tertiary); font-weight: 500; }
+  .dd-btn .ch { color: var(--text-tertiary); font-size: 14px; }
+
+  .filter-bar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .view-toggle {
+    display: inline-flex;
+    background: var(--neutral-bg);
+    border-radius: var(--radius-md);
+    padding: 3px;
+  }
+  .vt-btn {
+    width: 28px; height: 28px;
+    border: 0; background: transparent;
+    border-radius: 5px;
+    display: grid; place-items: center;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: background .12s, color .12s, box-shadow .12s;
+  }
+  .vt-btn .ti { font-size: 16px; }
+  .vt-btn.active {
+    background: #fff;
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+  }
+  .vt-btn:hover:not(.active) { color: var(--text-primary); }
+
+  /* ─── Bulk action bar ─── */
+  .bulk-bar {
+    margin-top: 12px;
+    background: var(--bg-navy);
+    border-radius: var(--radius-md);
+    height: 44px;
+    padding: 0 16px;
+    display: flex; align-items: center; gap: 12px;
+    color: #fff;
+    box-shadow: 0 4px 12px -4px rgba(15,23,42,.25);
+  }
+  .bulk-bar .count {
+    font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em;
+  }
+  .bulk-bar .count strong { font-weight: 600; }
+  .bulk-bar .actions { display: flex; align-items: center; gap: 4px; margin-left: 8px; }
+  .bulk-act {
+    background: transparent; border: 0; cursor: pointer;
+    color: rgba(255,255,255,.85);
+    font: 500 12.5px/1 'Inter', sans-serif;
+    padding: 6px 10px;
+    border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: background .12s, color .12s;
+  }
+  .bulk-act .ti { font-size: 15px; }
+  .bulk-act:hover { background: rgba(255,255,255,.1); color: #fff; }
+  .bulk-act.danger { color: #FCA5A5; }
+  .bulk-act.danger:hover { background: rgba(239,68,68,.18); color: #FECACA; }
+  .bulk-divider { width: 1px; height: 20px; background: rgba(255,255,255,.12); }
+  .bulk-bar .clear {
+    margin-left: auto;
+    background: transparent; border: 0; cursor: pointer;
+    color: rgba(255,255,255,.6);
+    font: 500 12.5px/1 'Inter', sans-serif;
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 6px; border-radius: 5px;
+    transition: color .12s, background .12s;
+  }
+  .bulk-bar .clear:hover { color: #fff; background: rgba(255,255,255,.08); }
+
+  /* ─── Table ─── */
+  .table-card {
+    margin-top: 12px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+  }
+  .tbl {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .tbl thead th {
+    background: var(--neutral-bg);
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    padding: 10px 12px;
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--text-tertiary);
+    height: 40px;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .tbl thead th:first-child { padding-left: 18px; }
+  .tbl thead th:last-child  { padding-right: 18px; }
+  .tbl thead th.sortable {
+    cursor: pointer;
+    transition: color .12s, background .12s;
+  }
+  .tbl thead th.sortable:hover { color: var(--text-secondary); background: #ECEFF5; }
+  .tbl thead th .sort-ic {
+    margin-left: 4px; vertical-align: middle;
+    color: var(--text-tertiary); font-size: 13px;
+    opacity: 0; transition: opacity .12s;
+  }
+  .tbl thead th.sortable:hover .sort-ic { opacity: 1; }
+  .tbl thead th.sorted { color: var(--accent); }
+  .tbl thead th.sorted .sort-ic { opacity: 1; color: var(--accent); }
+  .tbl thead th.num { text-align: right; }
+  .tbl thead th.center { text-align: center; }
+
+  .tbl tbody td {
+    padding: 14px 12px;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: middle;
+    font: 400 14px/1.4 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: #fff;
+    transition: background .12s;
+  }
+  .tbl tbody td:first-child { padding-left: 18px; }
+  .tbl tbody td:last-child  { padding-right: 18px; }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
+  .tbl tbody tr:hover td { background: #FBFCFE; }
+  .tbl tbody tr.selected td { background: var(--neutral-bg); }
+  .tbl tbody tr.selected td:first-child {
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+
+  /* Cell: customer */
+  .cell-cust { display: flex; align-items: center; gap: 11px; min-width: 0; }
+  .cell-cust .avatar { width: 34px; height: 34px; font-size: 12px; }
+  .cust-meta { min-width: 0; position: relative; }
+  .cust-name {
+    font: 600 13.5px/1.3 'Inter', sans-serif; letter-spacing: -.005em;
+    color: var(--text-primary);
+    text-overflow: ellipsis; overflow: hidden; white-space: nowrap;
+  }
+  .cust-loc {
+    font: 400 12px/1.3 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+  }
+
+  /* Product mini badges */
+  .prod-set { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .pb {
+    width: 22px; height: 22px;
+    border-radius: 5px;
+    display: inline-grid; place-items: center;
+    color: #fff;
+    font: 700 10.5px/1 'Inter', sans-serif;
+    flex-shrink: 0;
+    box-shadow: 0 1px 1px rgba(15,23,42,.1);
+  }
+  .pb.maa { background: var(--teal); }
+  .pb.mop { background: var(--info); }
+  .pb.wdb { background: var(--purple); }
+  .pb.sms { background: var(--violet); }
+  .pb-count {
+    position: relative;
+  }
+  .pb-count::after {
+    content: attr(data-count);
+    position: absolute;
+    top: -4px; right: -8px;
+    background: var(--bg-navy);
+    color: #fff;
+    font: 700 9px/1 'Inter', sans-serif;
+    padding: 2px 4px;
+    border-radius: 4px;
+    border: 1.5px solid #fff;
+  }
+
+  /* MRR */
+  .mrr { font: 500 14px/1 'Inter', sans-serif; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+  .mrr .u { font: 400 11px/1 'Inter', sans-serif; color: var(--text-tertiary); margin-left: 2px; }
+  .mrr.muted { color: var(--text-tertiary); font-weight: 400; }
+
+  /* Referrer */
+  .ref-cell { display: inline-flex; align-items: center; gap: 7px; font: 500 12.5px/1.2 'Inter', sans-serif; letter-spacing: -.005em; }
+  .ref-cell .avatar { width: 22px; height: 22px; font-size: 9px; }
+  .ref-cell.direct { color: var(--text-tertiary); font-style: italic; font-weight: 400; }
+
+  /* Last active */
+  .last-active { font: 400 12.5px/1.2 'Inter', sans-serif; color: var(--text-secondary); white-space: nowrap; }
+
+  /* Status cell combo */
+  .status-cell { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+  /* Group icon */
+  .group-pill {
+    display: inline-flex; align-items: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--neutral-bg);
+    color: var(--text-secondary);
+    place-content: center;
+    margin-left: 2px;
+  }
+  .group-pill .ti { font-size: 12px; }
+
+  /* Dots button */
+  .icon-btn {
+    width: 28px; height: 28px;
+    display: inline-grid; place-items: center;
+    border-radius: 6px;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    border: 0; background: transparent;
+    transition: background .12s, color .12s;
+  }
+  .icon-btn:hover { background: var(--neutral-bg); color: var(--text-primary); }
+  .icon-btn .ti { font-size: 18px; }
+
+  /* Checkbox */
+  .cb {
+    width: 16px; height: 16px;
+    border: 1.5px solid #CBD5E1;
+    border-radius: var(--radius-sm);
+    background: #fff;
+    cursor: pointer;
+    display: inline-grid; place-items: center;
+    transition: border-color .12s, background .12s;
+  }
+  .cb:hover { border-color: var(--accent); }
+  .cb.checked {
+    background: var(--accent); border-color: var(--accent);
+  }
+  .cb.checked::after {
+    content: ""; width: 8px; height: 4px;
+    border: 2px solid var(--bg-navy);
+    border-top: 0; border-right: 0;
+    transform: rotate(-45deg) translate(1px, -1px);
+  }
+  .cb.indeterminate {
+    background: var(--accent); border-color: var(--accent);
+  }
+  .cb.indeterminate::after {
+    content: ""; width: 8px; height: 2px;
+    background: var(--bg-navy);
+    border-radius: 1px;
+  }
+
+  /* Domain warning pill */
+  .warn-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--warning-bg);
+    color: #B45309;
+    border: 1px solid #FDE68A;
+    font: 600 10.5px/1.3 'Inter', sans-serif;
+    letter-spacing: -.005em;
+  }
+  .warn-pill .ti { font-size: 12px; }
+
+  /* Footer row inside card */
+  .tbl-foot {
+    background: var(--neutral-bg);
+    border-top: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center;
+    gap: 12px;
+  }
+  .tbl-foot .info {
+    font: 400 12.5px/1.4 'Inter', sans-serif;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+  .tbl-foot .right {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .pg-btn {
+    min-width: 30px; height: 30px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-primary);
+    font: 500 12.5px/1 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    padding: 0 9px;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  .pg-btn:hover:not(:disabled):not(.active) { background: #fff; border-color: var(--border); }
+  .pg-btn.active { background: var(--bg-navy); color: #fff; }
+  .pg-btn:disabled { color: var(--text-tertiary); cursor: not-allowed; }
+  .pg-ellipsis { color: var(--text-tertiary); padding: 0 4px; user-select: none; }
+  .per-page {
+    margin-left: 8px;
+    height: 30px; padding: 0 10px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font: 500 12.5px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  .per-page .ti { font-size: 14px; color: var(--text-tertiary); }
+
+  /* ─── Hover detail tooltip (shown statically here for Row 1) ─── */
+  .qd-tooltip {
+    position: absolute;
+    top: 30px;
+    left: calc(34px + 11px + 0px);
+    width: 290px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 16px;
+    z-index: 50;
+    color: var(--text-primary);
+    font: 400 13px/1.4 'Inter', sans-serif;
+  }
+  .qd-tooltip::before {
+    content: "";
+    position: absolute;
+    top: 14px; left: -7px;
+    width: 12px; height: 12px;
+    background: #fff;
+    border-left: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    transform: rotate(45deg);
+  }
+  .qd-top { display: flex; align-items: center; gap: 12px; }
+  .qd-top .avatar { width: 40px; height: 40px; font-size: 13px; }
+  .qd-name { font: 700 15px/1.2 'Inter', sans-serif; letter-spacing: -.005em; }
+  .qd-sub { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary); margin-top: 3px; }
+  .qd-sub .em { color: #047857; font-weight: 500; }
+  .qd-divider { height: 1px; background: var(--border-soft); margin: 14px 0; }
+  .qd-stats { display: flex; gap: 16px; }
+  .qd-stat .k { font: 500 10.5px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary); }
+  .qd-stat .v { font: 600 14px/1.2 'Inter', sans-serif; letter-spacing: -.005em; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .qd-foot { margin-top: 14px; display: flex; justify-content: flex-end; }
+
+  /* Footer */
+  .page-foot {
+    display: flex; justify-content: space-between; padding-top: 16px;
+    color: var(--text-tertiary); font: 400 12px/1.4 'Inter', sans-serif;
+  }
+  .page-foot strong { color: var(--text-secondary); font-weight: 500; }
+
+</style>
+</head>
+<body>
+
+<div class="app" data-screen-label="04 Customers List">
+
+  <!-- ─── Sidebar ─── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="brand-mark">W</div>
+      <div>
+        <div class="logo-name">Powerhouse</div>
+        <div class="logo-sub">Whitedash</div>
+      </div>
+    </div>
+
+    <div class="nav-section">Workspace</div>
+    <div class="nav-item"><i class="ti ti-layout-dashboard"></i>Overview</div>
+    <div class="nav-item active"><i class="ti ti-users"></i>Customers<span class="count">847</span></div>
+    <div class="nav-item"><i class="ti ti-receipt"></i>Invoices<span class="count amber">7</span></div>
+    <div class="nav-item"><i class="ti ti-credit-card"></i>Subscriptions</div>
+    <div class="nav-item"><i class="ti ti-chart-line"></i>Analytics</div>
+
+    <div class="nav-section">Products</div>
+    <div class="nav-item"><i class="ti ti-tools-kitchen-2"></i>Maavelus</div>
+    <div class="nav-item"><i class="ti ti-clipboard-list"></i>MyOrderPad</div>
+    <div class="nav-item"><i class="ti ti-building-store"></i>Whitedash B2B</div>
+    <div class="nav-item"><i class="ti ti-message-2"></i>SMScube</div>
+
+    <div class="nav-section">Account</div>
+    <div class="nav-item"><i class="ti ti-headset"></i>Support<span class="count red">3</span></div>
+    <div class="nav-item"><i class="ti ti-settings"></i>Settings</div>
+    <div class="nav-item"><i class="ti ti-help-circle"></i>Help &amp; docs</div>
+
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-user">
+      <div class="avatar av-admin">AP</div>
+      <div>
+        <div class="name">Apostolos P.</div>
+        <div class="role">Super Admin</div>
+      </div>
+      <i class="ti ti-dots dots"></i>
+    </div>
+  </aside>
+
+  <!-- ─── Main ─── -->
+  <main class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div>
+        <div class="breadcrumb"><span>Powerhouse</span><span class="sep">/</span><span>Workspace</span><span class="sep">/</span><span class="current">Customers</span></div>
+        <div class="topbar-title">Customers</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary"><i class="ti ti-file-import"></i>Import CSV</button>
+        <button class="btn btn-primary"><i class="ti ti-plus"></i>New customer</button>
+        <div class="divider-v"></div>
+        <div class="topbar-search">
+          <i class="ti ti-search"></i>
+          <input placeholder="Search customers, invoices, products…">
+          <span class="kbd">⌘K</span>
+        </div>
+        <button class="bell-btn"><i class="ti ti-bell"></i></button>
+        <div class="divider-v"></div>
+        <div class="avatar-wrap">
+          <div class="avatar av-admin">AP</div>
+          <div>
+            <div class="name">Apostolos P.</div>
+            <div class="role">Super Admin</div>
+          </div>
+          <i class="ti ti-chevron-down" style="color: var(--text-tertiary); font-size: 16px;"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- Greeting strip -->
+      <div class="greet">
+        <div>
+          <h1>Customers</h1>
+          <div class="sub">847 customers across Maavelus, MyOrderPad, and Whitedash B2B · synced 2 min ago</div>
+        </div>
+      </div>
+
+      <!-- Summary strip -->
+      <div class="summary-strip">
+        <div class="stat-pill"><span class="d gold"></span><strong>847</strong><span class="lbl">total</span></div>
+        <div class="stat-pill"><span class="d green"></span><strong>801</strong><span class="lbl">active</span></div>
+        <div class="stat-pill"><span class="d blue"></span><strong>28</strong><span class="lbl">trial</span></div>
+        <div class="stat-pill"><span class="d grey"></span><strong>18</strong><span class="lbl">inactive / churned</span></div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <div class="field-search">
+          <i class="ti ti-search"></i>
+          <input placeholder="Search by name, email, company…">
+        </div>
+        <button class="dd-btn"><i class="ti ti-layout-grid"></i><span class="lead">Product:</span>All products<i class="ti ti-chevron-down ch"></i></button>
+        <button class="dd-btn"><i class="ti ti-git-branch"></i><span class="lead">Pipeline:</span>All stages<i class="ti ti-chevron-down ch"></i></button>
+        <button class="dd-btn"><i class="ti ti-users-group"></i><span class="lead">Referrer:</span>All referrers<i class="ti ti-chevron-down ch"></i></button>
+
+        <div class="right">
+          <button class="btn btn-ghost btn-sm btn-dot" style="color: var(--text-secondary);"><i class="ti ti-adjustments-horizontal"></i>Filters</button>
+          <div class="divider-v" style="height: 20px;"></div>
+          <div class="view-toggle">
+            <button class="vt-btn active" aria-label="Table view"><i class="ti ti-table"></i></button>
+            <button class="vt-btn" aria-label="Card view"><i class="ti ti-layout-cards"></i></button>
+          </div>
+          <button class="btn btn-ghost btn-sm" style="color: var(--text-secondary);"><i class="ti ti-arrows-sort"></i>Sort: Last active</button>
+        </div>
+      </div>
+
+      <!-- Bulk action bar -->
+      <div class="bulk-bar">
+        <div class="count"><strong>3</strong> customers selected</div>
+        <div class="bulk-divider"></div>
+        <div class="actions">
+          <button class="bulk-act"><i class="ti ti-mail"></i>Send email</button>
+          <button class="bulk-act"><i class="ti ti-tag"></i>Add tag</button>
+          <button class="bulk-act"><i class="ti ti-file-export"></i>Export</button>
+          <button class="bulk-act danger"><i class="ti ti-trash"></i>Delete</button>
+        </div>
+        <button class="clear"><i class="ti ti-x"></i>Clear selection</button>
+      </div>
+
+      <!-- Table card -->
+      <div class="table-card">
+        <table class="tbl">
+          <colgroup>
+            <col style="width: 44px;">
+            <col>
+            <col style="width: 100px;">
+            <col style="width: 96px;">
+            <col style="width: 96px;">
+            <col style="width: 130px;">
+            <col style="width: 100px;">
+            <col style="width: 168px;">
+            <col style="width: 48px;">
+          </colgroup>
+          <thead>
+            <tr>
+              <th><span class="cb indeterminate"></span></th>
+              <th class="sortable sorted">Customer <i class="ti ti-arrow-up sort-ic"></i></th>
+              <th>Products</th>
+              <th class="sortable num">MRR <i class="ti ti-selector sort-ic"></i></th>
+              <th>Pipeline</th>
+              <th>Referrer</th>
+              <th class="sortable">Last active <i class="ti ti-selector sort-ic"></i></th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <!-- Row 1 (selected, hover panel) -->
+            <tr class="selected">
+              <td><span class="cb checked" data-cb></span></td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-teal">AK</div>
+                  <div class="cust-meta">
+                    <div class="cust-name">The Aegean Kitchen</div>
+                    <div class="cust-loc">London, UK</div>
+
+                    <!-- Quick-detail tooltip (statically shown for Row 1) -->
+                    <div class="qd-tooltip">
+                      <div class="qd-top">
+                        <div class="avatar av-teal">AK</div>
+                        <div>
+                          <div class="qd-name">The Aegean Kitchen</div>
+                          <div class="qd-sub"><span class="em">● Active</span> · since May 2026</div>
+                        </div>
+                      </div>
+                      <div class="qd-divider"></div>
+                      <div class="qd-stats">
+                        <div class="qd-stat"><div class="k">MRR</div><div class="v">£69</div></div>
+                        <div class="qd-stat"><div class="k">Products</div><div class="v">2</div></div>
+                        <div class="qd-stat"><div class="k">Tickets</div><div class="v">1<span style="font:400 11px/1 'Inter'; color: var(--text-secondary); margin-left:3px;">open</span></div></div>
+                      </div>
+                      <div class="qd-foot">
+                        <a href="#" class="ghost-link" style="color: var(--accent);">Open record<i class="ti ti-arrow-right"></i></a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td><div class="prod-set"><span class="pb maa">M</span><span class="pb mop">O</span></div></td>
+              <td><span class="mrr">£69<span class="u">/mo</span></span></td>
+              <td><span class="pip active">Active</span></td>
+              <td><span class="ref-cell"><span class="avatar av-amber">CP</span>Christos</span></td>
+              <td><span class="last-active">14m ago</span></td>
+              <td><span class="status-cell"><span class="badge badge-active">Active</span></span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 2 selected -->
+            <tr class="selected">
+              <td><span class="cb checked" data-cb></span></td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-1">PF</div>
+                  <div class="cust-meta">
+                    <div class="cust-name">Pitta Fan Leeds</div>
+                    <div class="cust-loc">Leeds, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td><div class="prod-set"><span class="pb maa">M</span><span class="pb mop">O</span><span class="pb wdb">B</span></div></td>
+              <td><span class="mrr">£168<span class="u">/mo</span></span></td>
+              <td><span class="pip active">Active</span></td>
+              <td><span class="ref-cell"><span class="avatar av-amber">CP</span>Christos</span></td>
+              <td><span class="last-active">2h ago</span></td>
+              <td><span class="status-cell"><span class="badge badge-active">Active</span></span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 3 selected, overdue -->
+            <tr class="selected">
+              <td><span class="cb checked" data-cb></span></td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-2">SH</div>
+                  <div class="cust-meta">
+                    <div class="cust-name">Souvlaki House Manchester</div>
+                    <div class="cust-loc">Manchester, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td><div class="prod-set"><span class="pb mop">O</span></div></td>
+              <td><span class="mrr">£40<span class="u">/mo</span></span></td>
+              <td><span class="pip active">Active</span></td>
+              <td><span class="ref-cell"><span class="avatar av-amber">CP</span>Christos</span></td>
+              <td><span class="last-active">7h ago</span></td>
+              <td>
+                <span class="status-cell">
+                  <span class="badge badge-overdue"><i class="ti ti-alert-triangle" style="font-size:11px; margin-right:-2px;"></i>Overdue</span>
+                  <span class="warn-pill" title="Payment failed"><i class="ti ti-credit-card-off"></i>Pay fail</span>
+                </span>
+              </td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 4 -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-3">TA</div>
+                  <div class="cust-meta">
+                    <div class="cust-name">The Athenian</div>
+                    <div class="cust-loc">Birmingham, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td><div class="prod-set"><span class="pb maa">M</span><span class="pb mop">O</span></div></td>
+              <td><span class="mrr">£69<span class="u">/mo</span></span></td>
+              <td><span class="pip active">Active</span></td>
+              <td><span class="ref-cell"><span class="avatar av-teal">SP</span>Sofia</span></td>
+              <td><span class="last-active">Yesterday</span></td>
+              <td><span class="status-cell"><span class="badge badge-active">Active</span></span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 5 trial -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-5">GC</div>
+                  <div class="cust-meta">
+                    <div class="cust-name">Gyros City MCR</div>
+                    <div class="cust-loc">Manchester, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td><div class="prod-set"><span class="pb mop">O</span></div></td>
+              <td><span class="mrr">£40<span class="u">/mo</span></span></td>
+              <td><span class="pip active">Active</span></td>
+              <td><span class="ref-cell"><span class="avatar av-teal">SP</span>Sofia</span></td>
+              <td><span class="last-active">2 days ago</span></td>
+              <td><span class="status-cell"><span class="badge badge-trial">Trial · ends 30 May</span></span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 6 group account -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-amber">OG</div>
+                  <div class="cust-meta">
+                    <div class="cust-name">Olympia Restaurant Group</div>
+                    <div class="cust-loc">London, UK · 4 locations</div>
+                  </div>
+                </div>
+              </td>
+              <td><div class="prod-set"><span class="pb maa pb-count" data-count="3">M</span><span class="pb mop">O</span></div></td>
+              <td><span class="mrr">£287<span class="u">/mo</span></span></td>
+              <td><span class="pip active">Active</span></td>
+              <td><span class="ref-cell"><span class="avatar av-amber">CP</span>Christos</span></td>
+              <td><span class="last-active">3 days ago</span></td>
+              <td>
+                <span class="status-cell">
+                  <span class="badge badge-active">Active</span>
+                  <span class="group-pill" title="Group account"><i class="ti ti-users"></i></span>
+                </span>
+              </td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 7 direct + domain warning -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-1">GB</div>
+                  <div class="cust-meta">
+                    <div class="cust-name">Greek Bites</div>
+                    <div class="cust-loc">Bristol, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td><div class="prod-set"><span class="pb maa">M</span></div></td>
+              <td><span class="mrr">£29<span class="u">/mo</span></span></td>
+              <td><span class="pip active">Active</span></td>
+              <td><span class="ref-cell direct">Direct</span></td>
+              <td><span class="last-active">4 days ago</span></td>
+              <td>
+                <span class="status-cell">
+                  <span class="badge badge-active">Active</span>
+                  <span class="warn-pill" title="Domain expiring 6 days"><i class="ti ti-alert-triangle"></i>Domain</span>
+                </span>
+              </td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 8 -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-navy">HF</div>
+                  <div class="cust-meta">
+                    <div class="cust-name">Hellenic Foods UK</div>
+                    <div class="cust-loc">London, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td><div class="prod-set"><span class="pb wdb">B</span></div></td>
+              <td><span class="mrr">£164<span class="u">/mo</span></span></td>
+              <td><span class="pip active">Active</span></td>
+              <td><span class="ref-cell"><span class="avatar av-grey">NS</span>Nikos</span></td>
+              <td><span class="last-active">5 days ago</span></td>
+              <td><span class="status-cell"><span class="badge badge-active">Active</span></span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 9 prospect / trial -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-3">MK</div>
+                  <div class="cust-meta">
+                    <div class="cust-name">Mykonos Kitchen</div>
+                    <div class="cust-loc">Edinburgh, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td><div class="prod-set"><span class="pb maa">M</span></div></td>
+              <td><span class="mrr">£29<span class="u">/mo</span></span></td>
+              <td><span class="pip prospect">Prospect</span></td>
+              <td><span class="ref-cell direct">Direct</span></td>
+              <td><span class="last-active">1 week ago</span></td>
+              <td><span class="status-cell"><span class="badge badge-trial">Trial</span></span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 10 prospect -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-5">AB</div>
+                  <div class="cust-meta">
+                    <div class="cust-name">Aegean Bites</div>
+                    <div class="cust-loc">Glasgow, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td><div class="prod-set"><span class="pb mop">O</span></div></td>
+              <td><span class="mrr">£40<span class="u">/mo</span></span></td>
+              <td><span class="pip prospect">Prospect</span></td>
+              <td><span class="ref-cell"><span class="avatar av-grey">NS</span>Nikos</span></td>
+              <td><span class="last-active">2 weeks ago</span></td>
+              <td><span class="status-cell"><span class="badge badge-active">Active</span></span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 11 lead -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-2">KT</div>
+                  <div class="cust-meta">
+                    <div class="cust-name">Kalamaki &amp; Co</div>
+                    <div class="cust-loc">London, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td><div class="prod-set"><span class="pb maa">M</span><span class="pb mop">O</span></div></td>
+              <td><span class="mrr">£69<span class="u">/mo</span></span></td>
+              <td><span class="pip lead">Lead</span></td>
+              <td><span class="ref-cell"><span class="avatar av-amber">CP</span>Christos</span></td>
+              <td><span class="last-active">3 weeks ago</span></td>
+              <td><span class="status-cell"><span class="badge badge-inactive">Inactive</span></span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 12 lead no product -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-1">OS</div>
+                  <div class="cust-meta">
+                    <div class="cust-name">Opa! Souvlaki</div>
+                    <div class="cust-loc">Liverpool, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td><span style="color: var(--text-tertiary); font: 500 13px/1 'Inter', sans-serif;">—</span></td>
+              <td><span class="mrr muted">£0</span></td>
+              <td><span class="pip lead">Lead</span></td>
+              <td><span class="ref-cell"><span class="avatar av-teal">SP</span>Sofia</span></td>
+              <td><span class="last-active">1 month ago</span></td>
+              <td><span class="status-cell"><span class="badge badge-inactive">Inactive</span></span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+          </tbody>
+        </table>
+
+        <!-- Foot row -->
+        <div class="tbl-foot">
+          <div class="info">Showing <strong style="color: var(--text-primary); font-weight: 600;">1 – 12</strong> of <strong style="color: var(--text-primary); font-weight: 600;">847</strong> customers</div>
+          <div class="right">
+            <button class="pg-btn"><i class="ti ti-chevron-left" style="font-size:14px;"></i>Previous</button>
+            <button class="pg-btn">1</button>
+            <button class="pg-btn active">2</button>
+            <button class="pg-btn">3</button>
+            <button class="pg-btn">4</button>
+            <span class="pg-ellipsis">…</span>
+            <button class="pg-btn">71</button>
+            <button class="pg-btn">Next<i class="ti ti-chevron-right" style="font-size:14px;"></i></button>
+            <button class="per-page">20 per page<i class="ti ti-chevron-down"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page footer -->
+      <div class="page-foot">
+        <div>Powerhouse v3.2.0 · Whitedash</div>
+        <div>Data refreshed <strong>2 minutes ago</strong> · auto-syncs every 5 min</div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // Checkbox toggle (rows + header indeterminate)
+  document.querySelectorAll('[data-cb]').forEach(cb => {
+    cb.addEventListener('click', e => {
+      e.stopPropagation();
+      cb.classList.toggle('checked');
+      const row = cb.closest('tr');
+      if (row) row.classList.toggle('selected', cb.classList.contains('checked'));
+      updateBulk();
+    });
+  });
+  function updateBulk() {
+    const n = document.querySelectorAll('tbody tr.selected').length;
+    const bar = document.querySelector('.bulk-bar');
+    if (!bar) return;
+    bar.querySelector('.count strong').textContent = n;
+    bar.style.display = n > 0 ? '' : 'none';
+    const head = document.querySelector('thead .cb');
+    if (head) {
+      head.classList.remove('checked','indeterminate');
+      const total = document.querySelectorAll('tbody tr').length;
+      if (n === total) head.classList.add('checked');
+      else if (n > 0) head.classList.add('indeterminate');
+    }
+  }
+  // Clear selection
+  const clearBtn = document.querySelector('.bulk-bar .clear');
+  if (clearBtn) clearBtn.addEventListener('click', () => {
+    document.querySelectorAll('tbody tr.selected').forEach(r => r.classList.remove('selected'));
+    document.querySelectorAll('tbody [data-cb].checked').forEach(c => c.classList.remove('checked'));
+    updateBulk();
+  });
+  // View toggle (visual only)
+  document.querySelectorAll('.vt-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.vt-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    });
+  });
+  // Pagination
+  document.querySelectorAll('.pg-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      if (b.textContent.includes('Previous') || b.textContent.includes('Next')) return;
+      document.querySelectorAll('.pg-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>

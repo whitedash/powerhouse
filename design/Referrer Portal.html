@@ -1,0 +1,1040 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>referrers.whitedash.co.uk — Christos Panagiotis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg-navy: #0F172A;
+    --accent: #F59E0B;
+    --content-bg: #F8FAFC;
+    --card-bg: #FFFFFF;
+    --border: #E2E8F0;
+    --border-soft: #EEF2F7;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+    --info: #3B82F6;
+    --teal: #0D9488;
+    --purple: #7C3AED;
+
+    --success-bg: #ECFDF5;
+    --danger-bg:  #FEF2F2;
+    --warning-bg: #FFFBEB;
+    --info-bg:    #EFF6FF;
+    --neutral-bg: #F1F5F9;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.05);
+    --shadow-md: 0 4px 12px -2px rgba(15,23,42,.08), 0 1px 3px rgba(15,23,42,.04);
+    --shadow-lg: 0 24px 48px -12px rgba(15,23,42,.18), 0 2px 4px rgba(15,23,42,.04);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 400 14px/1.5 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: var(--content-bg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ─── Artboard ─── */
+  .portal {
+    width: 1440px;
+    margin: 0 auto;
+    background: var(--content-bg);
+    min-height: 1100px;
+  }
+
+  /* ─── Top nav (same pattern as customer portal) ─── */
+  .topnav {
+    height: 60px;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    position: sticky; top: 0;
+    z-index: 10;
+    padding: 0 32px;
+    display: flex; align-items: center; gap: 24px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), #FBBF24);
+    display: grid; place-items: center;
+    color: #fff;
+    font: 700 14px/1 'Inter', sans-serif;
+    box-shadow: 0 2px 6px rgba(245,158,11,.35);
+  }
+  .brand-name { font: 600 16px/1 'Inter', sans-serif; letter-spacing: -.01em; color: var(--text-primary); }
+  .brand-divider { width: 1px; height: 18px; background: var(--border); }
+  .brand-sub {
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .14em;
+    color: var(--text-tertiary);
+  }
+
+  .tabs { display: flex; align-items: center; gap: 4px; margin: 0 auto; height: 100%; }
+  .tab {
+    height: 100%;
+    padding: 0 16px;
+    display: inline-flex; align-items: center; gap: 8px;
+    font: 500 14px/1 'Inter', sans-serif; letter-spacing: -.005em;
+    color: var(--text-secondary);
+    cursor: pointer;
+    position: relative;
+    text-decoration: none;
+    transition: color .12s;
+  }
+  .tab:hover { color: var(--text-primary); }
+  .tab.active { color: var(--accent); font-weight: 600; }
+  .tab.active::after {
+    content: "";
+    position: absolute;
+    left: 10px; right: 10px;
+    bottom: -1px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px 2px 0 0;
+  }
+
+  .nav-right { display: flex; align-items: center; gap: 12px; }
+  .bell-btn {
+    width: 36px; height: 36px;
+    border-radius: var(--radius-md);
+    display: grid; place-items: center;
+    color: var(--text-secondary);
+    background: transparent; border: 0; cursor: pointer;
+    transition: background .12s;
+  }
+  .bell-btn:hover { background: var(--neutral-bg); }
+  .bell-btn .ti { font-size: 20px; }
+  .user-pill {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 12px 4px 4px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .user-pill:hover { background: var(--neutral-bg); }
+  .avatar {
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: #fff;
+    font: 600 12px/1 'Inter', sans-serif; letter-spacing: -.01em;
+    flex-shrink: 0;
+  }
+  .av-1 { background: linear-gradient(135deg, #6366F1, #8B5CF6); }
+  .av-2 { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-3 { background: linear-gradient(135deg, #10B981, #059669); }
+  .av-teal  { background: var(--teal); }
+  .av-amber { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-navy  { background: linear-gradient(135deg, #0F172A, #334155); }
+  .user-pill .avatar { width: 32px; height: 32px; font-size: 12px; }
+  .user-pill .uname { font: 500 13px/1 'Inter', sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .user-pill .chev { color: var(--text-tertiary); font-size: 16px; }
+
+  /* ─── Content column ─── */
+  .content {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 32px 0;
+  }
+
+  /* ─── Welcome card ─── */
+  .welcome {
+    position: relative;
+    background: linear-gradient(135deg, var(--bg-navy), #1E293B);
+    color: #fff;
+    border-radius: var(--radius-xl);
+    padding: 32px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px -8px rgba(15,23,42,.4);
+  }
+  .welcome::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 500px 220px at 90% 0%, rgba(245,158,11,.22), transparent 70%),
+      radial-gradient(ellipse 400px 200px at 100% 100%, rgba(59,130,246,.08), transparent 70%);
+    pointer-events: none;
+  }
+  .welcome::before {
+    content: "WD";
+    position: absolute;
+    top: -10px; right: 280px;
+    font: 700 220px/1 'Inter', sans-serif;
+    letter-spacing: -.06em;
+    color: rgba(255,255,255,.025);
+    pointer-events: none;
+    user-select: none;
+  }
+  .welcome > * { position: relative; z-index: 1; }
+  .welcome-label {
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .14em;
+    color: rgba(255,255,255,.5);
+  }
+  .welcome-name {
+    font: 700 32px/1.1 'Inter', sans-serif;
+    letter-spacing: -.02em;
+    margin-top: 10px;
+  }
+  .welcome-sub {
+    font: 400 14px/1.4 'Inter', sans-serif;
+    color: rgba(255,255,255,.6);
+    margin-top: 6px;
+  }
+  .welcome-stats {
+    margin-top: 24px;
+    display: flex; align-items: center; gap: 28px;
+  }
+  .w-stat { display: flex; flex-direction: column; gap: 4px; }
+  .w-stat .k {
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .14em;
+    color: rgba(255,255,255,.45);
+  }
+  .w-stat .v {
+    font: 600 18px/1.2 'Inter', sans-serif;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.005em;
+  }
+  .w-stat .v.warn { color: #FCD34D; }
+  .w-divider { width: 1px; height: 30px; background: rgba(255,255,255,.12); align-self: flex-end; margin-bottom: 4px; }
+
+  .welcome-actions {
+    position: absolute;
+    right: 32px; top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    display: flex; gap: 10px;
+  }
+
+  /* ─── Buttons ─── */
+  .btn {
+    appearance: none; border: 0; cursor: pointer;
+    font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em;
+    padding: 0 14px; height: 36px;
+    border-radius: var(--radius-md);
+    display: inline-flex; align-items: center; gap: 7px;
+    transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
+    white-space: nowrap;
+  }
+  .btn .ti { font-size: 15px; }
+  .btn-primary   { background: var(--accent); color: var(--bg-navy); font-weight: 600; box-shadow: 0 1px 2px rgba(245,158,11,.3); }
+  .btn-primary:hover { background: #E08C09; }
+  .btn-secondary { background: #fff; color: var(--text-primary); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .btn-secondary:hover { background: var(--neutral-bg); border-color: #CBD5E1; }
+  .btn-outline-light {
+    background: transparent;
+    color: #fff;
+    border: 1px solid rgba(255,255,255,.2);
+    font-weight: 500;
+  }
+  .btn-outline-light:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.32); }
+
+  .ghost-link {
+    background: transparent; border: 0; cursor: pointer;
+    color: var(--text-primary);
+    font: 500 13px/1 'Inter', sans-serif;
+    padding: 6px 8px;
+    border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 5px;
+    transition: background .12s, color .12s;
+    text-decoration: none;
+  }
+  .ghost-link:hover { background: var(--neutral-bg); color: var(--accent); }
+  .ghost-link .ti { font-size: 14px; }
+  .ghost-link.accent { color: var(--accent); }
+
+  /* ─── Badges ─── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font: 500 11.5px/1.4 'Inter', sans-serif; letter-spacing: -.005em;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge-active   { color: #047857; background: var(--success-bg); border-color: #A7F3D0; }
+  .badge-inactive { color: #475569; background: var(--neutral-bg); border-color: #E2E8F0; }
+  .badge-pending  { color: #B45309; background: var(--warning-bg); border-color: #FDE68A; }
+  .badge-info     { color: #1D4ED8; background: var(--info-bg); border-color: #BFDBFE; }
+  .badge-gold     { color: #B45309; background: rgba(245,158,11,.14); border-color: #FDE68A; }
+  .badge-sm { padding: 2px 7px; font: 500 10.5px/1.4 'Inter', sans-serif; }
+  .badge-sm::before { width: 5px; height: 5px; }
+
+  /* Warn pill (amber) */
+  .warn-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--warning-bg);
+    color: #B45309;
+    border: 1px solid #FDE68A;
+    font: 600 10.5px/1.3 'Inter', sans-serif;
+    letter-spacing: -.005em;
+    white-space: nowrap;
+  }
+  .warn-pill .ti { font-size: 11px; }
+
+  /* Product letter chip */
+  .prod-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 2px 8px 2px 4px;
+    border-radius: 999px;
+    font: 600 11px/1.3 'Inter', sans-serif;
+    letter-spacing: -.005em;
+    white-space: nowrap;
+  }
+  .prod-chip .mark {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font: 700 9.5px/1 'Inter', sans-serif;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .prod-chip.maa { background: rgba(13,148,136,.1); color: #0F766E; }
+  .prod-chip.maa .mark { background: var(--teal); }
+  .prod-chip.opd { background: rgba(59,130,246,.1); color: #1D4ED8; }
+  .prod-chip.opd .mark { background: var(--info); }
+  .prod-chip.b2b { background: rgba(124,58,237,.1); color: #6D28D9; }
+  .prod-chip.b2b .mark { background: var(--purple); }
+  .prod-chip.dot {
+    padding: 2px 4px;
+  }
+  .prod-chip.dot .mark { width: 14px; height: 14px; font-size: 8.5px; }
+
+  /* ─── Section heading ─── */
+  .section-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin: 32px 0 16px;
+    gap: 12px;
+  }
+  .section-head h2 {
+    font: 600 18px/1.2 'Inter', sans-serif;
+    letter-spacing: -.01em;
+    margin: 0;
+  }
+  .section-head .desc {
+    font: 400 14px/1.4 'Inter', sans-serif;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+  .section-head .col-l { display: flex; flex-direction: column; }
+  .section-head .right { display: flex; align-items: center; gap: 10px; }
+  .section-head .left-row { display: flex; align-items: center; gap: 10px; }
+
+  /* ─── Earnings cards ─── */
+  .earnings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+  .metric-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: 24px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .metric-ic {
+    width: 40px; height: 40px;
+    border-radius: var(--radius-md);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .metric-ic .ti { font-size: 22px; }
+  .metric-ic.success { background: var(--success-bg); color: var(--success); }
+  .metric-ic.warning { background: var(--warning-bg); color: var(--warning); }
+  .metric-ic.gold    { background: var(--warning-bg); color: var(--accent); }
+
+  .metric-value {
+    font: 700 28px/1 'Inter', sans-serif;
+    letter-spacing: -.02em;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .metric-value.warning { color: var(--warning); }
+
+  .metric-label {
+    font: 500 10px/1 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .14em;
+    color: var(--text-tertiary);
+    margin-top: 6px;
+  }
+
+  .metric-trend {
+    display: inline-flex; align-items: center; gap: 5px;
+    font: 500 12px/1.3 'Inter', sans-serif;
+    margin-top: 4px;
+  }
+  .metric-trend.success { color: var(--success); }
+  .metric-trend .ti { font-size: 14px; }
+  .metric-sub {
+    font: 400 12px/1.3 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+  }
+
+  /* ─── Card scaffolding ─── */
+  .card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  /* ─── Customers table ─── */
+  .ct-table { width: 100%; border-collapse: collapse; }
+  .ct-table thead th {
+    background: var(--neutral-bg);
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    padding: 10px 16px;
+    font: 500 10px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    color: var(--text-tertiary);
+    user-select: none;
+    white-space: nowrap;
+  }
+  .ct-table thead th.num { text-align: right; }
+  .ct-table tbody td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: middle;
+    background: #fff;
+    transition: background .12s;
+  }
+  .ct-table tbody tr:hover td { background: #FBFCFE; }
+  .ct-table tbody tr:last-child td { border-bottom: 0; }
+  .ct-table tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .ct-cust { display: flex; align-items: center; gap: 11px; min-width: 0; }
+  .ct-cust .avatar { width: 30px; height: 30px; font-size: 11px; }
+  .ct-cust .meta { min-width: 0; }
+  .ct-cust .nm { font: 500 13px/1.3 'Inter', sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .ct-cust .loc { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 2px; }
+
+  .ct-prods { display: flex; align-items: center; gap: 4px; }
+  .ct-money { font: 600 13px/1.3 'Inter', sans-serif; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .ct-commission { font: 400 13px/1.3 'Inter', sans-serif; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .ct-date { font: 400 13px/1.3 'Inter', sans-serif; color: var(--text-secondary); white-space: nowrap; }
+  .ct-status { display: inline-flex; align-items: center; gap: 6px; }
+
+  .ct-foot {
+    background: var(--neutral-bg);
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    font: 400 13px/1.3 'Inter', sans-serif;
+    color: var(--text-secondary);
+  }
+
+  /* ─── Commissions list ─── */
+  .com-row {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-soft);
+    border-left: 3px solid transparent;
+    transition: background .12s;
+  }
+  .com-row:last-child { border-bottom: 0; }
+  .com-row:hover { background: var(--neutral-bg); }
+  .com-row.pending  { border-left-color: var(--warning); }
+  .com-row.approved { border-left-color: var(--success); }
+  .com-row.paid     { border-left-color: var(--success); }
+
+  .com-ic {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .com-ic .ti { font-size: 18px; }
+  .com-ic.info    { background: var(--info-bg);    color: var(--info); }
+  .com-ic.warning { background: var(--warning-bg); color: var(--warning); }
+  .com-ic.success { background: var(--success-bg); color: var(--success); }
+
+  .com-meta .ttl { font: 500 13px/1.3 'Inter', sans-serif; letter-spacing: -.005em; color: var(--text-primary); }
+  .com-meta .sub { font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 3px; }
+
+  .com-right { display: flex; align-items: center; gap: 12px; }
+  .com-amt { font: 600 15px/1 'Inter', sans-serif; font-variant-numeric: tabular-nums; min-width: 78px; text-align: right; color: var(--text-primary); }
+  .com-status-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; min-width: 90px; }
+  .com-status-stack .paid-on { font: 400 11px/1 'Inter', sans-serif; color: var(--text-tertiary); padding-right: 2px; }
+
+  /* ─── Commission rules ─── */
+  .rules-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .rule-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 20px;
+    display: flex; flex-direction: column;
+  }
+  .rule-head { display: flex; align-items: center; gap: 10px; }
+  .rule-logo {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: grid; place-items: center;
+    color: #fff;
+    font: 700 13px/1 'Inter', sans-serif;
+    flex-shrink: 0;
+  }
+  .rule-logo.teal { background: var(--teal); box-shadow: 0 2px 6px rgba(13,148,136,.3); }
+  .rule-logo.blue { background: var(--info); box-shadow: 0 2px 6px rgba(59,130,246,.3); }
+  .rule-name { font: 600 15px/1.2 'Inter', sans-serif; letter-spacing: -.005em; color: var(--text-primary); }
+  .rule-tag { margin-left: auto; }
+
+  .rule-divider { height: 1px; background: var(--border-soft); margin: 16px 0 4px; }
+
+  .rule-row {
+    display: grid;
+    grid-template-columns: 20px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .rule-row:last-of-type { border-bottom: 0; }
+  .rule-row .ic { color: var(--text-secondary); display: grid; place-items: center; }
+  .rule-row .ic .ti { font-size: 16px; }
+  .rule-row .ic.warn { color: var(--warning); }
+  .rule-row .ic.info { color: var(--info); }
+  .rule-row .ic.accent { color: var(--accent); }
+  .rule-row .lbl { font: 500 13px/1.3 'Inter', sans-serif; color: var(--text-primary); }
+  .rule-row .val { font: 600 14px/1.3 'Inter', sans-serif; color: var(--text-primary); font-variant-numeric: tabular-nums; letter-spacing: -.005em; }
+
+  .rule-row.tier-current {
+    background: var(--warning-bg);
+    border-left: 2px solid var(--accent);
+    border-radius: 4px;
+    padding: 10px 8px 10px 10px;
+    margin: 2px -8px 2px -10px;
+  }
+  .rule-row.tier-current .val { color: var(--accent); font-weight: 700; }
+  .rule-row.tier-current .lbl { color: #92400E; font-weight: 600; }
+
+  .rule-foot {
+    font: 400 11px/1.5 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    border-top: 1px solid var(--border-soft);
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+  .rule-foot.tier-now {
+    font: 500 11.5px/1.5 'Inter', sans-serif;
+    color: var(--accent);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .rule-foot.tier-now .ti { font-size: 13px; }
+
+  /* ─── Customers table footer ─── */
+  .ct-foot .more { color: var(--text-secondary); }
+  .ct-foot .more strong { color: var(--text-primary); font-weight: 600; }
+
+  /* ─── Footer ─── */
+  .footer {
+    margin-top: 48px;
+    padding: 24px 32px;
+    border-top: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 24px;
+    background: #fff;
+  }
+  .footer-left { display: flex; align-items: center; gap: 10px; font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-tertiary); }
+  .footer-left .brand-mark { width: 20px; height: 20px; font-size: 10px; border-radius: 6px; }
+  .footer-mid { display: flex; align-items: center; gap: 16px; justify-content: center; }
+  .footer-mid a {
+    font: 400 12px/1 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    text-decoration: none;
+    transition: color .12s;
+  }
+  .footer-mid a:hover { color: var(--accent); }
+  .footer-right { font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-tertiary); text-align: right; }
+
+</style>
+</head>
+<body>
+
+<div class="portal" data-screen-label="08 Referrer Portal · Christos">
+
+  <!-- ─── Top nav ─── -->
+  <nav class="topnav">
+    <div class="brand">
+      <div class="brand-mark">W</div>
+      <div class="brand-name">Whitedash</div>
+      <div class="brand-divider"></div>
+      <div class="brand-sub">partners</div>
+    </div>
+
+    <div class="tabs">
+      <a href="#" class="tab active">Dashboard</a>
+      <a href="#" class="tab">My customers</a>
+      <a href="#" class="tab">Commissions</a>
+      <a href="#" class="tab">Payouts</a>
+      <a href="#" class="tab">Account</a>
+    </div>
+
+    <div class="nav-right">
+      <button class="bell-btn" aria-label="Notifications"><i class="ti ti-bell"></i></button>
+      <div class="brand-divider"></div>
+      <div class="user-pill">
+        <div class="avatar av-amber">CP</div>
+        <div class="uname">Christos P.</div>
+        <i class="ti ti-chevron-down chev"></i>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ─── Content ─── -->
+  <div class="content">
+
+    <!-- Welcome card -->
+    <section class="welcome">
+      <div class="welcome-label">Partner dashboard</div>
+      <div class="welcome-name">Christos</div>
+      <div class="welcome-sub">Active referrer · 24 customers · since January 2024</div>
+
+      <div class="welcome-stats">
+        <div class="w-stat">
+          <div class="k">Referred</div>
+          <div class="v">24</div>
+        </div>
+        <div class="w-divider"></div>
+        <div class="w-stat">
+          <div class="k">This month</div>
+          <div class="v">£180</div>
+        </div>
+        <div class="w-divider"></div>
+        <div class="w-stat">
+          <div class="k">Pending</div>
+          <div class="v warn">£540</div>
+        </div>
+        <div class="w-divider"></div>
+        <div class="w-stat">
+          <div class="k">All time</div>
+          <div class="v">£1,820</div>
+        </div>
+      </div>
+
+      <div class="welcome-actions">
+        <button class="btn btn-outline-light">View commission rules<i class="ti ti-arrow-right"></i></button>
+        <button class="btn btn-primary"><i class="ti ti-coins"></i>Request payout</button>
+      </div>
+    </section>
+
+    <!-- ═══════════ EARNINGS ═══════════ -->
+    <div class="section-head">
+      <div class="col-l">
+        <h2>Earnings</h2>
+      </div>
+    </div>
+
+    <div class="earnings-grid">
+      <div class="metric-card">
+        <div class="metric-ic success"><i class="ti ti-trending-up"></i></div>
+        <div>
+          <div class="metric-value">£180.00</div>
+          <div class="metric-label">Earned this month</div>
+          <div class="metric-trend success"><i class="ti ti-arrow-up-right"></i>+£20 vs last month</div>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-ic warning"><i class="ti ti-clock"></i></div>
+        <div>
+          <div class="metric-value warning">£540.00</div>
+          <div class="metric-label">Pending payout</div>
+          <div class="metric-sub">3 months · awaiting approval</div>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-ic gold"><i class="ti ti-coins"></i></div>
+        <div>
+          <div class="metric-value">£1,820.00</div>
+          <div class="metric-label">Total earned</div>
+          <div class="metric-sub">Since Jan 2024 · 15 payouts received</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ MY CUSTOMERS ═══════════ -->
+    <div class="section-head">
+      <div class="left-row">
+        <h2>My customers</h2>
+        <span class="badge badge-active badge-sm">24 active</span>
+      </div>
+      <div class="right">
+        <a href="#" class="ghost-link accent">View all<i class="ti ti-arrow-right"></i></a>
+      </div>
+    </div>
+
+    <div class="card">
+      <table class="ct-table">
+        <colgroup>
+          <col>
+          <col style="width: 130px;">
+          <col style="width: 120px;">
+          <col style="width: 200px;">
+          <col style="width: 110px;">
+          <col style="width: 130px;">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Customer</th>
+            <th>Products</th>
+            <th class="num">Monthly value</th>
+            <th>Commission</th>
+            <th>Attributed</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          <tr>
+            <td>
+              <div class="ct-cust">
+                <div class="avatar av-teal">AK</div>
+                <div class="meta">
+                  <div class="nm">The Aegean Kitchen</div>
+                  <div class="loc">London, UK</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="ct-prods">
+                <span class="prod-chip dot maa" title="Maavelus"><span class="mark">M</span></span>
+                <span class="prod-chip dot opd" title="MyOrderPad"><span class="mark">O</span></span>
+              </div>
+            </td>
+            <td class="num"><span class="ct-money">£69.00/mo</span></td>
+            <td><span class="ct-commission">£3.45/mo + £50 onboarding</span></td>
+            <td><span class="ct-date">Today</span></td>
+            <td><span class="badge badge-active badge-sm">Active</span></td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="ct-cust">
+                <div class="avatar av-1">PF</div>
+                <div class="meta">
+                  <div class="nm">Pitta Fan Leeds</div>
+                  <div class="loc">Leeds, UK</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="ct-prods">
+                <span class="prod-chip dot maa"><span class="mark">M</span></span>
+                <span class="prod-chip dot opd"><span class="mark">O</span></span>
+                <span class="prod-chip dot b2b" title="Whitedash B2B"><span class="mark">B</span></span>
+              </div>
+            </td>
+            <td class="num"><span class="ct-money">£168.00/mo</span></td>
+            <td><span class="ct-commission">£8.40/mo</span></td>
+            <td><span class="ct-date">3 weeks ago</span></td>
+            <td><span class="badge badge-active badge-sm">Active</span></td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="ct-cust">
+                <div class="avatar av-2">SH</div>
+                <div class="meta">
+                  <div class="nm">Souvlaki House Manchester</div>
+                  <div class="loc">Manchester, UK</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="ct-prods">
+                <span class="prod-chip dot opd"><span class="mark">O</span></span>
+              </div>
+            </td>
+            <td class="num"><span class="ct-money">£40.00/mo</span></td>
+            <td><span class="ct-commission">£2.00/mo</span></td>
+            <td><span class="ct-date">2 months ago</span></td>
+            <td>
+              <div class="ct-status">
+                <span class="badge badge-active badge-sm">Active</span>
+                <span class="warn-pill"><i class="ti ti-alert-triangle"></i>Overdue</span>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="ct-cust">
+                <div class="avatar av-amber">OG</div>
+                <div class="meta">
+                  <div class="nm">Olympia Restaurant Group</div>
+                  <div class="loc">London, UK</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="ct-prods">
+                <span class="prod-chip dot maa"><span class="mark">M</span></span>
+                <span style="font: 500 10px/1 'Inter',sans-serif; color: var(--text-tertiary);">×3</span>
+                <span class="prod-chip dot opd"><span class="mark">O</span></span>
+              </div>
+            </td>
+            <td class="num"><span class="ct-money">£207.00/mo</span></td>
+            <td><span class="ct-commission">£10.35/mo</span></td>
+            <td><span class="ct-date">4 months ago</span></td>
+            <td><span class="badge badge-active badge-sm">Active</span></td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="ct-cust">
+                <div class="avatar av-3">TA</div>
+                <div class="meta">
+                  <div class="nm">The Athenian</div>
+                  <div class="loc">Birmingham, UK</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="ct-prods">
+                <span class="prod-chip dot maa"><span class="mark">M</span></span>
+                <span class="prod-chip dot opd"><span class="mark">O</span></span>
+              </div>
+            </td>
+            <td class="num"><span class="ct-money">£69.00/mo</span></td>
+            <td><span class="ct-commission">£3.45/mo</span></td>
+            <td><span class="ct-date">5 months ago</span></td>
+            <td><span class="badge badge-active badge-sm">Active</span></td>
+          </tr>
+
+        </tbody>
+      </table>
+
+      <div class="ct-foot">
+        <div class="more">+ <strong>19</strong> more customers</div>
+        <a href="#" class="ghost-link accent">View all 24<i class="ti ti-arrow-right"></i></a>
+      </div>
+    </div>
+
+    <!-- ═══════════ RECENT COMMISSIONS ═══════════ -->
+    <div class="section-head">
+      <div class="col-l">
+        <h2>Recent commissions</h2>
+      </div>
+      <div class="right">
+        <a href="#" class="ghost-link accent">View all<i class="ti ti-arrow-right"></i></a>
+      </div>
+    </div>
+
+    <div class="card">
+
+      <div class="com-row pending">
+        <div class="com-ic info"><i class="ti ti-rotate-clockwise"></i></div>
+        <div class="com-meta">
+          <div class="ttl">MyOrderPad recurring · May 2026</div>
+          <div class="sub">24 customers · tier 3 rate</div>
+        </div>
+        <div class="com-right">
+          <span class="com-amt">£480.00</span>
+          <span class="badge badge-pending">Pending</span>
+        </div>
+      </div>
+
+      <div class="com-row pending">
+        <div class="com-ic warning"><i class="ti ti-star"></i></div>
+        <div class="com-meta">
+          <div class="ttl">Maavelus onboarding · The Aegean Kitchen</div>
+          <div class="sub">One-off · customer joined today</div>
+        </div>
+        <div class="com-right">
+          <span class="com-amt">£50.00</span>
+          <span class="badge badge-pending">Pending</span>
+        </div>
+      </div>
+
+      <div class="com-row pending">
+        <div class="com-ic info"><i class="ti ti-rotate-clockwise"></i></div>
+        <div class="com-meta">
+          <div class="ttl">Maavelus MRR · May 2026</div>
+          <div class="sub">8 customers · 5% of total MRR</div>
+        </div>
+        <div class="com-right">
+          <span class="com-amt">£11.60</span>
+          <span class="badge badge-pending">Pending</span>
+        </div>
+      </div>
+
+      <div class="com-row approved">
+        <div class="com-ic success"><i class="ti ti-rotate-clockwise"></i></div>
+        <div class="com-meta">
+          <div class="ttl">MyOrderPad recurring · Apr 2026</div>
+          <div class="sub">24 customers · tier 3 rate</div>
+        </div>
+        <div class="com-right">
+          <span class="com-amt">£480.00</span>
+          <span class="badge badge-active">Approved</span>
+        </div>
+      </div>
+
+      <div class="com-row paid">
+        <div class="com-ic success"><i class="ti ti-circle-check"></i></div>
+        <div class="com-meta">
+          <div class="ttl">Maavelus MRR · Apr 2026</div>
+          <div class="sub">23 customers</div>
+        </div>
+        <div class="com-right">
+          <span class="com-amt">£33.35</span>
+          <div class="com-status-stack">
+            <span class="badge badge-active">Paid</span>
+            <span class="paid-on">2 May 2026</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="com-row paid">
+        <div class="com-ic success"><i class="ti ti-rotate-clockwise"></i></div>
+        <div class="com-meta">
+          <div class="ttl">MyOrderPad recurring · Mar 2026</div>
+          <div class="sub">22 customers · tier 3</div>
+        </div>
+        <div class="com-right">
+          <span class="com-amt">£440.00</span>
+          <div class="com-status-stack">
+            <span class="badge badge-active">Paid</span>
+            <span class="paid-on">2 Apr 2026</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════ COMMISSION RULES ═══════════ -->
+    <div class="section-head">
+      <div class="col-l">
+        <h2>Your commission structure</h2>
+        <div class="desc">Rates locked at your referral date · grandfathered for all customers attributed to you</div>
+      </div>
+    </div>
+
+    <div class="rules-grid">
+
+      <!-- Maavelus rule -->
+      <div class="rule-card">
+        <div class="rule-head">
+          <div class="rule-logo teal">M</div>
+          <div class="rule-name">Maavelus</div>
+          <span class="badge badge-info badge-sm rule-tag">Hybrid model</span>
+        </div>
+        <div class="rule-divider"></div>
+
+        <div class="rule-row">
+          <span class="ic warn"><i class="ti ti-star"></i></span>
+          <span class="lbl">Onboarding fee</span>
+          <span class="val">£50.00 <span style="font-weight: 400; color: var(--text-tertiary); font-size: 11.5px;">per new restaurant</span></span>
+        </div>
+        <div class="rule-row">
+          <span class="ic info"><i class="ti ti-repeat"></i></span>
+          <span class="lbl">Ongoing MRR</span>
+          <span class="val">5% <span style="font-weight: 400; color: var(--text-tertiary); font-size: 11.5px;">of customer MRR · forever</span></span>
+        </div>
+
+        <div class="rule-foot">Applies to all Maavelus customers you refer</div>
+      </div>
+
+      <!-- MyOrderPad rule -->
+      <div class="rule-card">
+        <div class="rule-head">
+          <div class="rule-logo blue">O</div>
+          <div class="rule-name">MyOrderPad</div>
+          <span class="badge badge-gold badge-sm rule-tag">Tiered recurring</span>
+        </div>
+        <div class="rule-divider"></div>
+
+        <div class="rule-row">
+          <span class="ic"><i class="ti ti-users"></i></span>
+          <span class="lbl">1 – 5 customers</span>
+          <span class="val">£10.00<span style="font-weight: 400; color: var(--text-tertiary); font-size: 11.5px;">/mo each</span></span>
+        </div>
+        <div class="rule-row">
+          <span class="ic"><i class="ti ti-users"></i></span>
+          <span class="lbl">6 – 10 customers</span>
+          <span class="val">£15.00<span style="font-weight: 400; color: var(--text-tertiary); font-size: 11.5px;">/mo each</span></span>
+        </div>
+        <div class="rule-row tier-current">
+          <span class="ic accent"><i class="ti ti-users"></i></span>
+          <span class="lbl">11+ customers</span>
+          <span class="val">£20.00<span style="font-weight: 600; color: var(--accent); font-size: 11.5px;">/mo each</span></span>
+        </div>
+
+        <div class="rule-foot tier-now"><i class="ti ti-star-filled"></i>You are in tier 3 — 24 referred customers</div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ─── Footer ─── -->
+  <footer class="footer">
+    <div class="footer-left">
+      <div class="brand-mark">W</div>
+      Whitedash · referrers.whitedash.co.uk
+    </div>
+    <div class="footer-mid">
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+      <a href="#">Contact</a>
+      <a href="#">Help centre</a>
+    </div>
+    <div class="footer-right">© 2026 Whitedash Holdings Ltd</div>
+  </footer>
+
+</div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', e => {
+      e.preventDefault();
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>

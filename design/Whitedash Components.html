@@ -1,0 +1,1427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Whitedash — Component Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg-navy: #0F172A;
+    --accent: #F59E0B;
+    --content-bg: #F8FAFC;
+    --card-bg: #FFFFFF;
+    --border: #E2E8F0;
+    --border-soft: #EEF2F7;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+    --info: #3B82F6;
+
+    --success-bg: #ECFDF5;
+    --danger-bg: #FEF2F2;
+    --warning-bg: #FFFBEB;
+    --info-bg: #EFF6FF;
+    --neutral-bg: #F1F5F9;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.05);
+    --shadow-md: 0 4px 12px -2px rgba(15,23,42,.08), 0 1px 3px rgba(15,23,42,.04);
+    --shadow-lg: 0 24px 48px -12px rgba(15,23,42,.18), 0 2px 4px rgba(15,23,42,.04);
+
+    --display:    700 24px/1.25 'Inter', sans-serif;
+    --heading:    600 20px/1.3  'Inter', sans-serif;
+    --subheading: 600 16px/1.4  'Inter', sans-serif;
+    --body:       400 14px/1.5  'Inter', sans-serif;
+    --small:      400 12px/1.4  'Inter', sans-serif;
+    --label:      500 11px/1.2  'Inter', sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: var(--body);
+    color: var(--text-primary);
+    background: #E5E9F0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ─── Artboard ─────────────────────────────────────────── */
+  .artboard {
+    width: 1440px;
+    margin: 0 auto;
+    background: var(--content-bg);
+    min-height: 100vh;
+    position: relative;
+  }
+  .artboard-header {
+    background: var(--bg-navy);
+    color: #fff;
+    padding: 40px 56px 44px;
+    position: relative;
+    overflow: hidden;
+  }
+  .artboard-header::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 600px 200px at 90% 0%, rgba(245,158,11,.18), transparent 70%),
+      radial-gradient(ellipse 400px 200px at 10% 100%, rgba(59,130,246,.08), transparent 70%);
+    pointer-events: none;
+  }
+  .artboard-header .wm {
+    position: absolute;
+    top: 50%; right: 56px;
+    transform: translateY(-50%);
+    font: 700 240px/1 'Inter', sans-serif;
+    letter-spacing: -.06em;
+    color: rgba(255,255,255,.025);
+    pointer-events: none;
+    user-select: none;
+  }
+  .brand-row { display:flex; align-items:center; gap: 14px; margin-bottom: 24px; position:relative; z-index:1;}
+  .brand-mark {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), #FBBF24);
+    display: grid; place-items: center;
+    color: var(--bg-navy);
+    font: 700 18px/1 'Inter', sans-serif;
+    box-shadow: 0 4px 10px rgba(245,158,11,.35);
+  }
+  .brand-name { font: 700 22px/1 'Inter', sans-serif; letter-spacing: -.01em; }
+  .brand-divider { width: 1px; height: 18px; background: rgba(255,255,255,.18); }
+  .brand-tag {
+    font: var(--label); text-transform: uppercase; letter-spacing: .12em;
+    color: rgba(255,255,255,.6);
+  }
+  .header-title { position:relative; z-index:1; }
+  .header-title h1 {
+    font: 700 40px/1.1 'Inter', sans-serif;
+    letter-spacing: -.02em;
+    margin: 0 0 8px;
+  }
+  .header-title p {
+    font: 400 15px/1.5 'Inter', sans-serif;
+    color: rgba(255,255,255,.65);
+    max-width: 560px;
+    margin: 0;
+  }
+  .header-meta {
+    display: flex; gap: 32px; margin-top: 28px;
+    position:relative; z-index:1;
+  }
+  .header-meta div { font: var(--small); color: rgba(255,255,255,.55); }
+  .header-meta strong { display: block; color: #fff; font: 600 14px/1.4 'Inter', sans-serif; margin-top: 4px; letter-spacing: -.005em; }
+
+  /* ─── Sheet body ───────────────────────────────────────── */
+  .sheet {
+    padding: 48px 56px 80px;
+    display: flex; flex-direction: column;
+    gap: 56px;
+  }
+
+  .section { display:flex; flex-direction: column; gap: 20px; }
+  .section-head { display:flex; align-items:baseline; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .section-head .num {
+    font: var(--label); text-transform: uppercase; letter-spacing: .14em;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+  }
+  .section-head h2 {
+    font: var(--heading); margin: 0; letter-spacing: -.01em;
+  }
+  .section-head .desc {
+    font: var(--small); color: var(--text-secondary);
+    margin-left: auto;
+  }
+
+  /* ─── Surface (generic component card) ─────────────────── */
+  .surface {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+  }
+  .surface .surface-label {
+    font: var(--label); text-transform: uppercase; letter-spacing: .12em;
+    color: var(--text-tertiary);
+    margin-bottom: 18px;
+  }
+  .row { display:flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .col { display:flex; flex-direction: column; gap: 12px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+  /* ─── Foundations: colors ──────────────────────────────── */
+  .swatch-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 14px;
+  }
+  .swatch {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: #fff;
+  }
+  .swatch-color { height: 64px; border-bottom: 1px solid var(--border-soft); }
+  .swatch-meta { padding: 10px 12px; }
+  .swatch-name { font: 600 13px/1.3 'Inter', sans-serif; letter-spacing: -.005em; }
+  .swatch-hex {
+    font: 500 11px/1.3 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    text-transform: uppercase;
+  }
+
+  /* ─── Foundations: type ────────────────────────────────── */
+  .type-row {
+    display: grid;
+    grid-template-columns: 120px 1fr 200px;
+    align-items: center;
+    padding: 18px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .type-row:last-child { border-bottom: 0; }
+  .type-row .tname {
+    font: var(--label); text-transform: uppercase; letter-spacing: .12em;
+    color: var(--text-tertiary);
+  }
+  .type-row .tspecs {
+    font: 500 11px/1.3 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+    text-align: right;
+  }
+  .t-display    { font: var(--display); letter-spacing: -.01em; }
+  .t-heading    { font: var(--heading); letter-spacing: -.005em; }
+  .t-subheading { font: var(--subheading); }
+  .t-body       { font: var(--body); }
+  .t-small      { font: var(--small); color: var(--text-secondary); }
+  .t-label      { font: var(--label); text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary); }
+
+  /* ─── Buttons ──────────────────────────────────────────── */
+  .btn {
+    appearance: none; border: 0; cursor: pointer;
+    font: 500 14px/1 'Inter', sans-serif; letter-spacing: -.005em;
+    padding: 0 16px; height: 36px;
+    border-radius: var(--radius-md);
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: background .15s, border-color .15s, color .15s, box-shadow .15s, transform .05s;
+    white-space: nowrap;
+  }
+  .btn:active:not(:disabled) { transform: translateY(.5px); }
+  .btn .ti { font-size: 16px; line-height: 1; }
+  .btn-sm { height: 30px; padding: 0 12px; font-size: 13px; }
+  .btn-lg { height: 42px; padding: 0 20px; font-size: 14px; }
+
+  .btn-primary   { background: var(--accent); color: var(--bg-navy); font-weight: 600; box-shadow: 0 1px 2px rgba(245,158,11,.3); }
+  .btn-primary:hover:not(:disabled) { background: #E08C09; }
+  .btn-primary:focus-visible { outline: 3px solid rgba(245,158,11,.35); outline-offset: 1px; }
+
+  .btn-secondary { background: #fff; color: var(--text-primary); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .btn-secondary:hover:not(:disabled) { background: var(--neutral-bg); border-color: #CBD5E1; }
+
+  .btn-danger    { background: var(--danger); color: #fff; box-shadow: 0 1px 2px rgba(239,68,68,.3); }
+  .btn-danger:hover:not(:disabled) { background: #DC2626; }
+
+  .btn-ghost     { background: transparent; color: var(--text-primary); }
+  .btn-ghost:hover:not(:disabled) { background: var(--neutral-bg); }
+
+  .btn:disabled  { opacity: .5; cursor: not-allowed; }
+
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .btn-stack {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr 1fr 1fr 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .btn-stack:last-child { border-bottom: 0; }
+  .btn-stack-label { font: var(--label); text-transform: uppercase; letter-spacing:.12em; color: var(--text-tertiary); }
+
+  /* ─── Inputs ───────────────────────────────────────────── */
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font: 500 12px/1.4 'Inter', sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .field .help  { font: var(--small); color: var(--text-secondary); }
+  .field .err   { font: var(--small); color: var(--danger); display: flex; align-items: center; gap: 4px; }
+  .field .err .ti { font-size: 14px; }
+
+  .input, .select, .textarea {
+    width: 100%;
+    font: var(--body);
+    color: var(--text-primary);
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0 12px;
+    height: 38px;
+    transition: border-color .15s, box-shadow .15s;
+    outline: 0;
+  }
+  .textarea { padding: 10px 12px; height: 92px; resize: vertical; line-height: 1.5; font-family: 'Inter', sans-serif; }
+  .input::placeholder, .textarea::placeholder { color: var(--text-tertiary); }
+  .input:focus, .select:focus, .textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(245,158,11,.18);
+  }
+  .field.error .input,
+  .field.error .select,
+  .field.error .textarea {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px rgba(239,68,68,.12);
+  }
+  .input-affix {
+    position: relative;
+  }
+  .input-affix .ti {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: var(--text-tertiary); font-size: 18px;
+  }
+  .input-affix .input { padding-left: 36px; }
+  .select-wrap { position: relative; }
+  .select { appearance: none; padding-right: 36px; }
+  .select-wrap::after {
+    content: "\ea5f"; /* chevron-down */
+    font-family: 'tabler-icons';
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--text-tertiary);
+    pointer-events: none;
+    font-size: 18px;
+  }
+
+  /* ─── Badges ───────────────────────────────────────────── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font: 500 12px/1.4 'Inter', sans-serif; letter-spacing: -.005em;
+    border: 1px solid transparent;
+  }
+  .badge::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+  }
+  .badge-active   { color: #047857; background: var(--success-bg); border-color: #A7F3D0; }
+  .badge-inactive { color: #475569; background: var(--neutral-bg); border-color: #E2E8F0; }
+  .badge-pending  { color: #B45309; background: var(--warning-bg); border-color: #FDE68A; }
+  .badge-overdue  { color: #B91C1C; background: var(--danger-bg); border-color: #FECACA; }
+  .badge-trial    { color: #1D4ED8; background: var(--info-bg); border-color: #BFDBFE; }
+
+  /* ─── Cards ────────────────────────────────────────────── */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .card-header h3 { font: var(--subheading); margin: 0; letter-spacing: -.005em; }
+  .card-header .sub { font: var(--small); color: var(--text-secondary); margin-top: 2px; }
+  .card-body { padding: 20px; }
+  .card-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border-soft);
+    display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+    background: #FBFCFE;
+  }
+
+  .metric-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    box-shadow: var(--shadow-sm);
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .metric-top { display: flex; align-items: flex-start; justify-content: space-between; }
+  .metric-label {
+    font: var(--label); text-transform: uppercase; letter-spacing: .12em;
+    color: var(--text-secondary);
+  }
+  .metric-icon {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-md);
+    display: grid; place-items: center;
+    background: var(--neutral-bg);
+    color: var(--text-secondary);
+    font-size: 18px;
+  }
+  .metric-icon.gold { background: rgba(245,158,11,.12); color: #B45309; }
+  .metric-icon.green { background: var(--success-bg); color: #047857; }
+  .metric-icon.blue { background: var(--info-bg); color: #1D4ED8; }
+  .metric-icon.red  { background: var(--danger-bg); color: #B91C1C; }
+  .metric-value {
+    font: 700 28px/1.1 'Inter', sans-serif;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .metric-foot { display: flex; align-items: center; gap: 8px; font: var(--small); color: var(--text-secondary); }
+  .trend { display: inline-flex; align-items: center; gap: 3px; font: 500 12px/1 'Inter', sans-serif; }
+  .trend.up   { color: var(--success); }
+  .trend.down { color: var(--danger); }
+  .trend .ti { font-size: 14px; }
+
+  /* ─── Table row ────────────────────────────────────────── */
+  .table {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .table-head, .table-row {
+    display: grid;
+    grid-template-columns: 36px 36px 1.6fr 1fr 130px 40px;
+    align-items: center;
+    padding: 0 18px;
+    gap: 14px;
+  }
+  .table-head {
+    height: 40px;
+    background: #FBFCFE;
+    border-bottom: 1px solid var(--border-soft);
+    font: var(--label); text-transform: uppercase; letter-spacing: .12em;
+    color: var(--text-tertiary);
+  }
+  .table-row {
+    height: 60px;
+    border-bottom: 1px solid var(--border-soft);
+    transition: background .12s;
+  }
+  .table-row:last-child { border-bottom: 0; }
+  .table-row:hover { background: #FAFBFD; }
+  .checkbox {
+    width: 16px; height: 16px;
+    border: 1.5px solid #CBD5E1; border-radius: 4px;
+    display: grid; place-items: center;
+    background: #fff;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .checkbox.checked {
+    background: var(--accent); border-color: var(--accent);
+    color: var(--bg-navy);
+  }
+  .checkbox.checked::after {
+    content: "\ea5e"; font-family: 'tabler-icons'; font-size: 12px; font-weight: 700;
+  }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: #fff;
+    font: 600 12px/1 'Inter', sans-serif; letter-spacing: -.01em;
+    flex-shrink: 0;
+  }
+  .av-1 { background: linear-gradient(135deg, #6366F1, #8B5CF6); }
+  .av-2 { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-3 { background: linear-gradient(135deg, #10B981, #059669); }
+  .av-4 { background: linear-gradient(135deg, #EF4444, #DB2777); }
+  .av-5 { background: linear-gradient(135deg, #3B82F6, #06B6D4); }
+  .av-icon { background: #E2E8F0; color: var(--text-secondary); }
+  .cell-primary { font: 500 14px/1.3 'Inter', sans-serif; letter-spacing: -.005em; }
+  .cell-secondary { font: var(--small); color: var(--text-secondary); margin-top: 2px; }
+  .row-meta { display: flex; flex-direction: column; }
+  .icon-btn {
+    width: 28px; height: 28px;
+    display: grid; place-items: center;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border: 0; background: transparent;
+    transition: background .12s, color .12s;
+  }
+  .icon-btn:hover { background: var(--neutral-bg); color: var(--text-primary); }
+  .icon-btn .ti { font-size: 18px; }
+
+  /* ─── Sidebar nav (preview) ────────────────────────────── */
+  .nav-preview {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    min-height: 520px;
+  }
+  .sidebar {
+    background: var(--bg-navy);
+    color: #fff;
+    padding: 20px 14px;
+    display: flex; flex-direction: column;
+    gap: 4px;
+  }
+  .sidebar .logo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 10px 18px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    margin-bottom: 14px;
+  }
+  .sidebar .logo .brand-mark { width: 28px; height: 28px; font-size: 14px; }
+  .sidebar .logo span { font: 600 15px/1 'Inter', sans-serif; letter-spacing: -.01em; }
+  .nav-section {
+    font: var(--label); text-transform: uppercase; letter-spacing: .14em;
+    color: rgba(255,255,255,.35);
+    padding: 14px 10px 6px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 11px;
+    padding: 8px 10px;
+    color: rgba(255,255,255,.7);
+    font: 500 13.5px/1.2 'Inter', sans-serif; letter-spacing: -.005em;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .nav-item .ti { font-size: 18px; }
+  .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .nav-item.active {
+    background: rgba(245,158,11,.14);
+    color: var(--accent);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+  .nav-item .count {
+    margin-left: auto;
+    font: 600 11px/1 'Inter', sans-serif;
+    background: rgba(255,255,255,.1);
+    color: rgba(255,255,255,.7);
+    padding: 3px 7px;
+    border-radius: 999px;
+  }
+  .nav-item.active .count { background: rgba(245,158,11,.22); color: var(--accent); }
+  .sidebar-spacer { flex: 1; }
+  .sidebar-user {
+    margin-top: 12px;
+    padding: 12px 10px;
+    border-top: 1px solid rgba(255,255,255,.08);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sidebar-user .avatar { width: 30px; height: 30px; }
+  .sidebar-user .name { font: 500 13px/1.2 'Inter', sans-serif; color: #fff; }
+  .sidebar-user .email { font: 400 11px/1.2 'Inter', sans-serif; color: rgba(255,255,255,.45); margin-top: 2px; }
+
+  /* ─── Top bar (preview) ────────────────────────────────── */
+  .nav-main { background: var(--content-bg); display: flex; flex-direction: column; }
+  .topbar {
+    height: 64px;
+    border-bottom: 1px solid var(--border);
+    background: #fff;
+    padding: 0 24px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .breadcrumb {
+    display: flex; align-items: center; gap: 6px;
+    font: var(--small); color: var(--text-secondary);
+  }
+  .breadcrumb .sep { color: var(--text-tertiary); }
+  .breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+  .topbar-title { font: var(--heading); letter-spacing: -.01em; }
+  .topbar-search {
+    margin-left: auto;
+    position: relative;
+    width: 280px;
+  }
+  .topbar-search .input { padding-left: 34px; height: 36px; background: var(--content-bg); border-color: transparent; }
+  .topbar-search .input:focus { background: #fff; border-color: var(--accent); }
+  .topbar-search .ti {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--text-tertiary); font-size: 18px;
+  }
+  .topbar-search .kbd {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    font: 500 10px/1 'JetBrains Mono', monospace;
+    color: var(--text-tertiary);
+    border: 1px solid var(--border);
+    background: #fff;
+    padding: 3px 5px;
+    border-radius: 4px;
+  }
+  .bell-btn {
+    position: relative;
+    width: 36px; height: 36px;
+    border-radius: var(--radius-md);
+    display: grid; place-items: center;
+    color: var(--text-secondary);
+    background: transparent; border: 0; cursor: pointer;
+    transition: background .12s;
+  }
+  .bell-btn:hover { background: var(--neutral-bg); }
+  .bell-btn .ti { font-size: 20px; }
+  .bell-btn::after {
+    content: ""; position: absolute;
+    top: 8px; right: 8px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--danger);
+    border: 2px solid #fff;
+  }
+  .topbar .avatar-wrap {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 12px 4px 4px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .topbar .avatar-wrap:hover { background: var(--neutral-bg); }
+  .topbar .avatar-wrap .name {
+    font: 500 13px/1.2 'Inter', sans-serif; color: var(--text-primary);
+  }
+  .topbar .avatar-wrap .role {
+    font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px;
+  }
+
+  .nav-content {
+    padding: 24px;
+    flex: 1;
+    background: var(--content-bg);
+  }
+  .nav-placeholder {
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+    height: 100%;
+    display: grid; place-items: center;
+    color: var(--text-tertiary);
+    font: var(--small);
+    background: repeating-linear-gradient(135deg, #fff, #fff 10px, #FBFCFE 10px, #FBFCFE 20px);
+  }
+
+  /* ─── Modal (preview, displayed inline) ────────────────── */
+  .modal-stage {
+    background: rgba(15,23,42,.55);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 56px 0;
+    display: grid; place-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .modal-stage::before {
+    content: "Backdrop preview";
+    position: absolute; top: 12px; left: 16px;
+    font: var(--label); text-transform: uppercase; letter-spacing: .12em;
+    color: rgba(255,255,255,.45);
+  }
+  .modal {
+    width: 460px;
+    background: #fff;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+  .modal-header {
+    padding: 20px 22px 0;
+    display: flex; align-items: flex-start; justify-content: space-between;
+  }
+  .modal-header .ic {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--danger-bg); color: var(--danger);
+    display: grid; place-items: center;
+    font-size: 20px;
+    margin-bottom: 14px;
+  }
+  .modal-header .close {
+    color: var(--text-tertiary);
+    background: transparent; border: 0; cursor: pointer;
+    font-size: 20px;
+    padding: 4px;
+  }
+  .modal-body { padding: 0 22px 20px; }
+  .modal-body h3 { font: var(--subheading); margin: 0 0 6px; letter-spacing: -.005em; }
+  .modal-body p  { font: var(--body); color: var(--text-secondary); margin: 0; }
+  .modal-footer {
+    background: #FBFCFE;
+    border-top: 1px solid var(--border-soft);
+    padding: 14px 22px;
+    display: flex; justify-content: flex-end; gap: 10px;
+  }
+
+  /* ─── Toasts ───────────────────────────────────────────── */
+  .toast {
+    display: flex; gap: 12px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: 14px 16px;
+    min-width: 320px;
+    max-width: 380px;
+    align-items: flex-start;
+    position: relative;
+  }
+  .toast .ic {
+    width: 24px; height: 24px;
+    border-radius: 6px;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    font-size: 16px;
+  }
+  .toast.success .ic { background: var(--success-bg); color: var(--success); }
+  .toast.error   .ic { background: var(--danger-bg);  color: var(--danger); }
+  .toast.warning .ic { background: var(--warning-bg); color: var(--warning); }
+  .toast.info    .ic { background: var(--info-bg);   color: var(--info); }
+  .toast .body { flex: 1; }
+  .toast .ttl  { font: 600 13px/1.3 'Inter', sans-serif; letter-spacing: -.005em; }
+  .toast .msg  { font: var(--small); color: var(--text-secondary); margin-top: 2px; }
+  .toast .x    { color: var(--text-tertiary); background: transparent; border: 0; cursor: pointer; font-size: 16px; }
+  .toast::before {
+    content: "";
+    position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px;
+    border-radius: 3px;
+  }
+  .toast.success::before { background: var(--success); }
+  .toast.error::before   { background: var(--danger); }
+  .toast.warning::before { background: var(--warning); }
+  .toast.info::before    { background: var(--info); }
+
+  /* ─── Empty state ──────────────────────────────────────── */
+  .empty {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 48px 32px;
+    text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+  .empty .ic {
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    background: var(--neutral-bg);
+    color: var(--text-secondary);
+    display: grid; place-items: center;
+    font-size: 28px;
+    margin-bottom: 4px;
+  }
+  .empty h4 { font: var(--subheading); margin: 0; letter-spacing: -.005em; }
+  .empty p  { font: var(--body); color: var(--text-secondary); margin: 0; max-width: 340px; }
+
+  /* ─── Pagination ───────────────────────────────────────── */
+  .pagination {
+    display: flex; align-items: center; gap: 6px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 12px 16px;
+  }
+  .pg-btn {
+    min-width: 32px; height: 32px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-primary);
+    font: 500 13px/1 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 0 10px;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  .pg-btn:hover:not(:disabled):not(.active) { background: var(--neutral-bg); }
+  .pg-btn.active {
+    background: var(--bg-navy); color: #fff;
+  }
+  .pg-btn:disabled { color: var(--text-tertiary); cursor: not-allowed; }
+  .pg-ellipsis { color: var(--text-tertiary); padding: 0 4px; user-select: none; }
+  .pg-info { margin-left: auto; font: var(--small); color: var(--text-secondary); }
+
+  /* ─── Misc ─────────────────────────────────────────────── */
+  .legend {
+    display: flex; align-items: center; gap: 8px;
+    font: var(--small); color: var(--text-secondary);
+  }
+  .legend .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+  }
+  .scale-mini {
+    font: var(--label); text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary);
+  }
+  .pill-state {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font: var(--label); text-transform: uppercase; letter-spacing: .12em;
+    color: var(--text-tertiary);
+    background: var(--neutral-bg);
+  }
+</style>
+</head>
+<body>
+
+<div class="artboard" data-screen-label="01 Component Sheet">
+
+  <!-- ═══════════ Header ═══════════ -->
+  <div class="artboard-header">
+    <div class="wm">WD</div>
+    <div class="brand-row">
+      <div class="brand-mark">W</div>
+      <div class="brand-name">Whitedash</div>
+      <div class="brand-divider"></div>
+      <div class="brand-tag">Design System · v1.0</div>
+    </div>
+    <div class="header-title">
+      <h1>Component Sheet</h1>
+      <p>The shared UI foundation across Powerhouse, the customer portal, SMScube, and Maavelus. Built for data-density, clarity, and speed.</p>
+    </div>
+    <div class="header-meta">
+      <div>Artboard <strong>1440 × auto</strong></div>
+      <div>Type <strong>Inter</strong></div>
+      <div>Iconography <strong>Tabler · outline</strong></div>
+      <div>Grid <strong>240 sidebar · 1280 max</strong></div>
+      <div>Updated <strong>May 27, 2026</strong></div>
+    </div>
+  </div>
+
+  <div class="sheet">
+
+    <!-- ═════ 00 · FOUNDATIONS: COLOR ═════ -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">00 · Foundations</span>
+        <h2>Color tokens</h2>
+        <span class="desc">Use semantic tokens — never raw hex values in product code.</span>
+      </div>
+
+      <div class="surface">
+        <div class="surface-label">Surface &amp; brand</div>
+        <div class="swatch-grid">
+          <div class="swatch"><div class="swatch-color" style="background:#0F172A;"></div><div class="swatch-meta"><div class="swatch-name">bg / navy</div><div class="swatch-hex">#0F172A</div></div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#F59E0B;"></div><div class="swatch-meta"><div class="swatch-name">accent / gold</div><div class="swatch-hex">#F59E0B</div></div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#F8FAFC;"></div><div class="swatch-meta"><div class="swatch-name">surface / content</div><div class="swatch-hex">#F8FAFC</div></div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#FFFFFF; box-shadow: inset 0 0 0 1px var(--border);"></div><div class="swatch-meta"><div class="swatch-name">surface / card</div><div class="swatch-hex">#FFFFFF</div></div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#E2E8F0;"></div><div class="swatch-meta"><div class="swatch-name">border / default</div><div class="swatch-hex">#E2E8F0</div></div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#0F172A;"></div><div class="swatch-meta"><div class="swatch-name">text / primary</div><div class="swatch-hex">#0F172A</div></div></div>
+        </div>
+      </div>
+
+      <div class="surface">
+        <div class="surface-label">Status &amp; semantic</div>
+        <div class="swatch-grid">
+          <div class="swatch"><div class="swatch-color" style="background:#64748B;"></div><div class="swatch-meta"><div class="swatch-name">text / secondary</div><div class="swatch-hex">#64748B</div></div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#10B981;"></div><div class="swatch-meta"><div class="swatch-name">status / success</div><div class="swatch-hex">#10B981</div></div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#EF4444;"></div><div class="swatch-meta"><div class="swatch-name">status / danger</div><div class="swatch-hex">#EF4444</div></div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#F59E0B;"></div><div class="swatch-meta"><div class="swatch-name">status / warning</div><div class="swatch-hex">#F59E0B</div></div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#3B82F6;"></div><div class="swatch-meta"><div class="swatch-name">status / info</div><div class="swatch-hex">#3B82F6</div></div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#F1F5F9;"></div><div class="swatch-meta"><div class="swatch-name">surface / muted</div><div class="swatch-hex">#F1F5F9</div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════ 00 · FOUNDATIONS: TYPE ═════ -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">00 · Foundations</span>
+        <h2>Typography</h2>
+        <span class="desc">Inter, 6-step scale. Tabular numerals on metrics &amp; tables.</span>
+      </div>
+      <div class="surface" style="padding: 12px 28px;">
+        <div class="type-row">
+          <div class="tname">Display</div>
+          <div class="t-display">Monthly recurring revenue</div>
+          <div class="tspecs">24 / 700 · -1%</div>
+        </div>
+        <div class="type-row">
+          <div class="tname">Heading</div>
+          <div class="t-heading">Customers &amp; subscriptions</div>
+          <div class="tspecs">20 / 600 · -.5%</div>
+        </div>
+        <div class="type-row">
+          <div class="tname">Subheading</div>
+          <div class="t-subheading">Recent activity</div>
+          <div class="tspecs">16 / 600</div>
+        </div>
+        <div class="type-row">
+          <div class="tname">Body</div>
+          <div class="t-body">The customer's plan renews on June 12, 2026 at $129 / month.</div>
+          <div class="tspecs">14 / 400 · 1.5lh</div>
+        </div>
+        <div class="type-row">
+          <div class="tname">Small</div>
+          <div class="t-small">Last synced 2 minutes ago · 3 changes pending</div>
+          <div class="tspecs">12 / 400</div>
+        </div>
+        <div class="type-row">
+          <div class="tname">Label</div>
+          <div class="t-label">Plan · Pro Annual</div>
+          <div class="tspecs">11 / 500 · upper · +.12em</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════ 01 · BUTTONS ═════ -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">01</span>
+        <h2>Buttons</h2>
+        <span class="desc">Primary uses gold. One primary per surface.</span>
+      </div>
+      <div class="surface">
+        <div class="btn-stack" style="grid-template-columns: 100px repeat(5, 1fr); border-bottom: 1px solid var(--border);">
+          <div class="btn-stack-label">Variant</div>
+          <div class="btn-stack-label">Default</div>
+          <div class="btn-stack-label">Hover</div>
+          <div class="btn-stack-label">Focus</div>
+          <div class="btn-stack-label">Disabled</div>
+          <div class="btn-stack-label">With icon</div>
+        </div>
+
+        <div class="btn-stack" style="grid-template-columns: 100px repeat(5, 1fr);">
+          <div class="btn-stack-label">Primary</div>
+          <div><button class="btn btn-primary">Save changes</button></div>
+          <div><button class="btn btn-primary" style="background:#E08C09;">Save changes</button></div>
+          <div><button class="btn btn-primary" style="box-shadow: 0 0 0 3px rgba(245,158,11,.35);">Save changes</button></div>
+          <div><button class="btn btn-primary" disabled>Save changes</button></div>
+          <div><button class="btn btn-primary"><i class="ti ti-plus"></i>New customer</button></div>
+        </div>
+
+        <div class="btn-stack" style="grid-template-columns: 100px repeat(5, 1fr);">
+          <div class="btn-stack-label">Secondary</div>
+          <div><button class="btn btn-secondary">Cancel</button></div>
+          <div><button class="btn btn-secondary" style="background: var(--neutral-bg); border-color:#CBD5E1;">Cancel</button></div>
+          <div><button class="btn btn-secondary" style="border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18);">Cancel</button></div>
+          <div><button class="btn btn-secondary" disabled>Cancel</button></div>
+          <div><button class="btn btn-secondary"><i class="ti ti-download"></i>Export CSV</button></div>
+        </div>
+
+        <div class="btn-stack" style="grid-template-columns: 100px repeat(5, 1fr);">
+          <div class="btn-stack-label">Danger</div>
+          <div><button class="btn btn-danger">Delete</button></div>
+          <div><button class="btn btn-danger" style="background:#DC2626;">Delete</button></div>
+          <div><button class="btn btn-danger" style="box-shadow: 0 0 0 3px rgba(239,68,68,.35);">Delete</button></div>
+          <div><button class="btn btn-danger" disabled>Delete</button></div>
+          <div><button class="btn btn-danger"><i class="ti ti-trash"></i>Remove user</button></div>
+        </div>
+
+        <div class="btn-stack" style="grid-template-columns: 100px repeat(5, 1fr); border-bottom: 0;">
+          <div class="btn-stack-label">Ghost</div>
+          <div><button class="btn btn-ghost">Dismiss</button></div>
+          <div><button class="btn btn-ghost" style="background: var(--neutral-bg);">Dismiss</button></div>
+          <div><button class="btn btn-ghost" style="box-shadow: 0 0 0 3px rgba(245,158,11,.18); background:#fff;">Dismiss</button></div>
+          <div><button class="btn btn-ghost" disabled>Dismiss</button></div>
+          <div><button class="btn btn-ghost"><i class="ti ti-filter"></i>Filter</button></div>
+        </div>
+      </div>
+
+      <div class="surface">
+        <div class="surface-label">Sizes</div>
+        <div class="btn-row">
+          <button class="btn btn-primary btn-sm">Small · 30</button>
+          <button class="btn btn-primary">Default · 36</button>
+          <button class="btn btn-primary btn-lg">Large · 42</button>
+          <span style="width: 24px;"></span>
+          <button class="btn btn-secondary btn-sm">Small</button>
+          <button class="btn btn-secondary">Default</button>
+          <button class="btn btn-secondary btn-lg">Large</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════ 02 · INPUTS ═════ -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">02</span>
+        <h2>Inputs</h2>
+        <span class="desc">Label · helper text · error state. Focus = gold ring.</span>
+      </div>
+
+      <div class="grid-3">
+        <div class="surface">
+          <div class="surface-label">Text input</div>
+          <div class="col">
+            <div class="field">
+              <label>Company name</label>
+              <input class="input" placeholder="Acme Logistics" value="Acme Logistics">
+              <div class="help">Shown on invoices and customer-facing emails.</div>
+            </div>
+            <div class="field">
+              <label>Email address</label>
+              <div class="input-affix"><i class="ti ti-mail"></i><input class="input" placeholder="you@company.com"></div>
+            </div>
+            <div class="field">
+              <label>Search customers</label>
+              <div class="input-affix"><i class="ti ti-search"></i><input class="input" placeholder="Name, email or ID…"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="surface">
+          <div class="surface-label">Select &amp; textarea</div>
+          <div class="col">
+            <div class="field">
+              <label>Plan tier</label>
+              <div class="select-wrap">
+                <select class="select">
+                  <option>Starter — $29 / month</option>
+                  <option selected>Pro — $129 / month</option>
+                  <option>Scale — $399 / month</option>
+                </select>
+              </div>
+              <div class="help">Changes prorate immediately.</div>
+            </div>
+            <div class="field">
+              <label>Internal notes</label>
+              <textarea class="textarea" placeholder="Visible only to your team…">Account flagged for manual review after chargeback on May 18.</textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="surface">
+          <div class="surface-label">Error state</div>
+          <div class="col">
+            <div class="field error">
+              <label>Phone number</label>
+              <div class="input-affix"><i class="ti ti-phone"></i><input class="input" value="+44 207"></div>
+              <div class="err"><i class="ti ti-alert-circle-filled"></i>Phone number must include country and area code.</div>
+            </div>
+            <div class="field">
+              <label>API key name</label>
+              <input class="input" placeholder="e.g. production-server-01" disabled value="production-server-01">
+              <div class="help">Renaming is disabled after first use.</div>
+            </div>
+            <div class="field">
+              <label>Webhook URL</label>
+              <input class="input" placeholder="https://" style="border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18);" value="https://hooks.acme.io/whitedash">
+              <div class="help" style="color: var(--accent);">Focused state — gold ring at .18 alpha.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════ 03 · BADGES ═════ -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">03</span>
+        <h2>Status badges</h2>
+        <span class="desc">Subscription &amp; lifecycle states.</span>
+      </div>
+      <div class="surface">
+        <div class="row" style="gap: 16px;">
+          <span class="badge badge-active">Active</span>
+          <span class="badge badge-inactive">Inactive</span>
+          <span class="badge badge-pending">Pending</span>
+          <span class="badge badge-overdue">Overdue</span>
+          <span class="badge badge-trial">Trial</span>
+          <span style="width: 24px;"></span>
+          <span class="legend"><span class="dot" style="background: var(--success);"></span>active = subscription paid &amp; current</span>
+          <span class="legend"><span class="dot" style="background: var(--text-secondary);"></span>inactive = cancelled or paused</span>
+          <span class="legend"><span class="dot" style="background: var(--warning);"></span>pending = invoice issued, awaiting payment</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════ 04 · CARDS ═════ -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">04</span>
+        <h2>Cards</h2>
+        <span class="desc">Standard surface with header, body and optional footer.</span>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3>Billing details</h3>
+              <div class="sub">Last invoice paid May 12, 2026</div>
+            </div>
+            <button class="icon-btn" aria-label="More"><i class="ti ti-dots"></i></button>
+          </div>
+          <div class="card-body">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <div>
+                <div class="t-label" style="margin-bottom: 4px;">Payment method</div>
+                <div style="font: 500 14px/1.4 'Inter', sans-serif; display:flex; align-items:center; gap: 8px;"><i class="ti ti-credit-card" style="color: var(--text-secondary);"></i>Visa ending 4242</div>
+              </div>
+              <div>
+                <div class="t-label" style="margin-bottom: 4px;">Next invoice</div>
+                <div style="font: 500 14px/1.4 'Inter', sans-serif;">$129.00 on June 12</div>
+              </div>
+              <div>
+                <div class="t-label" style="margin-bottom: 4px;">Billing email</div>
+                <div style="font: 500 14px/1.4 'Inter', sans-serif;">finance@acme.io</div>
+              </div>
+              <div>
+                <div class="t-label" style="margin-bottom: 4px;">Tax ID</div>
+                <div style="font: 500 14px/1.4 'Inter', sans-serif;">GB 412 8861 23</div>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <button class="btn btn-ghost btn-sm">Cancel subscription</button>
+            <button class="btn btn-secondary btn-sm">Update card</button>
+            <button class="btn btn-primary btn-sm">Save changes</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3>Team members</h3>
+              <div class="sub">4 active · 1 invitation pending</div>
+            </div>
+            <button class="btn btn-secondary btn-sm"><i class="ti ti-user-plus"></i>Invite</button>
+          </div>
+          <div class="card-body" style="padding: 0;">
+            <div class="table-row" style="grid-template-columns: 32px 1fr 100px 28px; padding: 12px 20px; height: auto;">
+              <div class="avatar av-1">EM</div>
+              <div class="row-meta"><div class="cell-primary">Eleanor Martin</div><div class="cell-secondary">eleanor@acme.io</div></div>
+              <div><span class="badge badge-active">Owner</span></div>
+              <button class="icon-btn"><i class="ti ti-dots"></i></button>
+            </div>
+            <div class="table-row" style="grid-template-columns: 32px 1fr 100px 28px; padding: 12px 20px; height: auto;">
+              <div class="avatar av-3">JT</div>
+              <div class="row-meta"><div class="cell-primary">James Tomlin</div><div class="cell-secondary">james@acme.io</div></div>
+              <div><span class="badge badge-inactive">Admin</span></div>
+              <button class="icon-btn"><i class="ti ti-dots"></i></button>
+            </div>
+            <div class="table-row" style="grid-template-columns: 32px 1fr 100px 28px; padding: 12px 20px; height: auto; border-bottom: 0;">
+              <div class="avatar av-2">RP</div>
+              <div class="row-meta"><div class="cell-primary">Rina Patel</div><div class="cell-secondary">rina@acme.io · invited</div></div>
+              <div><span class="badge badge-pending">Pending</span></div>
+              <button class="icon-btn"><i class="ti ti-dots"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════ 05 · METRIC CARDS ═════ -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">05</span>
+        <h2>Metric cards</h2>
+        <span class="desc">Tabular numerals · trend vs. previous period.</span>
+      </div>
+      <div class="grid-4">
+        <div class="metric-card">
+          <div class="metric-top">
+            <div class="metric-label">MRR</div>
+            <div class="metric-icon gold"><i class="ti ti-currency-dollar"></i></div>
+          </div>
+          <div class="metric-value">$184,920</div>
+          <div class="metric-foot"><span class="trend up"><i class="ti ti-trending-up"></i>+12.4%</span><span>vs. last 30 days</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-top">
+            <div class="metric-label">Active customers</div>
+            <div class="metric-icon blue"><i class="ti ti-users"></i></div>
+          </div>
+          <div class="metric-value">2,847</div>
+          <div class="metric-foot"><span class="trend up"><i class="ti ti-trending-up"></i>+184</span><span>new this month</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-top">
+            <div class="metric-label">Overdue invoices</div>
+            <div class="metric-icon red"><i class="ti ti-receipt"></i></div>
+          </div>
+          <div class="metric-value">23</div>
+          <div class="metric-foot"><span class="trend down"><i class="ti ti-trending-down"></i>−6</span><span>vs. last week</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-top">
+            <div class="metric-label">Avg. response time</div>
+            <div class="metric-icon green"><i class="ti ti-bolt"></i></div>
+          </div>
+          <div class="metric-value">2.4<span style="font:600 16px/1 'Inter'; color: var(--text-secondary); margin-left:4px;">hrs</span></div>
+          <div class="metric-foot"><span class="trend up"><i class="ti ti-trending-down"></i>−18%</span><span>faster than May</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════ 06 · TABLE ROW ═════ -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">06</span>
+        <h2>Table rows</h2>
+        <span class="desc">Checkbox · avatar · primary / secondary · badge · row menu.</span>
+      </div>
+      <div class="table" id="tbl">
+        <div class="table-head">
+          <div></div>
+          <div></div>
+          <div>Customer</div>
+          <div>Plan</div>
+          <div>Status</div>
+          <div></div>
+        </div>
+        <div class="table-row">
+          <div class="checkbox" data-cb></div>
+          <div class="avatar av-1">EM</div>
+          <div class="row-meta"><div class="cell-primary">Eleanor Martin</div><div class="cell-secondary">eleanor@acme.io · #C-1042</div></div>
+          <div class="row-meta"><div class="cell-primary">Pro Annual</div><div class="cell-secondary">$1,290 / year</div></div>
+          <div><span class="badge badge-active">Active</span></div>
+          <button class="icon-btn"><i class="ti ti-dots-vertical"></i></button>
+        </div>
+        <div class="table-row">
+          <div class="checkbox checked" data-cb></div>
+          <div class="avatar av-2">JT</div>
+          <div class="row-meta"><div class="cell-primary">James Tomlin</div><div class="cell-secondary">james@bluetail.co · #C-1041</div></div>
+          <div class="row-meta"><div class="cell-primary">Pro Monthly</div><div class="cell-secondary">$129 / month</div></div>
+          <div><span class="badge badge-overdue">Overdue</span></div>
+          <button class="icon-btn"><i class="ti ti-dots-vertical"></i></button>
+        </div>
+        <div class="table-row">
+          <div class="checkbox" data-cb></div>
+          <div class="avatar av-3">RP</div>
+          <div class="row-meta"><div class="cell-primary">Rina Patel</div><div class="cell-secondary">rina@northfork.io · #C-1040</div></div>
+          <div class="row-meta"><div class="cell-primary">Starter</div><div class="cell-secondary">$29 / month</div></div>
+          <div><span class="badge badge-trial">Trial · 7d</span></div>
+          <button class="icon-btn"><i class="ti ti-dots-vertical"></i></button>
+        </div>
+        <div class="table-row">
+          <div class="checkbox" data-cb></div>
+          <div class="avatar av-icon"><i class="ti ti-building-store" style="font-size: 16px;"></i></div>
+          <div class="row-meta"><div class="cell-primary">Maavelus Demo · The Olive Tree</div><div class="cell-secondary">marco@theolivetree.co.uk · #C-1039</div></div>
+          <div class="row-meta"><div class="cell-primary">Scale</div><div class="cell-secondary">$399 / month</div></div>
+          <div><span class="badge badge-pending">Pending</span></div>
+          <button class="icon-btn"><i class="ti ti-dots-vertical"></i></button>
+        </div>
+        <div class="table-row">
+          <div class="checkbox" data-cb></div>
+          <div class="avatar av-5">SK</div>
+          <div class="row-meta"><div class="cell-primary">Sofia Kowalski</div><div class="cell-secondary">sofia@haus.studio · #C-1038</div></div>
+          <div class="row-meta"><div class="cell-primary">Pro Annual</div><div class="cell-secondary">$1,290 / year</div></div>
+          <div><span class="badge badge-inactive">Inactive</span></div>
+          <button class="icon-btn"><i class="ti ti-dots-vertical"></i></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════ 07 + 08 · SIDEBAR + TOP BAR ═════ -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">07 · 08</span>
+        <h2>Sidebar &amp; top bar</h2>
+        <span class="desc">240px fixed dark sidebar + light top bar. Cross-product chrome.</span>
+      </div>
+      <div class="nav-preview">
+        <aside class="sidebar">
+          <div class="logo">
+            <div class="brand-mark">W</div>
+            <span>Powerhouse</span>
+          </div>
+
+          <div class="nav-section">Workspace</div>
+          <div class="nav-item"><i class="ti ti-layout-dashboard"></i>Overview</div>
+          <div class="nav-item active"><i class="ti ti-users"></i>Customers<span class="count">2.8k</span></div>
+          <div class="nav-item"><i class="ti ti-receipt"></i>Invoices<span class="count">23</span></div>
+          <div class="nav-item"><i class="ti ti-credit-card"></i>Subscriptions</div>
+          <div class="nav-item"><i class="ti ti-chart-line"></i>Analytics</div>
+
+          <div class="nav-section">Products</div>
+          <div class="nav-item"><i class="ti ti-message-2"></i>SMScube</div>
+          <div class="nav-item"><i class="ti ti-tools-kitchen-2"></i>Maavelus</div>
+          <div class="nav-item"><i class="ti ti-user-circle"></i>Customer portal</div>
+
+          <div class="nav-section">Account</div>
+          <div class="nav-item"><i class="ti ti-settings"></i>Settings</div>
+          <div class="nav-item"><i class="ti ti-help-circle"></i>Support</div>
+
+          <div class="sidebar-spacer"></div>
+          <div class="sidebar-user">
+            <div class="avatar av-2">EM</div>
+            <div>
+              <div class="name">Eleanor Martin</div>
+              <div class="email">eleanor@whitedash.com</div>
+            </div>
+          </div>
+        </aside>
+
+        <div class="nav-main">
+          <div class="topbar">
+            <div>
+              <div class="breadcrumb"><span>Powerhouse</span><span class="sep">/</span><span>Workspace</span><span class="sep">/</span><span class="current">Customers</span></div>
+              <div class="topbar-title" style="margin-top: 2px;">Customers</div>
+            </div>
+            <div class="topbar-search">
+              <i class="ti ti-search"></i>
+              <input class="input" placeholder="Search customers, invoices, messages…">
+              <span class="kbd">⌘K</span>
+            </div>
+            <button class="bell-btn" aria-label="Notifications"><i class="ti ti-bell"></i></button>
+            <div class="avatar-wrap">
+              <div class="avatar av-2">EM</div>
+              <div>
+                <div class="name">Eleanor</div>
+                <div class="role">Owner · Acme</div>
+              </div>
+              <i class="ti ti-chevron-down" style="color: var(--text-tertiary); font-size: 16px;"></i>
+            </div>
+          </div>
+          <div class="nav-content">
+            <div class="nav-placeholder">Page content slot · 1024 × auto</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════ 09 · MODAL ═════ -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">09</span>
+        <h2>Modal</h2>
+        <span class="desc">Centered · 460px wide · backdrop at navy / 55%.</span>
+      </div>
+      <div class="modal-stage">
+        <div class="modal">
+          <div class="modal-header">
+            <div class="ic"><i class="ti ti-alert-triangle"></i></div>
+            <button class="close" aria-label="Close"><i class="ti ti-x"></i></button>
+          </div>
+          <div class="modal-body" style="padding-top: 0;">
+            <h3>Cancel Eleanor Martin's subscription?</h3>
+            <p>The Pro Annual plan will remain active until June 12, 2026. After that, the customer will lose access to their dashboard and any pending invoices will be voided.</p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" id="modalCancel">Keep subscription</button>
+            <button class="btn btn-danger" id="modalConfirm"><i class="ti ti-trash"></i>Cancel subscription</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════ 10 · TOASTS ═════ -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">10</span>
+        <h2>Toast notifications</h2>
+        <span class="desc">Top-right stack · auto-dismiss after 5s · color rail on left.</span>
+      </div>
+      <div class="grid-2">
+        <div class="toast success">
+          <div class="ic"><i class="ti ti-check"></i></div>
+          <div class="body">
+            <div class="ttl">Invoice sent to Eleanor Martin</div>
+            <div class="msg">Invoice #INV-2842 ($129.00) was emailed to finance@acme.io.</div>
+          </div>
+          <button class="x"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="toast error">
+          <div class="ic"><i class="ti ti-alert-circle"></i></div>
+          <div class="body">
+            <div class="ttl">Payment failed</div>
+            <div class="msg">Visa ending 4242 was declined. Retry or update the card on file.</div>
+          </div>
+          <button class="x"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="toast warning">
+          <div class="ic"><i class="ti ti-alert-triangle"></i></div>
+          <div class="body">
+            <div class="ttl">3 invoices are overdue</div>
+            <div class="msg">Send a reminder or pause the related subscriptions.</div>
+          </div>
+          <button class="x"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="toast info">
+          <div class="ic"><i class="ti ti-info-circle"></i></div>
+          <div class="body">
+            <div class="ttl">SMScube is back online</div>
+            <div class="msg">Queued messages from 14:02 BST are being delivered now.</div>
+          </div>
+          <button class="x"><i class="ti ti-x"></i></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════ 11 · EMPTY STATE ═════ -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">11</span>
+        <h2>Empty state</h2>
+        <span class="desc">Icon · heading · body · optional CTA.</span>
+      </div>
+      <div class="empty">
+        <div class="ic"><i class="ti ti-inbox"></i></div>
+        <h4>No customers yet</h4>
+        <p>Once you start adding customers to Powerhouse, they will appear here with billing status, plan and lifecycle in one view.</p>
+        <div class="row" style="margin-top: 8px;">
+          <button class="btn btn-secondary"><i class="ti ti-file-import"></i>Import from CSV</button>
+          <button class="btn btn-primary"><i class="ti ti-plus"></i>Add a customer</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════ 12 · PAGINATION ═════ -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">12</span>
+        <h2>Pagination</h2>
+        <span class="desc">Previous · numbered · next · result counter.</span>
+      </div>
+      <div class="pagination" id="pg">
+        <button class="pg-btn" data-pg="prev"><i class="ti ti-chevron-left"></i>Previous</button>
+        <button class="pg-btn" data-pg="1">1</button>
+        <button class="pg-btn active" data-pg="2">2</button>
+        <button class="pg-btn" data-pg="3">3</button>
+        <button class="pg-btn" data-pg="4">4</button>
+        <span class="pg-ellipsis">…</span>
+        <button class="pg-btn" data-pg="24">24</button>
+        <button class="pg-btn" data-pg="next">Next<i class="ti ti-chevron-right"></i></button>
+        <span class="pg-info">Showing 21 – 40 of 472 customers</span>
+      </div>
+    </section>
+
+    <!-- ───── Footer ───── -->
+    <div style="display:flex; align-items:center; justify-content: space-between; padding-top: 16px; border-top: 1px solid var(--border); color: var(--text-tertiary); font: var(--small);">
+      <div>Whitedash · Component Sheet · v1.0</div>
+      <div>End of artboard · 1440 × auto</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // Checkbox toggles
+  document.querySelectorAll('[data-cb]').forEach(cb => {
+    cb.addEventListener('click', () => cb.classList.toggle('checked'));
+  });
+
+  // Pagination
+  document.querySelectorAll('#pg .pg-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const v = btn.dataset.pg;
+      if (v === 'prev' || v === 'next') return;
+      document.querySelectorAll('#pg .pg-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // Modal close (in stage) — just visual demo
+  ['modalCancel','modalConfirm'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', () => {
+      el.closest('.modal-stage').style.opacity = .35;
+      setTimeout(() => el.closest('.modal-stage').style.opacity = 1, 600);
+    });
+  });
+
+  // Toast dismiss
+  document.querySelectorAll('.toast .x').forEach(x => {
+    x.addEventListener('click', () => {
+      const t = x.closest('.toast');
+      t.style.transition = 'opacity .2s, transform .2s';
+      t.style.opacity = 0;
+      t.style.transform = 'translateX(8px)';
+      setTimeout(() => { t.style.opacity = 1; t.style.transform = ''; }, 800);
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,1073 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Powerhouse — Referrers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg-navy: #0F172A;
+    --accent: #F59E0B;
+    --content-bg: #F8FAFC;
+    --card-bg: #FFFFFF;
+    --border: #E2E8F0;
+    --border-soft: #EEF2F7;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+    --info: #3B82F6;
+    --teal: #0D9488;
+    --purple: #7C3AED;
+
+    --success-bg: #ECFDF5;
+    --danger-bg:  #FEF2F2;
+    --warning-bg: #FFFBEB;
+    --info-bg:    #EFF6FF;
+    --neutral-bg: #F1F5F9;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.05);
+    --shadow-md: 0 4px 12px -2px rgba(15,23,42,.08), 0 1px 3px rgba(15,23,42,.04);
+    --shadow-lg: 0 24px 48px -12px rgba(15,23,42,.18), 0 2px 4px rgba(15,23,42,.04);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 400 14px/1.5 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: #E5E9F0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ─── Shell ─── */
+  .app {
+    width: 1440px;
+    margin: 0 auto;
+    background: var(--content-bg);
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 1100px;
+  }
+
+  /* ─── Sidebar ─── */
+  .sidebar { background: var(--bg-navy); color: #fff; padding: 20px 14px 16px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh; min-height: 1100px; }
+  .logo { display: flex; align-items: center; gap: 10px; padding: 6px 10px 18px; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 14px; }
+  .brand-mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--accent), #FBBF24); display: grid; place-items: center; color: var(--bg-navy); font: 700 14px/1 'Inter', sans-serif; box-shadow: 0 2px 6px rgba(245,158,11,.35); }
+  .logo-name { font: 600 15px/1.1 'Inter', sans-serif; letter-spacing: -.01em; }
+  .logo-sub  { font: 500 10px/1 'Inter', sans-serif; color: rgba(255,255,255,.45); letter-spacing: .12em; text-transform: uppercase; margin-top: 3px; }
+  .nav-section { font: 500 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .14em; color: rgba(255,255,255,.35); padding: 14px 10px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 11px; padding: 8px 10px; color: rgba(255,255,255,.7); font: 500 13.5px/1.2 'Inter', sans-serif; letter-spacing: -.005em; border-radius: var(--radius-md); cursor: pointer; transition: background .12s, color .12s; }
+  .nav-item .ti { font-size: 18px; }
+  .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .nav-item.active { background: rgba(245,158,11,.14); color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+  .nav-item .count { margin-left: auto; font: 600 11px/1 'Inter', sans-serif; background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); padding: 3px 7px; border-radius: 999px; }
+  .nav-item.active .count { background: rgba(245,158,11,.22); color: var(--accent); }
+  .count.amber { background: rgba(245,158,11,.18); color: #FCD34D; }
+  .count.red   { background: rgba(239,68,68,.2);  color: #FCA5A5; }
+  .sidebar-spacer { flex: 1; }
+  .sidebar-user { margin-top: 12px; padding: 12px 10px; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; gap: 10px; }
+  .avatar { border-radius: 50%; display: grid; place-items: center; color: #fff; font: 600 12px/1 'Inter', sans-serif; letter-spacing: -.01em; flex-shrink: 0; }
+  .av-1 { background: linear-gradient(135deg, #6366F1, #8B5CF6); }
+  .av-2 { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-3 { background: linear-gradient(135deg, #10B981, #059669); }
+  .av-5 { background: linear-gradient(135deg, #3B82F6, #06B6D4); }
+  .av-teal  { background: var(--teal); }
+  .av-amber { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-navy  { background: linear-gradient(135deg, #0F172A, #334155); }
+  .av-admin { background: linear-gradient(135deg, #1E293B, #475569); border: 1px solid rgba(245,158,11,.4); }
+  .sidebar-user .avatar { width: 32px; height: 32px; font-size: 11px; }
+  .sidebar-user .name { font: 500 13px/1.2 'Inter', sans-serif; color: #fff; letter-spacing: -.005em; }
+  .sidebar-user .role { font: 400 11px/1.2 'Inter', sans-serif; color: rgba(255,255,255,.45); margin-top: 2px; }
+  .sidebar-user .dots { margin-left: auto; color: rgba(255,255,255,.4); cursor: pointer; }
+
+  /* ─── Topbar ─── */
+  .main { display: flex; flex-direction: column; min-width: 0; }
+  .topbar { height: 64px; border-bottom: 1px solid var(--border); background: #fff; padding: 0 24px; display: flex; align-items: center; gap: 16px; }
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); }
+  .breadcrumb .sep { color: var(--text-tertiary); }
+  .breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+  .topbar-title { font: 600 20px/1.2 'Inter', sans-serif; letter-spacing: -.01em; margin-top: 2px; }
+  .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .topbar-search { position: relative; width: 260px; }
+  .topbar-search input { width: 100%; height: 36px; border: 1px solid transparent; background: var(--content-bg); border-radius: var(--radius-md); padding: 0 38px 0 34px; font: 400 13px/1 'Inter', sans-serif; color: var(--text-primary); outline: 0; transition: border-color .15s, background .15s, box-shadow .15s; }
+  .topbar-search input::placeholder { color: var(--text-tertiary); }
+  .topbar-search input:focus { background: #fff; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+  .topbar-search .ti { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 18px; }
+  .topbar-search .kbd { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font: 500 10px/1 'JetBrains Mono', monospace; color: var(--text-tertiary); border: 1px solid var(--border); background: #fff; padding: 3px 5px; border-radius: 4px; }
+  .bell-btn { position: relative; width: 36px; height: 36px; border-radius: var(--radius-md); display: grid; place-items: center; color: var(--text-secondary); background: transparent; border: 0; cursor: pointer; transition: background .12s; }
+  .bell-btn:hover { background: var(--neutral-bg); }
+  .bell-btn .ti { font-size: 20px; }
+  .bell-btn::after { content: ""; position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); border: 2px solid #fff; }
+  .divider-v { width: 1px; height: 28px; background: var(--border); }
+  .avatar-wrap { display: flex; align-items: center; gap: 10px; padding: 4px 10px 4px 4px; border-radius: 999px; cursor: pointer; transition: background .12s; }
+  .avatar-wrap:hover { background: var(--neutral-bg); }
+  .avatar-wrap .avatar { width: 30px; height: 30px; font-size: 11px; }
+  .avatar-wrap .name { font: 500 13px/1.2 'Inter', sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .avatar-wrap .role { font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+
+  /* Buttons */
+  .btn { appearance: none; border: 0; cursor: pointer; font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em; padding: 0 14px; height: 34px; border-radius: var(--radius-md); display: inline-flex; align-items: center; gap: 7px; transition: background .15s, border-color .15s, color .15s, box-shadow .15s, opacity .15s; white-space: nowrap; }
+  .btn .ti { font-size: 15px; }
+  .btn-primary { background: var(--accent); color: var(--bg-navy); font-weight: 600; box-shadow: 0 1px 2px rgba(245,158,11,.3); }
+  .btn-primary:hover { background: #E08C09; }
+  .btn-primary.disabled,
+  .btn-primary[disabled] { opacity: .55; cursor: not-allowed; box-shadow: none; }
+  .btn-primary.disabled:hover,
+  .btn-primary[disabled]:hover { background: var(--accent); }
+  .btn-secondary { background: #fff; color: var(--text-primary); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .btn-secondary:hover { background: var(--neutral-bg); border-color: #CBD5E1; }
+  .btn-ghost { background: transparent; color: var(--text-primary); }
+  .btn-ghost:hover { background: var(--neutral-bg); }
+  .btn-sm { height: 30px; padding: 0 10px; font-size: 12.5px; border-radius: var(--radius-sm); }
+  .btn-sm .ti { font-size: 14px; }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; font: 500 11.5px/1.4 'Inter', sans-serif; letter-spacing: -.005em; border: 1px solid transparent; white-space: nowrap; }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge-active   { color: #047857; background: var(--success-bg); border-color: #A7F3D0; }
+  .badge-inactive { color: #475569; background: var(--neutral-bg); border-color: #E2E8F0; }
+  .badge-pending  { color: #B45309; background: var(--warning-bg); border-color: #FDE68A; }
+  .badge-overdue  { color: #B91C1C; background: var(--danger-bg); border-color: #FECACA; }
+  .badge-info     { color: #1D4ED8; background: var(--info-bg); border-color: #BFDBFE; }
+  .badge-gold     { color: #B45309; background: rgba(245,158,11,.14); border-color: #FDE68A; }
+  .badge-sm { padding: 2px 7px; font: 500 10.5px/1.4 'Inter', sans-serif; }
+  .badge-sm::before { width: 5px; height: 5px; }
+
+  /* Count badge with no dot — for "Active referrers · 3" header */
+  .badge-count {
+    display: inline-flex; align-items: center;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--neutral-bg);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    font: 600 11.5px/1.4 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Product letter badge (small chip) */
+  .prod-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 2px 8px 2px 4px;
+    border-radius: 999px;
+    font: 600 11px/1.3 'Inter', sans-serif;
+    letter-spacing: -.005em;
+    white-space: nowrap;
+  }
+  .prod-chip .mark {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font: 700 9.5px/1 'Inter', sans-serif;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .prod-chip.maa { background: rgba(13,148,136,.1); color: #0F766E; }
+  .prod-chip.maa .mark { background: var(--teal); }
+  .prod-chip.opd { background: rgba(59,130,246,.1); color: #1D4ED8; }
+  .prod-chip.opd .mark { background: var(--info); }
+
+  /* Stat pill */
+  .stat-pill {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 8px 14px;
+    display: inline-flex; align-items: center; gap: 10px;
+    font: 500 14px/1 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-pill .d { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .stat-pill .d.gold  { background: var(--accent); }
+  .stat-pill .d.green { background: var(--success); }
+  .stat-pill .d.amber { background: var(--warning); }
+  .stat-pill .d.red   { background: var(--danger); }
+  .stat-pill .d.blue  { background: var(--info); }
+  .stat-pill .lbl { color: var(--text-secondary); font-weight: 400; }
+  .stat-pill .sub { color: var(--text-tertiary); font-weight: 400; font-size: 12px; padding-left: 4px; border-left: 1px solid var(--border); margin-left: 2px; }
+
+  /* Dropdown btn */
+  .dd-btn {
+    height: 36px;
+    padding: 0 10px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--text-primary);
+    font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em;
+    cursor: pointer;
+    transition: border-color .12s, background .12s;
+    white-space: nowrap;
+  }
+  .dd-btn:hover { background: var(--neutral-bg); border-color: #CBD5E1; }
+  .dd-btn .ti { font-size: 16px; color: var(--text-secondary); }
+  .dd-btn .ch { color: var(--text-tertiary); font-size: 14px; }
+  .dd-btn.sm { height: 30px; font-size: 12.5px; padding: 0 9px; border-radius: var(--radius-sm); }
+  .dd-btn.sm .ti { font-size: 14px; }
+
+  /* Checkbox */
+  .cb { width: 16px; height: 16px; border: 1.5px solid #CBD5E1; border-radius: var(--radius-sm); background: #fff; cursor: pointer; display: inline-grid; place-items: center; transition: border-color .12s, background .12s; }
+  .cb:hover { border-color: var(--accent); }
+  .cb.checked { background: var(--accent); border-color: var(--accent); }
+  .cb.checked::after { content: ""; width: 8px; height: 4px; border: 2px solid var(--bg-navy); border-top: 0; border-right: 0; transform: rotate(-45deg) translate(1px, -1px); }
+
+  /* ─── Page content ─── */
+  .content { padding: 24px; }
+  .greet { display: flex; align-items: center; justify-content: space-between; }
+  .greet h1 { margin: 0; font: 700 24px/1.2 'Inter', sans-serif; letter-spacing: -.015em; }
+  .greet .sub { font: 400 13px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 4px; }
+
+  .summary-strip { display: flex; gap: 10px; margin-top: 20px; }
+
+  /* Section header (between sections) */
+  .sec-head { display: flex; align-items: center; margin: 24px 0 14px; }
+  .sec-head .title { font: 600 18px/1.2 'Inter', sans-serif; letter-spacing: -.01em; }
+  .sec-head .sub { font: 400 14px/1.2 'Inter', sans-serif; color: var(--text-secondary); margin-left: 10px; }
+  .sec-head .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  /* Card-table common */
+  .table-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+  }
+  .table-card-head {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .table-card-head .title { font: 600 15px/1.2 'Inter', sans-serif; letter-spacing: -.005em; }
+  .table-card-head .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  .tbl {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .tbl thead th {
+    background: var(--neutral-bg);
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    padding: 10px 12px;
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--text-tertiary);
+    height: 40px;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .tbl thead th:first-child { padding-left: 18px; }
+  .tbl thead th:last-child  { padding-right: 18px; }
+  .tbl thead th.num { text-align: right; }
+
+  .tbl tbody td {
+    padding: 14px 12px;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: middle;
+    font: 400 14px/1.4 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: #fff;
+    transition: background .12s;
+  }
+  .tbl tbody td:first-child { padding-left: 18px; }
+  .tbl tbody td:last-child  { padding-right: 18px; }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
+  .tbl tbody tr:hover td { background: #FBFCFE; }
+  .tbl tbody tr.selected td { background: var(--neutral-bg); }
+  .tbl tbody tr.selected td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+  .tbl tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Referrer cell */
+  .cell-referrer { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .cell-referrer .avatar { width: 36px; height: 36px; font-size: 12px; }
+  .ref-meta { min-width: 0; flex: 1; }
+  .ref-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ref-name { font: 600 14px/1.3 'Inter', sans-serif; letter-spacing: -.005em; color: var(--text-primary); }
+  .ref-email { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 3px; }
+  .ref-since { font: 400 11px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 2px; }
+
+  /* Big number cell (customers) */
+  .big-num { font: 700 18px/1 'Inter', sans-serif; color: var(--text-primary); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .big-num-sub { font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 3px; }
+
+  /* Commission model cell — stacked product+model lines */
+  .cm-stack { display: flex; flex-direction: column; gap: 10px; justify-content: center; min-height: 88px; }
+  .cm-row { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
+  .cm-row .copy { font: 400 11.5px/1.4 'Inter', sans-serif; color: var(--text-secondary); white-space: nowrap; }
+
+  /* Top-referrer pin (icon-only, tiny) */
+  .ref-pin {
+    display: inline-grid; place-items: center;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: rgba(245,158,11,.14);
+    color: var(--accent);
+    border: 1px solid #FDE68A;
+    flex-shrink: 0;
+  }
+  .ref-pin .ti { font-size: 11px; }
+
+  /* Money cells */
+  .money { font: 600 15px/1.2 'Inter', sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -.005em; }
+  .money.success { color: var(--success); }
+  .money.warning { color: var(--warning); }
+  .money.primary { color: var(--text-primary); font-weight: 600; font-size: 14px; }
+  .money-sub { font: 400 11px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 3px; }
+
+  /* Status cell w/ sub */
+  .stat-stack { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+  .stat-sub { font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-tertiary); padding-left: 2px; }
+
+  /* Icon-circle for ledger description cell */
+  .ic-circle {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .ic-circle .ti { font-size: 18px; }
+  .ic-circle.warn { background: var(--warning-bg); color: var(--warning); }
+  .ic-circle.info { background: var(--info-bg); color: var(--info); }
+  .ic-circle.success { background: var(--success-bg); color: var(--success); }
+
+  /* Ledger description cell */
+  .cell-desc { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .desc-meta { min-width: 0; flex: 1; }
+  .desc-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .desc-title { font: 500 13px/1.3 'Inter', sans-serif; letter-spacing: -.005em; color: var(--text-primary); }
+  .desc-sub { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary); margin-top: 3px; }
+
+  /* Compact referrer/customer pill inside ledger */
+  .compact-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .compact-row .avatar { width: 24px; height: 24px; font-size: 9.5px; }
+  .compact-row .nm { font: 500 13px/1.3 'Inter', sans-serif; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .compact-row .nm.tertiary { color: var(--text-secondary); font-weight: 400; }
+
+  /* Date cell */
+  .date-c { font: 500 13px/1.2 'Inter', sans-serif; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .date-c.today { color: var(--text-primary); font-weight: 600; }
+
+  /* Icon-only btn (table actions) */
+  .icon-btn { width: 28px; height: 28px; display: inline-grid; place-items: center; border-radius: 6px; color: var(--text-tertiary); cursor: pointer; border: 0; background: transparent; transition: background .12s, color .12s; }
+  .icon-btn:hover { background: var(--neutral-bg); color: var(--text-primary); }
+  .icon-btn .ti { font-size: 18px; }
+
+  /* Table footer */
+  .tbl-foot {
+    background: var(--neutral-bg);
+    border-top: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .tbl-foot .info { font: 400 12.5px/1.4 'Inter', sans-serif; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .tbl-foot .info strong { color: var(--text-primary); font-weight: 600; }
+  .tbl-foot .right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .pg-btn { min-width: 30px; height: 30px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: var(--text-primary); font: 500 12.5px/1 'Inter', sans-serif; font-variant-numeric: tabular-nums; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 9px; transition: background .12s, border-color .12s, color .12s; }
+  .pg-btn:hover:not(:disabled):not(.active) { background: #fff; border-color: var(--border); }
+  .pg-btn.active { background: var(--bg-navy); color: #fff; }
+  .pg-btn:disabled { color: var(--text-tertiary); cursor: not-allowed; }
+
+  /* Pending payout banner */
+  .payout-banner {
+    margin-top: 16px;
+    background: var(--warning-bg);
+    border: 1px solid rgba(245,158,11,.3);
+    border-radius: var(--radius-lg);
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .payout-banner .ic {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: rgba(245,158,11,.18);
+    color: var(--warning);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .payout-banner .ic .ti { font-size: 22px; }
+  .payout-banner .text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .payout-banner .text .hd { font: 600 15px/1.2 'Inter', sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .payout-banner .text .sb { font: 400 13px/1.3 'Inter', sans-serif; color: var(--text-secondary); }
+  .payout-banner .text .sb strong { color: var(--text-primary); font-weight: 600; }
+  .payout-banner .right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+  /* Page footer */
+  .page-foot {
+    display: flex; justify-content: space-between; padding-top: 16px;
+    color: var(--text-tertiary); font: 400 12px/1.4 'Inter', sans-serif;
+  }
+  .page-foot strong { color: var(--text-secondary); font-weight: 500; }
+
+</style>
+</head>
+<body>
+
+<div class="app" data-screen-label="07 Referrers">
+
+  <!-- ─── Sidebar ─── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="brand-mark">W</div>
+      <div>
+        <div class="logo-name">Powerhouse</div>
+        <div class="logo-sub">Whitedash</div>
+      </div>
+    </div>
+
+    <div class="nav-section">Workspace</div>
+    <div class="nav-item"><i class="ti ti-layout-dashboard"></i>Overview</div>
+    <div class="nav-item"><i class="ti ti-users"></i>Customers<span class="count">847</span></div>
+    <div class="nav-item"><i class="ti ti-receipt"></i>Invoices<span class="count amber">7</span></div>
+    <div class="nav-item"><i class="ti ti-credit-card"></i>Subscriptions</div>
+    <div class="nav-item"><i class="ti ti-chart-line"></i>Analytics</div>
+    <div class="nav-item active"><i class="ti ti-users-group"></i>Referrers</div>
+
+    <div class="nav-section">Products</div>
+    <div class="nav-item"><i class="ti ti-tools-kitchen-2"></i>Maavelus</div>
+    <div class="nav-item"><i class="ti ti-clipboard-list"></i>MyOrderPad</div>
+    <div class="nav-item"><i class="ti ti-building-store"></i>Whitedash B2B</div>
+    <div class="nav-item"><i class="ti ti-message-2"></i>SMScube</div>
+
+    <div class="nav-section">Account</div>
+    <div class="nav-item"><i class="ti ti-headset"></i>Support<span class="count red">3</span></div>
+    <div class="nav-item"><i class="ti ti-settings"></i>Settings</div>
+    <div class="nav-item"><i class="ti ti-help-circle"></i>Help &amp; docs</div>
+
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-user">
+      <div class="avatar av-admin">AP</div>
+      <div>
+        <div class="name">Apostolos P.</div>
+        <div class="role">Super Admin</div>
+      </div>
+      <i class="ti ti-dots dots"></i>
+    </div>
+  </aside>
+
+  <!-- ─── Main ─── -->
+  <main class="main">
+
+    <div class="topbar">
+      <div>
+        <div class="breadcrumb"><span>Powerhouse</span><span class="sep">/</span><span>Workspace</span><span class="sep">/</span><span class="current">Referrers</span></div>
+        <div class="topbar-title">Referrers</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary"><i class="ti ti-plus"></i>Add referrer</button>
+        <div class="divider-v"></div>
+        <div class="topbar-search">
+          <i class="ti ti-search"></i>
+          <input placeholder="Search customers, invoices, products…">
+          <span class="kbd">⌘K</span>
+        </div>
+        <button class="bell-btn"><i class="ti ti-bell"></i></button>
+        <div class="divider-v"></div>
+        <div class="avatar-wrap">
+          <div class="avatar av-admin">AP</div>
+          <div>
+            <div class="name">Apostolos P.</div>
+            <div class="role">Super Admin</div>
+          </div>
+          <i class="ti ti-chevron-down" style="color: var(--text-tertiary); font-size: 16px;"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Greeting -->
+      <div class="greet">
+        <div>
+          <h1>Referrers</h1>
+          <div class="sub">3 active referrers · £750 pending payout · 35 referred customers across all products</div>
+        </div>
+      </div>
+
+      <!-- Summary strip -->
+      <div class="summary-strip">
+        <div class="stat-pill"><span class="d gold"></span><strong>3</strong><span class="lbl">active referrers</span></div>
+        <div class="stat-pill"><span class="d amber"></span><strong>£750</strong><span class="lbl">pending payout</span><span class="sub">awaiting approval</span></div>
+        <div class="stat-pill"><span class="d green"></span><strong>£2,840</strong><span class="lbl">paid out</span><span class="sub">all time</span></div>
+        <div class="stat-pill"><span class="d blue"></span><strong>35</strong><span class="lbl">referred customers</span><span class="sub">currently active</span></div>
+      </div>
+
+      <!-- ═══════════ SECTION 1 — REFERRERS TABLE ═══════════ -->
+      <div class="sec-head" style="margin-top: 24px; margin-bottom: 0;">
+      </div>
+
+      <div class="table-card" style="margin-top: 16px;">
+        <div class="table-card-head">
+          <div class="title">Active referrers</div>
+          <span class="badge-count">3</span>
+          <div class="right">
+            <button class="btn btn-ghost btn-sm" style="color: var(--text-secondary);"><i class="ti ti-arrows-sort"></i>Sort: Pending <i class="ti ti-arrow-down" style="font-size: 13px; margin-left: -3px;"></i></button>
+            <button class="btn btn-ghost btn-sm" style="color: var(--text-secondary);"><i class="ti ti-download"></i>Export</button>
+          </div>
+        </div>
+
+        <table class="tbl">
+          <colgroup>
+            <col style="width: 44px;">
+            <col>
+            <col style="width: 100px;">
+            <col style="width: 160px;">
+            <col style="width: 130px;">
+            <col style="width: 130px;">
+            <col style="width: 130px;">
+            <col style="width: 150px;">
+            <col style="width: 48px;">
+          </colgroup>
+          <thead>
+            <tr>
+              <th><span class="cb"></span></th>
+              <th>Referrer</th>
+              <th class="num">Customers</th>
+              <th>Commission model</th>
+              <th class="num">This month</th>
+              <th class="num">Pending</th>
+              <th class="num">All time</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <!-- Row 1 — Christos -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-referrer">
+                  <div class="avatar av-amber">CP</div>
+                  <div class="ref-meta">
+                    <div class="ref-name-row">
+                      <span class="ref-name">Christos Panagiotis</span>
+                      <span class="ref-pin" title="Top referrer"><i class="ti ti-star-filled"></i></span>
+                    </div>
+                    <div class="ref-email">christos@panagiotis.uk</div>
+                    <div class="ref-since">Member since Jan 2024</div>
+                  </div>
+                </div>
+              </td>
+              <td class="num">
+                <div class="big-num">24</div>
+                <div class="big-num-sub">/mo active</div>
+              </td>
+              <td>
+                <div class="cm-stack">
+                  <div class="cm-row">
+                    <span class="prod-chip maa"><span class="mark">M</span>Maavelus</span>
+                    <span class="copy">Hybrid · £50 + 5% MRR</span>
+                  </div>
+                  <div class="cm-row">
+                    <span class="prod-chip opd"><span class="mark">O</span>MyOrderPad</span>
+                    <span class="copy">Tiered · £10–20/mo</span>
+                  </div>
+                </div>
+              </td>
+              <td class="num"><span class="money success">£180.00</span></td>
+              <td class="num">
+                <div class="money warning">£540.00</div>
+                <div class="money-sub">3 months</div>
+              </td>
+              <td class="num"><span class="money primary">£1,820.00</span></td>
+              <td>
+                <div class="stat-stack">
+                  <span class="badge badge-active">Active</span>
+                  <span class="stat-sub">Pays monthly</span>
+                </div>
+              </td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 2 — Sofia -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-referrer">
+                  <div class="avatar av-teal">SP</div>
+                  <div class="ref-meta">
+                    <div class="ref-name-row">
+                      <span class="ref-name">Sofia Papadaki</span>
+                    </div>
+                    <div class="ref-email">sofia@papadaki.gr</div>
+                    <div class="ref-since">Member since Mar 2025</div>
+                  </div>
+                </div>
+              </td>
+              <td class="num">
+                <div class="big-num">8</div>
+                <div class="big-num-sub">/mo active</div>
+              </td>
+              <td>
+                <div class="cm-stack">
+                  <div class="cm-row">
+                    <span class="prod-chip maa"><span class="mark">M</span>Maavelus</span>
+                    <span class="copy">Hybrid · £50 + 5% MRR</span>
+                  </div>
+                  <div class="cm-row">
+                    <span class="prod-chip opd"><span class="mark">O</span>MyOrderPad</span>
+                    <span class="copy">Tiered · £10/mo</span>
+                  </div>
+                </div>
+              </td>
+              <td class="num"><span class="money success">£60.00</span></td>
+              <td class="num">
+                <div class="money warning">£120.00</div>
+                <div class="money-sub">2 months</div>
+              </td>
+              <td class="num"><span class="money primary">£540.00</span></td>
+              <td>
+                <div class="stat-stack">
+                  <span class="badge badge-active">Active</span>
+                  <span class="stat-sub">Pays monthly</span>
+                </div>
+              </td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 3 — Nikos -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-referrer">
+                  <div class="avatar av-1">NS</div>
+                  <div class="ref-meta">
+                    <div class="ref-name-row">
+                      <span class="ref-name">Nikos Stavros</span>
+                    </div>
+                    <div class="ref-email">nikos@stavros.co.uk</div>
+                    <div class="ref-since">Member since Nov 2025</div>
+                  </div>
+                </div>
+              </td>
+              <td class="num">
+                <div class="big-num">3</div>
+                <div class="big-num-sub">/mo active</div>
+              </td>
+              <td>
+                <div class="cm-stack">
+                  <div class="cm-row">
+                    <span class="prod-chip opd"><span class="mark">O</span>MyOrderPad</span>
+                    <span class="copy">Tiered · £10/mo</span>
+                  </div>
+                </div>
+              </td>
+              <td class="num"><span class="money success">£30.00</span></td>
+              <td class="num">
+                <div class="money warning">£90.00</div>
+                <div class="money-sub">3 months</div>
+              </td>
+              <td class="num"><span class="money primary">£180.00</span></td>
+              <td>
+                <div class="stat-stack">
+                  <span class="badge badge-active">Active</span>
+                  <span class="stat-sub">Pays monthly</span>
+                </div>
+              </td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+          </tbody>
+        </table>
+
+        <div class="tbl-foot">
+          <div class="info">Showing <strong>3</strong> of <strong>3</strong> referrers</div>
+          <div class="right">
+            <button class="btn btn-primary btn-sm"><i class="ti ti-circle-check"></i>Approve all pending (£750)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ SECTION 2 — COMMISSION LEDGER ═══════════ -->
+      <div class="sec-head">
+        <div class="title">Commission ledger</div>
+        <div class="sub">Recent entries</div>
+        <div class="right">
+          <button class="dd-btn sm"><i class="ti ti-user"></i>Filter by referrer<i class="ti ti-chevron-down ch"></i></button>
+          <button class="dd-btn sm"><i class="ti ti-flag"></i>Filter by status<i class="ti ti-chevron-down ch"></i></button>
+          <button class="btn btn-ghost btn-sm" style="color: var(--text-secondary);"><i class="ti ti-download"></i>Export CSV</button>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <table class="tbl">
+          <colgroup>
+            <col style="width: 44px;">
+            <col>
+            <col style="width: 160px;">
+            <col style="width: 180px;">
+            <col style="width: 120px;">
+            <col style="width: 150px;">
+            <col style="width: 130px;">
+            <col style="width: 48px;">
+          </colgroup>
+          <thead>
+            <tr>
+              <th><span class="cb"></span></th>
+              <th>Description</th>
+              <th>Referrer</th>
+              <th>Customer</th>
+              <th class="num">Amount</th>
+              <th>Status</th>
+              <th>Date</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <!-- Row 1 — pending Christos Maavelus onboarding -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-desc">
+                  <div class="ic-circle warn"><i class="ti ti-star"></i></div>
+                  <div class="desc-meta">
+                    <div class="desc-title-row">
+                      <span class="desc-title">Maavelus onboarding</span>
+                      <span class="prod-chip maa"><span class="mark">M</span>Maavelus</span>
+                    </div>
+                    <div class="desc-sub">The Aegean Kitchen · one-off</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="compact-row">
+                  <div class="avatar av-amber">CP</div>
+                  <span class="nm">Christos P.</span>
+                </div>
+              </td>
+              <td>
+                <div class="compact-row">
+                  <div class="avatar av-teal">AK</div>
+                  <span class="nm">Aegean Kitchen</span>
+                </div>
+              </td>
+              <td class="num"><span class="money primary">£50.00</span></td>
+              <td>
+                <div class="stat-stack">
+                  <span class="badge badge-pending">Pending</span>
+                  <span class="stat-sub">Awaiting approval</span>
+                </div>
+              </td>
+              <td><span class="date-c today">Today</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 2 — pending Christos MyOrderPad recurring -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-desc">
+                  <div class="ic-circle info"><i class="ti ti-rotate-clockwise"></i></div>
+                  <div class="desc-meta">
+                    <div class="desc-title-row">
+                      <span class="desc-title">MyOrderPad recurring · May 2026</span>
+                      <span class="prod-chip opd"><span class="mark">O</span>MyOrderPad</span>
+                    </div>
+                    <div class="desc-sub">24 customers · tier 3 · £20/mo each</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="compact-row">
+                  <div class="avatar av-amber">CP</div>
+                  <span class="nm">Christos P.</span>
+                </div>
+              </td>
+              <td><span class="nm tertiary" style="font: 500 13px/1.3 'Inter',sans-serif;">24 customers</span></td>
+              <td class="num"><span class="money primary">£480.00</span></td>
+              <td>
+                <div class="stat-stack">
+                  <span class="badge badge-pending">Pending</span>
+                  <span class="stat-sub">Awaiting approval</span>
+                </div>
+              </td>
+              <td><span class="date-c today">Today</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 3 — pending Sofia Maavelus recurring -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-desc">
+                  <div class="ic-circle info"><i class="ti ti-rotate-clockwise"></i></div>
+                  <div class="desc-meta">
+                    <div class="desc-title-row">
+                      <span class="desc-title">Maavelus MRR · May 2026</span>
+                      <span class="prod-chip maa"><span class="mark">M</span>Maavelus</span>
+                    </div>
+                    <div class="desc-sub">8 customers · 5% of £232 MRR</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="compact-row">
+                  <div class="avatar av-teal">SP</div>
+                  <span class="nm">Sofia P.</span>
+                </div>
+              </td>
+              <td><span class="nm tertiary" style="font: 500 13px/1.3 'Inter',sans-serif; color: var(--text-secondary);">8 customers</span></td>
+              <td class="num"><span class="money primary">£11.60</span></td>
+              <td>
+                <div class="stat-stack">
+                  <span class="badge badge-pending">Pending</span>
+                  <span class="stat-sub">Awaiting approval</span>
+                </div>
+              </td>
+              <td><span class="date-c today">Today</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 4 — pending Nikos MyOrderPad recurring -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-desc">
+                  <div class="ic-circle info"><i class="ti ti-rotate-clockwise"></i></div>
+                  <div class="desc-meta">
+                    <div class="desc-title-row">
+                      <span class="desc-title">MyOrderPad recurring · May 2026</span>
+                      <span class="prod-chip opd"><span class="mark">O</span>MyOrderPad</span>
+                    </div>
+                    <div class="desc-sub">3 customers · tier 1 · £10/mo each</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="compact-row">
+                  <div class="avatar av-1">NS</div>
+                  <span class="nm">Nikos S.</span>
+                </div>
+              </td>
+              <td><span class="nm tertiary" style="font: 500 13px/1.3 'Inter',sans-serif; color: var(--text-secondary);">3 customers</span></td>
+              <td class="num"><span class="money primary">£30.00</span></td>
+              <td>
+                <div class="stat-stack">
+                  <span class="badge badge-pending">Pending</span>
+                  <span class="stat-sub">Awaiting approval</span>
+                </div>
+              </td>
+              <td><span class="date-c today">Today</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 5 — approved Christos April MyOrderPad -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-desc">
+                  <div class="ic-circle success"><i class="ti ti-rotate-clockwise"></i></div>
+                  <div class="desc-meta">
+                    <div class="desc-title-row">
+                      <span class="desc-title">MyOrderPad recurring · Apr 2026</span>
+                      <span class="prod-chip opd"><span class="mark">O</span>MyOrderPad</span>
+                    </div>
+                    <div class="desc-sub">24 customers · tier 3</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="compact-row">
+                  <div class="avatar av-amber">CP</div>
+                  <span class="nm">Christos P.</span>
+                </div>
+              </td>
+              <td><span class="nm tertiary" style="font: 500 13px/1.3 'Inter',sans-serif; color: var(--text-secondary);">24 customers</span></td>
+              <td class="num"><span class="money primary">£480.00</span></td>
+              <td><span class="badge badge-active">Approved</span></td>
+              <td><span class="date-c">1 May 2026</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 6 — paid Christos April Maavelus -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-desc">
+                  <div class="ic-circle success"><i class="ti ti-circle-check"></i></div>
+                  <div class="desc-meta">
+                    <div class="desc-title-row">
+                      <span class="desc-title">Maavelus MRR · Apr 2026</span>
+                      <span class="prod-chip maa"><span class="mark">M</span>Maavelus</span>
+                    </div>
+                    <div class="desc-sub">23 customers · 5% of £667 MRR</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="compact-row">
+                  <div class="avatar av-amber">CP</div>
+                  <span class="nm">Christos P.</span>
+                </div>
+              </td>
+              <td><span class="nm tertiary" style="font: 500 13px/1.3 'Inter',sans-serif; color: var(--text-secondary);">23 customers</span></td>
+              <td class="num"><span class="money primary">£33.35</span></td>
+              <td>
+                <div class="stat-stack">
+                  <span class="badge badge-active">Paid</span>
+                  <span class="stat-sub">Paid 2 May</span>
+                </div>
+              </td>
+              <td><span class="date-c">1 May 2026</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 7 — paid Sofia April MyOrderPad -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-desc">
+                  <div class="ic-circle success"><i class="ti ti-circle-check"></i></div>
+                  <div class="desc-meta">
+                    <div class="desc-title-row">
+                      <span class="desc-title">MyOrderPad recurring · Apr 2026</span>
+                      <span class="prod-chip opd"><span class="mark">O</span>MyOrderPad</span>
+                    </div>
+                    <div class="desc-sub">8 customers · tier 1</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="compact-row">
+                  <div class="avatar av-teal">SP</div>
+                  <span class="nm">Sofia P.</span>
+                </div>
+              </td>
+              <td><span class="nm tertiary" style="font: 500 13px/1.3 'Inter',sans-serif; color: var(--text-secondary);">8 customers</span></td>
+              <td class="num"><span class="money primary">£80.00</span></td>
+              <td>
+                <div class="stat-stack">
+                  <span class="badge badge-active">Paid</span>
+                  <span class="stat-sub">Paid 2 May</span>
+                </div>
+              </td>
+              <td><span class="date-c">1 May 2026</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 8 — paid Christos Mar onboarding Pitta Fan -->
+            <tr>
+              <td><span class="cb" data-cb></span></td>
+              <td>
+                <div class="cell-desc">
+                  <div class="ic-circle success"><i class="ti ti-star"></i></div>
+                  <div class="desc-meta">
+                    <div class="desc-title-row">
+                      <span class="desc-title">Maavelus onboarding · Pitta Fan Leeds</span>
+                      <span class="prod-chip maa"><span class="mark">M</span>Maavelus</span>
+                    </div>
+                    <div class="desc-sub">one-off · customer attributed Mar 2026</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="compact-row">
+                  <div class="avatar av-amber">CP</div>
+                  <span class="nm">Christos P.</span>
+                </div>
+              </td>
+              <td>
+                <div class="compact-row">
+                  <div class="avatar av-1">PF</div>
+                  <span class="nm">Pitta Fan Leeds</span>
+                </div>
+              </td>
+              <td class="num"><span class="money primary">£50.00</span></td>
+              <td>
+                <div class="stat-stack">
+                  <span class="badge badge-active">Paid</span>
+                  <span class="stat-sub">Paid 2 Apr</span>
+                </div>
+              </td>
+              <td><span class="date-c">1 Apr 2026</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+          </tbody>
+        </table>
+
+        <div class="tbl-foot">
+          <div class="info">Showing <strong>1 – 8</strong> of <strong>47</strong> entries</div>
+          <div class="right">
+            <button class="btn btn-primary btn-sm disabled"><i class="ti ti-circle-check"></i>Approve selected</button>
+            <div class="divider-v" style="height: 20px; margin: 0 6px;"></div>
+            <button class="pg-btn" disabled><i class="ti ti-chevron-left" style="font-size:14px;"></i>Previous</button>
+            <button class="pg-btn active">1</button>
+            <button class="pg-btn">2</button>
+            <button class="pg-btn">3</button>
+            <button class="pg-btn">4</button>
+            <button class="pg-btn">Next<i class="ti ti-chevron-right" style="font-size:14px;"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ PENDING PAYOUT BANNER ═══════════ -->
+      <div class="payout-banner">
+        <div class="ic"><i class="ti ti-coins"></i></div>
+        <div class="text">
+          <div class="hd">£750.00 pending payout</div>
+          <div class="sb">4 pending entries · <strong>Christos £540</strong> · <strong>Sofia £120</strong> · <strong>Nikos £90</strong></div>
+        </div>
+        <div class="right">
+          <button class="btn btn-ghost btn-sm" style="color: var(--text-secondary);">View breakdown<i class="ti ti-arrow-right"></i></button>
+          <button class="btn btn-primary"><i class="ti ti-circle-check"></i>Approve all &amp; mark for payment</button>
+        </div>
+      </div>
+
+      <!-- Page footer -->
+      <div class="page-foot">
+        <div>Powerhouse v3.2.0 · Whitedash</div>
+        <div>Data refreshed <strong>2 minutes ago</strong> · auto-syncs every 5 min</div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // Checkbox toggles
+  document.querySelectorAll('[data-cb]').forEach(cb => {
+    cb.addEventListener('click', e => {
+      e.stopPropagation();
+      cb.classList.toggle('checked');
+      const row = cb.closest('tr');
+      if (row) row.classList.toggle('selected', cb.classList.contains('checked'));
+    });
+  });
+
+  // Pagination visual
+  document.querySelectorAll('.pg-btn').forEach(b => b.addEventListener('click', () => {
+    if (b.disabled) return;
+    if (b.textContent.includes('Previous') || b.textContent.includes('Next')) return;
+    document.querySelectorAll('.pg-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+  }));
+
+  // Disabled primaries are no-op
+  document.querySelectorAll('.btn-primary.disabled').forEach(b => {
+    b.addEventListener('click', e => e.preventDefault());
+  });
+</script>
+
+</body>
+</html>

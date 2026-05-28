@@ -1,0 +1,1001 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Powerhouse — Provisioning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg-navy: #0F172A;
+    --accent: #F59E0B;
+    --content-bg: #F8FAFC;
+    --card-bg: #FFFFFF;
+    --border: #E2E8F0;
+    --border-soft: #EEF2F7;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+    --info: #3B82F6;
+    --teal: #0D9488;
+    --purple: #7C3AED;
+
+    --success-bg: #ECFDF5;
+    --danger-bg:  #FEF2F2;
+    --warning-bg: #FFFBEB;
+    --info-bg:    #EFF6FF;
+    --neutral-bg: #F1F5F9;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.05);
+    --shadow-md: 0 4px 12px -2px rgba(15,23,42,.08), 0 1px 3px rgba(15,23,42,.04);
+    --shadow-lg: 0 24px 48px -12px rgba(15,23,42,.18), 0 2px 4px rgba(15,23,42,.04);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 400 14px/1.5 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: #E5E9F0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ─── Shell ─── */
+  .app {
+    width: 1440px;
+    margin: 0 auto;
+    background: var(--content-bg);
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 1100px;
+  }
+
+  /* ─── Sidebar ─── */
+  .sidebar { background: var(--bg-navy); color: #fff; padding: 20px 14px 16px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh; min-height: 1100px; }
+  .logo { display: flex; align-items: center; gap: 10px; padding: 6px 10px 18px; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 14px; }
+  .brand-mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--accent), #FBBF24); display: grid; place-items: center; color: var(--bg-navy); font: 700 14px/1 'Inter', sans-serif; box-shadow: 0 2px 6px rgba(245,158,11,.35); }
+  .logo-name { font: 600 15px/1.1 'Inter', sans-serif; letter-spacing: -.01em; }
+  .logo-sub  { font: 500 10px/1 'Inter', sans-serif; color: rgba(255,255,255,.45); letter-spacing: .12em; text-transform: uppercase; margin-top: 3px; }
+  .nav-section { font: 500 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .14em; color: rgba(255,255,255,.35); padding: 14px 10px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 11px; padding: 8px 10px; color: rgba(255,255,255,.7); font: 500 13.5px/1.2 'Inter', sans-serif; letter-spacing: -.005em; border-radius: var(--radius-md); cursor: pointer; transition: background .12s, color .12s; }
+  .nav-item .ti { font-size: 18px; }
+  .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .nav-item.active { background: rgba(245,158,11,.14); color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+  .nav-item .count { margin-left: auto; font: 600 11px/1 'Inter', sans-serif; background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); padding: 3px 7px; border-radius: 999px; }
+  .nav-item.active .count { background: rgba(245,158,11,.22); color: var(--accent); }
+  .count.amber { background: rgba(245,158,11,.18); color: #FCD34D; }
+  .count.red   { background: rgba(239,68,68,.2);  color: #FCA5A5; }
+  .sidebar-spacer { flex: 1; }
+  .sidebar-user { margin-top: 12px; padding: 12px 10px; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; gap: 10px; }
+  .avatar { border-radius: 50%; display: grid; place-items: center; color: #fff; font: 600 12px/1 'Inter', sans-serif; letter-spacing: -.01em; flex-shrink: 0; }
+  .av-1 { background: linear-gradient(135deg, #6366F1, #8B5CF6); }
+  .av-2 { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-3 { background: linear-gradient(135deg, #10B981, #059669); }
+  .av-5 { background: linear-gradient(135deg, #3B82F6, #06B6D4); }
+  .av-teal  { background: var(--teal); }
+  .av-amber { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-navy  { background: linear-gradient(135deg, #0F172A, #334155); }
+  .av-admin { background: linear-gradient(135deg, #1E293B, #475569); border: 1px solid rgba(245,158,11,.4); }
+  .sidebar-user .avatar { width: 32px; height: 32px; font-size: 11px; }
+  .sidebar-user .name { font: 500 13px/1.2 'Inter', sans-serif; color: #fff; letter-spacing: -.005em; }
+  .sidebar-user .role { font: 400 11px/1.2 'Inter', sans-serif; color: rgba(255,255,255,.45); margin-top: 2px; }
+  .sidebar-user .dots { margin-left: auto; color: rgba(255,255,255,.4); cursor: pointer; }
+
+  /* ─── Topbar ─── */
+  .main { display: flex; flex-direction: column; min-width: 0; }
+  .topbar { height: 64px; border-bottom: 1px solid var(--border); background: #fff; padding: 0 24px; display: flex; align-items: center; gap: 16px; }
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); }
+  .breadcrumb .sep { color: var(--text-tertiary); }
+  .breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+  .topbar-title { font: 600 20px/1.2 'Inter', sans-serif; letter-spacing: -.01em; margin-top: 2px; }
+  .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .topbar-search { position: relative; width: 240px; }
+  .topbar-search input { width: 100%; height: 36px; border: 1px solid transparent; background: var(--content-bg); border-radius: var(--radius-md); padding: 0 38px 0 34px; font: 400 13px/1 'Inter', sans-serif; color: var(--text-primary); outline: 0; transition: border-color .15s, background .15s, box-shadow .15s; }
+  .topbar-search input::placeholder { color: var(--text-tertiary); }
+  .topbar-search input:focus { background: #fff; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+  .topbar-search .ti { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 18px; }
+  .topbar-search .kbd { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font: 500 10px/1 'JetBrains Mono', monospace; color: var(--text-tertiary); border: 1px solid var(--border); background: #fff; padding: 3px 5px; border-radius: 4px; }
+  .bell-btn { position: relative; width: 36px; height: 36px; border-radius: var(--radius-md); display: grid; place-items: center; color: var(--text-secondary); background: transparent; border: 0; cursor: pointer; transition: background .12s; }
+  .bell-btn:hover { background: var(--neutral-bg); }
+  .bell-btn .ti { font-size: 20px; }
+  .bell-btn::after { content: ""; position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); border: 2px solid #fff; }
+  .divider-v { width: 1px; height: 28px; background: var(--border); }
+  .avatar-wrap { display: flex; align-items: center; gap: 10px; padding: 4px 10px 4px 4px; border-radius: 999px; cursor: pointer; transition: background .12s; }
+  .avatar-wrap:hover { background: var(--neutral-bg); }
+  .avatar-wrap .avatar { width: 30px; height: 30px; font-size: 11px; }
+  .avatar-wrap .name { font: 500 13px/1.2 'Inter', sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .avatar-wrap .role { font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+
+  /* Buttons */
+  .btn { appearance: none; border: 0; cursor: pointer; font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em; padding: 0 14px; height: 34px; border-radius: var(--radius-md); display: inline-flex; align-items: center; gap: 7px; transition: background .15s, border-color .15s, color .15s, box-shadow .15s; white-space: nowrap; }
+  .btn .ti { font-size: 15px; }
+  .btn-primary { background: var(--accent); color: var(--bg-navy); font-weight: 600; box-shadow: 0 1px 2px rgba(245,158,11,.3); }
+  .btn-primary:hover { background: #E08C09; }
+  .btn-secondary { background: #fff; color: var(--text-primary); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .btn-secondary:hover { background: var(--neutral-bg); border-color: #CBD5E1; }
+  .btn-ghost { background: transparent; color: var(--text-primary); }
+  .btn-ghost:hover { background: var(--neutral-bg); }
+  .btn-sm { height: 30px; padding: 0 10px; font-size: 12.5px; border-radius: var(--radius-sm); }
+  .btn-sm .ti { font-size: 14px; }
+  .btn-dot { position: relative; }
+  .btn-dot::after { content: ""; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; font: 500 11.5px/1.4 'Inter', sans-serif; letter-spacing: -.005em; border: 1px solid transparent; white-space: nowrap; }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge-active   { color: #047857; background: var(--success-bg); border-color: #A7F3D0; }
+  .badge-inactive { color: #475569; background: var(--neutral-bg); border-color: #E2E8F0; }
+  .badge-pending  { color: #B45309; background: var(--warning-bg); border-color: #FDE68A; }
+  .badge-info     { color: #1D4ED8; background: var(--info-bg); border-color: #BFDBFE; }
+  .badge-sm { padding: 2px 7px; font: 500 10.5px/1.4 'Inter', sans-serif; }
+  .badge-sm::before { width: 5px; height: 5px; }
+
+  /* Warn pill */
+  .warn-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--warning-bg);
+    color: #B45309;
+    border: 1px solid #FDE68A;
+    font: 600 10.5px/1.3 'Inter', sans-serif;
+    letter-spacing: -.005em;
+    white-space: nowrap;
+  }
+  .warn-pill .ti { font-size: 12px; }
+  .warn-pill.red { background: var(--danger-bg); color: #B91C1C; border-color: #FECACA; }
+
+  /* Stat pill */
+  .stat-pill {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 8px 14px;
+    display: inline-flex; align-items: center; gap: 10px;
+    font: 500 14px/1 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-pill .d { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .stat-pill .d.gold   { background: var(--accent); }
+  .stat-pill .d.green  { background: var(--success); }
+  .stat-pill .d.amber  { background: var(--warning); }
+  .stat-pill .d.red    { background: var(--danger); }
+  .stat-pill .d.blue   { background: var(--info); }
+  .stat-pill .d.purple { background: var(--purple); }
+  .stat-pill .d.grey   { background: var(--text-tertiary); }
+  .stat-pill .lbl { color: var(--text-secondary); font-weight: 400; }
+  .stat-pill .sub { color: var(--text-tertiary); font-weight: 400; font-size: 12px; padding-left: 4px; border-left: 1px solid var(--border); margin-left: 2px; }
+
+  /* ─── Filter bar ─── */
+  .filter-bar {
+    margin-top: 16px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .field-search { position: relative; width: 240px; flex-shrink: 0; }
+  .field-search input {
+    width: 100%; height: 36px;
+    border: 1px solid var(--border);
+    background: var(--content-bg);
+    border-radius: var(--radius-md);
+    padding: 0 12px 0 34px;
+    font: 400 13px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: 0;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+  .field-search input::placeholder { color: var(--text-tertiary); }
+  .field-search input:focus { background: #fff; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+  .field-search .ti { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 16px; }
+
+  .dd-btn {
+    height: 36px; padding: 0 10px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--text-primary);
+    font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em;
+    cursor: pointer;
+    transition: border-color .12s, background .12s;
+    white-space: nowrap;
+  }
+  .dd-btn:hover { background: var(--neutral-bg); border-color: #CBD5E1; }
+  .dd-btn .ti { font-size: 16px; color: var(--text-secondary); }
+  .dd-btn .ch { color: var(--text-tertiary); font-size: 14px; }
+  .filter-bar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  /* ─── Page content ─── */
+  .content { padding: 24px; }
+  .greet { display: flex; align-items: center; justify-content: space-between; }
+  .greet h1 { margin: 0; font: 700 24px/1.2 'Inter', sans-serif; letter-spacing: -.015em; }
+  .greet .sub { font: 400 13px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 4px; }
+
+  .summary-strip { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+  /* ─── Table ─── */
+  .table-card {
+    margin-top: 12px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+  }
+  .tbl {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .tbl thead th {
+    background: var(--neutral-bg);
+    border-bottom: 1px solid var(--border-soft);
+    text-align: left;
+    padding: 10px 14px;
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--text-tertiary);
+    height: 36px;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .tbl thead th:first-child { padding-left: 18px; }
+  .tbl thead th:last-child  { padding-right: 18px; }
+
+  /* Sub-header row */
+  .tbl thead tr.subhead th {
+    background: var(--neutral-bg);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 14px 10px;
+    height: auto;
+    font: 500 10px/1.2 'Inter', sans-serif;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-tertiary);
+  }
+  .tbl thead tr.subhead th .ok { color: var(--success); font-weight: 600; }
+  .tbl thead tr.subhead th .muted { color: var(--text-tertiary); font-style: italic; }
+
+  .tbl tbody td {
+    padding: 14px;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: middle;
+    font: 400 14px/1.4 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: #fff;
+    transition: background .12s;
+  }
+  .tbl tbody td:first-child { padding-left: 18px; }
+  .tbl tbody td:last-child  { padding-right: 18px; }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
+  .tbl tbody tr:hover td { background: #FBFCFE; }
+
+  /* Customer cell */
+  .cell-cust { display: flex; align-items: center; gap: 11px; min-width: 0; }
+  .cell-cust .avatar { width: 30px; height: 30px; font-size: 11px; }
+  .cust-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .cust-name { font: 600 13px/1.3 'Inter', sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .cust-name-row .grp { color: var(--text-tertiary); font-size: 13px; }
+  .cust-loc { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 2px; }
+
+  /* Product provisioning cell */
+  .prov-cell { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
+  .prov-cell .label {
+    font: 400 11px/1.4 'Inter', sans-serif;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+  .prov-cell .label.muted { color: var(--text-tertiary); }
+  .prov-cell .label.warn  { color: #B45309; font-weight: 500; }
+  .prov-cell .label.trial { color: var(--warning); font-weight: 500; }
+
+  /* Toggle switch */
+  .toggle {
+    width: 40px; height: 22px;
+    border-radius: 999px;
+    background: #CBD5E1;
+    position: relative;
+    cursor: pointer;
+    transition: background .15s, box-shadow .15s;
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: "";
+    position: absolute; top: 2px; left: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 3px rgba(15,23,42,.2);
+    transition: left .15s;
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle.on::after { left: 20px; }
+  .toggle.disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+  .toggle.warn-glow { box-shadow: 0 0 0 3px rgba(245,158,11,.25); }
+
+  /* Lead row collapsed cells */
+  .prov-lead-strip {
+    display: flex; align-items: center;
+    height: 30px;
+    color: var(--text-tertiary);
+    font: 400 12.5px/1 'Inter', sans-serif;
+    font-style: italic;
+    gap: 6px;
+  }
+  .prov-lead-strip .ti { font-size: 14px; }
+
+  /* Last changed cell */
+  .changed { font: 400 13px/1.2 'Inter', sans-serif; color: var(--text-secondary); white-space: nowrap; }
+  .changed.muted { color: var(--text-tertiary); }
+  .changed.today { color: var(--text-primary); font-weight: 600; }
+
+  /* Icon button */
+  .icon-btn { width: 28px; height: 28px; display: inline-grid; place-items: center; border-radius: 6px; color: var(--text-tertiary); cursor: pointer; border: 0; background: transparent; transition: background .12s, color .12s; }
+  .icon-btn:hover { background: var(--neutral-bg); color: var(--text-primary); }
+  .icon-btn .ti { font-size: 18px; }
+
+  /* Table footer */
+  .tbl-foot {
+    background: var(--neutral-bg);
+    border-top: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .tbl-foot .info { font: 400 12.5px/1.4 'Inter', sans-serif; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .tbl-foot .info strong { color: var(--text-primary); font-weight: 600; }
+  .tbl-foot .right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+  .pg-btn { min-width: 30px; height: 30px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: var(--text-primary); font: 500 12.5px/1 'Inter', sans-serif; font-variant-numeric: tabular-nums; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 9px; transition: background .12s, border-color .12s; }
+  .pg-btn:hover:not(:disabled):not(.active) { background: #fff; border-color: var(--border); }
+  .pg-btn.active { background: var(--bg-navy); color: #fff; }
+  .pg-btn:disabled { color: var(--text-tertiary); cursor: not-allowed; }
+  .per-page { margin-left: 8px; height: 30px; padding: 0 10px; background: #fff; border: 1px solid var(--border); border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; font: 500 12.5px/1 'Inter', sans-serif; color: var(--text-primary); cursor: pointer; }
+  .per-page .ti { font-size: 14px; color: var(--text-tertiary); }
+
+  /* ─── Quick enable panel ─── */
+  .qe-panel {
+    margin-top: 16px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: 6fr 4fr;
+    gap: 24px;
+    align-items: center;
+  }
+  .qe-left { display: flex; flex-direction: column; }
+  .qe-head { display: flex; align-items: center; gap: 9px; }
+  .qe-head .ic { width: 26px; height: 26px; border-radius: 7px; background: rgba(245,158,11,.14); display: grid; place-items: center; color: var(--accent); }
+  .qe-head .ic .ti { font-size: 16px; }
+  .qe-head .title { font: 600 15px/1.2 'Inter', sans-serif; letter-spacing: -.005em; color: var(--text-primary); }
+  .qe-sub { font: 400 13px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin-top: 8px; }
+
+  .qe-right { display: flex; align-items: center; gap: 10px; }
+  .qe-select {
+    flex: 1;
+    height: 40px;
+    border: 1.5px solid var(--border);
+    background: var(--content-bg);
+    border-radius: var(--radius-md);
+    padding: 0 14px;
+    font: 400 13px/1 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    display: inline-flex; align-items: center; gap: 8px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .qe-select:hover { background: #fff; border-color: #CBD5E1; }
+  .qe-select .ti { font-size: 16px; color: var(--text-tertiary); margin-left: auto; }
+  .qe-btn { height: 40px; }
+
+  /* Page footer */
+  .page-foot {
+    display: flex; justify-content: space-between; padding-top: 16px;
+    color: var(--text-tertiary); font: 400 12px/1.4 'Inter', sans-serif;
+  }
+  .page-foot strong { color: var(--text-secondary); font-weight: 500; }
+
+</style>
+</head>
+<body>
+
+<div class="app" data-screen-label="11 Provisioning">
+
+  <!-- ─── Sidebar ─── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="brand-mark">W</div>
+      <div>
+        <div class="logo-name">Powerhouse</div>
+        <div class="logo-sub">Whitedash</div>
+      </div>
+    </div>
+
+    <div class="nav-section">Workspace</div>
+    <div class="nav-item"><i class="ti ti-layout-dashboard"></i>Overview</div>
+    <div class="nav-item"><i class="ti ti-users"></i>Customers<span class="count">847</span></div>
+    <div class="nav-item"><i class="ti ti-receipt"></i>Invoices<span class="count amber">7</span></div>
+    <div class="nav-item"><i class="ti ti-credit-card"></i>Subscriptions</div>
+    <div class="nav-item"><i class="ti ti-chart-line"></i>Analytics</div>
+    <div class="nav-item"><i class="ti ti-users-group"></i>Referrers</div>
+    <div class="nav-item"><i class="ti ti-world"></i>Domains</div>
+    <div class="nav-item active"><i class="ti ti-layout-grid"></i>Provisioning</div>
+
+    <div class="nav-section">Products</div>
+    <div class="nav-item"><i class="ti ti-tools-kitchen-2"></i>Maavelus</div>
+    <div class="nav-item"><i class="ti ti-clipboard-list"></i>MyOrderPad</div>
+    <div class="nav-item"><i class="ti ti-building-store"></i>Whitedash B2B</div>
+    <div class="nav-item"><i class="ti ti-message-2"></i>SMScube</div>
+
+    <div class="nav-section">Account</div>
+    <div class="nav-item"><i class="ti ti-headset"></i>Support<span class="count red">3</span></div>
+    <div class="nav-item"><i class="ti ti-settings"></i>Settings</div>
+    <div class="nav-item"><i class="ti ti-help-circle"></i>Help &amp; docs</div>
+
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-user">
+      <div class="avatar av-admin">AP</div>
+      <div>
+        <div class="name">Apostolos P.</div>
+        <div class="role">Super Admin</div>
+      </div>
+      <i class="ti ti-dots dots"></i>
+    </div>
+  </aside>
+
+  <!-- ─── Main ─── -->
+  <main class="main">
+
+    <div class="topbar">
+      <div>
+        <div class="breadcrumb"><span>Powerhouse</span><span class="sep">/</span><span>Workspace</span><span class="sep">/</span><span class="current">Provisioning</span></div>
+        <div class="topbar-title">Provisioning</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" style="color: var(--text-secondary);"><i class="ti ti-stack-2"></i>Bulk enable</button>
+        <button class="btn btn-ghost btn-sm" style="color: var(--text-secondary);"><i class="ti ti-file-export"></i>Export</button>
+        <div class="divider-v"></div>
+        <div class="topbar-search">
+          <i class="ti ti-search"></i>
+          <input placeholder="Search…">
+          <span class="kbd">⌘K</span>
+        </div>
+        <button class="bell-btn"><i class="ti ti-bell"></i></button>
+        <div class="divider-v"></div>
+        <div class="avatar-wrap">
+          <div class="avatar av-admin">AP</div>
+          <div>
+            <div class="name">Apostolos P.</div>
+            <div class="role">Super Admin</div>
+          </div>
+          <i class="ti ti-chevron-down" style="color: var(--text-tertiary); font-size: 16px;"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Greeting -->
+      <div class="greet">
+        <div>
+          <h1>Provisioning</h1>
+          <div class="sub">Manage product access per customer · 12 of 847 customers have changes pending</div>
+        </div>
+      </div>
+
+      <!-- Summary strip -->
+      <div class="summary-strip">
+        <div class="stat-pill"><span class="d gold"></span><strong>847</strong><span class="lbl">customers</span></div>
+        <div class="stat-pill"><span class="d green"></span><strong>34</strong><span class="lbl">on Maavelus</span></div>
+        <div class="stat-pill"><span class="d blue"></span><strong>312</strong><span class="lbl">on MyOrderPad</span></div>
+        <div class="stat-pill"><span class="d purple"></span><strong>501</strong><span class="lbl">on Whitedash B2B</span></div>
+        <div class="stat-pill"><span class="d grey"></span><strong>0</strong><span class="lbl">on SMScube</span><span class="sub">coming soon</span></div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <div class="field-search">
+          <i class="ti ti-search"></i>
+          <input placeholder="Search customers…">
+        </div>
+        <button class="dd-btn"><i class="ti ti-tools-kitchen-2"></i>Product<i class="ti ti-chevron-down ch"></i></button>
+        <button class="dd-btn"><i class="ti ti-flag"></i>Status<i class="ti ti-chevron-down ch"></i></button>
+        <div class="right">
+          <button class="btn btn-ghost btn-sm btn-dot" style="color: var(--text-secondary);"><i class="ti ti-adjustments-horizontal"></i>Filters</button>
+        </div>
+      </div>
+
+      <!-- ═══════════ TABLE ═══════════ -->
+      <div class="table-card">
+        <table class="tbl">
+          <colgroup>
+            <col>
+            <col style="width: 150px;">
+            <col style="width: 150px;">
+            <col style="width: 150px;">
+            <col style="width: 150px;">
+            <col style="width: 130px;">
+            <col style="width: 48px;">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th>Maavelus</th>
+              <th>MyOrderPad</th>
+              <th>Whitedash B2B</th>
+              <th>SMScube</th>
+              <th>Last changed</th>
+              <th></th>
+            </tr>
+            <tr class="subhead">
+              <th></th>
+              <th><span class="ok">34 active</span></th>
+              <th><span class="ok">312 active</span></th>
+              <th><span class="ok">501 active</span></th>
+              <th><span class="muted">Coming soon</span></th>
+              <th></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <!-- Row 1 — Aegean Kitchen -->
+            <tr>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-teal">AK</div>
+                  <div>
+                    <div class="cust-name-row"><span class="cust-name">The Aegean Kitchen</span></div>
+                    <div class="cust-loc">London, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle on" data-toggle></div>
+                  <span class="label">Pro · £29/mo</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle on" data-toggle></div>
+                  <span class="label">Pro · £40/mo</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle" data-toggle></div>
+                  <span class="label muted">Not active</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle disabled"></div>
+                  <span class="label muted">Soon</span>
+                </div>
+              </td>
+              <td><span class="changed today">Today</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 2 — Pitta Fan Leeds -->
+            <tr>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-1">PF</div>
+                  <div>
+                    <div class="cust-name-row"><span class="cust-name">Pitta Fan Leeds</span></div>
+                    <div class="cust-loc">Leeds, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle on" data-toggle></div>
+                  <span class="label">Pro · £29/mo</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle on" data-toggle></div>
+                  <span class="label">Pro · £40/mo</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle on" data-toggle></div>
+                  <span class="label">Pro · £164/mo</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle disabled"></div>
+                  <span class="label muted">Soon</span>
+                </div>
+              </td>
+              <td><span class="changed">3 days ago</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 3 — Souvlaki House (payment issue) -->
+            <tr>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-2">SH</div>
+                  <div>
+                    <div class="cust-name-row"><span class="cust-name">Souvlaki House Manchester</span></div>
+                    <div class="cust-loc">Manchester, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle" data-toggle></div>
+                  <span class="label muted">Not active</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="toggle on warn-glow" data-toggle></div>
+                    <span class="warn-pill"><i class="ti ti-alert-triangle"></i>Overdue</span>
+                  </div>
+                  <span class="label warn">Pro · payment failed</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle" data-toggle></div>
+                  <span class="label muted">Not active</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle disabled"></div>
+                  <span class="label muted">Soon</span>
+                </div>
+              </td>
+              <td><span class="changed">7 days ago</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 4 — Olympia Group (group account) -->
+            <tr>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-amber">OG</div>
+                  <div>
+                    <div class="cust-name-row">
+                      <span class="cust-name">Olympia Restaurant Group</span>
+                      <i class="ti ti-users grp" title="Group account"></i>
+                    </div>
+                    <div class="cust-loc">London, UK · 3 locations</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle on" data-toggle></div>
+                  <span class="label">Pro ×3 · £87/mo</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle on" data-toggle></div>
+                  <span class="label">Pro · £40/mo</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle" data-toggle></div>
+                  <span class="label muted">Not active</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle disabled"></div>
+                  <span class="label muted">Soon</span>
+                </div>
+              </td>
+              <td><span class="changed">2 weeks ago</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 5 — Greek Bites -->
+            <tr>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-1">GB</div>
+                  <div>
+                    <div class="cust-name-row"><span class="cust-name">Greek Bites</span></div>
+                    <div class="cust-loc">Bristol, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle on" data-toggle></div>
+                  <span class="label">Pro · £29/mo</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle" data-toggle></div>
+                  <span class="label muted">Not active</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle" data-toggle></div>
+                  <span class="label muted">Not active</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle disabled"></div>
+                  <span class="label muted">Soon</span>
+                </div>
+              </td>
+              <td><span class="changed">1 month ago</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 6 — The Athenian -->
+            <tr>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-3">TA</div>
+                  <div>
+                    <div class="cust-name-row"><span class="cust-name">The Athenian</span></div>
+                    <div class="cust-loc">Birmingham, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle on" data-toggle></div>
+                  <span class="label">Pro · £29/mo</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle on" data-toggle></div>
+                  <span class="label">Pro · £40/mo</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle" data-toggle></div>
+                  <span class="label muted">Not active</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle disabled"></div>
+                  <span class="label muted">Soon</span>
+                </div>
+              </td>
+              <td><span class="changed">2 weeks ago</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 7 — Gyros City (trial) -->
+            <tr>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-5">GC</div>
+                  <div>
+                    <div class="cust-name-row">
+                      <span class="cust-name">Gyros City MCR</span>
+                      <span class="warn-pill" style="margin-left: 4px;"><i class="ti ti-clock"></i>Trial ends 30 May</span>
+                    </div>
+                    <div class="cust-loc">Manchester, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle" data-toggle></div>
+                  <span class="label muted">Not active</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle on warn-glow" data-toggle></div>
+                  <span class="label trial">Trial · 2 days left</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle" data-toggle></div>
+                  <span class="label muted">Not active</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle disabled"></div>
+                  <span class="label muted">Soon</span>
+                </div>
+              </td>
+              <td><span class="changed today">Today</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 8 — Hellenic Foods -->
+            <tr>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-navy">HF</div>
+                  <div>
+                    <div class="cust-name-row"><span class="cust-name">Hellenic Foods UK</span></div>
+                    <div class="cust-loc">London, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle" data-toggle></div>
+                  <span class="label muted">Not active</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle" data-toggle></div>
+                  <span class="label muted">Not active</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle on" data-toggle></div>
+                  <span class="label">Pro · £164/mo</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle disabled"></div>
+                  <span class="label muted">Soon</span>
+                </div>
+              </td>
+              <td><span class="changed">3 weeks ago</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 9 — Mykonos Kitchen (trial Maavelus) -->
+            <tr>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-3">MK</div>
+                  <div>
+                    <div class="cust-name-row"><span class="cust-name">Mykonos Kitchen</span></div>
+                    <div class="cust-loc">Brighton, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle on" data-toggle></div>
+                  <span class="label trial">Trial · 11 days left</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle" data-toggle></div>
+                  <span class="label muted">Not active</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle" data-toggle></div>
+                  <span class="label muted">Not active</span>
+                </div>
+              </td>
+              <td>
+                <div class="prov-cell">
+                  <div class="toggle disabled"></div>
+                  <span class="label muted">Soon</span>
+                </div>
+              </td>
+              <td><span class="changed">2 days ago</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <!-- Row 10 — Opa! Souvlaki (lead, all off) -->
+            <tr>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-1">OS</div>
+                  <div>
+                    <div class="cust-name-row"><span class="cust-name">Opa! Souvlaki</span></div>
+                    <div class="cust-loc">Edinburgh, UK</div>
+                  </div>
+                </div>
+              </td>
+              <td colspan="4">
+                <div class="prov-lead-strip">
+                  <i class="ti ti-user-plus"></i>
+                  Lead · no products yet
+                </div>
+              </td>
+              <td><span class="changed muted">—</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+          </tbody>
+        </table>
+
+        <div class="tbl-foot">
+          <div class="info">Showing <strong>1 – 10</strong> of <strong>847</strong> customers</div>
+          <div class="right">
+            <button class="pg-btn" disabled><i class="ti ti-chevron-left" style="font-size:14px;"></i>Previous</button>
+            <button class="pg-btn active">1</button>
+            <button class="pg-btn">2</button>
+            <button class="pg-btn">3</button>
+            <button class="pg-btn">85</button>
+            <button class="pg-btn">Next<i class="ti ti-chevron-right" style="font-size:14px;"></i></button>
+            <button class="per-page">10 per page<i class="ti ti-chevron-down"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ QUICK ENABLE PANEL ═══════════ -->
+      <div class="qe-panel">
+        <div class="qe-left">
+          <div class="qe-head">
+            <div class="ic"><i class="ti ti-layout-grid"></i></div>
+            <div class="title">Enable a product for a customer</div>
+          </div>
+          <div class="qe-sub">Select a customer and product to provision access instantly.</div>
+        </div>
+
+        <div class="qe-right">
+          <button class="qe-select"><i class="ti ti-user"></i>Select customer…<i class="ti ti-chevron-down"></i></button>
+          <button class="qe-select"><i class="ti ti-tools-kitchen-2"></i>Select product…<i class="ti ti-chevron-down"></i></button>
+          <button class="btn btn-primary qe-btn"><i class="ti ti-check"></i>Enable</button>
+        </div>
+      </div>
+
+      <!-- Page footer -->
+      <div class="page-foot">
+        <div>Powerhouse v3.2.0 · Whitedash</div>
+        <div>Data refreshed <strong>2 minutes ago</strong> · auto-syncs every 5 min</div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // Toggle switches
+  document.querySelectorAll('[data-toggle]').forEach(t => {
+    t.addEventListener('click', () => t.classList.toggle('on'));
+  });
+
+  // Pagination
+  document.querySelectorAll('.pg-btn').forEach(b => b.addEventListener('click', () => {
+    if (b.disabled) return;
+    if (b.textContent.includes('Previous') || b.textContent.includes('Next')) return;
+    document.querySelectorAll('.pg-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+  }));
+</script>
+
+</body>
+</html>

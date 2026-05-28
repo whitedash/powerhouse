@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Powerhouse — Audit log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg-navy: #0F172A;
+    --accent: #F59E0B;
+    --content-bg: #F8FAFC;
+    --card-bg: #FFFFFF;
+    --border: #E2E8F0;
+    --border-soft: #EEF2F7;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+    --info: #3B82F6;
+    --teal: #0D9488;
+    --purple: #7C3AED;
+
+    --success-bg: #ECFDF5;
+    --danger-bg:  #FEF2F2;
+    --warning-bg: #FFFBEB;
+    --info-bg:    #EFF6FF;
+    --neutral-bg: #F1F5F9;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.05);
+    --shadow-md: 0 4px 12px -2px rgba(15,23,42,.08), 0 1px 3px rgba(15,23,42,.04);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 400 14px/1.5 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: #E5E9F0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Shell */
+  .app { width: 1440px; margin: 0 auto; background: var(--content-bg); display: grid; grid-template-columns: 240px 1fr; min-height: 1100px; }
+
+  /* Sidebar */
+  .sidebar { background: var(--bg-navy); color: #fff; padding: 20px 14px 16px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh; min-height: 1100px; }
+  .logo { display: flex; align-items: center; gap: 10px; padding: 6px 10px 18px; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 14px; }
+  .brand-mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--accent), #FBBF24); display: grid; place-items: center; color: var(--bg-navy); font: 700 14px/1 'Inter', sans-serif; box-shadow: 0 2px 6px rgba(245,158,11,.35); }
+  .logo-name { font: 600 15px/1.1 'Inter', sans-serif; letter-spacing: -.01em; }
+  .logo-sub  { font: 500 10px/1 'Inter', sans-serif; color: rgba(255,255,255,.45); letter-spacing: .12em; text-transform: uppercase; margin-top: 3px; }
+  .nav-section { font: 500 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .14em; color: rgba(255,255,255,.35); padding: 14px 10px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 11px; padding: 8px 10px; color: rgba(255,255,255,.7); font: 500 13.5px/1.2 'Inter', sans-serif; letter-spacing: -.005em; border-radius: var(--radius-md); cursor: pointer; transition: background .12s, color .12s; }
+  .nav-item .ti { font-size: 18px; }
+  .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .nav-item.active { background: rgba(245,158,11,.14); color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+  .nav-item .count { margin-left: auto; font: 600 11px/1 'Inter', sans-serif; background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); padding: 3px 7px; border-radius: 999px; }
+  .count.amber { background: rgba(245,158,11,.18); color: #FCD34D; }
+  .count.red   { background: rgba(239,68,68,.2);  color: #FCA5A5; }
+  .sidebar-spacer { flex: 1; }
+  .sidebar-user { margin-top: 12px; padding: 12px 10px; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; gap: 10px; }
+  .avatar { border-radius: 50%; display: grid; place-items: center; color: #fff; font: 600 12px/1 'Inter', sans-serif; letter-spacing: -.01em; flex-shrink: 0; }
+  .av-teal  { background: var(--teal); }
+  .av-amber { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-admin { background: linear-gradient(135deg, #1E293B, #475569); border: 1px solid rgba(245,158,11,.4); }
+  .av-sys { background: linear-gradient(135deg, #64748B, #94A3B8); }
+  .sidebar-user .avatar { width: 32px; height: 32px; font-size: 11px; }
+  .sidebar-user .name { font: 500 13px/1.2 'Inter', sans-serif; color: #fff; letter-spacing: -.005em; }
+  .sidebar-user .role { font: 400 11px/1.2 'Inter', sans-serif; color: rgba(255,255,255,.45); margin-top: 2px; }
+  .sidebar-user .dots { margin-left: auto; color: rgba(255,255,255,.4); cursor: pointer; }
+
+  /* Topbar */
+  .main { display: flex; flex-direction: column; min-width: 0; }
+  .topbar { height: 64px; border-bottom: 1px solid var(--border); background: #fff; padding: 0 24px; display: flex; align-items: center; gap: 16px; }
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); }
+  .breadcrumb .sep { color: var(--text-tertiary); }
+  .breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+  .topbar-title { font: 600 20px/1.2 'Inter', sans-serif; letter-spacing: -.01em; margin-top: 2px; }
+  .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .topbar-search { position: relative; width: 240px; }
+  .topbar-search input { width: 100%; height: 36px; border: 1px solid transparent; background: var(--content-bg); border-radius: var(--radius-md); padding: 0 38px 0 34px; font: 400 13px/1 'Inter', sans-serif; color: var(--text-primary); outline: 0; transition: border-color .15s, background .15s, box-shadow .15s; }
+  .topbar-search input::placeholder { color: var(--text-tertiary); }
+  .topbar-search input:focus { background: #fff; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+  .topbar-search .ti { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 18px; }
+  .topbar-search .kbd { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font: 500 10px/1 'JetBrains Mono', monospace; color: var(--text-tertiary); border: 1px solid var(--border); background: #fff; padding: 3px 5px; border-radius: 4px; }
+  .bell-btn { position: relative; width: 36px; height: 36px; border-radius: var(--radius-md); display: grid; place-items: center; color: var(--text-secondary); background: transparent; border: 0; cursor: pointer; transition: background .12s; }
+  .bell-btn:hover { background: var(--neutral-bg); }
+  .bell-btn .ti { font-size: 20px; }
+  .bell-btn::after { content: ""; position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); border: 2px solid #fff; }
+  .divider-v { width: 1px; height: 28px; background: var(--border); }
+  .avatar-wrap { display: flex; align-items: center; gap: 10px; padding: 4px 10px 4px 4px; border-radius: 999px; cursor: pointer; transition: background .12s; }
+  .avatar-wrap:hover { background: var(--neutral-bg); }
+  .avatar-wrap .avatar { width: 30px; height: 30px; font-size: 11px; }
+  .avatar-wrap .name { font: 500 13px/1.2 'Inter', sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .avatar-wrap .role { font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+
+  /* Buttons */
+  .btn { appearance: none; border: 0; cursor: pointer; font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em; padding: 0 14px; height: 34px; border-radius: var(--radius-md); display: inline-flex; align-items: center; gap: 7px; transition: background .15s, border-color .15s, color .15s, box-shadow .15s; white-space: nowrap; }
+  .btn .ti { font-size: 15px; }
+  .btn-ghost { background: transparent; color: var(--text-primary); }
+  .btn-ghost:hover { background: var(--neutral-bg); }
+  .btn-sm { height: 30px; padding: 0 10px; font-size: 12.5px; border-radius: var(--radius-sm); }
+  .btn-sm .ti { font-size: 14px; }
+  .btn-dot { position: relative; }
+  .btn-dot::after { content: ""; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; font: 500 11.5px/1.4 'Inter', sans-serif; letter-spacing: -.005em; border: 1px solid transparent; white-space: nowrap; }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge-active   { color: #047857; background: var(--success-bg); border-color: #A7F3D0; }
+  .badge-inactive { color: #475569; background: var(--neutral-bg); border-color: #E2E8F0; }
+  .badge-pending  { color: #B45309; background: var(--warning-bg); border-color: #FDE68A; }
+  .badge-info     { color: #1D4ED8; background: var(--info-bg); border-color: #BFDBFE; }
+  .badge-gold     { color: #B45309; background: rgba(245,158,11,.14); border-color: #FDE68A; }
+  .badge-sm { padding: 2px 7px; font: 500 10.5px/1.4 'Inter', sans-serif; }
+  .badge-sm::before { width: 5px; height: 5px; }
+
+  /* Filter bar */
+  .filter-bar {
+    margin-top: 16px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .field-search { position: relative; width: 240px; flex-shrink: 0; }
+  .field-search input {
+    width: 100%; height: 36px;
+    border: 1px solid var(--border);
+    background: var(--content-bg);
+    border-radius: var(--radius-md);
+    padding: 0 12px 0 34px;
+    font: 400 13px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: 0;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+  .field-search input::placeholder { color: var(--text-tertiary); }
+  .field-search input:focus { background: #fff; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+  .field-search .ti { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 16px; }
+  .dd-btn {
+    height: 36px; padding: 0 10px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--text-primary);
+    font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em;
+    cursor: pointer;
+    transition: border-color .12s, background .12s;
+    white-space: nowrap;
+  }
+  .dd-btn:hover { background: var(--neutral-bg); border-color: #CBD5E1; }
+  .dd-btn .ti { font-size: 16px; color: var(--text-secondary); }
+  .dd-btn .ch { color: var(--text-tertiary); font-size: 14px; }
+  .filter-bar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  /* Page content */
+  .content { padding: 24px; }
+  .greet h1 { margin: 0; font: 700 24px/1.2 'Inter', sans-serif; letter-spacing: -.015em; }
+  .greet .sub { font: 400 13px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 4px; }
+
+  /* Table */
+  .table-card {
+    margin-top: 12px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+  }
+  .tbl {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .tbl thead th {
+    background: var(--neutral-bg);
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    padding: 10px 14px;
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--text-tertiary);
+    height: 40px;
+    white-space: nowrap;
+  }
+  .tbl thead th:first-child { padding-left: 18px; }
+  .tbl thead th:last-child  { padding-right: 18px; }
+
+  .tbl tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: middle;
+    font: 400 13px/1.4 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: #fff;
+    transition: background .12s;
+  }
+  .tbl tbody td:first-child { padding-left: 18px; }
+  .tbl tbody td:last-child  { padding-right: 18px; }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
+  .tbl tbody tr:hover td { background: #FBFCFE; }
+
+  /* Cells */
+  .ts {
+    font: 500 12px/1.2 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+    letter-spacing: .005em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .cell-user { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .cell-user .avatar { width: 22px; height: 22px; font-size: 9.5px; }
+  .cell-user .nm { font: 500 13px/1.3 'Inter',sans-serif; color: var(--text-primary); letter-spacing: -.005em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cell-user.system .nm { color: var(--text-secondary); }
+
+  .cell-action { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .act-ic {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .act-ic .ti { font-size: 14px; }
+  .act-ic.create  { background: var(--success-bg); color: var(--success); }
+  .act-ic.update  { background: var(--info-bg);    color: var(--info); }
+  .act-ic.delete  { background: var(--danger-bg);  color: var(--danger); }
+  .act-ic.auth    { background: var(--neutral-bg); color: var(--text-secondary); }
+  .act-ic.payment { background: var(--warning-bg); color: var(--warning); }
+  .act-ic.system  { background: var(--neutral-bg); color: var(--text-secondary); }
+  .act-ic.send    { background: var(--info-bg);    color: var(--info); }
+  .act-ic.ai      { background: rgba(124,58,237,.1); color: var(--purple); }
+  .act-ic.success { background: var(--success-bg); color: var(--success); }
+  .act-ic.alert   { background: var(--warning-bg); color: var(--warning); }
+  .act-text { font: 500 13px/1.3 'Inter',sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+
+  .cell-detail {
+    font: 400 13px/1.4 'Inter',sans-serif;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-variant-numeric: tabular-nums;
+  }
+  .cell-detail code,
+  .cell-detail .mono {
+    font: 500 12.5px/1.2 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+    background: var(--neutral-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+  .cell-detail .arrow { color: var(--text-tertiary); margin: 0 2px; }
+
+  .icon-btn { width: 28px; height: 28px; display: inline-grid; place-items: center; border-radius: 6px; color: var(--text-tertiary); cursor: pointer; border: 0; background: transparent; transition: background .12s, color .12s; }
+  .icon-btn:hover { background: var(--neutral-bg); color: var(--text-primary); }
+  .icon-btn .ti { font-size: 18px; }
+
+  /* Table footer */
+  .tbl-foot {
+    background: var(--neutral-bg);
+    border-top: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .tbl-foot .info { font: 400 12.5px/1.4 'Inter', sans-serif; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .tbl-foot .info strong { color: var(--text-primary); font-weight: 600; }
+  .tbl-foot .right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+  .pg-btn { min-width: 30px; height: 30px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: var(--text-primary); font: 500 12.5px/1 'Inter', sans-serif; font-variant-numeric: tabular-nums; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 9px; transition: background .12s, border-color .12s; }
+  .pg-btn:hover:not(:disabled):not(.active) { background: #fff; border-color: var(--border); }
+  .pg-btn.active { background: var(--bg-navy); color: #fff; }
+  .pg-btn:disabled { color: var(--text-tertiary); cursor: not-allowed; }
+  .per-page { margin-left: 8px; height: 30px; padding: 0 10px; background: #fff; border: 1px solid var(--border); border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; font: 500 12.5px/1 'Inter', sans-serif; color: var(--text-primary); cursor: pointer; }
+  .per-page .ti { font-size: 14px; color: var(--text-tertiary); }
+
+  /* Page footer */
+  .page-foot { display: flex; justify-content: space-between; padding-top: 16px; color: var(--text-tertiary); font: 400 12px/1.4 'Inter', sans-serif; }
+  .page-foot strong { color: var(--text-secondary); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="app" data-screen-label="13 Audit log">
+
+  <!-- ─── Sidebar ─── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="brand-mark">W</div>
+      <div>
+        <div class="logo-name">Powerhouse</div>
+        <div class="logo-sub">Whitedash</div>
+      </div>
+    </div>
+
+    <div class="nav-section">Workspace</div>
+    <div class="nav-item"><i class="ti ti-layout-dashboard"></i>Overview</div>
+    <div class="nav-item"><i class="ti ti-users"></i>Customers<span class="count">847</span></div>
+    <div class="nav-item"><i class="ti ti-receipt"></i>Invoices<span class="count amber">7</span></div>
+    <div class="nav-item"><i class="ti ti-credit-card"></i>Subscriptions</div>
+    <div class="nav-item"><i class="ti ti-chart-line"></i>Analytics</div>
+    <div class="nav-item"><i class="ti ti-users-group"></i>Referrers</div>
+    <div class="nav-item"><i class="ti ti-world"></i>Domains</div>
+    <div class="nav-item"><i class="ti ti-layout-grid"></i>Provisioning</div>
+
+    <div class="nav-section">Products</div>
+    <div class="nav-item"><i class="ti ti-tools-kitchen-2"></i>Maavelus</div>
+    <div class="nav-item"><i class="ti ti-clipboard-list"></i>MyOrderPad</div>
+    <div class="nav-item"><i class="ti ti-building-store"></i>Whitedash B2B</div>
+    <div class="nav-item"><i class="ti ti-message-2"></i>SMScube</div>
+
+    <div class="nav-section">Account</div>
+    <div class="nav-item"><i class="ti ti-headset"></i>Support<span class="count red">3</span></div>
+    <div class="nav-item active"><i class="ti ti-settings"></i>Settings</div>
+    <div class="nav-item"><i class="ti ti-help-circle"></i>Help &amp; docs</div>
+
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-user">
+      <div class="avatar av-admin">AP</div>
+      <div>
+        <div class="name">Apostolos P.</div>
+        <div class="role">Super Admin</div>
+      </div>
+      <i class="ti ti-dots dots"></i>
+    </div>
+  </aside>
+
+  <!-- ─── Main ─── -->
+  <main class="main">
+
+    <div class="topbar">
+      <div>
+        <div class="breadcrumb"><span>Powerhouse</span><span class="sep">/</span><span>Account</span><span class="sep">/</span><span>Settings</span><span class="sep">/</span><span class="current">Audit log</span></div>
+        <div class="topbar-title">Audit log</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" style="color: var(--text-secondary);"><i class="ti ti-download"></i>Export CSV</button>
+        <div class="divider-v"></div>
+        <div class="topbar-search">
+          <i class="ti ti-search"></i>
+          <input placeholder="Search…">
+          <span class="kbd">⌘K</span>
+        </div>
+        <button class="bell-btn"><i class="ti ti-bell"></i></button>
+        <div class="divider-v"></div>
+        <div class="avatar-wrap">
+          <div class="avatar av-admin">AP</div>
+          <div>
+            <div class="name">Apostolos P.</div>
+            <div class="role">Super Admin</div>
+          </div>
+          <i class="ti ti-chevron-down" style="color: var(--text-tertiary); font-size: 16px;"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Greeting -->
+      <div class="greet">
+        <h1>Audit log</h1>
+        <div class="sub">Complete record of all actions · retained for 2 years</div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <button class="dd-btn"><i class="ti ti-calendar"></i>Last 7 days<i class="ti ti-chevron-down ch"></i></button>
+        <button class="dd-btn"><i class="ti ti-user"></i>User<i class="ti ti-chevron-down ch"></i></button>
+        <button class="dd-btn"><i class="ti ti-bolt"></i>Action type<i class="ti ti-chevron-down ch"></i></button>
+        <div class="field-search">
+          <i class="ti ti-search"></i>
+          <input placeholder="Search actions…">
+        </div>
+        <div class="right">
+          <button class="btn btn-ghost btn-sm btn-dot" style="color: var(--text-secondary);"><i class="ti ti-adjustments-horizontal"></i>Filters</button>
+        </div>
+      </div>
+
+      <!-- ═══════════ TABLE ═══════════ -->
+      <div class="table-card">
+        <table class="tbl">
+          <colgroup>
+            <col style="width: 160px;">
+            <col style="width: 180px;">
+            <col style="width: 220px;">
+            <col>
+            <col style="width: 130px;">
+            <col style="width: 48px;">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>User</th>
+              <th>Action</th>
+              <th>Detail</th>
+              <th>Entity</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <tr>
+              <td><span class="ts">28 May · 09:14</span></td>
+              <td><div class="cell-user"><div class="avatar av-admin">AP</div><span class="nm">Apostolos P.</span></div></td>
+              <td><div class="cell-action"><div class="act-ic send"><i class="ti ti-send"></i></div><span class="act-text">Invoice sent</span></div></td>
+              <td><div class="cell-detail"><code>INV-0831</code> <span class="arrow">→</span> accounts@souvlakihouse.co.uk</div></td>
+              <td><span class="badge badge-info badge-sm">Invoice</span></td>
+              <td><button class="icon-btn" title="View diff"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <tr>
+              <td><span class="ts">28 May · 09:11</span></td>
+              <td><div class="cell-user"><div class="avatar av-teal">SP</div><span class="nm">Sofia P.</span></div></td>
+              <td><div class="cell-action"><div class="act-ic update"><i class="ti ti-pencil"></i></div><span class="act-text">Ticket updated</span></div></td>
+              <td><div class="cell-detail"><code>TK-1042</code> status: open <span class="arrow">→</span> resolved</div></td>
+              <td><span class="badge badge-inactive badge-sm">Support</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <tr>
+              <td><span class="ts">28 May · 09:02</span></td>
+              <td><div class="cell-user"><div class="avatar av-admin">AP</div><span class="nm">Apostolos P.</span></div></td>
+              <td><div class="cell-action"><div class="act-ic success"><i class="ti ti-circle-check"></i></div><span class="act-text">Commission approved</span></div></td>
+              <td><div class="cell-detail">Christos P. · May 2026 batch · <code>£540.00</code></div></td>
+              <td><span class="badge badge-gold badge-sm">Commission</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <tr>
+              <td><span class="ts">28 May · 08:55</span></td>
+              <td><div class="cell-user system"><div class="avatar av-sys">SY</div><span class="nm">System</span></div></td>
+              <td><div class="cell-action"><div class="act-ic update"><i class="ti ti-refresh"></i></div><span class="act-text">Cloudflare sync</span></div></td>
+              <td><div class="cell-detail">18 domains synced · 0 changes detected</div></td>
+              <td><span class="badge badge-inactive badge-sm">System</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <tr>
+              <td><span class="ts">27 May · 16:02</span></td>
+              <td><div class="cell-user"><div class="avatar av-teal">SP</div><span class="nm">Sofia P.</span></div></td>
+              <td><div class="cell-action"><div class="act-ic send"><i class="ti ti-message"></i></div><span class="act-text">Ticket reply sent</span></div></td>
+              <td><div class="cell-detail"><code>TK-1042</code> <span class="arrow">→</span> Panos Alexiou (staff reply)</div></td>
+              <td><span class="badge badge-inactive badge-sm">Support</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <tr>
+              <td><span class="ts">27 May · 15:30</span></td>
+              <td><div class="cell-user"><div class="avatar av-admin">AP</div><span class="nm">Apostolos P.</span></div></td>
+              <td><div class="cell-action"><div class="act-ic create"><i class="ti ti-plus"></i></div><span class="act-text">Invoice created</span></div></td>
+              <td><div class="cell-detail"><code>INV-0852</code> · The Aegean Kitchen · <code>£29.00</code></div></td>
+              <td><span class="badge badge-info badge-sm">Invoice</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <tr>
+              <td><span class="ts">27 May · 15:28</span></td>
+              <td><div class="cell-user"><div class="avatar av-admin">AP</div><span class="nm">Apostolos P.</span></div></td>
+              <td><div class="cell-action"><div class="act-ic delete"><i class="ti ti-ban"></i></div><span class="act-text">Invoice voided</span></div></td>
+              <td><div class="cell-detail"><code>INV-0844</code> · Pitta Fan Leeds · <code>£29.00</code> voided</div></td>
+              <td><span class="badge badge-info badge-sm">Invoice</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <tr>
+              <td><span class="ts">27 May · 14:23</span></td>
+              <td><div class="cell-user system"><div class="avatar av-sys">SY</div><span class="nm">System</span></div></td>
+              <td><div class="cell-action"><div class="act-ic ai"><i class="ti ti-sparkles"></i></div><span class="act-text">AI response sent</span></div></td>
+              <td><div class="cell-detail"><code>TK-1042</code> · confidence 94% · auto-response</div></td>
+              <td><span class="badge badge-inactive badge-sm">Support</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <tr>
+              <td><span class="ts">27 May · 12:00</span></td>
+              <td><div class="cell-user"><div class="avatar av-admin">AP</div><span class="nm">Apostolos P.</span></div></td>
+              <td><div class="cell-action"><div class="act-ic create"><i class="ti ti-layout-grid"></i></div><span class="act-text">Product enabled</span></div></td>
+              <td><div class="cell-detail">Maavelus Pro <span class="arrow">→</span> The Aegean Kitchen</div></td>
+              <td><span class="badge badge-active badge-sm">Provisioning</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <tr>
+              <td><span class="ts">27 May · 12:00</span></td>
+              <td><div class="cell-user"><div class="avatar av-admin">AP</div><span class="nm">Apostolos P.</span></div></td>
+              <td><div class="cell-action"><div class="act-ic create"><i class="ti ti-user-plus"></i></div><span class="act-text">Customer created</span></div></td>
+              <td><div class="cell-detail">The Aegean Kitchen · referred by Christos P.</div></td>
+              <td><span class="badge badge-info badge-sm">Customer</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <tr>
+              <td><span class="ts">27 May · 11:58</span></td>
+              <td><div class="cell-user"><div class="avatar av-admin">AP</div><span class="nm">Apostolos P.</span></div></td>
+              <td><div class="cell-action"><div class="act-ic auth"><i class="ti ti-lock"></i></div><span class="act-text">Login</span></div></td>
+              <td><div class="cell-detail">Successful · Chrome · London, UK · <span class="mono">185.1.x.x</span></div></td>
+              <td><span class="badge badge-inactive badge-sm">Auth</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <tr>
+              <td><span class="ts">26 May · 10:30</span></td>
+              <td><div class="cell-user"><div class="avatar av-admin">AP</div><span class="nm">Apostolos P.</span></div></td>
+              <td><div class="cell-action"><div class="act-ic update"><i class="ti ti-pencil"></i></div><span class="act-text">DNS record updated</span></div></td>
+              <td><div class="cell-detail"><code>aegeankitchen.co.uk</code> A @ <span class="arrow">→</span> <code>185.199.108.153</code></div></td>
+              <td><span class="badge badge-info badge-sm">Domain</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <tr>
+              <td><span class="ts">26 May · 09:15</span></td>
+              <td><div class="cell-user"><div class="avatar av-teal">SP</div><span class="nm">Sofia P.</span></div></td>
+              <td><div class="cell-action"><div class="act-ic payment"><i class="ti ti-coins"></i></div><span class="act-text">Commission payment</span></div></td>
+              <td><div class="cell-detail">Christos P. · <code>£480.00</code> marked paid</div></td>
+              <td><span class="badge badge-gold badge-sm">Commission</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <tr>
+              <td><span class="ts">25 May · 17:00</span></td>
+              <td><div class="cell-user system"><div class="avatar av-sys">SY</div><span class="nm">System</span></div></td>
+              <td><div class="cell-action"><div class="act-ic alert"><i class="ti ti-bell"></i></div><span class="act-text">Domain expiry alert</span></div></td>
+              <td><div class="cell-detail"><code>greekbites.co.uk</code> · 14 days until expiry</div></td>
+              <td><span class="badge badge-inactive badge-sm">System</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+            <tr>
+              <td><span class="ts">24 May · 09:00</span></td>
+              <td><div class="cell-user system"><div class="avatar av-sys">SY</div><span class="nm">System</span></div></td>
+              <td><div class="cell-action"><div class="act-ic update"><i class="ti ti-refresh"></i></div><span class="act-text">Monthly commission run</span></div></td>
+              <td><div class="cell-detail">14 entries generated · <code>£750.00</code> total pending</div></td>
+              <td><span class="badge badge-inactive badge-sm">System</span></td>
+              <td><button class="icon-btn"><i class="ti ti-dots"></i></button></td>
+            </tr>
+
+          </tbody>
+        </table>
+
+        <div class="tbl-foot">
+          <div class="info">Showing <strong>1 – 15</strong> of <strong>2,847</strong> entries</div>
+          <div class="right">
+            <button class="pg-btn" disabled><i class="ti ti-chevron-left" style="font-size:14px;"></i>Previous</button>
+            <button class="pg-btn active">1</button>
+            <button class="pg-btn">2</button>
+            <button class="pg-btn">3</button>
+            <button class="pg-btn">190</button>
+            <button class="pg-btn">Next<i class="ti ti-chevron-right" style="font-size:14px;"></i></button>
+            <button class="per-page">15 per page<i class="ti ti-chevron-down"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page footer -->
+      <div class="page-foot">
+        <div>Powerhouse v3.2.0 · Whitedash</div>
+        <div>Audit log <strong>retained for 2 years</strong> · GDPR compliant</div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('.pg-btn').forEach(b => b.addEventListener('click', () => {
+    if (b.disabled) return;
+    if (b.textContent.includes('Previous') || b.textContent.includes('Next')) return;
+    document.querySelectorAll('.pg-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+  }));
+</script>
+
+</body>
+</html>

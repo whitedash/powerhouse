@@ -1,0 +1,1224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Powerhouse — Domains &amp; DNS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg-navy: #0F172A;
+    --accent: #F59E0B;
+    --content-bg: #F8FAFC;
+    --card-bg: #FFFFFF;
+    --border: #E2E8F0;
+    --border-soft: #EEF2F7;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+    --info: #3B82F6;
+    --teal: #0D9488;
+    --purple: #7C3AED;
+
+    --success-bg: #ECFDF5;
+    --danger-bg:  #FEF2F2;
+    --warning-bg: #FFFBEB;
+    --info-bg:    #EFF6FF;
+    --neutral-bg: #F1F5F9;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.05);
+    --shadow-md: 0 4px 12px -2px rgba(15,23,42,.08), 0 1px 3px rgba(15,23,42,.04);
+    --shadow-lg: 0 24px 48px -12px rgba(15,23,42,.18), 0 2px 4px rgba(15,23,42,.04);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 400 14px/1.5 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: #E5E9F0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ─── Shell ─── */
+  .app {
+    width: 1440px;
+    margin: 0 auto;
+    background: var(--content-bg);
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 1100px;
+  }
+
+  /* ─── Sidebar ─── */
+  .sidebar { background: var(--bg-navy); color: #fff; padding: 20px 14px 16px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh; min-height: 1100px; }
+  .logo { display: flex; align-items: center; gap: 10px; padding: 6px 10px 18px; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 14px; }
+  .brand-mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--accent), #FBBF24); display: grid; place-items: center; color: var(--bg-navy); font: 700 14px/1 'Inter', sans-serif; box-shadow: 0 2px 6px rgba(245,158,11,.35); }
+  .logo-name { font: 600 15px/1.1 'Inter', sans-serif; letter-spacing: -.01em; }
+  .logo-sub  { font: 500 10px/1 'Inter', sans-serif; color: rgba(255,255,255,.45); letter-spacing: .12em; text-transform: uppercase; margin-top: 3px; }
+  .nav-section { font: 500 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .14em; color: rgba(255,255,255,.35); padding: 14px 10px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 11px; padding: 8px 10px; color: rgba(255,255,255,.7); font: 500 13.5px/1.2 'Inter', sans-serif; letter-spacing: -.005em; border-radius: var(--radius-md); cursor: pointer; transition: background .12s, color .12s; }
+  .nav-item .ti { font-size: 18px; }
+  .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .nav-item.active { background: rgba(245,158,11,.14); color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+  .nav-item .count { margin-left: auto; font: 600 11px/1 'Inter', sans-serif; background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); padding: 3px 7px; border-radius: 999px; }
+  .nav-item.active .count { background: rgba(245,158,11,.22); color: var(--accent); }
+  .count.amber { background: rgba(245,158,11,.18); color: #FCD34D; }
+  .count.red   { background: rgba(239,68,68,.2);  color: #FCA5A5; }
+  .sidebar-spacer { flex: 1; }
+  .sidebar-user { margin-top: 12px; padding: 12px 10px; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; gap: 10px; }
+  .avatar { border-radius: 50%; display: grid; place-items: center; color: #fff; font: 600 12px/1 'Inter', sans-serif; letter-spacing: -.01em; flex-shrink: 0; }
+  .av-1 { background: linear-gradient(135deg, #6366F1, #8B5CF6); }
+  .av-2 { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-3 { background: linear-gradient(135deg, #10B981, #059669); }
+  .av-5 { background: linear-gradient(135deg, #3B82F6, #06B6D4); }
+  .av-teal  { background: var(--teal); }
+  .av-amber { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-navy  { background: linear-gradient(135deg, #0F172A, #334155); }
+  .av-admin { background: linear-gradient(135deg, #1E293B, #475569); border: 1px solid rgba(245,158,11,.4); }
+  .sidebar-user .avatar { width: 32px; height: 32px; font-size: 11px; }
+  .sidebar-user .name { font: 500 13px/1.2 'Inter', sans-serif; color: #fff; letter-spacing: -.005em; }
+  .sidebar-user .role { font: 400 11px/1.2 'Inter', sans-serif; color: rgba(255,255,255,.45); margin-top: 2px; }
+  .sidebar-user .dots { margin-left: auto; color: rgba(255,255,255,.4); cursor: pointer; }
+
+  /* ─── Topbar ─── */
+  .main { display: flex; flex-direction: column; min-width: 0; }
+  .topbar { height: 64px; border-bottom: 1px solid var(--border); background: #fff; padding: 0 24px; display: flex; align-items: center; gap: 16px; }
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); }
+  .breadcrumb .sep { color: var(--text-tertiary); }
+  .breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+  .topbar-title { font: 600 20px/1.2 'Inter', sans-serif; letter-spacing: -.01em; margin-top: 2px; }
+  .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .topbar-search { position: relative; width: 240px; }
+  .topbar-search input { width: 100%; height: 36px; border: 1px solid transparent; background: var(--content-bg); border-radius: var(--radius-md); padding: 0 38px 0 34px; font: 400 13px/1 'Inter', sans-serif; color: var(--text-primary); outline: 0; transition: border-color .15s, background .15s, box-shadow .15s; }
+  .topbar-search input::placeholder { color: var(--text-tertiary); }
+  .topbar-search input:focus { background: #fff; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+  .topbar-search .ti { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 18px; }
+  .topbar-search .kbd { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font: 500 10px/1 'JetBrains Mono', monospace; color: var(--text-tertiary); border: 1px solid var(--border); background: #fff; padding: 3px 5px; border-radius: 4px; }
+  .bell-btn { position: relative; width: 36px; height: 36px; border-radius: var(--radius-md); display: grid; place-items: center; color: var(--text-secondary); background: transparent; border: 0; cursor: pointer; transition: background .12s; }
+  .bell-btn:hover { background: var(--neutral-bg); }
+  .bell-btn .ti { font-size: 20px; }
+  .bell-btn::after { content: ""; position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); border: 2px solid #fff; }
+  .divider-v { width: 1px; height: 28px; background: var(--border); }
+  .avatar-wrap { display: flex; align-items: center; gap: 10px; padding: 4px 10px 4px 4px; border-radius: 999px; cursor: pointer; transition: background .12s; }
+  .avatar-wrap:hover { background: var(--neutral-bg); }
+  .avatar-wrap .avatar { width: 30px; height: 30px; font-size: 11px; }
+  .avatar-wrap .name { font: 500 13px/1.2 'Inter', sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .avatar-wrap .role { font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+
+  /* Sync button with sub-label */
+  .btn-sync {
+    display: inline-flex; flex-direction: column;
+    align-items: flex-start; justify-content: center;
+    gap: 1px;
+    height: 38px;
+    padding: 4px 12px;
+    background: #fff;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: background .12s, border-color .12s;
+  }
+  .btn-sync:hover { background: var(--neutral-bg); border-color: #CBD5E1; }
+  .btn-sync .row1 {
+    display: inline-flex; align-items: center; gap: 7px;
+    font: 500 12.5px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    letter-spacing: -.005em;
+  }
+  .btn-sync .row1 .ti { font-size: 14px; color: var(--text-secondary); }
+  .btn-sync .row2 {
+    font: 400 10px/1 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    text-transform: uppercase; letter-spacing: .1em;
+  }
+
+  /* Buttons */
+  .btn { appearance: none; border: 0; cursor: pointer; font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em; padding: 0 14px; height: 34px; border-radius: var(--radius-md); display: inline-flex; align-items: center; gap: 7px; transition: background .15s, border-color .15s, color .15s, box-shadow .15s; white-space: nowrap; }
+  .btn .ti { font-size: 15px; }
+  .btn-primary { background: var(--accent); color: var(--bg-navy); font-weight: 600; box-shadow: 0 1px 2px rgba(245,158,11,.3); }
+  .btn-primary:hover { background: #E08C09; }
+  .btn-secondary { background: #fff; color: var(--text-primary); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .btn-secondary:hover { background: var(--neutral-bg); border-color: #CBD5E1; }
+  .btn-ghost { background: transparent; color: var(--text-primary); }
+  .btn-ghost:hover { background: var(--neutral-bg); }
+  .btn-sm { height: 30px; padding: 0 10px; font-size: 12.5px; border-radius: var(--radius-sm); }
+  .btn-sm .ti { font-size: 14px; }
+  .btn-dot { position: relative; }
+  .btn-dot::after { content: ""; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; font: 500 11.5px/1.4 'Inter', sans-serif; letter-spacing: -.005em; border: 1px solid transparent; white-space: nowrap; }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge-active   { color: #047857; background: var(--success-bg); border-color: #A7F3D0; }
+  .badge-inactive { color: #475569; background: var(--neutral-bg); border-color: #E2E8F0; }
+  .badge-pending  { color: #B45309; background: var(--warning-bg); border-color: #FDE68A; }
+  .badge-overdue  { color: #B91C1C; background: var(--danger-bg); border-color: #FECACA; }
+  .badge-info     { color: #1D4ED8; background: var(--info-bg); border-color: #BFDBFE; }
+  .badge-gold     { color: #B45309; background: rgba(245,158,11,.14); border-color: #FDE68A; }
+  .badge-sm { padding: 2px 7px; font: 500 10.5px/1.4 'Inter', sans-serif; }
+  .badge-sm::before { width: 5px; height: 5px; }
+
+  /* Warn pill */
+  .warn-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--warning-bg);
+    color: #B45309;
+    border: 1px solid #FDE68A;
+    font: 600 10.5px/1.3 'Inter', sans-serif;
+    letter-spacing: -.005em;
+    white-space: nowrap;
+  }
+  .warn-pill .ti { font-size: 12px; }
+  .warn-pill.red { background: var(--danger-bg); color: #B91C1C; border-color: #FECACA; }
+  .warn-pill.grey { background: var(--neutral-bg); color: var(--text-secondary); border-color: var(--border); }
+
+  /* Stat pill */
+  .stat-pill {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 8px 14px;
+    display: inline-flex; align-items: center; gap: 10px;
+    font: 500 14px/1 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-pill .d { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .stat-pill .d.gold  { background: var(--accent); }
+  .stat-pill .d.green { background: var(--success); }
+  .stat-pill .d.amber { background: var(--warning); }
+  .stat-pill .d.red   { background: var(--danger); }
+  .stat-pill .d.blue  { background: var(--info); }
+  .stat-pill .d.grey  { background: var(--text-tertiary); }
+  .stat-pill .lbl { color: var(--text-secondary); font-weight: 400; }
+  .stat-pill .sub { color: var(--text-tertiary); font-weight: 400; font-size: 12px; padding-left: 4px; border-left: 1px solid var(--border); margin-left: 2px; }
+
+  /* ─── Filter bar ─── */
+  .filter-bar {
+    margin-top: 16px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 10px;
+    flex-wrap: nowrap;
+  }
+  .field-search { position: relative; width: 240px; flex-shrink: 0; }
+  .field-search input {
+    width: 100%; height: 36px;
+    border: 1px solid var(--border);
+    background: var(--content-bg);
+    border-radius: var(--radius-md);
+    padding: 0 12px 0 34px;
+    font: 400 13px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: 0;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+  .field-search input::placeholder { color: var(--text-tertiary); }
+  .field-search input:focus { background: #fff; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+  .field-search .ti { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 16px; }
+
+  .dd-btn {
+    height: 36px;
+    padding: 0 10px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--text-primary);
+    font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em;
+    cursor: pointer;
+    transition: border-color .12s, background .12s;
+    white-space: nowrap;
+  }
+  .dd-btn:hover { background: var(--neutral-bg); border-color: #CBD5E1; }
+  .dd-btn .ti { font-size: 16px; color: var(--text-secondary); }
+  .dd-btn .ch { color: var(--text-tertiary); font-size: 14px; }
+  .dd-btn.active-filter {
+    border-color: rgba(245,158,11,.4);
+    background: rgba(245,158,11,.05);
+  }
+  .dd-btn.active-filter .ti.lead { color: var(--accent); }
+
+  .filter-bar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+  /* ─── Page content ─── */
+  .content { padding: 24px; }
+  .greet { display: flex; align-items: center; justify-content: space-between; }
+  .greet h1 { margin: 0; font: 700 24px/1.2 'Inter', sans-serif; letter-spacing: -.015em; }
+  .greet .sub { font: 400 13px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 4px; }
+
+  .summary-strip { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+  /* ─── Table card ─── */
+  .table-card {
+    margin-top: 12px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+  }
+  .tbl {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .tbl thead th {
+    background: var(--neutral-bg);
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    padding: 10px 12px;
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--text-tertiary);
+    height: 40px;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .tbl thead th:first-child { padding-left: 18px; }
+  .tbl thead th:last-child  { padding-right: 18px; }
+
+  .tbl tbody td {
+    padding: 14px 12px;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: middle;
+    font: 400 14px/1.4 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: #fff;
+    transition: background .12s;
+  }
+  .tbl tbody td:first-child { padding-left: 18px; }
+  .tbl tbody td:last-child  { padding-right: 18px; }
+  .tbl tbody tr:hover td { background: #FBFCFE; }
+
+  /* Row state tints */
+  .tbl tbody tr.row-critical td {
+    background: rgba(239,68,68,.05);
+  }
+  .tbl tbody tr.row-critical td:first-child {
+    box-shadow: inset 3px 0 0 var(--danger);
+  }
+  .tbl tbody tr.row-warning td:first-child {
+    box-shadow: inset 2px 0 0 var(--warning);
+  }
+  .tbl tbody tr.row-active td {
+    background: rgba(245,158,11,.06);
+  }
+  .tbl tbody tr.row-active td:first-child {
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+  .tbl tbody tr.row-muted td {
+    background: rgba(241,245,249,.55);
+  }
+  .tbl tbody tr.row-muted td:first-child {
+    box-shadow: inset 2px 0 0 var(--text-tertiary);
+  }
+
+  /* Domain cell */
+  .cell-domain { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .domain-line { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .domain-line .ti.lead { font-size: 15px; flex-shrink: 0; color: var(--text-tertiary); }
+  .domain-name { font: 500 14px/1.3 'Inter', sans-serif; letter-spacing: -.005em; color: var(--text-primary); }
+  .domain-name.crit { color: var(--danger); font-weight: 600; }
+  .domain-name.active { color: var(--accent); font-weight: 600; }
+  .domain-name.muted { color: var(--text-secondary); }
+  .domain-line .chev-ex { color: var(--accent); font-size: 14px; }
+  .domain-sub-row { display: flex; align-items: center; gap: 8px; }
+
+  /* Customer cell */
+  .cell-cust { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .cell-cust .avatar { width: 24px; height: 24px; font-size: 9.5px; }
+  .cust-name { font: 500 13px/1.3 'Inter', sans-serif; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -.005em; }
+
+  /* Registrar cell */
+  .registrar { display: inline-flex; align-items: center; gap: 6px; font: 500 12.5px/1 'Inter',sans-serif; color: var(--text-secondary); }
+  .registrar .ti { font-size: 16px; color: #F38020; } /* Cloudflare orange */
+  .registrar.ext { color: var(--text-tertiary); }
+  .registrar.ext .ti { display: none; }
+
+  /* Expiry */
+  .expiry { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+  .expiry .date { font: 500 13px/1.2 'Inter', sans-serif; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .expiry .date.crit { color: var(--danger); font-weight: 600; }
+  .expiry .date.warn { color: #B45309; font-weight: 600; }
+  .expiry .date.ok   { color: var(--success); }
+
+  /* Actions */
+  .cell-actions { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
+  .icon-btn { width: 28px; height: 28px; display: inline-grid; place-items: center; border-radius: 6px; color: var(--text-tertiary); cursor: pointer; border: 0; background: transparent; transition: background .12s, color .12s; }
+  .icon-btn:hover { background: var(--neutral-bg); color: var(--text-primary); }
+  .icon-btn:hover.danger { color: var(--danger); background: var(--danger-bg); }
+  .icon-btn .ti { font-size: 18px; }
+
+  /* SSL pill */
+  .ssl-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--success-bg);
+    color: #047857;
+    border: 1px solid #A7F3D0;
+    font: 600 11px/1.4 'Inter',sans-serif;
+    letter-spacing: -.005em;
+  }
+  .ssl-pill .ti { font-size: 11px; }
+
+  /* ─── DNS expanded panel ─── */
+  tr.dns-panel-row > td {
+    background: #fff !important;
+    border-top: 1px solid var(--border-soft);
+    border-bottom: 1px solid var(--border-soft);
+    padding: 20px 24px 22px;
+    box-shadow: none !important;
+  }
+  .dns-panel-head {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 14px;
+  }
+  .dns-panel-title {
+    font: 600 15px/1.2 'Inter', sans-serif;
+    color: var(--text-primary);
+    letter-spacing: -.005em;
+  }
+  .dns-panel-meta {
+    display: inline-flex; align-items: center; gap: 5px;
+    font: 400 12px/1.3 'Inter', sans-serif;
+    color: var(--text-tertiary);
+  }
+  .dns-panel-meta .ti { font-size: 13px; color: #F38020; }
+  .dns-panel-head .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  /* Nested DNS records table */
+  .dns-records {
+    background: var(--neutral-bg);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .dns-rec-head {
+    display: grid;
+    grid-template-columns: 64px 110px 1fr 130px 48px 80px;
+    gap: 12px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    font: 500 10px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    color: var(--text-tertiary);
+  }
+  .dns-rec-head .cen { text-align: center; }
+  .dns-rec {
+    display: grid;
+    grid-template-columns: 64px 110px 1fr 130px 48px 80px;
+    gap: 12px;
+    padding: 10px 14px;
+    align-items: center;
+    border-bottom: 1px solid var(--border-soft);
+    background: #fff;
+    transition: background .12s;
+  }
+  .dns-rec:nth-child(even) { background: #FAFBFC; }
+  .dns-rec:hover { background: #F1F5F9; }
+  .dns-rec:last-child { border-bottom: 0; }
+  .dns-type {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 48px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font: 600 11px/1.2 'JetBrains Mono', monospace;
+    letter-spacing: .02em;
+  }
+  .dns-type.a     { background: var(--info-bg); color: #1D4ED8; }
+  .dns-type.cname { background: var(--success-bg); color: #047857; }
+  .dns-type.mx    { background: rgba(245,158,11,.16); color: #92400E; }
+  .dns-type.txt   { background: var(--neutral-bg); color: var(--text-secondary); border: 1px solid var(--border); }
+
+  .dns-name { font: 500 13px/1.3 'JetBrains Mono', monospace; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dns-content { font: 400 13px/1.3 'JetBrains Mono', monospace; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .dns-ttl { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary); white-space: nowrap; }
+  .dns-proxy { display: grid; place-items: center; color: var(--text-tertiary); }
+  .dns-proxy .ti { font-size: 18px; }
+  .dns-proxy.on .ti { color: #F38020; }
+  .dns-proxy.dash { color: var(--text-tertiary); font: 400 13px/1 'Inter', sans-serif; }
+
+  .dns-actions { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
+  .dns-actions .icon-btn { width: 26px; height: 26px; }
+  .dns-actions .icon-btn .ti { font-size: 15px; }
+
+  .dns-panel-foot {
+    margin-top: 12px;
+    padding: 8px 14px;
+    background: var(--neutral-bg);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: space-between;
+    font: 400 11px/1.3 'Inter', sans-serif;
+    color: var(--text-tertiary);
+  }
+  .dns-panel-foot .right { color: var(--accent); font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+  .dns-panel-foot .right:hover { text-decoration: underline; }
+  .dns-panel-foot .right .ti { font-size: 13px; }
+
+  /* Table footer */
+  .tbl-foot {
+    background: var(--neutral-bg);
+    border-top: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .tbl-foot .info { font: 400 12.5px/1.4 'Inter', sans-serif; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .tbl-foot .info strong { color: var(--text-primary); font-weight: 600; }
+  .tbl-foot .right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+  .pg-btn { min-width: 30px; height: 30px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: var(--text-primary); font: 500 12.5px/1 'Inter', sans-serif; font-variant-numeric: tabular-nums; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 9px; transition: background .12s, border-color .12s; }
+  .pg-btn:hover:not(:disabled):not(.active) { background: #fff; border-color: var(--border); }
+  .pg-btn.active { background: var(--bg-navy); color: #fff; }
+  .pg-btn:disabled { color: var(--text-tertiary); cursor: not-allowed; }
+  .per-page { margin-left: 8px; height: 30px; padding: 0 10px; background: #fff; border: 1px solid var(--border); border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; font: 500 12.5px/1 'Inter', sans-serif; color: var(--text-primary); cursor: pointer; }
+  .per-page .ti { font-size: 14px; color: var(--text-tertiary); }
+
+  /* ─── Register-domain quick panel ─── */
+  .reg-panel {
+    margin-top: 16px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: 6fr 4fr;
+    gap: 24px;
+  }
+  .reg-left { display: flex; flex-direction: column; }
+  .reg-head { display: flex; align-items: center; gap: 9px; }
+  .reg-head .ic { width: 26px; height: 26px; border-radius: 7px; background: rgba(245,158,11,.14); display: grid; place-items: center; color: var(--accent); }
+  .reg-head .ic .ti { font-size: 16px; }
+  .reg-head .title { font: 600 15px/1.2 'Inter', sans-serif; letter-spacing: -.005em; color: var(--text-primary); }
+  .reg-sub { font: 400 13px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin-top: 8px; }
+
+  .reg-search-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+  .reg-search { position: relative; flex: 1; }
+  .reg-search input {
+    width: 100%; height: 40px;
+    border: 1.5px solid var(--border);
+    background: var(--content-bg);
+    border-radius: var(--radius-md);
+    padding: 0 14px 0 38px;
+    font: 400 14px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: 0;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+  .reg-search input::placeholder { color: var(--text-tertiary); }
+  .reg-search input:focus { background: #fff; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+  .reg-search .ti { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 17px; }
+  .reg-btn { height: 40px; }
+
+  .reg-right { padding-left: 24px; border-left: 1px solid var(--border-soft); }
+  .reg-right .h { font: 500 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .14em; color: var(--text-tertiary); margin-bottom: 4px; }
+  .reg-rec { display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border-soft); }
+  .reg-rec:last-child { border-bottom: 0; }
+  .reg-rec .ti { color: var(--success); font-size: 14px; }
+  .reg-rec .nm { font: 500 13px/1.3 'Inter',sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .reg-rec .dt { font: 400 12px/1.3 'Inter',sans-serif; color: var(--text-tertiary); text-align: right; white-space: nowrap; }
+
+  /* Page footer */
+  .page-foot {
+    display: flex; justify-content: space-between; padding-top: 16px;
+    color: var(--text-tertiary); font: 400 12px/1.4 'Inter', sans-serif;
+  }
+  .page-foot strong { color: var(--text-secondary); font-weight: 500; }
+
+</style>
+</head>
+<body>
+
+<div class="app" data-screen-label="09 Domains">
+
+  <!-- ─── Sidebar ─── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="brand-mark">W</div>
+      <div>
+        <div class="logo-name">Powerhouse</div>
+        <div class="logo-sub">Whitedash</div>
+      </div>
+    </div>
+
+    <div class="nav-section">Workspace</div>
+    <div class="nav-item"><i class="ti ti-layout-dashboard"></i>Overview</div>
+    <div class="nav-item"><i class="ti ti-users"></i>Customers<span class="count">847</span></div>
+    <div class="nav-item"><i class="ti ti-receipt"></i>Invoices<span class="count amber">7</span></div>
+    <div class="nav-item"><i class="ti ti-credit-card"></i>Subscriptions</div>
+    <div class="nav-item"><i class="ti ti-chart-line"></i>Analytics</div>
+    <div class="nav-item"><i class="ti ti-users-group"></i>Referrers</div>
+    <div class="nav-item active"><i class="ti ti-world"></i>Domains</div>
+
+    <div class="nav-section">Products</div>
+    <div class="nav-item"><i class="ti ti-tools-kitchen-2"></i>Maavelus</div>
+    <div class="nav-item"><i class="ti ti-clipboard-list"></i>MyOrderPad</div>
+    <div class="nav-item"><i class="ti ti-building-store"></i>Whitedash B2B</div>
+    <div class="nav-item"><i class="ti ti-message-2"></i>SMScube</div>
+
+    <div class="nav-section">Account</div>
+    <div class="nav-item"><i class="ti ti-headset"></i>Support<span class="count red">3</span></div>
+    <div class="nav-item"><i class="ti ti-settings"></i>Settings</div>
+    <div class="nav-item"><i class="ti ti-help-circle"></i>Help &amp; docs</div>
+
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-user">
+      <div class="avatar av-admin">AP</div>
+      <div>
+        <div class="name">Apostolos P.</div>
+        <div class="role">Super Admin</div>
+      </div>
+      <i class="ti ti-dots dots"></i>
+    </div>
+  </aside>
+
+  <!-- ─── Main ─── -->
+  <main class="main">
+
+    <div class="topbar">
+      <div>
+        <div class="breadcrumb"><span>Powerhouse</span><span class="sep">/</span><span>Workspace</span><span class="sep">/</span><span class="current">Domains</span></div>
+        <div class="topbar-title">Domains &amp; DNS</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn-sync">
+          <span class="row1"><i class="ti ti-refresh"></i>Sync Cloudflare</span>
+          <span class="row2">2 min ago</span>
+        </button>
+        <button class="btn btn-primary"><i class="ti ti-plus"></i>Register domain</button>
+        <div class="divider-v"></div>
+        <div class="topbar-search">
+          <i class="ti ti-search"></i>
+          <input placeholder="Search…">
+          <span class="kbd">⌘K</span>
+        </div>
+        <button class="bell-btn"><i class="ti ti-bell"></i></button>
+        <div class="divider-v"></div>
+        <div class="avatar-wrap">
+          <div class="avatar av-admin">AP</div>
+          <div>
+            <div class="name">Apostolos P.</div>
+            <div class="role">Super Admin</div>
+          </div>
+          <i class="ti ti-chevron-down" style="color: var(--text-tertiary); font-size: 16px;"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Greeting -->
+      <div class="greet">
+        <div>
+          <h1>Domains &amp; DNS</h1>
+          <div class="sub">Connected to Cloudflare · 18 domains managed · 4 expiring in 30 days</div>
+        </div>
+      </div>
+
+      <!-- Summary strip -->
+      <div class="summary-strip">
+        <div class="stat-pill"><span class="d green"></span><strong>14</strong><span class="lbl">healthy</span></div>
+        <div class="stat-pill"><span class="d amber"></span><strong>3</strong><span class="lbl">expiring soon</span><span class="sub">within 30 days</span></div>
+        <div class="stat-pill"><span class="d red"></span><strong>1</strong><span class="lbl">critical</span><span class="sub">expires in 6 days</span></div>
+        <div class="stat-pill"><span class="d blue"></span><strong>18</strong><span class="lbl">SSL active</span></div>
+        <div class="stat-pill"><span class="d grey"></span><strong>2</strong><span class="lbl">external</span><span class="sub">not in Cloudflare</span></div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <div class="field-search">
+          <i class="ti ti-search"></i>
+          <input placeholder="Search domains or customers…">
+        </div>
+        <button class="dd-btn"><i class="ti ti-user"></i>Customer<i class="ti ti-chevron-down ch"></i></button>
+        <button class="dd-btn active-filter"><i class="ti ti-flag lead"></i>Status: 2 selected<i class="ti ti-chevron-down ch"></i></button>
+        <button class="dd-btn"><i class="ti ti-building-store"></i>Registrar<i class="ti ti-chevron-down ch"></i></button>
+
+        <div class="right">
+          <button class="btn btn-ghost btn-sm btn-dot" style="color: var(--text-secondary);"><i class="ti ti-adjustments-horizontal"></i>Filters</button>
+          <div class="divider-v" style="height: 20px;"></div>
+          <button class="btn btn-ghost btn-sm" style="color: var(--text-secondary);"><i class="ti ti-arrows-sort"></i>Sort: Expiry <i class="ti ti-arrow-up" style="font-size: 13px; margin-left: -3px;"></i></button>
+        </div>
+      </div>
+
+      <!-- ═══════════ DOMAIN TABLE ═══════════ -->
+      <div class="table-card">
+        <table class="tbl">
+          <colgroup>
+            <col>
+            <col style="width: 180px;">
+            <col style="width: 130px;">
+            <col style="width: 100px;">
+            <col style="width: 150px;">
+            <col style="width: 130px;">
+            <col style="width: 170px;">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Domain</th>
+              <th>Customer</th>
+              <th>Registrar</th>
+              <th>SSL</th>
+              <th>Expires</th>
+              <th>Status</th>
+              <th style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <!-- Row 1 — CRITICAL -->
+            <tr class="row-critical">
+              <td>
+                <div class="cell-domain">
+                  <div class="domain-line">
+                    <i class="ti ti-world lead" style="color: var(--danger);"></i>
+                    <span class="domain-name crit">greekbites.co.uk</span>
+                  </div>
+                  <div class="domain-sub-row">
+                    <span class="badge badge-inactive badge-sm">Primary domain</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-1">GB</div>
+                  <div class="cust-name">Greek Bites</div>
+                </div>
+              </td>
+              <td><span class="registrar"><i class="ti ti-brand-cloudflare"></i>Cloudflare</span></td>
+              <td><span class="ssl-pill"><i class="ti ti-lock"></i>SSL</span></td>
+              <td>
+                <div class="expiry">
+                  <span class="date crit">3 Jun 2026</span>
+                  <span class="warn-pill red"><i class="ti ti-clock-exclamation"></i>6 days</span>
+                </div>
+              </td>
+              <td><span class="badge badge-overdue">Critical</span></td>
+              <td>
+                <div class="cell-actions">
+                  <button class="btn btn-primary btn-sm"><i class="ti ti-refresh"></i>Renew</button>
+                  <button class="icon-btn"><i class="ti ti-dots"></i></button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 2 — WARNING -->
+            <tr class="row-warning">
+              <td>
+                <div class="cell-domain">
+                  <div class="domain-line">
+                    <i class="ti ti-world lead"></i>
+                    <span class="domain-name">souvlakihouse.co.uk</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-2">SH</div>
+                  <div class="cust-name">Souvlaki House</div>
+                </div>
+              </td>
+              <td><span class="registrar"><i class="ti ti-brand-cloudflare"></i>Cloudflare</span></td>
+              <td><span class="ssl-pill"><i class="ti ti-lock"></i>SSL</span></td>
+              <td>
+                <div class="expiry">
+                  <span class="date warn">18 Jun 2026</span>
+                  <span class="warn-pill"><i class="ti ti-clock"></i>21 days</span>
+                </div>
+              </td>
+              <td><span class="badge badge-pending">Expiring soon</span></td>
+              <td>
+                <div class="cell-actions">
+                  <button class="btn btn-secondary btn-sm"><i class="ti ti-refresh"></i>Renew</button>
+                  <button class="icon-btn"><i class="ti ti-dots"></i></button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 3 — WARNING -->
+            <tr class="row-warning">
+              <td>
+                <div class="cell-domain">
+                  <div class="domain-line">
+                    <i class="ti ti-world lead"></i>
+                    <span class="domain-name">thegreekkitchen.co.uk</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-3">GK</div>
+                  <div class="cust-name">The Greek Kitchen</div>
+                </div>
+              </td>
+              <td><span class="registrar"><i class="ti ti-brand-cloudflare"></i>Cloudflare</span></td>
+              <td><span class="ssl-pill"><i class="ti ti-lock"></i>SSL</span></td>
+              <td>
+                <div class="expiry">
+                  <span class="date warn">22 Jun 2026</span>
+                  <span class="warn-pill"><i class="ti ti-clock"></i>25 days</span>
+                </div>
+              </td>
+              <td><span class="badge badge-pending">Expiring soon</span></td>
+              <td>
+                <div class="cell-actions">
+                  <button class="btn btn-secondary btn-sm"><i class="ti ti-refresh"></i>Renew</button>
+                  <button class="icon-btn"><i class="ti ti-dots"></i></button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 4 — WARNING -->
+            <tr class="row-warning">
+              <td>
+                <div class="cell-domain">
+                  <div class="domain-line">
+                    <i class="ti ti-world lead"></i>
+                    <span class="domain-name">kalamakico.co.uk</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-2">KC</div>
+                  <div class="cust-name">Kalamaki &amp; Co</div>
+                </div>
+              </td>
+              <td><span class="registrar"><i class="ti ti-brand-cloudflare"></i>Cloudflare</span></td>
+              <td><span class="ssl-pill"><i class="ti ti-lock"></i>SSL</span></td>
+              <td>
+                <div class="expiry">
+                  <span class="date warn">24 Jun 2026</span>
+                  <span class="warn-pill"><i class="ti ti-clock"></i>27 days</span>
+                </div>
+              </td>
+              <td><span class="badge badge-pending">Expiring soon</span></td>
+              <td>
+                <div class="cell-actions">
+                  <button class="btn btn-secondary btn-sm"><i class="ti ti-refresh"></i>Renew</button>
+                  <button class="icon-btn"><i class="ti ti-dots"></i></button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 5 — HEALTHY + EXPANDED -->
+            <tr class="row-active">
+              <td>
+                <div class="cell-domain">
+                  <div class="domain-line">
+                    <i class="ti ti-world lead" style="color: var(--accent);"></i>
+                    <span class="domain-name active">aegeankitchen.co.uk</span>
+                    <i class="ti ti-chevron-down chev-ex"></i>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-teal">AK</div>
+                  <div class="cust-name">The Aegean Kitchen</div>
+                </div>
+              </td>
+              <td><span class="registrar"><i class="ti ti-brand-cloudflare"></i>Cloudflare</span></td>
+              <td><span class="ssl-pill"><i class="ti ti-lock"></i>SSL</span></td>
+              <td>
+                <div class="expiry">
+                  <span class="date ok">14 Aug 2027</span>
+                </div>
+              </td>
+              <td><span class="badge badge-active">Healthy</span></td>
+              <td>
+                <div class="cell-actions">
+                  <button class="btn btn-secondary btn-sm"><i class="ti ti-dna"></i>DNS</button>
+                  <button class="icon-btn"><i class="ti ti-dots"></i></button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- DNS expanded panel row -->
+            <tr class="dns-panel-row">
+              <td colspan="7">
+
+                <div class="dns-panel-head">
+                  <span class="dns-panel-title">DNS records · aegeankitchen.co.uk</span>
+                  <span class="badge badge-info badge-sm">Cloudflare</span>
+                  <span class="dns-panel-meta"><i class="ti ti-shield"></i>Proxied through Cloudflare CDN</span>
+                  <div class="right">
+                    <button class="btn btn-ghost btn-sm" style="color: var(--accent);"><i class="ti ti-plus"></i>Add record</button>
+                    <button class="btn btn-ghost btn-sm" style="color: var(--text-secondary);"><i class="ti ti-external-link"></i>Open in Cloudflare</button>
+                  </div>
+                </div>
+
+                <div class="dns-records">
+                  <div class="dns-rec-head">
+                    <span>Type</span>
+                    <span>Name</span>
+                    <span>Content</span>
+                    <span>TTL</span>
+                    <span class="cen">Proxy</span>
+                    <span></span>
+                  </div>
+
+                  <div class="dns-rec">
+                    <span class="dns-type a">A</span>
+                    <span class="dns-name">@</span>
+                    <span class="dns-content">185.199.108.153</span>
+                    <span class="dns-ttl">Auto</span>
+                    <span class="dns-proxy on" title="Proxied"><i class="ti ti-cloud"></i></span>
+                    <span class="dns-actions">
+                      <button class="icon-btn"><i class="ti ti-pencil"></i></button>
+                      <button class="icon-btn danger"><i class="ti ti-trash"></i></button>
+                    </span>
+                  </div>
+
+                  <div class="dns-rec">
+                    <span class="dns-type a">A</span>
+                    <span class="dns-name">www</span>
+                    <span class="dns-content">185.199.108.153</span>
+                    <span class="dns-ttl">Auto</span>
+                    <span class="dns-proxy on" title="Proxied"><i class="ti ti-cloud"></i></span>
+                    <span class="dns-actions">
+                      <button class="icon-btn"><i class="ti ti-pencil"></i></button>
+                      <button class="icon-btn danger"><i class="ti ti-trash"></i></button>
+                    </span>
+                  </div>
+
+                  <div class="dns-rec">
+                    <span class="dns-type cname">CNAME</span>
+                    <span class="dns-name">mail</span>
+                    <span class="dns-content">aegeankitchen.co.uk</span>
+                    <span class="dns-ttl">Auto</span>
+                    <span class="dns-proxy" title="DNS only"><i class="ti ti-cloud-off"></i></span>
+                    <span class="dns-actions">
+                      <button class="icon-btn"><i class="ti ti-pencil"></i></button>
+                      <button class="icon-btn danger"><i class="ti ti-trash"></i></button>
+                    </span>
+                  </div>
+
+                  <div class="dns-rec">
+                    <span class="dns-type mx">MX</span>
+                    <span class="dns-name">@</span>
+                    <span class="dns-content">mail.aegeankitchen.co.uk</span>
+                    <span class="dns-ttl">Priority: 10 · Auto</span>
+                    <span class="dns-proxy dash">—</span>
+                    <span class="dns-actions">
+                      <button class="icon-btn"><i class="ti ti-pencil"></i></button>
+                      <button class="icon-btn danger"><i class="ti ti-trash"></i></button>
+                    </span>
+                  </div>
+
+                  <div class="dns-rec">
+                    <span class="dns-type txt">TXT</span>
+                    <span class="dns-name">@</span>
+                    <span class="dns-content">v=spf1 include:_spf.mx.cloudflare.net ~all</span>
+                    <span class="dns-ttl">Auto</span>
+                    <span class="dns-proxy dash">—</span>
+                    <span class="dns-actions">
+                      <button class="icon-btn"><i class="ti ti-pencil"></i></button>
+                      <button class="icon-btn danger"><i class="ti ti-trash"></i></button>
+                    </span>
+                  </div>
+
+                  <div class="dns-rec">
+                    <span class="dns-type txt">TXT</span>
+                    <span class="dns-name">_dmarc</span>
+                    <span class="dns-content">v=DMARC1; p=quarantine; rua=mailto:dmarc@…</span>
+                    <span class="dns-ttl">Auto</span>
+                    <span class="dns-proxy dash">—</span>
+                    <span class="dns-actions">
+                      <button class="icon-btn"><i class="ti ti-pencil"></i></button>
+                      <button class="icon-btn danger"><i class="ti ti-trash"></i></button>
+                    </span>
+                  </div>
+
+                  <div class="dns-rec">
+                    <span class="dns-type txt">TXT</span>
+                    <span class="dns-name">_domainkey</span>
+                    <span class="dns-content">v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3…</span>
+                    <span class="dns-ttl">Auto</span>
+                    <span class="dns-proxy dash">—</span>
+                    <span class="dns-actions">
+                      <button class="icon-btn"><i class="ti ti-pencil"></i></button>
+                      <button class="icon-btn danger"><i class="ti ti-trash"></i></button>
+                    </span>
+                  </div>
+
+                  <div class="dns-rec">
+                    <span class="dns-type txt">TXT</span>
+                    <span class="dns-name">@</span>
+                    <span class="dns-content">google-site-verification=AbC123xYz…</span>
+                    <span class="dns-ttl">Auto</span>
+                    <span class="dns-proxy dash">—</span>
+                    <span class="dns-actions">
+                      <button class="icon-btn"><i class="ti ti-pencil"></i></button>
+                      <button class="icon-btn danger"><i class="ti ti-trash"></i></button>
+                    </span>
+                  </div>
+                </div>
+
+                <div class="dns-panel-foot">
+                  <span>8 records · Last synced from Cloudflare: 2 minutes ago</span>
+                  <span class="right">Check SPF/DKIM/DMARC<i class="ti ti-arrow-right"></i></span>
+                </div>
+
+              </td>
+            </tr>
+
+            <!-- Row 6 — Healthy -->
+            <tr>
+              <td>
+                <div class="cell-domain">
+                  <div class="domain-line">
+                    <i class="ti ti-world lead"></i>
+                    <span class="domain-name">pittafan.co.uk</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-1">PF</div>
+                  <div class="cust-name">Pitta Fan Leeds</div>
+                </div>
+              </td>
+              <td><span class="registrar"><i class="ti ti-brand-cloudflare"></i>Cloudflare</span></td>
+              <td><span class="ssl-pill"><i class="ti ti-lock"></i>SSL</span></td>
+              <td><div class="expiry"><span class="date ok">3 Oct 2026</span></div></td>
+              <td><span class="badge badge-active">Healthy</span></td>
+              <td>
+                <div class="cell-actions">
+                  <button class="btn btn-secondary btn-sm"><i class="ti ti-dna"></i>DNS</button>
+                  <button class="icon-btn"><i class="ti ti-dots"></i></button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 7 — Healthy -->
+            <tr>
+              <td>
+                <div class="cell-domain">
+                  <div class="domain-line">
+                    <i class="ti ti-world lead"></i>
+                    <span class="domain-name">aegeankitchen.com</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-teal">AK</div>
+                  <div class="cust-name">The Aegean Kitchen</div>
+                </div>
+              </td>
+              <td><span class="registrar"><i class="ti ti-brand-cloudflare"></i>Cloudflare</span></td>
+              <td><span class="ssl-pill"><i class="ti ti-lock"></i>SSL</span></td>
+              <td><div class="expiry"><span class="date ok">14 Aug 2027</span></div></td>
+              <td><span class="badge badge-active">Healthy</span></td>
+              <td>
+                <div class="cell-actions">
+                  <button class="btn btn-secondary btn-sm"><i class="ti ti-dna"></i>DNS</button>
+                  <button class="icon-btn"><i class="ti ti-dots"></i></button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 8 — Healthy -->
+            <tr>
+              <td>
+                <div class="cell-domain">
+                  <div class="domain-line">
+                    <i class="ti ti-world lead"></i>
+                    <span class="domain-name">olympiagroupuk.co.uk</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-amber">OG</div>
+                  <div class="cust-name">Olympia Restaurant Group</div>
+                </div>
+              </td>
+              <td><span class="registrar"><i class="ti ti-brand-cloudflare"></i>Cloudflare</span></td>
+              <td><span class="ssl-pill"><i class="ti ti-lock"></i>SSL</span></td>
+              <td><div class="expiry"><span class="date ok">22 Nov 2026</span></div></td>
+              <td><span class="badge badge-active">Healthy</span></td>
+              <td>
+                <div class="cell-actions">
+                  <button class="btn btn-secondary btn-sm"><i class="ti ti-dna"></i>DNS</button>
+                  <button class="icon-btn"><i class="ti ti-dots"></i></button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 9 — EXTERNAL -->
+            <tr class="row-muted">
+              <td>
+                <div class="cell-domain">
+                  <div class="domain-line">
+                    <i class="ti ti-world lead"></i>
+                    <span class="domain-name muted">hellenic-foods.co.uk</span>
+                  </div>
+                  <div class="domain-sub-row">
+                    <span class="warn-pill grey"><i class="ti ti-alert-circle"></i>Not in Cloudflare</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-navy">HF</div>
+                  <div class="cust-name">Hellenic Foods UK</div>
+                </div>
+              </td>
+              <td><span class="registrar ext">GoDaddy</span></td>
+              <td><span class="ssl-pill"><i class="ti ti-lock"></i>SSL</span></td>
+              <td><div class="expiry"><span class="date">14 Dec 2026</span></div></td>
+              <td><span class="badge badge-inactive">External</span></td>
+              <td>
+                <div class="cell-actions">
+                  <button class="btn btn-ghost btn-sm" style="color: var(--accent);"><i class="ti ti-transfer-in"></i>Move</button>
+                  <button class="icon-btn"><i class="ti ti-dots"></i></button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 10 — EXTERNAL -->
+            <tr class="row-muted">
+              <td>
+                <div class="cell-domain">
+                  <div class="domain-line">
+                    <i class="ti ti-world lead"></i>
+                    <span class="domain-name muted">gyroscitymcr.co.uk</span>
+                  </div>
+                  <div class="domain-sub-row">
+                    <span class="warn-pill grey"><i class="ti ti-alert-circle"></i>Not in Cloudflare</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="cell-cust">
+                  <div class="avatar av-5">GC</div>
+                  <div class="cust-name">Gyros City MCR</div>
+                </div>
+              </td>
+              <td><span class="registrar ext">Namecheap</span></td>
+              <td><span class="ssl-pill"><i class="ti ti-lock"></i>SSL</span></td>
+              <td><div class="expiry"><span class="date">8 Jan 2027</span></div></td>
+              <td><span class="badge badge-inactive">External</span></td>
+              <td>
+                <div class="cell-actions">
+                  <button class="btn btn-ghost btn-sm" style="color: var(--accent);"><i class="ti ti-transfer-in"></i>Move</button>
+                  <button class="icon-btn"><i class="ti ti-dots"></i></button>
+                </div>
+              </td>
+            </tr>
+
+          </tbody>
+        </table>
+
+        <div class="tbl-foot">
+          <div class="info">Showing <strong>10</strong> of <strong>18</strong> domains</div>
+          <div class="right">
+            <button class="pg-btn"><i class="ti ti-chevron-left" style="font-size:14px;"></i>Previous</button>
+            <button class="pg-btn active">1</button>
+            <button class="pg-btn">2</button>
+            <button class="pg-btn">Next<i class="ti ti-chevron-right" style="font-size:14px;"></i></button>
+            <button class="per-page">20 per page<i class="ti ti-chevron-down"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ REGISTER DOMAIN ═══════════ -->
+      <div class="reg-panel">
+        <div class="reg-left">
+          <div class="reg-head">
+            <div class="ic"><i class="ti ti-world-plus"></i></div>
+            <div class="title">Register a new domain</div>
+          </div>
+          <div class="reg-sub">Domains registered through Cloudflare Registrar are automatically added to your account.</div>
+
+          <div class="reg-search-row">
+            <div class="reg-search">
+              <i class="ti ti-search"></i>
+              <input placeholder="Search for a domain name…">
+            </div>
+            <button class="btn btn-primary reg-btn">Check availability</button>
+          </div>
+        </div>
+
+        <div class="reg-right">
+          <div class="h">Recently registered</div>
+          <div class="reg-rec">
+            <i class="ti ti-check"></i>
+            <span class="nm">aegeankitchen.co.uk</span>
+            <span class="dt">Registered 27 May 2026</span>
+          </div>
+          <div class="reg-rec">
+            <i class="ti ti-check"></i>
+            <span class="nm">greekbites.co.uk</span>
+            <span class="dt">Registered 12 Apr 2026</span>
+          </div>
+          <div class="reg-rec">
+            <i class="ti ti-check"></i>
+            <span class="nm">pittafan.co.uk</span>
+            <span class="dt">Registered 3 Oct 2025</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page footer -->
+      <div class="page-foot">
+        <div>Powerhouse v3.2.0 · Whitedash</div>
+        <div>Data refreshed <strong>2 minutes ago</strong> · auto-syncs every 5 min</div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // Pagination visual
+  document.querySelectorAll('.pg-btn').forEach(b => b.addEventListener('click', () => {
+    if (b.textContent.includes('Previous') || b.textContent.includes('Next')) return;
+    document.querySelectorAll('.pg-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+  }));
+
+  // DNS expand row toggle (toggle visibility of dns-panel-row)
+  const expandTrigger = document.querySelector('.row-active');
+  const panel = document.querySelector('.dns-panel-row');
+  if (expandTrigger && panel) {
+    expandTrigger.style.cursor = 'pointer';
+    expandTrigger.addEventListener('click', e => {
+      // Ignore clicks on action buttons
+      if (e.target.closest('button') || e.target.closest('.cell-actions')) return;
+      const open = panel.style.display !== 'none';
+      panel.style.display = open ? 'none' : '';
+      const chev = expandTrigger.querySelector('.chev-ex');
+      if (chev) chev.style.transform = open ? 'rotate(-90deg)' : '';
+    });
+  }
+</script>
+
+</body>
+</html>

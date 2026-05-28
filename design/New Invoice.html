@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Powerhouse — New invoice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg-navy: #0F172A;
+    --accent: #F59E0B;
+    --content-bg: #F8FAFC;
+    --card-bg: #FFFFFF;
+    --border: #E2E8F0;
+    --border-soft: #EEF2F7;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+    --info: #3B82F6;
+    --teal: #0D9488;
+    --purple: #7C3AED;
+
+    --success-bg: #ECFDF5;
+    --danger-bg:  #FEF2F2;
+    --warning-bg: #FFFBEB;
+    --info-bg:    #EFF6FF;
+    --neutral-bg: #F1F5F9;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.05);
+    --shadow-md: 0 4px 12px -2px rgba(15,23,42,.08), 0 1px 3px rgba(15,23,42,.04);
+    --shadow-lg: 0 24px 48px -12px rgba(15,23,42,.18), 0 2px 4px rgba(15,23,42,.04);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 400 14px/1.5 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: #E5E9F0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ─── Shell ─── */
+  .app {
+    width: 1440px;
+    margin: 0 auto;
+    background: var(--content-bg);
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 1100px;
+  }
+
+  /* ─── Sidebar ─── */
+  .sidebar { background: var(--bg-navy); color: #fff; padding: 20px 14px 16px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh; min-height: 1100px; }
+  .logo { display: flex; align-items: center; gap: 10px; padding: 6px 10px 18px; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 14px; }
+  .brand-mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--accent), #FBBF24); display: grid; place-items: center; color: var(--bg-navy); font: 700 14px/1 'Inter', sans-serif; box-shadow: 0 2px 6px rgba(245,158,11,.35); }
+  .logo-name { font: 600 15px/1.1 'Inter', sans-serif; letter-spacing: -.01em; }
+  .logo-sub  { font: 500 10px/1 'Inter', sans-serif; color: rgba(255,255,255,.45); letter-spacing: .12em; text-transform: uppercase; margin-top: 3px; }
+  .nav-section { font: 500 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .14em; color: rgba(255,255,255,.35); padding: 14px 10px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 11px; padding: 8px 10px; color: rgba(255,255,255,.7); font: 500 13.5px/1.2 'Inter', sans-serif; letter-spacing: -.005em; border-radius: var(--radius-md); cursor: pointer; transition: background .12s, color .12s; }
+  .nav-item .ti { font-size: 18px; }
+  .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .nav-item.active { background: rgba(245,158,11,.14); color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+  .nav-item .count { margin-left: auto; font: 600 11px/1 'Inter', sans-serif; background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); padding: 3px 7px; border-radius: 999px; }
+  .nav-item.active .count { background: rgba(245,158,11,.22); color: var(--accent); }
+  .count.amber { background: rgba(245,158,11,.18); color: #FCD34D; }
+  .count.red   { background: rgba(239,68,68,.2);  color: #FCA5A5; }
+  .sidebar-spacer { flex: 1; }
+  .sidebar-user { margin-top: 12px; padding: 12px 10px; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; gap: 10px; }
+  .avatar { border-radius: 50%; display: grid; place-items: center; color: #fff; font: 600 12px/1 'Inter', sans-serif; letter-spacing: -.01em; flex-shrink: 0; }
+  .av-1 { background: linear-gradient(135deg, #6366F1, #8B5CF6); }
+  .av-2 { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-3 { background: linear-gradient(135deg, #10B981, #059669); }
+  .av-5 { background: linear-gradient(135deg, #3B82F6, #06B6D4); }
+  .av-teal  { background: var(--teal); }
+  .av-amber { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-navy  { background: linear-gradient(135deg, #0F172A, #334155); }
+  .av-admin { background: linear-gradient(135deg, #1E293B, #475569); border: 1px solid rgba(245,158,11,.4); }
+  .sidebar-user .avatar { width: 32px; height: 32px; font-size: 11px; }
+  .sidebar-user .name { font: 500 13px/1.2 'Inter', sans-serif; color: #fff; letter-spacing: -.005em; }
+  .sidebar-user .role { font: 400 11px/1.2 'Inter', sans-serif; color: rgba(255,255,255,.45); margin-top: 2px; }
+  .sidebar-user .dots { margin-left: auto; color: rgba(255,255,255,.4); cursor: pointer; }
+
+  /* ─── Topbar ─── */
+  .main { display: flex; flex-direction: column; min-width: 0; }
+  .topbar { height: 64px; border-bottom: 1px solid var(--border); background: #fff; padding: 0 24px; display: flex; align-items: center; gap: 16px; }
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); }
+  .breadcrumb .sep { color: var(--text-tertiary); }
+  .breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+  .topbar-title { font: 600 20px/1.2 'Inter', sans-serif; letter-spacing: -.01em; margin-top: 2px; }
+  .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  /* Buttons */
+  .btn { appearance: none; border: 0; cursor: pointer; font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em; padding: 0 14px; height: 34px; border-radius: var(--radius-md); display: inline-flex; align-items: center; gap: 7px; transition: background .15s, border-color .15s, color .15s, box-shadow .15s, opacity .15s; white-space: nowrap; }
+  .btn .ti { font-size: 15px; }
+  .btn-primary { background: var(--accent); color: var(--bg-navy); font-weight: 600; box-shadow: 0 1px 2px rgba(245,158,11,.3); }
+  .btn-primary:hover { background: #E08C09; }
+  .btn-primary.disabled,
+  .btn-primary[disabled] { opacity: .6; cursor: not-allowed; box-shadow: none; }
+  .btn-primary.disabled:hover,
+  .btn-primary[disabled]:hover { background: var(--accent); }
+  .btn-secondary { background: #fff; color: var(--text-primary); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .btn-secondary:hover { background: var(--neutral-bg); border-color: #CBD5E1; }
+  .btn-ghost { background: transparent; color: var(--text-primary); }
+  .btn-ghost:hover { background: var(--neutral-bg); }
+  .btn-ghost.danger { color: var(--danger); }
+  .btn-ghost.danger:hover { background: var(--danger-bg); }
+  .btn-block { width: 100%; justify-content: center; }
+  .btn-sm { height: 30px; padding: 0 10px; font-size: 12.5px; border-radius: var(--radius-sm); }
+
+  /* Tooltip wrapper */
+  .has-tip { position: relative; }
+  .has-tip .tip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    background: var(--bg-navy);
+    color: #fff;
+    font: 500 11.5px/1.3 'Inter', sans-serif;
+    letter-spacing: -.005em;
+    padding: 7px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px -2px rgba(15,23,42,.18);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(2px);
+    transition: opacity .15s, transform .15s;
+    z-index: 10;
+  }
+  .has-tip .tip::after {
+    content: "";
+    position: absolute; top: 100%; right: 16px;
+    border: 5px solid transparent;
+    border-top-color: var(--bg-navy);
+  }
+  .has-tip:hover .tip { opacity: 1; transform: translateY(0); }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; font: 500 11.5px/1.4 'Inter', sans-serif; letter-spacing: -.005em; border: 1px solid transparent; white-space: nowrap; }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge-active   { color: #047857; background: var(--success-bg); border-color: #A7F3D0; }
+  .badge-inactive { color: #475569; background: var(--neutral-bg); border-color: #E2E8F0; }
+  .badge-pending  { color: #B45309; background: var(--warning-bg); border-color: #FDE68A; }
+  .badge-overdue  { color: #B91C1C; background: var(--danger-bg); border-color: #FECACA; }
+  .badge-info     { color: #1D4ED8; background: var(--info-bg); border-color: #BFDBFE; }
+  .badge-gold     { color: #B45309; background: rgba(245,158,11,.14); border-color: #FDE68A; }
+  .badge-sm { padding: 2px 7px; font: 500 10.5px/1.4 'Inter', sans-serif; }
+  .badge-sm::before { width: 5px; height: 5px; }
+  .badge-lg { padding: 6px 14px; font-size: 13px; }
+
+  /* ─── Page content layout ─── */
+  .content { padding: 24px; display: grid; grid-template-columns: 58% 42%; gap: 24px; align-items: start; }
+
+  /* ──────────────────── LEFT — DOCUMENT ──────────────────── */
+  .doc-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+
+  /* Document header */
+  .doc-head { padding: 32px 36px; border-bottom: 1px solid var(--border-soft); display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  .doc-head-left { display: flex; flex-direction: column; }
+  .doc-brand-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .doc-brand-mark { width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), #FBBF24); display: grid; place-items: center; color: var(--bg-navy); font: 700 18px/1 'Inter', sans-serif; box-shadow: 0 2px 6px rgba(245,158,11,.35); flex-shrink: 0; }
+
+  /* Inline editable text — the core "document feel" */
+  .inline-edit {
+    background: transparent;
+    border: 0;
+    border-bottom: 1.5px dashed var(--border);
+    padding: 4px 0;
+    color: var(--text-primary);
+    font: inherit;
+    outline: 0;
+    width: 100%;
+    transition: border-color .15s, background .15s;
+    cursor: text;
+  }
+  .inline-edit::placeholder { color: var(--text-tertiary); font-style: italic; }
+  .inline-edit:hover { border-bottom-color: #CBD5E1; background: rgba(245,158,11,.02); }
+  .inline-edit:focus { border-bottom-color: var(--accent); background: rgba(245,158,11,.04); }
+  .inline-edit.center { text-align: center; }
+  .inline-edit.right  { text-align: right; }
+
+  /* Entity selector — appears in document header */
+  .entity-select {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: transparent;
+    border: 0;
+    border-bottom: 1.5px dashed var(--border);
+    padding: 4px 0;
+    cursor: pointer;
+    font: 700 20px/1.2 'Inter', sans-serif;
+    letter-spacing: -.01em;
+    color: var(--text-tertiary);
+    font-style: italic;
+    transition: border-color .15s, color .15s;
+    flex: 1;
+    min-width: 0;
+  }
+  .entity-select.filled { color: var(--text-primary); font-style: normal; }
+  .entity-select:hover { border-bottom-color: var(--accent); color: var(--text-secondary); }
+  .entity-select.filled:hover { color: var(--text-primary); }
+  .entity-select .ti { font-size: 18px; color: var(--text-tertiary); margin-left: auto; }
+
+  .doc-addr { color: var(--text-tertiary); font: 400 13px/1.7 'Inter', sans-serif; padding-left: 52px; }
+  .doc-addr .line { letter-spacing: -.005em; }
+  .doc-addr.placeholder .line::before { content: "—"; color: var(--text-tertiary); }
+
+  .doc-head-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .doc-title { font: 700 32px/1 'Inter', sans-serif; letter-spacing: -.02em; color: var(--text-primary); }
+  .doc-num { font: 500 16px/1 'JetBrains Mono', monospace; color: var(--text-tertiary); cursor: help; position: relative; display: inline-flex; align-items: center; gap: 6px; }
+  .doc-num .ti { font-size: 13px; }
+  .doc-num .tip {
+    position: absolute; top: calc(100% + 6px); right: 0;
+    background: var(--bg-navy); color: #fff;
+    font: 500 11px/1.3 'Inter', sans-serif;
+    padding: 6px 9px; border-radius: 5px; white-space: nowrap;
+    opacity: 0; pointer-events: none; transform: translateY(2px);
+    transition: opacity .15s, transform .15s; z-index: 5;
+  }
+  .doc-num:hover .tip { opacity: 1; transform: translateY(0); }
+
+  /* Bill to / details row */
+  .doc-meta-row { padding: 24px 36px; background: var(--neutral-bg); border-bottom: 1px solid var(--border-soft); display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 28px; }
+  .meta-block { display: flex; flex-direction: column; min-width: 0; }
+  .meta-label { font: 500 10px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .14em; color: var(--text-tertiary); margin-bottom: 8px; }
+  .meta-label.sub { margin-top: 14px; }
+
+  .meta-search { position: relative; }
+  .meta-search .ti { position: absolute; left: 0; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 16px; pointer-events: none; }
+  .meta-search input { padding-left: 22px; font: 500 14px/1.4 'Inter', sans-serif; }
+  .meta-link { font: 500 12px/1.4 'Inter', sans-serif; color: var(--accent); margin-top: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; align-self: flex-start; }
+  .meta-link:hover { text-decoration: underline; }
+
+  .meta-date { font: 600 14px/1.4 'Inter', sans-serif; color: var(--text-primary); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 0; border-bottom: 1.5px dashed var(--border); padding: 4px 0; width: 100%; transition: border-color .15s, background .15s; }
+  .meta-date:hover { border-bottom-color: #CBD5E1; background: rgba(245,158,11,.02); }
+  .meta-date .ti { color: var(--text-tertiary); font-size: 15px; margin-left: auto; }
+
+  .meta-select { font: 600 14px/1.4 'Inter', sans-serif; color: var(--text-primary); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 0; border-bottom: 1.5px dashed var(--border); padding: 4px 0; width: 100%; transition: border-color .15s, background .15s; text-align: left; }
+  .meta-select:hover { border-bottom-color: #CBD5E1; background: rgba(245,158,11,.02); }
+  .meta-select .ti { color: var(--text-tertiary); font-size: 15px; margin-left: auto; }
+
+  .meta-auto { font: 500 14px/1.4 'JetBrains Mono', monospace; color: var(--text-tertiary); padding: 4px 0; border-bottom: 1.5px dashed var(--border); }
+  .meta-auto-note { font: 400 10px/1 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 4px; text-transform: uppercase; letter-spacing: .12em; }
+
+  /* Line items */
+  .doc-items { padding: 8px 36px 0; }
+  .li-head { display: grid; grid-template-columns: 1fr 80px 110px 110px 32px; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border); font: 500 10px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .14em; color: var(--text-tertiary); }
+  .li-head .num { text-align: right; }
+  .li-head .x   { text-align: center; }
+
+  .li-row { display: grid; grid-template-columns: 1fr 80px 110px 110px 32px; gap: 16px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border-soft); position: relative; transition: background .15s; }
+  .li-row.active { background: rgba(59,130,246,.05); box-shadow: inset 2px 0 0 var(--info); margin: 0 -20px; padding: 14px 20px; border-radius: 0; }
+  .li-row.active::before {
+    content: "";
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 2px; background: var(--info);
+  }
+  .li-desc { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .li-desc .main { font: 400 14px/1.4 'Inter', sans-serif; }
+  .li-desc .main::placeholder { color: var(--text-tertiary); font-style: italic; }
+  .li-desc .sub  { font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); }
+  .li-desc .sub::placeholder { color: var(--text-tertiary); font-style: italic; }
+
+  .li-qty input,
+  .li-price input,
+  .li-amt {
+    font: 500 14px/1.4 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+  }
+  .li-qty input { width: 100%; text-align: center; }
+  .li-price { position: relative; }
+  .li-price .gbp { position: absolute; left: 0; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font: 500 13px/1 'Inter', sans-serif; pointer-events: none; }
+  .li-price input { width: 100%; text-align: right; padding-left: 14px; }
+  .li-amt { text-align: right; font-weight: 600; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+  .li-x { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 6px; color: var(--text-tertiary); cursor: pointer; border: 0; background: transparent; transition: background .12s, color .12s; }
+  .li-x:hover { background: var(--danger-bg); color: var(--danger); }
+  .li-x .ti { font-size: 16px; }
+
+  /* Add line item — dashed placeholder row */
+  .li-add {
+    margin: 14px 0 4px;
+    height: 44px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 14px;
+    color: var(--text-tertiary);
+    font: 500 13px/1 'Inter', sans-serif;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, color .15s;
+  }
+  .li-add .ti { font-size: 16px; }
+  .li-add:hover { border-color: var(--accent); background: var(--warning-bg); color: var(--accent); }
+
+  /* Totals block */
+  .doc-totals { padding: 20px 36px; display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+  .totals-left { padding-top: 8px; }
+  .add-discount { display: inline-flex; align-items: center; gap: 6px; color: var(--text-tertiary); font: 500 12px/1 'Inter', sans-serif; cursor: pointer; padding: 6px 0; transition: color .15s; }
+  .add-discount:hover { color: var(--accent); }
+  .add-discount .ti { font-size: 14px; }
+
+  .totals-grid { display: flex; flex-direction: column; gap: 10px; }
+  .total-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px; }
+  .total-row .lbl { color: var(--text-secondary); font: 500 13px/1.3 'Inter', sans-serif; text-align: right; }
+  .total-row .val { font: 500 14px/1.3 'Inter', sans-serif; font-variant-numeric: tabular-nums; color: var(--text-primary); text-align: right; min-width: 100px; }
+  .total-row.vat .lbl { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+  .vat-select { background: transparent; border: 0; border-bottom: 1.5px dashed var(--border); font: 500 13px/1.2 'Inter', sans-serif; color: var(--text-primary); cursor: pointer; padding: 2px 0; display: inline-flex; align-items: center; gap: 4px; }
+  .vat-select:hover { border-bottom-color: var(--accent); }
+  .vat-select .ti { font-size: 13px; color: var(--text-tertiary); }
+
+  .totals-divider { height: 1px; background: var(--border-soft); margin: 4px 0; }
+
+  .total-row.grand .lbl { font: 600 15px/1.2 'Inter', sans-serif; color: var(--text-primary); }
+  .total-row.grand .val { font: 700 22px/1.2 'Inter', sans-serif; letter-spacing: -.01em; color: var(--text-primary); }
+
+  /* Notes */
+  .doc-notes { padding: 20px 36px; border-top: 1px solid var(--border-soft); }
+  .doc-notes textarea {
+    width: 100%;
+    background: transparent;
+    border: 0;
+    border-bottom: 1.5px dashed var(--border);
+    padding: 6px 0;
+    font: 400 13px/1.5 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: 0;
+    resize: none;
+    transition: border-color .15s, background .15s;
+  }
+  .doc-notes textarea::placeholder { color: var(--text-tertiary); font-style: italic; }
+  .doc-notes textarea:hover { border-bottom-color: #CBD5E1; background: rgba(245,158,11,.02); }
+  .doc-notes textarea:focus { border-bottom-color: var(--accent); background: rgba(245,158,11,.04); }
+
+  /* Document footer */
+  .doc-foot { padding: 18px 36px 24px; border-top: 1px solid var(--border-soft); background: #FBFCFE; text-align: center; }
+  .doc-foot .legal { font: 400 11.5px/1.5 'Inter', sans-serif; color: var(--text-tertiary); letter-spacing: -.005em; }
+  .doc-foot .legal.placeholder { font-style: italic; }
+  .doc-foot .gen { font: 500 10px/1.4 'Inter', sans-serif; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .14em; margin-top: 6px; }
+
+  /* ──────────────────── RIGHT — CONFIG ──────────────────── */
+  .config { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 88px; }
+
+  .cfg-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .cfg-card.shadow-md { box-shadow: var(--shadow-md); }
+
+  .cfg-head { padding: 14px 18px; border-bottom: 1px solid var(--border-soft); display: flex; align-items: center; gap: 10px; }
+  .cfg-head .h-ic { width: 28px; height: 28px; border-radius: 7px; background: var(--neutral-bg); display: grid; place-items: center; color: var(--text-secondary); flex-shrink: 0; }
+  .cfg-head .h-ic.gold { background: rgba(245,158,11,.14); color: var(--accent); }
+  .cfg-head .h-ic .ti { font-size: 16px; }
+  .cfg-head .h-title { font: 600 14px/1.2 'Inter', sans-serif; letter-spacing: -.005em; }
+  .cfg-head .required { margin-left: auto; }
+
+  .cfg-body { padding: 16px 18px; }
+
+  /* Card 1 — Customer search */
+  .cust-search { position: relative; }
+  .cust-search input {
+    width: 100%; height: 44px;
+    border: 1.5px solid var(--border);
+    background: var(--content-bg);
+    border-radius: var(--radius-md);
+    padding: 0 14px 0 38px;
+    font: 400 14px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: 0;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+  .cust-search input::placeholder { color: var(--text-tertiary); }
+  .cust-search input:focus { background: #fff; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+  .cust-search .ti { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 18px; }
+
+  .cust-label { font: 500 10px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .14em; color: var(--text-tertiary); margin-top: 16px; margin-bottom: 4px; }
+  .cust-list { display: flex; flex-direction: column; gap: 1px; }
+  .cust-row { display: flex; align-items: center; gap: 11px; padding: 8px 10px; border-radius: var(--radius-md); cursor: pointer; transition: background .12s; min-width: 0; }
+  .cust-row:hover { background: var(--neutral-bg); }
+  .cust-row .avatar { width: 28px; height: 28px; font-size: 10.5px; }
+  .cust-row .meta { min-width: 0; flex: 1; }
+  .cust-row .nm { font: 500 13px/1.3 'Inter', sans-serif; letter-spacing: -.005em; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cust-row .sm { font: 400 11.5px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 2px; }
+  .cust-create { font: 500 12px/1 'Inter', sans-serif; color: var(--accent); margin-top: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; }
+  .cust-create:hover { text-decoration: underline; }
+
+  /* Card 2 — Entity options */
+  .ent-stack { display: flex; flex-direction: column; gap: 8px; }
+  .ent-opt { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; cursor: pointer; transition: border-color .15s, background .15s; background: #fff; display: grid; grid-template-columns: 18px 1fr; gap: 12px; align-items: start; }
+  .ent-opt:hover { border-color: #CBD5E1; }
+  .ent-opt.selected { border: 1.5px solid var(--accent); background: var(--warning-bg); padding: 11.5px 13.5px; }
+  .radio { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #CBD5E1; background: #fff; display: grid; place-items: center; flex-shrink: 0; margin-top: 1px; transition: border-color .12s, background .12s; }
+  .ent-opt:hover .radio { border-color: var(--text-tertiary); }
+  .ent-opt.selected .radio { border-color: var(--accent); background: #fff; }
+  .ent-opt.selected .radio::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .ent-name { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .ent-name .nm { font: 600 14px/1.3 'Inter', sans-serif; letter-spacing: -.005em; color: var(--text-primary); }
+  .ent-name .co { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+  .ent-use { font: 400 11.5px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 4px; }
+
+  /* Card 3 — Settings */
+  .set-row { display: grid; grid-template-columns: 1fr 36px; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-soft); }
+  .set-row:last-child { border-bottom: 0; padding-bottom: 0; }
+  .set-row:first-child { padding-top: 0; }
+  .set-row .nm { font: 500 13px/1.3 'Inter', sans-serif; letter-spacing: -.005em; color: var(--text-primary); }
+  .set-row .sb { font: 400 11.5px/1.4 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 2px; }
+
+  .toggle { width: 36px; height: 20px; border-radius: 999px; background: #CBD5E1; position: relative; cursor: pointer; transition: background .15s; flex-shrink: 0; }
+  .toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.18); transition: left .15s; }
+  .toggle.on { background: var(--accent); }
+  .toggle.on::after { left: 18px; }
+
+  /* Card 4 — Send actions */
+  .send-card .cfg-body { padding: 18px; }
+  .send-btn { width: 100%; height: 44px; font: 600 14px/1 'Inter', sans-serif; }
+  .send-hint { display: flex; align-items: center; justify-content: center; gap: 6px; font: 500 11.5px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 10px; }
+  .send-hint .ti { font-size: 13px; }
+  .send-divider { height: 1px; background: var(--border-soft); margin: 14px 0; }
+  .save-btn { width: 100%; height: 40px; font: 500 13px/1 'Inter', sans-serif; }
+  .preview-link { width: 100%; height: 38px; display: flex; align-items: center; justify-content: center; gap: 6px; background: transparent; border: 0; color: var(--text-secondary); font: 500 13px/1 'Inter', sans-serif; cursor: pointer; border-radius: var(--radius-md); transition: background .12s, color .12s; margin-top: 4px; }
+  .preview-link:hover { background: var(--neutral-bg); color: var(--text-primary); }
+  .preview-link .ti { font-size: 15px; }
+  .send-micro { font: 400 11px/1.4 'Inter', sans-serif; color: var(--text-tertiary); text-align: center; margin-top: 10px; font-variant-numeric: tabular-nums; }
+
+</style>
+</head>
+<body>
+
+<div class="app" data-screen-label="06 New invoice">
+
+  <!-- ─── Sidebar ─── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="brand-mark">W</div>
+      <div>
+        <div class="logo-name">Powerhouse</div>
+        <div class="logo-sub">Whitedash</div>
+      </div>
+    </div>
+
+    <div class="nav-section">Workspace</div>
+    <div class="nav-item"><i class="ti ti-layout-dashboard"></i>Overview</div>
+    <div class="nav-item"><i class="ti ti-users"></i>Customers<span class="count">847</span></div>
+    <div class="nav-item active"><i class="ti ti-receipt"></i>Invoices<span class="count amber">7</span></div>
+    <div class="nav-item"><i class="ti ti-credit-card"></i>Subscriptions</div>
+    <div class="nav-item"><i class="ti ti-chart-line"></i>Analytics</div>
+
+    <div class="nav-section">Products</div>
+    <div class="nav-item"><i class="ti ti-tools-kitchen-2"></i>Maavelus</div>
+    <div class="nav-item"><i class="ti ti-clipboard-list"></i>MyOrderPad</div>
+    <div class="nav-item"><i class="ti ti-building-store"></i>Whitedash B2B</div>
+    <div class="nav-item"><i class="ti ti-message-2"></i>SMScube</div>
+
+    <div class="nav-section">Account</div>
+    <div class="nav-item"><i class="ti ti-headset"></i>Support<span class="count red">3</span></div>
+    <div class="nav-item"><i class="ti ti-settings"></i>Settings</div>
+    <div class="nav-item"><i class="ti ti-help-circle"></i>Help &amp; docs</div>
+
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-user">
+      <div class="avatar av-admin">AP</div>
+      <div>
+        <div class="name">Apostolos P.</div>
+        <div class="role">Super Admin</div>
+      </div>
+      <i class="ti ti-dots dots"></i>
+    </div>
+  </aside>
+
+  <!-- ─── Main ─── -->
+  <main class="main">
+
+    <div class="topbar">
+      <div>
+        <div class="breadcrumb"><span>Powerhouse</span><span class="sep">/</span><span>Invoices</span><span class="sep">/</span><span class="current">New invoice</span></div>
+        <div class="topbar-title">New invoice</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost danger"><i class="ti ti-trash"></i>Discard</button>
+        <button class="btn btn-secondary"><i class="ti ti-device-floppy"></i>Save as draft</button>
+        <span class="has-tip">
+          <button class="btn btn-primary disabled" id="sendInvoiceTop"><i class="ti ti-send"></i>Send invoice</button>
+          <span class="tip">Complete all required fields to send</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ═══════════ LEFT — DOCUMENT ═══════════ -->
+      <section class="doc-card">
+
+        <!-- Document header -->
+        <div class="doc-head">
+          <div class="doc-head-left">
+            <div class="doc-brand-row">
+              <div class="doc-brand-mark">W</div>
+              <button class="entity-select" id="entityHeader">
+                <span class="label">Select billing entity…</span>
+                <i class="ti ti-chevron-down"></i>
+              </button>
+            </div>
+            <div class="doc-addr placeholder" id="docAddr">
+              <div class="line"></div>
+              <div class="line"></div>
+              <div class="line"></div>
+            </div>
+          </div>
+
+          <div class="doc-head-right">
+            <div class="doc-title">INVOICE</div>
+            <div class="doc-num">
+              INV-0853
+              <i class="ti ti-info-circle"></i>
+              <span class="tip">Auto-assigned on save</span>
+            </div>
+            <span class="badge badge-inactive badge-lg">Draft</span>
+          </div>
+        </div>
+
+        <!-- Bill to / details -->
+        <div class="doc-meta-row">
+          <div class="meta-block">
+            <div class="meta-label">Bill to</div>
+            <div class="meta-search">
+              <i class="ti ti-search"></i>
+              <input class="inline-edit" placeholder="Search customer…">
+            </div>
+            <span class="meta-link">or create new customer<i class="ti ti-arrow-right" style="font-size:11px;"></i></span>
+          </div>
+
+          <div class="meta-block">
+            <div class="meta-label">Invoice date</div>
+            <button class="meta-date" type="button">
+              28 May 2026
+              <i class="ti ti-calendar"></i>
+            </button>
+            <div class="meta-label sub">Due date</div>
+            <button class="meta-date" type="button">
+              11 Jun 2026
+              <i class="ti ti-calendar"></i>
+            </button>
+          </div>
+
+          <div class="meta-block">
+            <div class="meta-label">Payment terms</div>
+            <button class="meta-select" type="button">
+              Net 14 days
+              <i class="ti ti-chevron-down"></i>
+            </button>
+            <div class="meta-label sub">Payment ref</div>
+            <div class="meta-auto">INV-0853</div>
+            <div class="meta-auto-note">Auto-assigned</div>
+          </div>
+        </div>
+
+        <!-- Line items -->
+        <div class="doc-items">
+          <div class="li-head">
+            <span>Description</span>
+            <span class="num">Qty</span>
+            <span class="num">Unit price</span>
+            <span class="num">Amount</span>
+            <span class="x"></span>
+          </div>
+
+          <!-- Active row -->
+          <div class="li-row active">
+            <div class="li-desc">
+              <input class="inline-edit main" placeholder="Service or product description…">
+              <input class="inline-edit sub" placeholder="Add a note or billing period (optional)">
+            </div>
+            <div class="li-qty">
+              <input class="inline-edit center" value="1">
+            </div>
+            <div class="li-price">
+              <span class="gbp">£</span>
+              <input class="inline-edit" value="0.00">
+            </div>
+            <div class="li-amt">£0.00</div>
+            <button class="li-x"><i class="ti ti-x"></i></button>
+          </div>
+
+          <!-- Add row placeholder -->
+          <div class="li-add">
+            <i class="ti ti-plus"></i>
+            Add line item
+          </div>
+        </div>
+
+        <!-- Totals -->
+        <div class="doc-totals">
+          <div class="totals-left">
+            <span class="add-discount"><i class="ti ti-plus-circle"></i>Add discount</span>
+          </div>
+          <div class="totals-grid">
+            <div class="total-row">
+              <span class="lbl">Subtotal</span>
+              <span class="val">£0.00</span>
+            </div>
+            <div class="total-row vat">
+              <span class="lbl">
+                VAT
+                <button class="vat-select" type="button">20% <i class="ti ti-chevron-down"></i></button>
+              </span>
+              <span class="val">£0.00</span>
+            </div>
+            <div class="totals-divider"></div>
+            <div class="total-row grand">
+              <span class="lbl">Total</span>
+              <span class="val">£0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="doc-notes">
+          <div class="meta-label">Notes (optional)</div>
+          <textarea rows="3" placeholder="Add payment instructions or a personal note to your customer…"></textarea>
+        </div>
+
+        <!-- Footer -->
+        <div class="doc-foot">
+          <div class="legal placeholder" id="docLegal">— · Company No. — · VAT —</div>
+          <div class="gen">Generated by Powerhouse · Whitedash Holdings</div>
+        </div>
+
+      </section>
+
+      <!-- ═══════════ RIGHT — CONFIG ═══════════ -->
+      <aside class="config">
+
+        <!-- CARD 1 — Customer -->
+        <div class="cfg-card shadow-md">
+          <div class="cfg-head">
+            <div class="h-ic gold"><i class="ti ti-user"></i></div>
+            <div class="h-title">Send to</div>
+            <span class="badge badge-overdue badge-sm required">Required</span>
+          </div>
+          <div class="cfg-body">
+            <div class="cust-search">
+              <i class="ti ti-search"></i>
+              <input placeholder="Search customers…">
+            </div>
+
+            <div class="cust-label">Recent</div>
+            <div class="cust-list">
+              <div class="cust-row">
+                <div class="avatar av-teal">AK</div>
+                <div class="meta">
+                  <div class="nm">The Aegean Kitchen</div>
+                  <div class="sm">London · Maavelus Pro</div>
+                </div>
+              </div>
+              <div class="cust-row">
+                <div class="avatar av-2">SH</div>
+                <div class="meta">
+                  <div class="nm">Souvlaki House Manchester</div>
+                  <div class="sm">Manchester · MyOrderPad</div>
+                </div>
+              </div>
+              <div class="cust-row">
+                <div class="avatar av-amber">OG</div>
+                <div class="meta">
+                  <div class="nm">Olympia Restaurant Group</div>
+                  <div class="sm">London · 3 products</div>
+                </div>
+              </div>
+              <div class="cust-row">
+                <div class="avatar av-1">PF</div>
+                <div class="meta">
+                  <div class="nm">Pitta Fan Leeds</div>
+                  <div class="sm">Leeds · 3 products</div>
+                </div>
+              </div>
+              <div class="cust-row">
+                <div class="avatar av-3">TA</div>
+                <div class="meta">
+                  <div class="nm">The Athenian</div>
+                  <div class="sm">Birmingham · Maavelus Pro</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="cust-create">or create new customer<i class="ti ti-arrow-right" style="font-size:11px;"></i></div>
+          </div>
+        </div>
+
+        <!-- CARD 2 — Billing entity -->
+        <div class="cfg-card">
+          <div class="cfg-head">
+            <div class="h-ic"><i class="ti ti-building"></i></div>
+            <div class="h-title">Invoice from</div>
+            <span class="badge badge-overdue badge-sm required">Required</span>
+          </div>
+          <div class="cfg-body">
+            <div class="ent-stack">
+              <div class="ent-opt selected" data-entity="maavelus">
+                <div class="radio"></div>
+                <div>
+                  <div class="ent-name">
+                    <span class="nm">Maavelus Ltd</span>
+                    <span class="co">Company No. 16198899</span>
+                  </div>
+                  <div class="ent-use">Typically used for: Maavelus subscriptions</div>
+                </div>
+              </div>
+              <div class="ent-opt" data-entity="konstrakt">
+                <div class="radio"></div>
+                <div>
+                  <div class="ent-name">
+                    <span class="nm">Konstrakt Ltd</span>
+                    <span class="co">Company No. 14829301</span>
+                  </div>
+                  <div class="ent-use">Typically used for: services, custom projects</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 3 — Settings -->
+        <div class="cfg-card">
+          <div class="cfg-head">
+            <div class="h-ic"><i class="ti ti-adjustments"></i></div>
+            <div class="h-title">Settings</div>
+          </div>
+          <div class="cfg-body">
+            <div class="set-row">
+              <div>
+                <div class="nm">Send email to customer</div>
+                <div class="sb">Auto-sends when you click Send invoice</div>
+              </div>
+              <div class="toggle on" data-toggle></div>
+            </div>
+            <div class="set-row">
+              <div>
+                <div class="nm">Payment reminder</div>
+                <div class="sb">Auto-chase if unpaid after due date</div>
+              </div>
+              <div class="toggle on" data-toggle></div>
+            </div>
+            <div class="set-row">
+              <div>
+                <div class="nm">PDF attached to email</div>
+                <div class="sb">Customer can download invoice PDF</div>
+              </div>
+              <div class="toggle on" data-toggle></div>
+            </div>
+            <div class="set-row">
+              <div>
+                <div class="nm">VAT invoice</div>
+                <div class="sb">Show VAT breakdown on document</div>
+              </div>
+              <div class="toggle on" data-toggle></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 4 — Send actions -->
+        <div class="cfg-card send-card">
+          <div class="cfg-body">
+            <button class="btn btn-primary disabled send-btn" id="sendInvoiceMain"><i class="ti ti-send"></i>Send invoice</button>
+            <div class="send-hint">
+              <i class="ti ti-lock"></i>
+              Complete all required fields to send
+            </div>
+
+            <div class="send-divider"></div>
+
+            <button class="btn btn-secondary save-btn"><i class="ti ti-device-floppy"></i>Save as draft</button>
+            <button class="preview-link"><i class="ti ti-eye"></i>Preview PDF</button>
+
+            <div class="send-micro">Invoice number INV-0853 will be assigned on save</div>
+          </div>
+        </div>
+
+      </aside>
+
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // Entity radio selection — also updates document header + footer
+  const ENTITIES = {
+    maavelus: {
+      name: 'Maavelus Ltd',
+      addr: ['71-75 Shelton Street', 'Covent Garden, London WC2H 9JQ', 'United Kingdom'],
+      legal: 'Maavelus Ltd · Company No. 16198899 · VAT GB 412 5538 09'
+    },
+    konstrakt: {
+      name: 'Konstrakt Ltd',
+      addr: ['128 City Road', 'London EC1V 2NX', 'United Kingdom'],
+      legal: 'Konstrakt Ltd · Company No. 14829301 · VAT GB 398 4421 77'
+    }
+  };
+
+  function applyEntity(key) {
+    const e = ENTITIES[key];
+    if (!e) return;
+    // Header
+    const header = document.getElementById('entityHeader');
+    header.classList.add('filled');
+    header.querySelector('.label').textContent = e.name;
+    // Address
+    const addr = document.getElementById('docAddr');
+    addr.classList.remove('placeholder');
+    addr.innerHTML = e.addr.map(l => `<div class="line">${l}</div>`).join('');
+    // Legal footer
+    const legal = document.getElementById('docLegal');
+    legal.classList.remove('placeholder');
+    legal.textContent = e.legal;
+  }
+
+  document.querySelectorAll('.ent-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      document.querySelectorAll('.ent-opt').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      applyEntity(opt.dataset.entity);
+    });
+  });
+
+  // Initialize with default (Maavelus is pre-selected per spec — but spec also
+  // shows entity selector as unfilled placeholder. Keep header unfilled to
+  // match the "Select billing entity…" copy; entity card pre-selection is
+  // a soft default the user can confirm by acting.)
+
+  // Toggles
+  document.querySelectorAll('[data-toggle]').forEach(t => {
+    t.addEventListener('click', () => t.classList.toggle('on'));
+  });
+
+  // Customer search rows — visual selection only
+  document.querySelectorAll('.cust-row').forEach(r => {
+    r.addEventListener('click', () => {
+      // Just a soft hover effect; no state change needed for static mock
+    });
+  });
+
+  // Live amount recalc for line item
+  function recalc() {
+    const row = document.querySelector('.li-row.active');
+    if (!row) return;
+    const qty = parseFloat(row.querySelector('.li-qty input').value) || 0;
+    const price = parseFloat(row.querySelector('.li-price input').value) || 0;
+    const amt = qty * price;
+    row.querySelector('.li-amt').textContent = '£' + amt.toFixed(2);
+    // Update totals
+    document.querySelectorAll('.total-row .val').forEach((el, i) => {
+      if (i === 0) el.textContent = '£' + amt.toFixed(2);
+      if (i === 1) el.textContent = '£' + (amt * 0.2).toFixed(2);
+      if (i === 2) el.textContent = '£' + (amt * 1.2).toFixed(2);
+    });
+  }
+  document.querySelectorAll('.li-qty input, .li-price input').forEach(i =>
+    i.addEventListener('input', recalc));
+
+  // Prevent disabled send buttons from doing anything
+  document.querySelectorAll('.btn-primary.disabled').forEach(b => {
+    b.addEventListener('click', e => e.preventDefault());
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Powerhouse — The Aegean Kitchen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg-navy: #0F172A;
+    --accent: #F59E0B;
+    --content-bg: #F8FAFC;
+    --card-bg: #FFFFFF;
+    --border: #E2E8F0;
+    --border-soft: #EEF2F7;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+    --info: #3B82F6;
+    --teal: #0D9488;
+
+    --success-bg: #ECFDF5;
+    --danger-bg:  #FEF2F2;
+    --warning-bg: #FFFBEB;
+    --info-bg:    #EFF6FF;
+    --neutral-bg: #F1F5F9;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.05);
+    --shadow-md: 0 4px 12px -2px rgba(15,23,42,.08), 0 1px 3px rgba(15,23,42,.04);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 400 14px/1.5 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: #E5E9F0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ─── Shell ─────────────────────────────────────── */
+  .app {
+    width: 1440px;
+    margin: 0 auto;
+    background: var(--content-bg);
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 1100px;
+  }
+
+  /* ─── Sidebar (identical to Overview) ──────────── */
+  .sidebar {
+    background: var(--bg-navy);
+    color: #fff;
+    padding: 20px 14px 16px;
+    display: flex; flex-direction: column;
+    gap: 2px;
+    position: sticky; top: 0;
+    height: 100vh;
+    min-height: 1100px;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 10px 18px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    margin-bottom: 14px;
+  }
+  .brand-mark {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), #FBBF24);
+    display: grid; place-items: center;
+    color: var(--bg-navy);
+    font: 700 14px/1 'Inter', sans-serif;
+    box-shadow: 0 2px 6px rgba(245,158,11,.35);
+  }
+  .logo-name { font: 600 15px/1.1 'Inter', sans-serif; letter-spacing: -.01em; }
+  .logo-sub  { font: 500 10px/1 'Inter', sans-serif; color: rgba(255,255,255,.45); letter-spacing: .12em; text-transform: uppercase; margin-top: 3px; }
+
+  .nav-section {
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .14em;
+    color: rgba(255,255,255,.35);
+    padding: 14px 10px 6px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 11px;
+    padding: 8px 10px;
+    color: rgba(255,255,255,.7);
+    font: 500 13.5px/1.2 'Inter', sans-serif; letter-spacing: -.005em;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .nav-item .ti { font-size: 18px; }
+  .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .nav-item.active {
+    background: rgba(245,158,11,.14);
+    color: var(--accent);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+  .nav-item .count {
+    margin-left: auto;
+    font: 600 11px/1 'Inter', sans-serif;
+    background: rgba(255,255,255,.1);
+    color: rgba(255,255,255,.7);
+    padding: 3px 7px;
+    border-radius: 999px;
+  }
+  .nav-item.active .count { background: rgba(245,158,11,.22); color: var(--accent); }
+  .count.amber { background: rgba(245,158,11,.18); color: #FCD34D; }
+  .count.red   { background: rgba(239,68,68,.2);  color: #FCA5A5; }
+  .sidebar-spacer { flex: 1; }
+  .sidebar-user {
+    margin-top: 12px;
+    padding: 12px 10px;
+    border-top: 1px solid rgba(255,255,255,.08);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .avatar {
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: #fff;
+    font: 600 12px/1 'Inter', sans-serif; letter-spacing: -.01em;
+    flex-shrink: 0;
+  }
+  .av-1 { background: linear-gradient(135deg, #6366F1, #8B5CF6); }
+  .av-2 { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-3 { background: linear-gradient(135deg, #10B981, #059669); }
+  .av-5 { background: linear-gradient(135deg, #3B82F6, #06B6D4); }
+  .av-teal  { background: var(--teal); }
+  .av-navy  { background: linear-gradient(135deg, #0F172A, #334155); }
+  .av-amber { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-admin { background: linear-gradient(135deg, #1E293B, #475569); border: 1px solid rgba(245,158,11,.4); }
+  .sidebar-user .avatar { width: 32px; height: 32px; font-size: 11px; }
+  .sidebar-user .name { font: 500 13px/1.2 'Inter', sans-serif; color: #fff; letter-spacing: -.005em; }
+  .sidebar-user .role { font: 400 11px/1.2 'Inter', sans-serif; color: rgba(255,255,255,.45); margin-top: 2px; }
+  .sidebar-user .dots { margin-left: auto; color: rgba(255,255,255,.4); cursor: pointer; }
+
+  /* ─── Main ──────────────────────────────────────── */
+  .main { display: flex; flex-direction: column; min-width: 0; }
+
+  .topbar {
+    height: 64px;
+    border-bottom: 1px solid var(--border);
+    background: #fff;
+    padding: 0 24px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .breadcrumb {
+    display: flex; align-items: center; gap: 6px;
+    font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary);
+  }
+  .breadcrumb .sep { color: var(--text-tertiary); }
+  .breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+  .topbar-title { font: 600 20px/1.2 'Inter', sans-serif; letter-spacing: -.01em; margin-top: 2px; display:flex; align-items:center; gap: 10px; }
+  .topbar-title .pill-active {
+    font: 500 10px/1 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .12em;
+    color: #047857; background: var(--success-bg);
+    padding: 4px 8px; border-radius: 4px;
+    border: 1px solid #A7F3D0;
+  }
+  .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .topbar-search {
+    position: relative;
+    width: 260px;
+  }
+  .topbar-search input {
+    width: 100%; height: 36px;
+    border: 1px solid transparent;
+    background: var(--content-bg);
+    border-radius: var(--radius-md);
+    padding: 0 38px 0 34px;
+    font: 400 13px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: 0;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+  .topbar-search input::placeholder { color: var(--text-tertiary); }
+  .topbar-search input:focus {
+    background: #fff;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(245,158,11,.18);
+  }
+  .topbar-search .ti {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--text-tertiary); font-size: 18px;
+  }
+  .topbar-search .kbd {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    font: 500 10px/1 'JetBrains Mono', monospace;
+    color: var(--text-tertiary);
+    border: 1px solid var(--border);
+    background: #fff;
+    padding: 3px 5px;
+    border-radius: 4px;
+  }
+  .bell-btn {
+    position: relative;
+    width: 36px; height: 36px;
+    border-radius: var(--radius-md);
+    display: grid; place-items: center;
+    color: var(--text-secondary);
+    background: transparent; border: 0; cursor: pointer;
+    transition: background .12s;
+  }
+  .bell-btn:hover { background: var(--neutral-bg); }
+  .bell-btn .ti { font-size: 20px; }
+  .bell-btn::after {
+    content: ""; position: absolute;
+    top: 8px; right: 8px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--danger);
+    border: 2px solid #fff;
+  }
+  .divider-v { width: 1px; height: 28px; background: var(--border); }
+  .avatar-wrap {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 10px 4px 4px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .avatar-wrap:hover { background: var(--neutral-bg); }
+  .avatar-wrap .avatar { width: 30px; height: 30px; font-size: 11px; }
+  .avatar-wrap .name { font: 500 13px/1.2 'Inter', sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .avatar-wrap .role { font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+
+  /* ─── Buttons ───────────────────────────────────── */
+  .btn {
+    appearance: none; border: 0; cursor: pointer;
+    font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em;
+    padding: 0 14px; height: 34px;
+    border-radius: var(--radius-md);
+    display: inline-flex; align-items: center; gap: 7px;
+    transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
+    white-space: nowrap;
+  }
+  .btn .ti { font-size: 15px; }
+  .btn-primary   { background: var(--accent); color: var(--bg-navy); font-weight: 600; box-shadow: 0 1px 2px rgba(245,158,11,.3); }
+  .btn-primary:hover { background: #E08C09; }
+  .btn-secondary { background: #fff; color: var(--text-primary); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .btn-secondary:hover { background: var(--neutral-bg); border-color: #CBD5E1; }
+  .btn-ghost     { background: transparent; color: var(--text-primary); }
+  .btn-ghost:hover { background: var(--neutral-bg); }
+  .btn-sm { height: 28px; padding: 0 10px; font-size: 12px; border-radius: var(--radius-sm); }
+  .ghost-link {
+    background: transparent; border: 0; cursor: pointer;
+    color: var(--text-primary);
+    font: 500 12.5px/1 'Inter', sans-serif;
+    padding: 6px 8px;
+    border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 4px;
+    transition: background .12s, color .12s;
+    text-decoration: none;
+  }
+  .ghost-link:hover { background: var(--neutral-bg); color: var(--accent); }
+  .ghost-link .ti { font-size: 14px; }
+
+  /* ─── Badges ────────────────────────────────────── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font: 500 11.5px/1.4 'Inter', sans-serif; letter-spacing: -.005em;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge-active   { color: #047857; background: var(--success-bg); border-color: #A7F3D0; }
+  .badge-inactive { color: #475569; background: var(--neutral-bg); border-color: #E2E8F0; }
+  .badge-pending  { color: #B45309; background: var(--warning-bg); border-color: #FDE68A; }
+  .badge-overdue  { color: #B91C1C; background: var(--danger-bg); border-color: #FECACA; }
+  .badge-trial    { color: #1D4ED8; background: var(--info-bg); border-color: #BFDBFE; }
+  .badge-soon     { color: #64748B; background: var(--neutral-bg); border-color: #E2E8F0; }
+  .badge-soon::before { background: #94A3B8; }
+  .badge-info     { color: #1D4ED8; background: var(--info-bg); border-color: #BFDBFE; }
+  .badge-gold     { color: #B45309; background: rgba(245,158,11,.14); border-color: #FDE68A; }
+  .badge-neutral-icon {
+    color: #475569; background: var(--neutral-bg); border-color: #E2E8F0;
+    padding-left: 7px;
+  }
+  .badge-neutral-icon::before { display: none; }
+  .badge-neutral-icon .ti { font-size: 13px; color: var(--text-secondary); }
+
+  .badge-sm {
+    padding: 2px 7px;
+    font: 500 10.5px/1.4 'Inter', sans-serif;
+  }
+  .badge-sm::before { width: 5px; height: 5px; }
+
+  /* ─── Customer Header ───────────────────────────── */
+  .cust-header {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+    padding: 24px;
+    display: flex; align-items: center;
+    gap: 24px;
+    position: relative;
+    z-index: 1;
+  }
+  .ch-left { display: flex; align-items: center; gap: 18px; flex: 1; min-width: 0; }
+  .ch-avatar {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--teal);
+    color: #fff;
+    font: 700 20px/1 'Inter', sans-serif;
+    letter-spacing: -.01em;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(13,148,136,.3);
+  }
+  .ch-name { font: 700 22px/1.2 'Inter', sans-serif; letter-spacing: -.015em; }
+  .ch-type { font: 400 14px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 3px; }
+  .ch-badges { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .ch-right {
+    display: flex; align-items: center; gap: 40px;
+    padding-left: 28px;
+    border-left: 1px solid var(--border);
+  }
+  .ch-stat { text-align: left; }
+  .ch-stat .val { font: 700 22px/1.1 'Inter', sans-serif; letter-spacing: -.015em; font-variant-numeric: tabular-nums; }
+  .ch-stat .lbl { font: 500 11px/1.2 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary); margin-top: 5px; }
+  .ch-stat .sub { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary); margin-top: 3px; }
+
+  /* ─── Tabs ──────────────────────────────────────── */
+  .tabs {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .tab {
+    height: 44px;
+    padding: 0 14px;
+    display: inline-flex; align-items: center; gap: 8px;
+    font: 500 14px/1 'Inter', sans-serif; letter-spacing: -.005em;
+    color: var(--text-secondary);
+    cursor: pointer;
+    position: relative;
+    transition: color .12s;
+    text-decoration: none;
+  }
+  .tab:hover { color: var(--text-primary); }
+  .tab.active {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .tab.active::after {
+    content: "";
+    position: absolute;
+    left: 8px; right: 8px;
+    bottom: -1px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px 2px 0 0;
+  }
+  .tab .count {
+    font: 600 11px/1 'Inter', sans-serif;
+    background: var(--neutral-bg);
+    color: var(--text-secondary);
+    padding: 2px 6px;
+    border-radius: 999px;
+    min-width: 18px;
+    text-align: center;
+  }
+  .tab.active .count { background: rgba(245,158,11,.14); color: #B45309; }
+
+  /* ─── Content ───────────────────────────────────── */
+  .content {
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 63fr 37fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .col { display: flex; flex-direction: column; gap: 16px; }
+
+  /* ─── Card scaffolding ──────────────────────────── */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex; align-items: center; gap: 10px;
+    min-height: 52px;
+  }
+  .card-header .h-icon {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    background: var(--neutral-bg);
+    color: var(--text-secondary);
+    display: grid; place-items: center;
+    font-size: 16px;
+  }
+  .card-header .h-icon.gold { background: rgba(245,158,11,.12); color: #B45309; }
+  .card-header h3 { margin: 0; font: 600 15px/1.2 'Inter', sans-serif; letter-spacing: -.005em; }
+  .card-header .sub { font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+  .card-header .right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .h-badge {
+    font: 600 11px/1 'Inter', sans-serif;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: var(--neutral-bg);
+    color: var(--text-secondary);
+  }
+  .h-badge.amber { background: var(--warning-bg); color: #B45309; border: 1px solid #FDE68A; }
+  .h-badge.gold  { background: rgba(245,158,11,.14); color: #B45309; }
+
+  /* ─── Account details ───────────────────────────── */
+  .acc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .acc-cell {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-soft);
+    border-right: 1px solid var(--border-soft);
+  }
+  .acc-cell:nth-child(2n) { border-right: 0; }
+  .acc-row-last .acc-cell { border-bottom: 0; }
+  .acc-label {
+    font: 500 11px/1.2 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .12em;
+    color: var(--text-tertiary);
+  }
+  .acc-value {
+    font: 500 13.5px/1.4 'Inter', sans-serif;
+    color: var(--text-primary);
+    margin-top: 5px;
+    letter-spacing: -.005em;
+  }
+  .acc-value.muted { color: var(--text-tertiary); font-weight: 400; }
+  .acc-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .acc-link:hover { text-decoration: underline; }
+
+  /* Pipeline stages */
+  .pipeline {
+    display: flex; align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    font: 500 11.5px/1 'Inter', sans-serif;
+    color: var(--text-tertiary);
+  }
+  .pipeline .stg {
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .pipeline .stg .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border);
+  }
+  .pipeline .stg.done .dot { background: #CBD5E1; }
+  .pipeline .stg.active .dot {
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(245,158,11,.18);
+  }
+  .pipeline .stg.active { color: var(--text-primary); font-weight: 600; }
+  .pipeline .line {
+    flex: 0 0 16px;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ─── Products list ─────────────────────────────── */
+  .prod-row {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .prod-row:last-child { border-bottom: 0; }
+  .prod-logo {
+    width: 36px; height: 36px;
+    border-radius: 9px;
+    display: grid; place-items: center;
+    color: #fff;
+    font: 700 14px/1 'Inter', sans-serif;
+  }
+  .prod-logo.teal { background: var(--teal); }
+  .prod-logo.blue { background: linear-gradient(135deg, #3B82F6, #06B6D4); }
+  .prod-meta .pname { font: 600 14px/1.3 'Inter', sans-serif; letter-spacing: -.005em; }
+  .prod-meta .pname .role { font-weight: 400; color: var(--text-secondary); margin-left: 4px; }
+  .prod-meta .pdesc { font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+  .prod-actions { display: flex; align-items: center; gap: 8px; }
+
+  .sso-line {
+    padding: 11px 18px;
+    border-top: 1px solid var(--border-soft);
+    font: 400 12px/1.3 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    display: flex; align-items: center; gap: 8px;
+    background: #FBFCFE;
+  }
+  .sso-line .ti { font-size: 14px; }
+  .sso-line .ok { color: var(--success); margin-left: 4px; font-weight: 500; }
+
+  /* ─── Invoices list ─────────────────────────────── */
+  .inv-row {
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .inv-row:last-child { border-bottom: 0; }
+  .inv-ic {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 16px;
+  }
+  .inv-ic.green { background: var(--success-bg); color: var(--success); }
+  .inv-ic.amber { background: var(--warning-bg); color: var(--warning); }
+  .inv-meta .num { font: 600 13.5px/1.3 'Inter', sans-serif; letter-spacing: -.005em; font-variant-numeric: tabular-nums; }
+  .inv-meta .num .draft { font: 600 10.5px/1 'Inter', sans-serif; letter-spacing: .12em; color: var(--warning); margin-left: 6px; }
+  .inv-meta .sub { font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+  .inv-right { display: flex; align-items: center; gap: 12px; }
+  .inv-amt { font: 600 14px/1 'Inter', sans-serif; font-variant-numeric: tabular-nums; min-width: 64px; text-align: right; }
+
+  /* ─── Notes ─────────────────────────────────────── */
+  .note-pills {
+    display: flex; align-items: center; gap: 4px;
+    padding: 10px 18px 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .note-pill {
+    padding: 6px 10px 10px;
+    font: 500 12.5px/1 'Inter', sans-serif;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    position: relative; top: 1px;
+    transition: color .12s, border-color .12s;
+  }
+  .note-pill:hover { color: var(--text-primary); }
+  .note-pill.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+  .note-row {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border-soft);
+    border-left: 3px solid var(--border-soft);
+    background: #FBFCFE;
+    margin: 0;
+  }
+  .note-row:last-of-type { border-bottom: 1px solid var(--border-soft); }
+  .note-row.info { border-left-color: var(--info); background: #F7FAFE; }
+  .note-row.neutral { border-left-color: #CBD5E1; }
+  .note-head {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px;
+  }
+  .note-head .avatar { width: 28px; height: 28px; font-size: 10px; }
+  .note-head .who { font: 600 13px/1.3 'Inter', sans-serif; letter-spacing: -.005em; }
+  .note-head .meta { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-tertiary); }
+  .note-head .sep { color: var(--text-tertiary); }
+  .note-body {
+    font: 400 13px/1.55 'Inter', sans-serif;
+    color: var(--text-primary);
+    text-wrap: pretty;
+  }
+  .note-foot {
+    padding: 12px 18px;
+    background: #FBFCFE;
+    border-top: 1px solid var(--border-soft);
+    display: flex; justify-content: flex-end;
+  }
+
+  /* ─── Contacts ──────────────────────────────────── */
+  .contact-row {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border-soft);
+    position: relative;
+  }
+  .contact-row:last-child { border-bottom: 0; }
+  .contact-top { display: flex; align-items: center; gap: 12px; }
+  .contact-top .avatar { width: 36px; height: 36px; font-size: 12px; }
+  .contact-name { font: 600 14px/1.3 'Inter', sans-serif; letter-spacing: -.005em; }
+  .contact-role { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+  .contact-primary-pill {
+    position: absolute;
+    top: 14px; right: 16px;
+    font: 600 10px/1 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .12em;
+    color: #B45309;
+    background: rgba(245,158,11,.14);
+    padding: 4px 7px;
+    border-radius: 4px;
+  }
+  .contact-fields {
+    margin-top: 12px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .contact-field {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px;
+    margin: 0 -8px;
+    border-radius: 6px;
+    transition: background .12s;
+    font: 400 13px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+  }
+  .contact-field:hover { background: var(--neutral-bg); }
+  .contact-field .ti { font-size: 16px; color: var(--text-tertiary); }
+  .contact-field .copy {
+    margin-left: auto;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .12s, color .12s;
+  }
+  .contact-field:hover .copy { opacity: 1; }
+  .contact-field .copy:hover { color: var(--accent); }
+
+  /* ─── Tasks (same as Overview) ──────────────────── */
+  .task-row {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 18px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .task-row:last-child { border-bottom: 0; }
+  .task-row:hover { background: #FBFCFE; }
+  .cb {
+    width: 16px; height: 16px;
+    border: 1.5px solid #CBD5E1;
+    border-radius: var(--radius-sm);
+    background: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color .12s, background .12s;
+  }
+  .cb:hover { border-color: var(--accent); }
+  .cb.checked {
+    background: var(--accent); border-color: var(--accent);
+    display: grid; place-items: center;
+  }
+  .cb.checked::after {
+    content: ""; width: 8px; height: 4px;
+    border: 2px solid var(--bg-navy);
+    border-top: 0; border-right: 0;
+    transform: rotate(-45deg) translate(1px, -1px);
+  }
+  .task-text { font: 400 13px/1.4 'Inter', sans-serif; }
+  .task-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+  .pill {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--neutral-bg);
+    color: var(--text-secondary);
+    font: 500 11px/1.4 'Inter', sans-serif; letter-spacing: -.005em;
+  }
+  .due { font: 500 11.5px/1 'Inter', sans-serif; font-variant-numeric: tabular-nums; }
+  .due.red   { color: var(--danger); }
+  .due.amber { color: #B45309; }
+  .due.muted { color: var(--text-secondary); }
+
+  /* ─── Referral card ─────────────────────────────── */
+  .ref-block {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .ref-block .avatar { width: 36px; height: 36px; font-size: 12px; }
+  .ref-name { font: 600 14px/1.3 'Inter', sans-serif; letter-spacing: -.005em; }
+  .ref-sub  { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 2px; }
+
+  .meta-pair {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px;
+  }
+  .meta-pair:last-of-type { border-bottom: 0; }
+  .meta-pair .k {
+    font: 500 11px/1.2 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .12em;
+    color: var(--text-tertiary);
+  }
+  .meta-pair .k .sub { display: block; font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary); text-transform: none; letter-spacing: 0; margin-top: 5px; }
+  .meta-pair .v { display: flex; align-items: center; gap: 10px; font: 600 14px/1 'Inter', sans-serif; font-variant-numeric: tabular-nums; }
+  .meta-pair .v.plain { font-weight: 500; font-size: 13px; color: var(--text-secondary); }
+
+  /* ─── Domains ───────────────────────────────────── */
+  .dom-row {
+    display: grid;
+    grid-template-columns: 22px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .dom-row:last-of-type { border-bottom: 1px solid var(--border-soft); }
+  .dom-row .ti.world { color: var(--text-secondary); font-size: 18px; }
+  .dom-name { font: 600 13.5px/1.3 'Inter', sans-serif; letter-spacing: -.005em; }
+  .dom-sub  { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+  .dom-tags { display: flex; align-items: center; gap: 6px; }
+  .tiny-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font: 600 10.5px/1.4 'Inter', sans-serif;
+    border: 1px solid;
+  }
+  .tiny-badge.ssl { color: #047857; background: var(--success-bg); border-color: #A7F3D0; }
+  .tiny-badge.act { color: #047857; background: var(--success-bg); border-color: #A7F3D0; }
+
+  .add-line {
+    padding: 12px 18px;
+    background: #FBFCFE;
+    display: flex; justify-content: flex-end;
+  }
+
+  /* ─── Footer ────────────────────────────────────── */
+  .footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 24px 24px;
+    color: var(--text-tertiary);
+    font: 400 12px/1.4 'Inter', sans-serif;
+  }
+  .footer strong { color: var(--text-secondary); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="app" data-screen-label="02 Customer · The Aegean Kitchen">
+
+  <!-- ─── Sidebar (identical to Overview) ─── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="brand-mark">W</div>
+      <div>
+        <div class="logo-name">Powerhouse</div>
+        <div class="logo-sub">Whitedash</div>
+      </div>
+    </div>
+
+    <div class="nav-section">Workspace</div>
+    <div class="nav-item"><i class="ti ti-layout-dashboard"></i>Overview</div>
+    <div class="nav-item active"><i class="ti ti-users"></i>Customers<span class="count">847</span></div>
+    <div class="nav-item"><i class="ti ti-receipt"></i>Invoices<span class="count amber">7</span></div>
+    <div class="nav-item"><i class="ti ti-credit-card"></i>Subscriptions</div>
+    <div class="nav-item"><i class="ti ti-chart-line"></i>Analytics</div>
+
+    <div class="nav-section">Products</div>
+    <div class="nav-item"><i class="ti ti-tools-kitchen-2"></i>Maavelus</div>
+    <div class="nav-item"><i class="ti ti-clipboard-list"></i>MyOrderPad</div>
+    <div class="nav-item"><i class="ti ti-building-store"></i>Whitedash B2B</div>
+    <div class="nav-item"><i class="ti ti-message-2"></i>SMScube</div>
+
+    <div class="nav-section">Account</div>
+    <div class="nav-item"><i class="ti ti-headset"></i>Support<span class="count red">3</span></div>
+    <div class="nav-item"><i class="ti ti-settings"></i>Settings</div>
+    <div class="nav-item"><i class="ti ti-help-circle"></i>Help &amp; docs</div>
+
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-user">
+      <div class="avatar av-admin">AP</div>
+      <div>
+        <div class="name">Apostolos P.</div>
+        <div class="role">Super Admin</div>
+      </div>
+      <i class="ti ti-dots dots"></i>
+    </div>
+  </aside>
+
+  <!-- ─── Main ─── -->
+  <main class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div>
+        <div class="breadcrumb">
+          <span>Powerhouse</span><span class="sep">/</span>
+          <span>Customers</span><span class="sep">/</span>
+          <span class="current">The Aegean Kitchen</span>
+        </div>
+        <div class="topbar-title">
+          The Aegean Kitchen
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="btn btn-secondary"><i class="ti ti-pencil"></i>Edit customer</button>
+        <button class="btn btn-primary"><i class="ti ti-receipt"></i>New invoice</button>
+
+        <div class="divider-v"></div>
+
+        <div class="topbar-search">
+          <i class="ti ti-search"></i>
+          <input placeholder="Search customers, invoices…">
+          <span class="kbd">⌘K</span>
+        </div>
+        <button class="bell-btn" aria-label="Notifications"><i class="ti ti-bell"></i></button>
+        <div class="divider-v"></div>
+        <div class="avatar-wrap">
+          <div class="avatar av-admin">AP</div>
+          <div>
+            <div class="name">Apostolos P.</div>
+            <div class="role">Super Admin</div>
+          </div>
+          <i class="ti ti-chevron-down" style="color: var(--text-tertiary); font-size: 16px;"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Customer header -->
+    <div class="cust-header">
+      <div class="ch-left">
+        <div class="ch-avatar">AK</div>
+        <div>
+          <div class="ch-name">The Aegean Kitchen</div>
+          <div class="ch-type">Independent Restaurant · London, UK</div>
+          <div class="ch-badges">
+            <span class="badge badge-active">Maavelus Pro</span>
+            <span class="badge badge-active">MyOrderPad Pro</span>
+            <span class="badge badge-active">Active</span>
+            <span class="badge badge-neutral-icon"><i class="ti ti-users"></i>Referred by Christos Panagiotis</span>
+          </div>
+        </div>
+      </div>
+      <div class="ch-right">
+        <div class="ch-stat">
+          <div class="val">£897</div>
+          <div class="lbl">Total spend</div>
+          <div class="sub">since joining</div>
+        </div>
+        <div class="ch-stat">
+          <div class="val">£69<span style="font:600 14px/1 'Inter'; color: var(--text-secondary); margin-left:2px;">/mo</span></div>
+          <div class="lbl">Monthly value</div>
+          <div class="sub">MRR</div>
+        </div>
+        <div class="ch-stat">
+          <div class="val">0</div>
+          <div class="lbl">Open invoices</div>
+          <div class="sub">all paid</div>
+        </div>
+        <div class="ch-stat">
+          <div class="val">1</div>
+          <div class="lbl">Support tickets</div>
+          <div class="sub">open</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <nav class="tabs">
+      <a href="#" class="tab active">Overview</a>
+      <a href="#" class="tab">Invoices<span class="count">3</span></a>
+      <a href="#" class="tab">Products<span class="count">2</span></a>
+      <a href="#" class="tab">Contracts<span class="count">1</span></a>
+      <a href="#" class="tab">Support<span class="count">1</span></a>
+      <a href="#" class="tab">Activity</a>
+      <a href="#" class="tab">Notes<span class="count">4</span></a>
+    </nav>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- LEFT -->
+      <div class="col">
+
+        <!-- Card 1 · Account details -->
+        <div class="card">
+          <div class="card-header">
+            <div class="h-icon"><i class="ti ti-building"></i></div>
+            <div>
+              <h3>Account details</h3>
+              <div class="sub">Verified · Companies House synced 2h ago</div>
+            </div>
+            <div class="right"><a href="#" class="ghost-link">Edit<i class="ti ti-arrow-right"></i></a></div>
+          </div>
+
+          <div class="acc-grid">
+            <div class="acc-cell">
+              <div class="acc-label">Company name</div>
+              <div class="acc-value">The Aegean Kitchen Ltd</div>
+            </div>
+            <div class="acc-cell">
+              <div class="acc-label">Company no.</div>
+              <div class="acc-value" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500;">14829301</div>
+            </div>
+            <div class="acc-cell">
+              <div class="acc-label">VAT number</div>
+              <div class="acc-value" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500;">GB 398 4421 77</div>
+            </div>
+            <div class="acc-cell">
+              <div class="acc-label">Industry</div>
+              <div class="acc-value">Independent Restaurant</div>
+            </div>
+            <div class="acc-cell">
+              <div class="acc-label">Primary address</div>
+              <div class="acc-value">14 Lamb's Conduit St<br>London WC1N 3LZ</div>
+            </div>
+            <div class="acc-cell">
+              <div class="acc-label">Billing address</div>
+              <div class="acc-value muted">Same as primary</div>
+            </div>
+            <div class="acc-cell">
+              <div class="acc-label">Account owner</div>
+              <div class="acc-value" style="display:flex; align-items:center; gap: 8px;">
+                <span class="avatar av-teal" style="width: 22px; height: 22px; font-size: 9px;">SP</span>
+                Sofia Papadaki <span style="font-weight: 400; color: var(--text-secondary);">· Whitedash Staff</span>
+              </div>
+            </div>
+            <div class="acc-cell">
+              <div class="acc-label">Pipeline stage</div>
+              <div class="acc-value" style="display:flex; flex-direction: column; gap: 0;">
+                <span><span class="badge badge-active">Active</span></span>
+                <div class="pipeline">
+                  <span class="stg done"><span class="dot"></span>Lead</span>
+                  <span class="line"></span>
+                  <span class="stg done"><span class="dot"></span>Prospect</span>
+                  <span class="line"></span>
+                  <span class="stg active"><span class="dot"></span>Active</span>
+                  <span class="line"></span>
+                  <span class="stg"><span class="dot"></span>Churned</span>
+                </div>
+              </div>
+            </div>
+            <div class="acc-cell acc-row-last">
+              <div class="acc-label">Customer since</div>
+              <div class="acc-value">27 May 2026 <span style="font-weight: 400; color: var(--text-tertiary);">· 14 minutes ago</span></div>
+            </div>
+            <div class="acc-cell acc-row-last">
+              <div class="acc-label">Referred by</div>
+              <div class="acc-value" style="display:flex; align-items:center; gap: 8px;">
+                <span class="avatar av-amber" style="width: 22px; height: 22px; font-size: 9px;">CP</span>
+                <a href="#" class="acc-link">Christos Panagiotis</a>
+              </div>
+            </div>
+            <div class="acc-cell acc-row-last" style="grid-column: 1 / -1; border-right: 0;">
+              <div class="acc-label">Group account</div>
+              <div class="acc-value muted" style="display:flex; align-items:center; gap: 12px;">
+                None assigned
+                <a href="#" class="acc-link" style="font-size: 13px;">Add to group<i class="ti ti-arrow-right" style="font-size: 14px;"></i></a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2 · Active products -->
+        <div class="card">
+          <div class="card-header">
+            <div class="h-icon gold"><i class="ti ti-layout-grid"></i></div>
+            <div>
+              <h3>Products</h3>
+              <div class="sub">2 active · combined £69 MRR</div>
+            </div>
+            <div class="right"><button class="btn btn-ghost btn-sm"><i class="ti ti-plus"></i>Enable product</button></div>
+          </div>
+
+          <div class="prod-row">
+            <div class="prod-logo teal">M</div>
+            <div class="prod-meta">
+              <div class="pname">Maavelus<span class="role">· Restaurant SaaS</span></div>
+              <div class="pdesc">Pro plan · £29/mo · renews 27 Jun 2026</div>
+            </div>
+            <div class="prod-actions">
+              <span class="badge badge-active">Active</span>
+              <a href="#" class="ghost-link">Open<i class="ti ti-external-link"></i></a>
+            </div>
+          </div>
+
+          <div class="prod-row">
+            <div class="prod-logo blue">O</div>
+            <div class="prod-meta">
+              <div class="pname">MyOrderPad<span class="role">· Hospitality procurement</span></div>
+              <div class="pdesc">Pro plan · £40/mo · renews 27 Jun 2026</div>
+            </div>
+            <div class="prod-actions">
+              <span class="badge badge-active">Active</span>
+              <a href="#" class="ghost-link">Open<i class="ti ti-external-link"></i></a>
+            </div>
+          </div>
+
+          <div class="sso-line">
+            <i class="ti ti-link"></i>
+            SSO access: <span style="color: var(--text-secondary); font-weight: 500;">account.whitedash.co.uk</span> → <span class="ok">active</span>
+          </div>
+        </div>
+
+        <!-- Card 3 · Recent invoices -->
+        <div class="card">
+          <div class="card-header">
+            <div class="h-icon"><i class="ti ti-receipt"></i></div>
+            <div>
+              <h3>Invoices</h3>
+              <div class="sub">3 recent · £509 paid this month</div>
+            </div>
+            <div class="right"><a href="#" class="ghost-link">View all<i class="ti ti-arrow-right"></i></a></div>
+          </div>
+
+          <div class="inv-row">
+            <div class="inv-ic green"><i class="ti ti-receipt"></i></div>
+            <div class="inv-meta">
+              <div class="num">INV-0847</div>
+              <div class="sub">Maavelus Ltd · Pro plan · May 2026</div>
+            </div>
+            <div class="inv-right">
+              <div class="inv-amt">£29.00</div>
+              <span class="badge badge-active">Paid</span>
+              <a href="#" class="ghost-link"><i class="ti ti-download"></i>Download</a>
+            </div>
+          </div>
+
+          <div class="inv-row">
+            <div class="inv-ic green"><i class="ti ti-receipt"></i></div>
+            <div class="inv-meta">
+              <div class="num">INV-0831</div>
+              <div class="sub">Konstrakt Ltd · Onboarding setup</div>
+            </div>
+            <div class="inv-right">
+              <div class="inv-amt">£480.00</div>
+              <span class="badge badge-active">Paid</span>
+              <a href="#" class="ghost-link"><i class="ti ti-download"></i>Download</a>
+            </div>
+          </div>
+
+          <div class="inv-row">
+            <div class="inv-ic amber"><i class="ti ti-receipt"></i></div>
+            <div class="inv-meta">
+              <div class="num">INV-0852<span class="draft">— DRAFT</span></div>
+              <div class="sub">Maavelus Ltd · Pro plan · Jun 2026</div>
+            </div>
+            <div class="inv-right">
+              <div class="inv-amt">£29.00</div>
+              <span class="badge badge-inactive">Draft</span>
+              <button class="btn btn-primary btn-sm"><i class="ti ti-send"></i>Send invoice</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 4 · Notes -->
+        <div class="card">
+          <div class="card-header">
+            <div class="h-icon"><i class="ti ti-notes"></i></div>
+            <div>
+              <h3>Notes</h3>
+              <div class="sub">4 notes · most recent 14m ago</div>
+            </div>
+            <div class="right">
+              <span class="h-badge gold">4</span>
+              <button class="btn btn-ghost btn-sm"><i class="ti ti-plus"></i>Add note</button>
+            </div>
+          </div>
+
+          <div class="note-pills">
+            <span class="note-pill active">All</span>
+            <span class="note-pill">Internal</span>
+            <span class="note-pill">Call</span>
+            <span class="note-pill">Meeting</span>
+            <span class="note-pill">Email</span>
+          </div>
+
+          <div class="note-row neutral">
+            <div class="note-head">
+              <span class="avatar av-teal">SP</span>
+              <span class="who">Sofia Papadaki</span>
+              <span class="sep">·</span>
+              <span class="meta">Internal note · 14 minutes ago</span>
+            </div>
+            <div class="note-body">New customer onboarded via referral from Christos. Owner is Panos Alexiou, very tech-savvy, no hand-holding needed. Start onboarding sequence immediately.</div>
+          </div>
+
+          <div class="note-row info">
+            <div class="note-head">
+              <span class="avatar av-navy">AP</span>
+              <span class="who">Apostolos P.</span>
+              <span class="sep">·</span>
+              <span class="meta">Call · 3 days ago · 12 minutes</span>
+            </div>
+            <div class="note-body">Discussed Maavelus Pro features. Customer interested in MyOrderPad for their Brindisa supplier. Upgrade likely within 30 days.</div>
+          </div>
+
+          <div class="note-row neutral">
+            <div class="note-head">
+              <span class="avatar av-amber">CP</span>
+              <span class="who">Christos Panagiotis</span>
+              <span class="sep">·</span>
+              <span class="meta">Email · 5 days ago</span>
+            </div>
+            <div class="note-body">Warm introduction sent. Panos has been running the kitchen for 4 years, good understanding of tech tools.</div>
+          </div>
+
+          <div class="note-foot">
+            <a href="#" class="ghost-link">Show 1 more note<i class="ti ti-arrow-right"></i></a>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT -->
+      <div class="col">
+
+        <!-- A · Contacts -->
+        <div class="card">
+          <div class="card-header">
+            <div class="h-icon"><i class="ti ti-address-book"></i></div>
+            <div>
+              <h3>Contacts</h3>
+              <div class="sub">2 people on file</div>
+            </div>
+            <div class="right"><a href="#" class="ghost-link"><i class="ti ti-plus"></i>Add contact</a></div>
+          </div>
+
+          <div class="contact-row">
+            <span class="contact-primary-pill">Primary</span>
+            <div class="contact-top">
+              <div class="avatar av-navy">PA</div>
+              <div>
+                <div class="contact-name">Panos Alexiou</div>
+                <div class="contact-role">Owner · Primary contact</div>
+              </div>
+            </div>
+            <div class="contact-fields">
+              <div class="contact-field">
+                <i class="ti ti-mail"></i>panos@aegeankitchen.co.uk
+                <i class="ti ti-copy copy"></i>
+              </div>
+              <div class="contact-field">
+                <i class="ti ti-phone"></i>+44 7712 334 891
+                <i class="ti ti-copy copy"></i>
+              </div>
+            </div>
+          </div>
+
+          <div class="contact-row">
+            <div class="contact-top">
+              <div class="avatar av-teal">MK</div>
+              <div>
+                <div class="contact-name">Maria Konstantinou</div>
+                <div class="contact-role">Operations Manager</div>
+              </div>
+            </div>
+            <div class="contact-fields">
+              <div class="contact-field">
+                <i class="ti ti-mail"></i>maria@aegeankitchen.co.uk
+                <i class="ti ti-copy copy"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- B · Tasks -->
+        <div class="card">
+          <div class="card-header">
+            <div class="h-icon"><i class="ti ti-checkbox"></i></div>
+            <div>
+              <h3>Tasks</h3>
+              <div class="sub">Tied to this customer</div>
+            </div>
+            <div class="right">
+              <span class="h-badge amber">2 open</span>
+              <a href="#" class="ghost-link"><i class="ti ti-plus"></i>Add</a>
+            </div>
+          </div>
+
+          <div class="task-row">
+            <span class="cb" data-cb></span>
+            <div>
+              <div class="task-text">Send onboarding sequence</div>
+              <div class="task-meta">
+                <span class="pill" style="color: var(--text-tertiary);">no tag</span>
+              </div>
+            </div>
+            <div class="due red">Due today</div>
+          </div>
+
+          <div class="task-row">
+            <span class="cb" data-cb></span>
+            <div>
+              <div class="task-text">Check Maavelus setup complete</div>
+              <div class="task-meta">
+                <span class="pill">Aegean Kitchen</span>
+              </div>
+            </div>
+            <div class="due muted">2 Jun</div>
+          </div>
+        </div>
+
+        <!-- C · Referral -->
+        <div class="card">
+          <div class="card-header">
+            <div class="h-icon"><i class="ti ti-users-group"></i></div>
+            <div>
+              <h3>Referral</h3>
+              <div class="sub">Commission tracking</div>
+            </div>
+          </div>
+
+          <div class="ref-block">
+            <div class="avatar av-amber">CP</div>
+            <div>
+              <div class="ref-name">Christos Panagiotis</div>
+              <div class="ref-sub">Referred 27 May 2026</div>
+            </div>
+          </div>
+
+          <div class="meta-pair">
+            <div class="k">Commission model<span class="sub">Maavelus hybrid</span></div>
+          </div>
+
+          <div class="meta-pair">
+            <div class="k">Onboarding commission</div>
+            <div class="v">£50.00 <span class="badge badge-pending">Pending approval</span></div>
+          </div>
+
+          <div class="meta-pair">
+            <div class="k">Ongoing<span class="sub">5% of MRR · £3.45/mo from Jun 2026</span></div>
+          </div>
+
+          <div class="note-foot">
+            <a href="#" class="ghost-link">View referrer<i class="ti ti-arrow-right"></i></a>
+          </div>
+        </div>
+
+        <!-- D · Domains -->
+        <div class="card">
+          <div class="card-header">
+            <div class="h-icon"><i class="ti ti-world"></i></div>
+            <div>
+              <h3>Domains</h3>
+              <div class="sub">2 domains · both Cloudflare</div>
+            </div>
+            <div class="right"><a href="#" class="ghost-link">Manage DNS<i class="ti ti-arrow-right"></i></a></div>
+          </div>
+
+          <div class="dom-row">
+            <i class="ti ti-world world"></i>
+            <div>
+              <div class="dom-name">aegeankitchen.co.uk</div>
+              <div class="dom-sub">Cloudflare · expires 14 Aug 2027</div>
+            </div>
+            <div class="dom-tags">
+              <span class="tiny-badge ssl"><i class="ti ti-check" style="font-size:11px;"></i>SSL</span>
+              <span class="tiny-badge act">Active</span>
+            </div>
+          </div>
+
+          <div class="dom-row">
+            <i class="ti ti-world world"></i>
+            <div>
+              <div class="dom-name">aegeankitchen.com</div>
+              <div class="dom-sub">Cloudflare · expires 14 Aug 2027</div>
+            </div>
+            <div class="dom-tags">
+              <span class="tiny-badge ssl"><i class="ti ti-check" style="font-size:11px;"></i>SSL</span>
+              <span class="tiny-badge act">Active</span>
+            </div>
+          </div>
+
+          <div class="add-line">
+            <a href="#" class="ghost-link"><i class="ti ti-plus"></i>Add domain</a>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="footer">
+      <div>Powerhouse v3.2.0 · Whitedash</div>
+      <div>Data refreshed <strong>2 minutes ago</strong> · auto-syncs every 5 min</div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('[data-cb]').forEach(cb => {
+    cb.addEventListener('click', () => cb.classList.toggle('checked'));
+  });
+
+  // Tab switching (visual only)
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', e => {
+      e.preventDefault();
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+    });
+  });
+
+  // Note pill switching
+  document.querySelectorAll('.note-pill').forEach(p => {
+    p.addEventListener('click', () => {
+      document.querySelectorAll('.note-pill').forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>

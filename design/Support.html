@@ -1,0 +1,1112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Powerhouse — Support</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg-navy: #0F172A;
+    --accent: #F59E0B;
+    --content-bg: #F8FAFC;
+    --card-bg: #FFFFFF;
+    --border: #E2E8F0;
+    --border-soft: #EEF2F7;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+    --info: #3B82F6;
+    --teal: #0D9488;
+    --purple: #7C3AED;
+    --indigo: #6366F1;
+
+    --success-bg: #ECFDF5;
+    --danger-bg:  #FEF2F2;
+    --warning-bg: #FFFBEB;
+    --info-bg:    #EFF6FF;
+    --neutral-bg: #F1F5F9;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.05);
+    --shadow-md: 0 4px 12px -2px rgba(15,23,42,.08), 0 1px 3px rgba(15,23,42,.04);
+    --shadow-lg: 0 24px 48px -12px rgba(15,23,42,.18), 0 2px 4px rgba(15,23,42,.04);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 400 14px/1.5 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: #E5E9F0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ─── Shell ─── */
+  .app {
+    width: 1440px;
+    margin: 0 auto;
+    background: var(--content-bg);
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 1100px;
+    height: 1100px;
+  }
+
+  /* ─── Sidebar ─── */
+  .sidebar { background: var(--bg-navy); color: #fff; padding: 20px 14px 16px; display: flex; flex-direction: column; gap: 2px; }
+  .logo { display: flex; align-items: center; gap: 10px; padding: 6px 10px 18px; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 14px; }
+  .brand-mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--accent), #FBBF24); display: grid; place-items: center; color: var(--bg-navy); font: 700 14px/1 'Inter', sans-serif; box-shadow: 0 2px 6px rgba(245,158,11,.35); }
+  .logo-name { font: 600 15px/1.1 'Inter', sans-serif; letter-spacing: -.01em; }
+  .logo-sub  { font: 500 10px/1 'Inter', sans-serif; color: rgba(255,255,255,.45); letter-spacing: .12em; text-transform: uppercase; margin-top: 3px; }
+  .nav-section { font: 500 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .14em; color: rgba(255,255,255,.35); padding: 14px 10px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 11px; padding: 8px 10px; color: rgba(255,255,255,.7); font: 500 13.5px/1.2 'Inter', sans-serif; letter-spacing: -.005em; border-radius: var(--radius-md); cursor: pointer; transition: background .12s, color .12s; }
+  .nav-item .ti { font-size: 18px; }
+  .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .nav-item.active { background: rgba(245,158,11,.14); color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+  .nav-item .count { margin-left: auto; font: 600 11px/1 'Inter', sans-serif; background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); padding: 3px 7px; border-radius: 999px; }
+  .nav-item.active .count { background: rgba(239,68,68,.2); color: #FCA5A5; }
+  .count.amber { background: rgba(245,158,11,.18); color: #FCD34D; }
+  .count.red   { background: rgba(239,68,68,.2);  color: #FCA5A5; }
+  .sidebar-spacer { flex: 1; }
+  .sidebar-user { margin-top: 12px; padding: 12px 10px; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; gap: 10px; }
+  .avatar { border-radius: 50%; display: grid; place-items: center; color: #fff; font: 600 12px/1 'Inter', sans-serif; letter-spacing: -.01em; flex-shrink: 0; }
+  .av-1 { background: linear-gradient(135deg, #6366F1, #8B5CF6); }
+  .av-2 { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-3 { background: linear-gradient(135deg, #10B981, #059669); }
+  .av-5 { background: linear-gradient(135deg, #3B82F6, #06B6D4); }
+  .av-teal  { background: var(--teal); }
+  .av-amber { background: linear-gradient(135deg, #F59E0B, #F97316); }
+  .av-navy  { background: linear-gradient(135deg, #0F172A, #334155); }
+  .av-admin { background: linear-gradient(135deg, #1E293B, #475569); border: 1px solid rgba(245,158,11,.4); }
+  .sidebar-user .avatar { width: 32px; height: 32px; font-size: 11px; }
+  .sidebar-user .name { font: 500 13px/1.2 'Inter', sans-serif; color: #fff; letter-spacing: -.005em; }
+  .sidebar-user .role { font: 400 11px/1.2 'Inter', sans-serif; color: rgba(255,255,255,.45); margin-top: 2px; }
+  .sidebar-user .dots { margin-left: auto; color: rgba(255,255,255,.4); cursor: pointer; }
+
+  /* ─── Topbar ─── */
+  .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .topbar { height: 64px; border-bottom: 1px solid var(--border); background: #fff; padding: 0 24px; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); }
+  .breadcrumb .sep { color: var(--text-tertiary); }
+  .breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+  .topbar-title { font: 600 20px/1.2 'Inter', sans-serif; letter-spacing: -.01em; margin-top: 2px; }
+  .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .divider-v { width: 1px; height: 28px; background: var(--border); }
+
+  /* View toggle (All tickets / Mine / Unassigned) */
+  .view-toggle { display: inline-flex; gap: 4px; background: var(--neutral-bg); border-radius: var(--radius-md); padding: 3px; }
+  .vt-btn {
+    height: 28px; padding: 0 12px;
+    border: 0; background: transparent;
+    border-radius: var(--radius-sm);
+    font: 500 12.5px/1 'Inter', sans-serif;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: background .12s, color .12s, box-shadow .12s;
+  }
+  .vt-btn:hover:not(.active) { color: var(--text-primary); }
+  .vt-btn.active { background: var(--bg-navy); color: #fff; box-shadow: var(--shadow-sm); }
+  .vt-btn .ct {
+    font: 600 10.5px/1 'Inter',sans-serif;
+    padding: 2px 5px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.16);
+    color: inherit;
+  }
+  .vt-btn:not(.active) .ct { background: var(--border); color: var(--text-secondary); }
+
+  /* Buttons */
+  .btn { appearance: none; border: 0; cursor: pointer; font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em; padding: 0 14px; height: 34px; border-radius: var(--radius-md); display: inline-flex; align-items: center; gap: 7px; transition: background .15s, border-color .15s, color .15s, box-shadow .15s; white-space: nowrap; }
+  .btn .ti { font-size: 15px; }
+  .btn-primary { background: var(--accent); color: var(--bg-navy); font-weight: 600; box-shadow: 0 1px 2px rgba(245,158,11,.3); }
+  .btn-primary:hover { background: #E08C09; }
+  .btn-secondary { background: #fff; color: var(--text-primary); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .btn-secondary:hover { background: var(--neutral-bg); border-color: #CBD5E1; }
+  .btn-ghost { background: transparent; color: var(--text-primary); }
+  .btn-ghost:hover { background: var(--neutral-bg); }
+  .btn-danger {
+    background: var(--danger-bg); color: #B91C1C;
+    border: 1px solid #FECACA;
+  }
+  .btn-danger:hover { background: #FEE2E2; }
+  .btn-sm { height: 30px; padding: 0 10px; font-size: 12.5px; border-radius: var(--radius-sm); }
+  .btn-sm .ti { font-size: 14px; }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; font: 500 11.5px/1.4 'Inter', sans-serif; letter-spacing: -.005em; border: 1px solid transparent; white-space: nowrap; }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge-active   { color: #047857; background: var(--success-bg); border-color: #A7F3D0; }
+  .badge-inactive { color: #475569; background: var(--neutral-bg); border-color: #E2E8F0; }
+  .badge-pending  { color: #B45309; background: var(--warning-bg); border-color: #FDE68A; }
+  .badge-overdue  { color: #B91C1C; background: var(--danger-bg); border-color: #FECACA; }
+  .badge-info     { color: #1D4ED8; background: var(--info-bg); border-color: #BFDBFE; }
+  .badge-sm { padding: 2px 7px; font: 500 10.5px/1.4 'Inter', sans-serif; }
+  .badge-sm::before { width: 5px; height: 5px; }
+
+  /* Warn pill */
+  .warn-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--warning-bg);
+    color: #B45309;
+    border: 1px solid #FDE68A;
+    font: 600 10.5px/1.3 'Inter', sans-serif;
+    letter-spacing: -.005em;
+    white-space: nowrap;
+  }
+  .warn-pill .ti { font-size: 12px; }
+  .warn-pill.red { background: var(--danger-bg); color: #B91C1C; border-color: #FECACA; }
+
+  /* Product chip */
+  .prod-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 2px 8px 2px 4px;
+    border-radius: 999px;
+    font: 600 11px/1.3 'Inter', sans-serif;
+    letter-spacing: -.005em;
+    white-space: nowrap;
+  }
+  .prod-chip .mark {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font: 700 9.5px/1 'Inter', sans-serif;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .prod-chip.maa { background: rgba(13,148,136,.1); color: #0F766E; }
+  .prod-chip.maa .mark { background: var(--teal); }
+  .prod-chip.opd { background: rgba(59,130,246,.1); color: #1D4ED8; }
+  .prod-chip.opd .mark { background: var(--info); }
+  .prod-chip.b2b { background: rgba(124,58,237,.1); color: #6D28D9; }
+  .prod-chip.b2b .mark { background: var(--purple); }
+
+  /* ─── Content (no padding — fills) ─── */
+  .content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 300px 1fr 280px;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* ──────────── COL 1 — INBOX ──────────── */
+  .inbox {
+    background: #fff;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    min-height: 0;
+  }
+  .inbox-search { padding: 12px 14px; border-bottom: 1px solid var(--border); position: relative; flex-shrink: 0; }
+  .inbox-search input {
+    width: 100%; height: 34px;
+    border: 1px solid transparent;
+    background: var(--neutral-bg);
+    border-radius: var(--radius-md);
+    padding: 0 12px 0 34px;
+    font: 400 13px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: 0;
+    transition: background .15s, border-color .15s, box-shadow .15s;
+  }
+  .inbox-search input::placeholder { color: var(--text-tertiary); }
+  .inbox-search input:focus { background: #fff; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+  .inbox-search .ti { position: absolute; left: 24px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 16px; }
+
+  .inbox-tabs { display: flex; gap: 0; padding: 6px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .ix-tab {
+    height: 28px; padding: 0 10px;
+    border: 0; background: transparent;
+    border-radius: var(--radius-sm);
+    font: 500 12px/1 'Inter', sans-serif;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px;
+    transition: background .12s, color .12s;
+  }
+  .ix-tab:hover:not(.active) { color: var(--text-primary); background: var(--neutral-bg); }
+  .ix-tab.active { background: var(--bg-navy); color: #fff; }
+  .ix-tab .ct {
+    font: 600 10px/1 'Inter',sans-serif;
+    padding: 1px 5px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.16);
+  }
+  .ix-tab:not(.active) .ct { background: var(--border); color: var(--text-secondary); }
+
+  .inbox-list { flex: 1; overflow-y: auto; min-height: 0; }
+  .tk-row {
+    padding: 14px;
+    border-bottom: 1px solid var(--border-soft);
+    cursor: pointer;
+    transition: background .12s;
+    display: flex; flex-direction: column; gap: 6px;
+    border-left: 3px solid transparent;
+  }
+  .tk-row:hover { background: var(--neutral-bg); }
+  .tk-row.selected {
+    background: var(--warning-bg);
+    border-left-color: var(--accent);
+  }
+  .tk-row.selected:hover { background: #FEF3C7; }
+
+  .tk-head { display: flex; align-items: center; gap: 7px; }
+  .pri-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .pri-dot.red    { background: var(--danger); box-shadow: 0 0 0 2px rgba(239,68,68,.18); }
+  .pri-dot.amber  { background: var(--warning); }
+  .pri-dot.blue   { background: var(--info); }
+  .pri-dot.green  { background: var(--success); }
+  .pri-dot.grey   { background: var(--text-tertiary); }
+  .tk-id { font: 600 12px/1.2 'JetBrains Mono', monospace; color: var(--text-tertiary); letter-spacing: .01em; }
+  .tk-right { margin-left: auto; }
+  .tk-right .when { font: 400 11px/1 'Inter',sans-serif; color: var(--text-tertiary); }
+  .tk-right .open-pill {
+    font: 500 10.5px/1 'Inter',sans-serif;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .12em;
+  }
+
+  .tk-cust { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .tk-cust .nm { font: 600 13px/1.3 'Inter',sans-serif; letter-spacing: -.005em; color: var(--text-primary); }
+
+  .tk-preview {
+    font: 400 12px/1.45 'Inter',sans-serif;
+    color: var(--text-secondary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 270px;
+  }
+
+  .tk-foot { display: flex; align-items: center; gap: 8px; }
+  .tk-status {
+    font: 500 11px/1 'Inter',sans-serif;
+  }
+  .tk-status.danger   { color: var(--danger); font-weight: 600; }
+  .tk-status.warning  { color: #B45309; }
+  .tk-status.info     { color: var(--info); }
+  .tk-status.unassigned { color: var(--text-tertiary); font-style: italic; }
+  .tk-foot .right { margin-left: auto; }
+  .tk-foot .avatar { width: 20px; height: 20px; font-size: 9px; }
+
+  .inbox-foot {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    background: var(--neutral-bg);
+    text-align: center;
+    font: 400 11px/1.3 'Inter',sans-serif;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+
+  /* ──────────── COL 2 — THREAD ──────────── */
+  .thread {
+    background: var(--content-bg);
+    display: flex; flex-direction: column;
+    border-right: 1px solid var(--border);
+    min-width: 0; min-height: 0;
+  }
+  .thread-head {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
+    flex-shrink: 0;
+  }
+  .thread-head .row1 { display: flex; align-items: center; gap: 12px; }
+  .thread-id { font: 600 14px/1 'JetBrains Mono', monospace; color: var(--text-secondary); }
+  .thread-title { font: 600 16px/1.2 'Inter', sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .thread-head .row1 .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .thread-head .row2 { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+  .meta-sep { color: var(--text-tertiary); }
+  .meta-block { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1.3 'Inter',sans-serif; color: var(--text-secondary); letter-spacing: -.005em; }
+  .meta-block .avatar { width: 22px; height: 22px; font-size: 9.5px; }
+  .meta-block.sla { color: var(--danger); font-weight: 600; }
+  .meta-block.sla .ti { color: var(--danger); font-size: 14px; }
+  .meta-label { color: var(--text-tertiary); font-weight: 400; }
+
+  /* Messages */
+  .messages {
+    flex: 1; min-height: 0;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .msg { display: flex; flex-direction: column; gap: 6px; }
+  .msg-head { display: flex; align-items: center; gap: 9px; }
+  .msg-head .avatar { width: 32px; height: 32px; font-size: 11px; }
+  .msg-head .ai-mark {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #8B5CF6, #6366F1);
+    display: grid; place-items: center;
+    color: #fff;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(124,58,237,.3);
+  }
+  .msg-head .ai-mark .ti { font-size: 16px; }
+  .msg-head .name { font: 600 13px/1.2 'Inter',sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .msg-head .name.ai { color: var(--purple); }
+  .msg-head .role { font: 400 12px/1.2 'Inter',sans-serif; color: var(--text-tertiary); display: inline-flex; align-items: center; gap: 4px; }
+  .msg-head .role .ti { font-size: 12px; color: var(--purple); }
+  .msg-head .when { margin-left: auto; font: 400 12px/1.2 'Inter',sans-serif; color: var(--text-tertiary); }
+  .msg.right .msg-head { justify-content: flex-end; }
+  .msg.right .msg-head .when { margin-left: 0; margin-right: 0; order: -1; }
+  .msg.right .msg-head .name { order: -1; }
+  .msg.right .msg-head .role { order: -1; margin-right: 4px; }
+
+  .bubble {
+    max-width: 520px;
+    margin-left: 44px;
+    padding: 14px 16px;
+    border-radius: var(--radius-lg);
+    border-bottom-left-radius: 4px;
+    background: #fff;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    font: 400 14px/1.6 'Inter',sans-serif;
+    color: var(--text-primary);
+    letter-spacing: -.003em;
+  }
+  .bubble.ai {
+    background: var(--info-bg);
+    border-color: rgba(99,102,241,.2);
+  }
+  .bubble.staff {
+    background: var(--bg-navy);
+    color: rgba(255,255,255,.9);
+    border-color: var(--bg-navy);
+    border-bottom-left-radius: var(--radius-lg);
+    border-bottom-right-radius: 4px;
+    margin-left: auto;
+    margin-right: 0;
+  }
+
+  .ai-foot {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(99,102,241,.15);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ai-foot .lbl {
+    font: 400 11px/1.2 'Inter',sans-serif;
+    color: rgba(99,102,241,.85);
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .ai-foot .lbl .ti { font-size: 12px; color: var(--purple); }
+  .ai-foot .lnk {
+    margin-left: auto;
+    font: 500 11px/1 'Inter',sans-serif;
+    color: var(--purple);
+    cursor: pointer;
+  }
+  .ai-foot .lnk:hover { text-decoration: underline; }
+
+  /* Day divider */
+  .day-divider {
+    display: flex; align-items: center; gap: 14px;
+    color: var(--text-tertiary);
+    font: 500 11px/1 'Inter',sans-serif;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    margin: 4px 0;
+  }
+  .day-divider::before,
+  .day-divider::after {
+    content: ""; flex: 1;
+    border-top: 1px solid var(--border-soft);
+  }
+
+  /* Internal note */
+  .internal-note {
+    background: var(--warning-bg);
+    border: 1px solid rgba(245,158,11,.25);
+    border-radius: var(--radius-lg);
+    padding: 12px 16px;
+    margin: 0 20px;
+  }
+  .in-head {
+    display: flex; align-items: center; gap: 7px;
+    font: 500 12px/1.2 'Inter',sans-serif;
+    color: var(--text-secondary);
+    letter-spacing: -.005em;
+  }
+  .in-head .ti { font-size: 14px; color: var(--warning); }
+  .in-body {
+    margin-top: 6px;
+    font: 400 13px/1.55 'Inter',sans-serif;
+    color: var(--text-secondary);
+  }
+
+  /* Reply box */
+  .reply-box {
+    background: #fff;
+    border-top: 1px solid var(--border);
+    padding: 16px 20px;
+    flex-shrink: 0;
+  }
+  .reply-toggle {
+    display: inline-flex;
+    margin-bottom: 12px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .rt-btn {
+    height: 30px; padding: 0 12px;
+    border: 0;
+    background: #fff;
+    color: var(--text-secondary);
+    font: 500 12.5px/1 'Inter',sans-serif;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: background .12s, color .12s;
+  }
+  .rt-btn .ti { font-size: 13px; }
+  .rt-btn:hover:not(.active) { background: var(--neutral-bg); color: var(--text-primary); }
+  .rt-btn.active { background: var(--bg-navy); color: #fff; }
+
+  .reply-textarea {
+    width: 100%;
+    min-height: 80px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    font: 400 14px/1.55 'Inter', sans-serif;
+    color: var(--text-primary);
+    resize: none;
+    outline: 0;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .reply-textarea::placeholder { color: var(--text-tertiary); }
+  .reply-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+
+  .reply-actions {
+    margin-top: 10px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .reply-actions .fmt {
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .icon-btn { width: 28px; height: 28px; display: inline-grid; place-items: center; border-radius: 6px; color: var(--text-tertiary); cursor: pointer; border: 0; background: transparent; transition: background .12s, color .12s; }
+  .icon-btn:hover { background: var(--neutral-bg); color: var(--text-primary); }
+  .icon-btn .ti { font-size: 16px; }
+  .reply-actions .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  .ai-assist-btn {
+    height: 30px; padding: 0 10px;
+    border-radius: var(--radius-sm);
+    background: var(--info-bg);
+    border: 1px solid rgba(99,102,241,.2);
+    color: var(--purple);
+    font: 500 12.5px/1 'Inter',sans-serif;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: background .15s, border-color .15s;
+  }
+  .ai-assist-btn:hover { background: #E0E7FF; border-color: rgba(99,102,241,.4); }
+  .ai-assist-btn .ti { font-size: 13px; }
+
+  /* ──────────── COL 3 — CONTEXT ──────────── */
+  .context {
+    background: #fff;
+    padding: 16px;
+    overflow-y: auto;
+    min-height: 0;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .ctx-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+  }
+  .ctx-h {
+    font: 500 11px/1 'Inter',sans-serif;
+    text-transform: uppercase; letter-spacing: .14em;
+    color: var(--text-tertiary);
+  }
+
+  .ctx-cust-row { margin-top: 10px; display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .ctx-cust-row .avatar { width: 36px; height: 36px; font-size: 12px; }
+  .ctx-cust-row .meta { min-width: 0; }
+  .ctx-cust-row .nm { font: 600 14px/1.3 'Inter',sans-serif; letter-spacing: -.005em; color: var(--text-primary); }
+  .ctx-cust-row .lc { font: 400 12px/1.3 'Inter',sans-serif; color: var(--text-tertiary); margin-top: 2px; }
+
+  .ctx-stats {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-soft);
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .ctx-stat { display: flex; flex-direction: column; gap: 3px; }
+  .ctx-stat .k { font: 400 11px/1 'Inter',sans-serif; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .1em; }
+  .ctx-stat .v { font: 600 14px/1 'Inter',sans-serif; color: var(--text-primary); font-variant-numeric: tabular-nums; letter-spacing: -.005em; }
+
+  .ctx-link {
+    margin-top: 12px;
+    display: inline-flex; align-items: center; gap: 4px;
+    font: 500 12px/1 'Inter',sans-serif;
+    color: var(--accent);
+    cursor: pointer;
+  }
+  .ctx-link .ti { font-size: 13px; }
+  .ctx-link:hover { text-decoration: underline; }
+
+  .ctx-rows { margin-top: 8px; }
+  .ctx-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border-soft);
+    font: 400 12px/1.3 'Inter',sans-serif;
+  }
+  .ctx-row:last-child { border-bottom: 0; }
+  .ctx-row .lbl { color: var(--text-tertiary); }
+  .ctx-row .val { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; color: var(--text-primary); font-weight: 500; }
+  .ctx-row .val.sla-breach { color: var(--danger); font-weight: 600; }
+  .ctx-row .val .avatar { width: 18px; height: 18px; font-size: 8.5px; }
+
+  .ctx-prod-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .ctx-prod-row:last-child { border-bottom: 0; }
+  .ctx-prod-row .logo {
+    width: 20px; height: 20px;
+    border-radius: 5px;
+    display: grid; place-items: center;
+    color: #fff;
+    font: 700 10px/1 'Inter',sans-serif;
+    flex-shrink: 0;
+  }
+  .ctx-prod-row .logo.teal   { background: var(--teal); }
+  .ctx-prod-row .logo.blue   { background: var(--info); }
+  .ctx-prod-row .logo.purple { background: var(--purple); }
+  .ctx-prod-row .nm { font: 500 12.5px/1.3 'Inter',sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .ctx-prod-row .right { margin-left: auto; }
+
+  .ctx-inv-row {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    align-items: center; gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-soft);
+    font: 400 12px/1.3 'Inter',sans-serif;
+  }
+  .ctx-inv-row:last-of-type { border-bottom: 0; }
+  .ctx-inv-row .id { font: 600 12px/1 'JetBrains Mono', monospace; color: var(--text-secondary); }
+  .ctx-inv-row .amt { font: 600 12.5px/1 'Inter',sans-serif; color: var(--text-primary); font-variant-numeric: tabular-nums; letter-spacing: -.005em; }
+  .ctx-inv-row .amt.void { color: var(--text-tertiary); text-decoration: line-through; font-weight: 500; }
+  .ctx-inv-row .badge-wrap { justify-self: end; }
+
+  .ctx-hist-row {
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    align-items: center; gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border-soft);
+    font: 400 12px/1.3 'Inter',sans-serif;
+  }
+  .ctx-hist-row:last-child { border-bottom: 0; }
+  .ctx-hist-row .id { font: 600 12px/1 'JetBrains Mono', monospace; color: var(--text-secondary); }
+  .ctx-hist-row .prod { color: var(--text-tertiary); }
+  .ctx-hist-row .res { color: var(--success); font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
+  .ctx-hist-row .res .ti { font-size: 12px; }
+  .ctx-hist-row .when { color: var(--text-tertiary); text-align: right; white-space: nowrap; }
+
+  .ctx-full-btn {
+    width: 100%;
+    margin-top: 10px;
+    height: 30px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font: 500 12px/1 'Inter',sans-serif;
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  .ctx-full-btn:hover { background: var(--neutral-bg); border-color: #CBD5E1; color: var(--text-primary); }
+  .ctx-full-btn .ti { font-size: 14px; }
+
+</style>
+</head>
+<body>
+
+<div class="app" data-screen-label="10 Support">
+
+  <!-- ─── Sidebar ─── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="brand-mark">W</div>
+      <div>
+        <div class="logo-name">Powerhouse</div>
+        <div class="logo-sub">Whitedash</div>
+      </div>
+    </div>
+
+    <div class="nav-section">Workspace</div>
+    <div class="nav-item"><i class="ti ti-layout-dashboard"></i>Overview</div>
+    <div class="nav-item"><i class="ti ti-users"></i>Customers<span class="count">847</span></div>
+    <div class="nav-item"><i class="ti ti-receipt"></i>Invoices<span class="count amber">7</span></div>
+    <div class="nav-item"><i class="ti ti-credit-card"></i>Subscriptions</div>
+    <div class="nav-item"><i class="ti ti-chart-line"></i>Analytics</div>
+    <div class="nav-item"><i class="ti ti-users-group"></i>Referrers</div>
+    <div class="nav-item"><i class="ti ti-world"></i>Domains</div>
+
+    <div class="nav-section">Products</div>
+    <div class="nav-item"><i class="ti ti-tools-kitchen-2"></i>Maavelus</div>
+    <div class="nav-item"><i class="ti ti-clipboard-list"></i>MyOrderPad</div>
+    <div class="nav-item"><i class="ti ti-building-store"></i>Whitedash B2B</div>
+    <div class="nav-item"><i class="ti ti-message-2"></i>SMScube</div>
+
+    <div class="nav-section">Account</div>
+    <div class="nav-item active"><i class="ti ti-headset"></i>Support<span class="count">3</span></div>
+    <div class="nav-item"><i class="ti ti-settings"></i>Settings</div>
+    <div class="nav-item"><i class="ti ti-help-circle"></i>Help &amp; docs</div>
+
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-user">
+      <div class="avatar av-admin">AP</div>
+      <div>
+        <div class="name">Apostolos P.</div>
+        <div class="role">Super Admin</div>
+      </div>
+      <i class="ti ti-dots dots"></i>
+    </div>
+  </aside>
+
+  <!-- ─── Main ─── -->
+  <main class="main">
+
+    <div class="topbar">
+      <div>
+        <div class="breadcrumb"><span>Powerhouse</span><span class="sep">/</span><span>Account</span><span class="sep">/</span><span class="current">Support</span></div>
+        <div class="topbar-title">Support</div>
+      </div>
+      <div class="topbar-actions">
+        <div class="view-toggle">
+          <button class="vt-btn active">All tickets<span class="ct">3</span></button>
+          <button class="vt-btn">Mine<span class="ct">1</span></button>
+          <button class="vt-btn">Unassigned<span class="ct">1</span></button>
+        </div>
+        <div class="divider-v"></div>
+        <button class="btn btn-ghost btn-sm" style="color: var(--text-secondary);"><i class="ti ti-plus"></i>New ticket</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ═══════════ COL 1 — INBOX ═══════════ -->
+      <aside class="inbox">
+        <div class="inbox-search">
+          <i class="ti ti-search"></i>
+          <input placeholder="Search tickets…">
+        </div>
+
+        <div class="inbox-tabs">
+          <button class="ix-tab active">All<span class="ct">3</span></button>
+          <button class="ix-tab">Open<span class="ct">2</span></button>
+          <button class="ix-tab">Resolved<span class="ct">1</span></button>
+        </div>
+
+        <div class="inbox-list">
+
+          <div class="tk-row selected">
+            <div class="tk-head">
+              <span class="pri-dot red"></span>
+              <span class="tk-id">TK-1042</span>
+              <span class="tk-right"><span class="warn-pill red"><i class="ti ti-clock"></i>SLA</span></span>
+            </div>
+            <div class="tk-cust">
+              <span class="nm">Pitta Fan Leeds</span>
+              <span class="prod-chip maa"><span class="mark">M</span>Maavelus</span>
+              <span class="tk-right"><span class="when">18h ago</span></span>
+            </div>
+            <div class="tk-preview">Hi, I've been charged twice this month for the Maavelus subscription…</div>
+            <div class="tk-foot">
+              <span class="tk-status danger">Overdue SLA</span>
+              <span class="right"><div class="avatar av-teal">SP</div></span>
+            </div>
+          </div>
+
+          <div class="tk-row">
+            <div class="tk-head">
+              <span class="pri-dot amber"></span>
+              <span class="tk-id">TK-1041</span>
+              <span class="tk-right open-pill">Open</span>
+            </div>
+            <div class="tk-cust">
+              <span class="nm">The Athenian</span>
+              <span class="prod-chip maa"><span class="mark">M</span>Maavelus</span>
+              <span class="tk-right"><span class="when">3h ago</span></span>
+            </div>
+            <div class="tk-preview">Menu changes aren't showing on the live site even after publishing…</div>
+            <div class="tk-foot">
+              <span class="tk-status warning">In progress</span>
+              <span class="right"><div class="avatar av-admin">AP</div></span>
+            </div>
+          </div>
+
+          <div class="tk-row">
+            <div class="tk-head">
+              <span class="pri-dot amber"></span>
+              <span class="tk-id">TK-1040</span>
+              <span class="tk-right open-pill">Open</span>
+            </div>
+            <div class="tk-cust">
+              <span class="nm">Souvlaki House MCR</span>
+              <span class="prod-chip opd"><span class="mark">O</span>MyOrderPad</span>
+              <span class="tk-right"><span class="when">5h ago</span></span>
+            </div>
+            <div class="tk-preview">My card payment was declined but the funds left my account…</div>
+            <div class="tk-foot">
+              <span class="tk-status unassigned">Unassigned</span>
+            </div>
+          </div>
+
+          <div class="tk-row">
+            <div class="tk-head">
+              <span class="pri-dot blue"></span>
+              <span class="tk-id">TK-1039</span>
+              <span class="tk-right open-pill">In progress</span>
+            </div>
+            <div class="tk-cust">
+              <span class="nm">Gyros City MCR</span>
+              <span class="prod-chip opd"><span class="mark">O</span>MyOrderPad</span>
+              <span class="tk-right"><span class="when">Yesterday</span></span>
+            </div>
+            <div class="tk-preview">One of our suppliers isn't receiving our orders through MyOrderPad…</div>
+            <div class="tk-foot">
+              <span class="tk-status info">In progress</span>
+              <span class="right"><div class="avatar av-teal">SP</div></span>
+            </div>
+          </div>
+
+          <div class="tk-row">
+            <div class="tk-head">
+              <span class="pri-dot green"></span>
+              <span class="tk-id">TK-1038</span>
+              <span class="tk-right"><span class="badge badge-active badge-sm">Resolved</span></span>
+            </div>
+            <div class="tk-cust">
+              <span class="nm">Olympia Group</span>
+              <span class="prod-chip maa"><span class="mark">M</span>Maavelus</span>
+              <span class="tk-right"><span class="when">2 days ago</span></span>
+            </div>
+            <div class="tk-preview">Feature request: can we bulk import orders from the previous month…</div>
+            <div class="tk-foot">
+              <span class="tk-status" style="color: var(--success); font-weight: 500;">Resolved</span>
+              <span class="right"><div class="avatar av-admin">AP</div></span>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="inbox-foot">Showing 5 of 5 tickets</div>
+      </aside>
+
+      <!-- ═══════════ COL 2 — THREAD ═══════════ -->
+      <section class="thread">
+
+        <div class="thread-head">
+          <div class="row1">
+            <span class="thread-id">TK-1042</span>
+            <span class="thread-title">Delivery billing query</span>
+            <div class="right">
+              <button class="btn btn-ghost btn-sm" style="color: var(--text-secondary);"><i class="ti ti-circle-x"></i>Close ticket</button>
+              <button class="btn btn-secondary btn-sm"><i class="ti ti-check"></i>Resolve</button>
+              <button class="btn btn-danger btn-sm"><i class="ti ti-arrow-up"></i>Escalate</button>
+            </div>
+          </div>
+          <div class="row2">
+            <div class="meta-block">
+              <div class="avatar av-1">PF</div>
+              <span style="color: var(--text-primary);">Pitta Fan Leeds</span>
+              <span class="prod-chip maa"><span class="mark">M</span>Maavelus</span>
+            </div>
+            <span class="meta-sep">·</span>
+            <div class="meta-block sla"><i class="ti ti-clock"></i>SLA breached · 18h open</div>
+            <span class="meta-sep">·</span>
+            <div class="meta-block">
+              <span class="meta-label">Assigned to:</span>
+              <div class="avatar av-teal">SP</div>
+              <span style="color: var(--text-primary);">Sofia Papadaki</span>
+            </div>
+            <span class="meta-sep">·</span>
+            <div class="meta-block">
+              <span class="meta-label">Priority:</span>
+              <span class="badge badge-overdue badge-sm">High</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="messages">
+
+          <!-- MSG 1 — Customer -->
+          <div class="msg">
+            <div class="msg-head">
+              <div class="avatar av-1">PF</div>
+              <span class="name">Panos Alexiou</span>
+              <span class="role">Customer · Pitta Fan Leeds</span>
+              <span class="when">Yesterday 14:23</span>
+            </div>
+            <div class="bubble">
+              Hi, I've been charged twice this month for the Maavelus subscription. Invoice INV-0843 and INV-0844 both show £29.00 debited from my account. Can you look into this please?
+            </div>
+          </div>
+
+          <!-- MSG 2 — AI -->
+          <div class="msg">
+            <div class="msg-head">
+              <div class="ai-mark"><i class="ti ti-robot"></i></div>
+              <span class="name ai">Whitedash AI</span>
+              <span class="role"><i class="ti ti-sparkles"></i>AI · automated response</span>
+              <span class="when">Yesterday 14:23</span>
+            </div>
+            <div class="bubble ai">
+              Thank you for getting in touch, Panos. I can see your account and I'm looking into the duplicate charge now. I'll escalate this to our billing team to resolve it today. Reference: TK-1042.
+              <div class="ai-foot">
+                <span class="lbl"><i class="ti ti-sparkles"></i>AI-generated response · confidence 94%</span>
+                <span class="lnk">Edit &amp; resend</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- MSG 3 — Customer reply -->
+          <div class="msg">
+            <div class="msg-head">
+              <div class="avatar av-1">PF</div>
+              <span class="name">Panos Alexiou</span>
+              <span class="when">Yesterday 15:47</span>
+            </div>
+            <div class="bubble">
+              Thanks. Just to confirm — I can see both charges on my bank statement. Invoice 843 on the 24th and 844 on the 25th. Both £29. Is this a system error?
+            </div>
+          </div>
+
+          <!-- MSG 4 — Staff (right) -->
+          <div class="msg right">
+            <div class="msg-head">
+              <span class="when">Yesterday 16:02</span>
+              <span class="name">Sofia Papadaki</span>
+              <span class="role">Whitedash Staff</span>
+              <div class="avatar av-teal">SP</div>
+            </div>
+            <div class="bubble staff">
+              Hi Panos, I've checked your account and confirmed this is a system error — a duplicate invoice was generated. I've voided INV-0844 and you won't be charged again. If the charge has already processed on your card, the refund will appear within 3-5 days. Apologies for the inconvenience.
+            </div>
+          </div>
+
+          <!-- MSG 5 — Customer (today) -->
+          <div class="msg">
+            <div class="msg-head">
+              <div class="avatar av-1">PF</div>
+              <span class="name">Panos Alexiou</span>
+              <span class="when">Today 09:14</span>
+            </div>
+            <div class="bubble">
+              Thank you Sofia. I can see INV-0844 is now voided in my portal. Still waiting on the bank refund but appreciate the quick response.
+            </div>
+          </div>
+
+          <div class="day-divider">Today 09:14 · Last message</div>
+
+          <!-- Internal note -->
+          <div class="internal-note">
+            <div class="in-head"><i class="ti ti-lock"></i>Internal note · Sofia Papadaki · Today 09:20</div>
+            <div class="in-body">Refund initiated via Stripe dashboard. Should clear by 2 Jun. Mark resolved once confirmed.</div>
+          </div>
+
+        </div>
+
+        <!-- Reply box -->
+        <div class="reply-box">
+          <div class="reply-toggle">
+            <button class="rt-btn active">Reply</button>
+            <button class="rt-btn"><i class="ti ti-lock"></i>Internal note</button>
+          </div>
+
+          <textarea class="reply-textarea" placeholder="Reply to Panos Alexiou…"></textarea>
+
+          <div class="reply-actions">
+            <span class="fmt">
+              <button class="icon-btn"><i class="ti ti-bold"></i></button>
+              <button class="icon-btn"><i class="ti ti-italic"></i></button>
+              <button class="icon-btn"><i class="ti ti-link"></i></button>
+              <button class="icon-btn"><i class="ti ti-paperclip"></i></button>
+              <button class="icon-btn"><i class="ti ti-at"></i></button>
+            </span>
+            <div class="right">
+              <button class="ai-assist-btn"><i class="ti ti-sparkles"></i>AI Assist</button>
+              <div class="divider-v" style="height: 20px;"></div>
+              <button class="btn btn-secondary btn-sm"><i class="ti ti-check"></i>Send &amp; Resolve</button>
+              <button class="btn btn-primary btn-sm"><i class="ti ti-send"></i>Send</button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ═══════════ COL 3 — CONTEXT ═══════════ -->
+      <aside class="context">
+
+        <!-- Customer card -->
+        <div class="ctx-card">
+          <div class="ctx-h">Customer</div>
+          <div class="ctx-cust-row">
+            <div class="avatar av-1">PF</div>
+            <div class="meta">
+              <div class="nm">Pitta Fan Leeds</div>
+              <div class="lc">Leeds, UK</div>
+            </div>
+          </div>
+          <div class="ctx-stats">
+            <div class="ctx-stat"><span class="k">MRR</span><span class="v">£168</span></div>
+            <div class="ctx-stat"><span class="k">Products</span><span class="v">3</span></div>
+            <div class="ctx-stat"><span class="k">Tickets</span><span class="v">4</span></div>
+          </div>
+          <span class="ctx-link">View full record<i class="ti ti-arrow-right"></i></span>
+        </div>
+
+        <!-- Ticket details -->
+        <div class="ctx-card">
+          <div class="ctx-h">Ticket details</div>
+          <div class="ctx-rows">
+            <div class="ctx-row"><span class="lbl">Status</span><span class="val"><span class="badge badge-pending badge-sm">Open</span></span></div>
+            <div class="ctx-row"><span class="lbl">Priority</span><span class="val"><span class="badge badge-overdue badge-sm">High</span></span></div>
+            <div class="ctx-row"><span class="lbl">Product</span><span class="val"><span class="prod-chip maa"><span class="mark">M</span>Maavelus</span></span></div>
+            <div class="ctx-row"><span class="lbl">Assigned</span><span class="val"><div class="avatar av-teal">SP</div>Sofia P.</span></div>
+            <div class="ctx-row"><span class="lbl">Created</span><span class="val" style="font-weight: 400; color: var(--text-secondary);">Yesterday 14:23</span></div>
+            <div class="ctx-row"><span class="lbl">SLA</span><span class="val sla-breach">Breached · 18h</span></div>
+          </div>
+          <button class="ctx-full-btn"><i class="ti ti-user-edit"></i>Reassign</button>
+        </div>
+
+        <!-- Products -->
+        <div class="ctx-card">
+          <div class="ctx-h">Products</div>
+          <div class="ctx-rows">
+            <div class="ctx-prod-row">
+              <div class="logo teal">M</div>
+              <span class="nm">Maavelus Pro</span>
+              <span class="right"><span class="badge badge-active badge-sm">Active</span></span>
+            </div>
+            <div class="ctx-prod-row">
+              <div class="logo blue">O</div>
+              <span class="nm">MyOrderPad Pro</span>
+              <span class="right"><span class="badge badge-active badge-sm">Active</span></span>
+            </div>
+            <div class="ctx-prod-row">
+              <div class="logo purple">B</div>
+              <span class="nm">Whitedash B2B</span>
+              <span class="right"><span class="badge badge-active badge-sm">Active</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Invoices -->
+        <div class="ctx-card">
+          <div class="ctx-h">Invoices</div>
+          <div class="ctx-rows">
+            <div class="ctx-inv-row">
+              <span class="id">INV-0843</span>
+              <span class="amt">£29.00</span>
+              <span class="badge-wrap"><span class="badge badge-active badge-sm">Paid</span></span>
+            </div>
+            <div class="ctx-inv-row">
+              <span class="id">INV-0844</span>
+              <span class="amt void">£29.00</span>
+              <span class="badge-wrap"><span class="badge badge-inactive badge-sm">Void</span></span>
+            </div>
+            <div class="ctx-inv-row">
+              <span class="id">INV-0840</span>
+              <span class="amt">£29.00</span>
+              <span class="badge-wrap"><span class="badge badge-active badge-sm">Paid</span></span>
+            </div>
+          </div>
+          <span class="ctx-link">View all<i class="ti ti-arrow-right"></i></span>
+        </div>
+
+        <!-- Previous tickets -->
+        <div class="ctx-card">
+          <div class="ctx-h">Previous tickets</div>
+          <div class="ctx-rows">
+            <div class="ctx-hist-row">
+              <span class="id">TK-1034</span>
+              <span class="prod">Maavelus</span>
+              <span class="res"><i class="ti ti-check"></i>Resolved</span>
+              <span class="when">3w ago</span>
+            </div>
+            <div class="ctx-hist-row">
+              <span class="id">TK-1021</span>
+              <span class="prod">Maavelus</span>
+              <span class="res"><i class="ti ti-check"></i>Resolved</span>
+              <span class="when">2mo ago</span>
+            </div>
+            <div class="ctx-hist-row">
+              <span class="id">TK-1008</span>
+              <span class="prod">MyOrderPad</span>
+              <span class="res"><i class="ti ti-check"></i>Resolved</span>
+              <span class="when">4mo ago</span>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // Ticket selection
+  document.querySelectorAll('.tk-row').forEach(r => {
+    r.addEventListener('click', () => {
+      document.querySelectorAll('.tk-row').forEach(x => x.classList.remove('selected'));
+      r.classList.add('selected');
+    });
+  });
+
+  // Inbox tabs
+  document.querySelectorAll('.ix-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.ix-tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+    });
+  });
+
+  // Topbar view toggle
+  document.querySelectorAll('.vt-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.vt-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    });
+  });
+
+  // Reply toggle
+  document.querySelectorAll('.rt-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.rt-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>

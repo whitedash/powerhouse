@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Powerhouse — Billing entities</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg-navy: #0F172A;
+    --accent: #F59E0B;
+    --content-bg: #F8FAFC;
+    --card-bg: #FFFFFF;
+    --border: #E2E8F0;
+    --border-soft: #EEF2F7;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+    --info: #3B82F6;
+    --teal: #0D9488;
+    --purple: #7C3AED;
+
+    --success-bg: #ECFDF5;
+    --danger-bg:  #FEF2F2;
+    --warning-bg: #FFFBEB;
+    --info-bg:    #EFF6FF;
+    --neutral-bg: #F1F5F9;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.05);
+    --shadow-md: 0 4px 12px -2px rgba(15,23,42,.08), 0 1px 3px rgba(15,23,42,.04);
+    --shadow-lg: 0 24px 48px -12px rgba(15,23,42,.18), 0 2px 4px rgba(15,23,42,.04);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 400 14px/1.5 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: #E5E9F0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ─── Shell ─── */
+  .app {
+    width: 1440px;
+    margin: 0 auto;
+    background: var(--content-bg);
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 1100px;
+  }
+
+  /* ─── Sidebar ─── */
+  .sidebar { background: var(--bg-navy); color: #fff; padding: 20px 14px 16px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh; min-height: 1100px; }
+  .logo { display: flex; align-items: center; gap: 10px; padding: 6px 10px 18px; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 14px; }
+  .brand-mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--accent), #FBBF24); display: grid; place-items: center; color: var(--bg-navy); font: 700 14px/1 'Inter', sans-serif; box-shadow: 0 2px 6px rgba(245,158,11,.35); }
+  .logo-name { font: 600 15px/1.1 'Inter', sans-serif; letter-spacing: -.01em; }
+  .logo-sub  { font: 500 10px/1 'Inter', sans-serif; color: rgba(255,255,255,.45); letter-spacing: .12em; text-transform: uppercase; margin-top: 3px; }
+  .nav-section { font: 500 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .14em; color: rgba(255,255,255,.35); padding: 14px 10px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 11px; padding: 8px 10px; color: rgba(255,255,255,.7); font: 500 13.5px/1.2 'Inter', sans-serif; letter-spacing: -.005em; border-radius: var(--radius-md); cursor: pointer; transition: background .12s, color .12s; }
+  .nav-item .ti { font-size: 18px; }
+  .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .nav-item.active { background: rgba(245,158,11,.14); color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+  .nav-item .count { margin-left: auto; font: 600 11px/1 'Inter', sans-serif; background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); padding: 3px 7px; border-radius: 999px; }
+  .nav-item.active .count { background: rgba(245,158,11,.22); color: var(--accent); }
+  .count.amber { background: rgba(245,158,11,.18); color: #FCD34D; }
+  .count.red   { background: rgba(239,68,68,.2);  color: #FCA5A5; }
+  .sidebar-spacer { flex: 1; }
+  .sidebar-user { margin-top: 12px; padding: 12px 10px; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; gap: 10px; }
+  .avatar { border-radius: 50%; display: grid; place-items: center; color: #fff; font: 600 12px/1 'Inter', sans-serif; letter-spacing: -.01em; flex-shrink: 0; }
+  .av-admin { background: linear-gradient(135deg, #1E293B, #475569); border: 1px solid rgba(245,158,11,.4); }
+  .sidebar-user .avatar { width: 32px; height: 32px; font-size: 11px; }
+  .sidebar-user .name { font: 500 13px/1.2 'Inter', sans-serif; color: #fff; letter-spacing: -.005em; }
+  .sidebar-user .role { font: 400 11px/1.2 'Inter', sans-serif; color: rgba(255,255,255,.45); margin-top: 2px; }
+  .sidebar-user .dots { margin-left: auto; color: rgba(255,255,255,.4); cursor: pointer; }
+
+  /* ─── Topbar ─── */
+  .main { display: flex; flex-direction: column; min-width: 0; }
+  .topbar { height: 64px; border-bottom: 1px solid var(--border); background: #fff; padding: 0 24px; display: flex; align-items: center; gap: 16px; }
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); }
+  .breadcrumb .sep { color: var(--text-tertiary); }
+  .breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+  .topbar-title { font: 600 20px/1.2 'Inter', sans-serif; letter-spacing: -.01em; margin-top: 2px; }
+  .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .topbar-search { position: relative; width: 240px; }
+  .topbar-search input { width: 100%; height: 36px; border: 1px solid transparent; background: var(--content-bg); border-radius: var(--radius-md); padding: 0 38px 0 34px; font: 400 13px/1 'Inter', sans-serif; color: var(--text-primary); outline: 0; transition: border-color .15s, background .15s, box-shadow .15s; }
+  .topbar-search input::placeholder { color: var(--text-tertiary); }
+  .topbar-search input:focus { background: #fff; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+  .topbar-search .ti { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 18px; }
+  .topbar-search .kbd { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font: 500 10px/1 'JetBrains Mono', monospace; color: var(--text-tertiary); border: 1px solid var(--border); background: #fff; padding: 3px 5px; border-radius: 4px; }
+  .bell-btn { position: relative; width: 36px; height: 36px; border-radius: var(--radius-md); display: grid; place-items: center; color: var(--text-secondary); background: transparent; border: 0; cursor: pointer; transition: background .12s; }
+  .bell-btn:hover { background: var(--neutral-bg); }
+  .bell-btn .ti { font-size: 20px; }
+  .bell-btn::after { content: ""; position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); border: 2px solid #fff; }
+  .divider-v { width: 1px; height: 28px; background: var(--border); }
+  .avatar-wrap { display: flex; align-items: center; gap: 10px; padding: 4px 10px 4px 4px; border-radius: 999px; cursor: pointer; transition: background .12s; }
+  .avatar-wrap:hover { background: var(--neutral-bg); }
+  .avatar-wrap .avatar { width: 30px; height: 30px; font-size: 11px; }
+  .avatar-wrap .name { font: 500 13px/1.2 'Inter', sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .avatar-wrap .role { font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+
+  /* Buttons */
+  .btn { appearance: none; border: 0; cursor: pointer; font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em; padding: 0 14px; height: 34px; border-radius: var(--radius-md); display: inline-flex; align-items: center; gap: 7px; transition: background .15s, border-color .15s, color .15s, box-shadow .15s, opacity .15s; white-space: nowrap; }
+  .btn .ti { font-size: 15px; }
+  .btn-primary { background: var(--accent); color: var(--bg-navy); font-weight: 600; box-shadow: 0 1px 2px rgba(245,158,11,.3); }
+  .btn-primary:hover { background: #E08C09; }
+  .btn-primary.disabled,
+  .btn-primary[disabled] { opacity: .55; cursor: not-allowed; box-shadow: none; }
+  .btn-primary.disabled:hover,
+  .btn-primary[disabled]:hover { background: var(--accent); }
+  .btn-secondary { background: #fff; color: var(--text-primary); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .btn-secondary:hover { background: var(--neutral-bg); border-color: #CBD5E1; }
+  .btn-ghost { background: transparent; color: var(--text-primary); }
+  .btn-ghost:hover { background: var(--neutral-bg); }
+  .btn-sm { height: 30px; padding: 0 10px; font-size: 12.5px; border-radius: var(--radius-sm); }
+  .btn-sm .ti { font-size: 14px; }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; font: 500 11.5px/1.4 'Inter', sans-serif; letter-spacing: -.005em; border: 1px solid transparent; white-space: nowrap; }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge-active   { color: #047857; background: var(--success-bg); border-color: #A7F3D0; }
+  .badge-inactive { color: #475569; background: var(--neutral-bg); border-color: #E2E8F0; }
+  .badge-sm { padding: 2px 7px; font: 500 10.5px/1.4 'Inter', sans-serif; }
+  .badge-sm::before { width: 5px; height: 5px; }
+
+  /* ─── Content ─── */
+  .content { padding: 24px; display: grid; grid-template-columns: 360px 1fr; gap: 24px; align-items: start; }
+
+  /* ──────────── LEFT — Entity list ──────────── */
+  .ent-list-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .ent-list-head {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ent-list-head .title { font: 600 15px/1.2 'Inter', sans-serif; letter-spacing: -.005em; }
+  .ent-list-head .right { margin-left: auto; }
+
+  .ent-row {
+    padding: 16px 18px;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    transition: background .12s;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .ent-row + .ent-row { border-top: 1px solid var(--border-soft); }
+  .ent-row:hover { background: var(--neutral-bg); }
+  .ent-row.selected {
+    background: var(--warning-bg);
+    border-left-color: var(--accent);
+  }
+  .ent-row.selected:hover { background: #FEF3C7; }
+
+  .ent-row .top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .ent-mark {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: grid; place-items: center;
+    color: #fff;
+    font: 700 13px/1 'Inter', sans-serif;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(15,23,42,.18);
+  }
+  .ent-mark.maa { background: linear-gradient(135deg, var(--accent), #FBBF24); color: var(--bg-navy); box-shadow: 0 2px 6px rgba(245,158,11,.35); }
+  .ent-mark.kon { background: linear-gradient(135deg, var(--bg-navy), #334155); }
+  .ent-mark.lg  { width: 36px; height: 36px; font-size: 16px; border-radius: 9px; }
+
+  .ent-name { font: 600 14px/1.3 'Inter', sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .ent-co { font: 400 12px/1.3 'JetBrains Mono', monospace; color: var(--text-tertiary); margin-top: 2px; letter-spacing: 0; }
+  .ent-row .top .right { margin-left: auto; }
+  .ent-desc { font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); padding-left: 38px; }
+
+  .ent-add {
+    margin: 0 12px 12px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 8px;
+    color: var(--text-secondary);
+    font: 500 13px/1 'Inter', sans-serif;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, color .15s;
+  }
+  .ent-add .ti { font-size: 16px; color: var(--text-tertiary); }
+  .ent-add:hover { border-color: var(--accent); background: var(--warning-bg); color: var(--accent); }
+  .ent-add:hover .ti { color: var(--accent); }
+  .ent-add-divider { border-top: 1px solid var(--border-soft); margin-bottom: 12px; }
+
+  /* ──────────── RIGHT — Form ──────────── */
+  .form-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+  }
+  .form-head {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .form-title { font: 700 18px/1.2 'Inter', sans-serif; letter-spacing: -.01em; color: var(--text-primary); }
+  .form-head .right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+  .form-body { padding: 0 24px 24px; }
+
+  .sec-label {
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .14em;
+    color: var(--text-tertiary);
+    padding: 22px 0 10px;
+    border-bottom: 1px solid var(--border-soft);
+    margin-bottom: 18px;
+  }
+
+  .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .field-label { font: 500 12px/1.2 'Inter',sans-serif; color: var(--text-secondary); letter-spacing: -.005em; }
+  .field-input {
+    width: 100%;
+    height: 38px;
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: var(--radius-md);
+    padding: 0 12px;
+    font: 400 14px/1 'Inter',sans-serif;
+    color: var(--text-primary);
+    outline: 0;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .field-input:hover { border-color: #CBD5E1; }
+  .field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+  .field-input.mono { font: 500 13.5px/1 'JetBrains Mono', monospace; letter-spacing: .01em; }
+  .field-input::placeholder { color: var(--text-tertiary); }
+
+  textarea.field-input {
+    height: auto;
+    padding: 10px 12px;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 76px;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .field.full { grid-column: 1 / -1; }
+
+  .field-suffix {
+    position: relative;
+  }
+  .field-suffix .field-input { padding-right: 86px; }
+  .field-suffix .suffix-badge {
+    position: absolute;
+    right: 8px; top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .field-margin { margin-top: 16px; }
+
+  /* Security note */
+  .sec-note {
+    background: var(--neutral-bg);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    margin-top: 12px;
+    display: flex; align-items: flex-start; gap: 8px;
+    font: 400 12px/1.5 'Inter',sans-serif;
+    color: var(--text-secondary);
+  }
+  .sec-note .ti { font-size: 14px; color: var(--text-tertiary); margin-top: 2px; flex-shrink: 0; }
+
+  /* Upload area */
+  .upload {
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    text-align: center;
+    background: var(--neutral-bg);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .upload:hover { border-color: var(--accent); background: var(--warning-bg); }
+  .upload .ic { width: 40px; height: 40px; border-radius: 50%; background: #fff; display: grid; place-items: center; color: var(--text-tertiary); border: 1px solid var(--border); }
+  .upload .ic .ti { font-size: 20px; }
+  .upload .lbl { font: 500 13px/1.3 'Inter',sans-serif; color: var(--text-secondary); }
+  .upload .lbl strong { color: var(--accent); font-weight: 600; }
+  .upload .hint { font: 400 12px/1.3 'Inter',sans-serif; color: var(--text-tertiary); }
+
+  /* QBO connection card */
+  .qbo-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    align-items: center;
+    gap: 14px;
+  }
+  .qbo-logo {
+    width: 40px; height: 40px;
+    border-radius: 9px;
+    background: #2CA01C;
+    color: #fff;
+    display: grid; place-items: center;
+    font: 700 11px/1 'Inter',sans-serif;
+    letter-spacing: -.005em;
+    box-shadow: 0 2px 6px rgba(44,160,28,.3);
+    grid-row: span 2;
+  }
+  .qbo-status { font: 600 14px/1.2 'Inter',sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+  .qbo-sub { font: 400 12px/1.3 'Inter',sans-serif; color: var(--text-secondary); margin-top: 3px; }
+  .qbo-card .right { grid-row: span 2; }
+</style>
+</head>
+<body>
+
+<div class="app" data-screen-label="12 Billing Entities">
+
+  <!-- ─── Sidebar ─── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="brand-mark">W</div>
+      <div>
+        <div class="logo-name">Powerhouse</div>
+        <div class="logo-sub">Whitedash</div>
+      </div>
+    </div>
+
+    <div class="nav-section">Workspace</div>
+    <div class="nav-item"><i class="ti ti-layout-dashboard"></i>Overview</div>
+    <div class="nav-item"><i class="ti ti-users"></i>Customers<span class="count">847</span></div>
+    <div class="nav-item"><i class="ti ti-receipt"></i>Invoices<span class="count amber">7</span></div>
+    <div class="nav-item"><i class="ti ti-credit-card"></i>Subscriptions</div>
+    <div class="nav-item"><i class="ti ti-chart-line"></i>Analytics</div>
+    <div class="nav-item"><i class="ti ti-users-group"></i>Referrers</div>
+    <div class="nav-item"><i class="ti ti-world"></i>Domains</div>
+    <div class="nav-item"><i class="ti ti-layout-grid"></i>Provisioning</div>
+
+    <div class="nav-section">Products</div>
+    <div class="nav-item"><i class="ti ti-tools-kitchen-2"></i>Maavelus</div>
+    <div class="nav-item"><i class="ti ti-clipboard-list"></i>MyOrderPad</div>
+    <div class="nav-item"><i class="ti ti-building-store"></i>Whitedash B2B</div>
+    <div class="nav-item"><i class="ti ti-message-2"></i>SMScube</div>
+
+    <div class="nav-section">Account</div>
+    <div class="nav-item"><i class="ti ti-headset"></i>Support<span class="count red">3</span></div>
+    <div class="nav-item active"><i class="ti ti-settings"></i>Settings</div>
+    <div class="nav-item"><i class="ti ti-help-circle"></i>Help &amp; docs</div>
+
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-user">
+      <div class="avatar av-admin">AP</div>
+      <div>
+        <div class="name">Apostolos P.</div>
+        <div class="role">Super Admin</div>
+      </div>
+      <i class="ti ti-dots dots"></i>
+    </div>
+  </aside>
+
+  <!-- ─── Main ─── -->
+  <main class="main">
+
+    <div class="topbar">
+      <div>
+        <div class="breadcrumb"><span>Powerhouse</span><span class="sep">/</span><span>Account</span><span class="sep">/</span><span>Settings</span><span class="sep">/</span><span class="current">Billing entities</span></div>
+        <div class="topbar-title">Billing entities</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary"><i class="ti ti-plus"></i>Add entity</button>
+        <div class="divider-v"></div>
+        <div class="topbar-search">
+          <i class="ti ti-search"></i>
+          <input placeholder="Search…">
+          <span class="kbd">⌘K</span>
+        </div>
+        <button class="bell-btn"><i class="ti ti-bell"></i></button>
+        <div class="divider-v"></div>
+        <div class="avatar-wrap">
+          <div class="avatar av-admin">AP</div>
+          <div>
+            <div class="name">Apostolos P.</div>
+            <div class="role">Super Admin</div>
+          </div>
+          <i class="ti ti-chevron-down" style="color: var(--text-tertiary); font-size: 16px;"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ═══════════ LEFT — Entity list ═══════════ -->
+      <aside class="ent-list-card">
+        <div class="ent-list-head">
+          <span class="title">Entities</span>
+          <span class="badge badge-active badge-sm right">2 active</span>
+        </div>
+
+        <div class="ent-row selected" data-ent="maa">
+          <div class="top">
+            <div class="ent-mark maa">M</div>
+            <div>
+              <div class="ent-name">Maavelus Ltd</div>
+              <div class="ent-co">Company No. 16198899</div>
+            </div>
+            <div class="right"><span class="badge badge-active badge-sm">Active</span></div>
+          </div>
+          <div class="ent-desc">Maavelus SaaS subscriptions</div>
+        </div>
+
+        <div class="ent-row" data-ent="kon">
+          <div class="top">
+            <div class="ent-mark kon">K</div>
+            <div>
+              <div class="ent-name">Konstrakt Ltd</div>
+              <div class="ent-co">Company No. 14829301</div>
+            </div>
+            <div class="right"><span class="badge badge-active badge-sm">Active</span></div>
+          </div>
+          <div class="ent-desc">Services, custom projects</div>
+        </div>
+
+        <div class="ent-add-divider"></div>
+        <div class="ent-add">
+          <i class="ti ti-plus"></i>
+          Add new billing entity
+        </div>
+      </aside>
+
+      <!-- ═══════════ RIGHT — Form ═══════════ -->
+      <section class="form-card">
+
+        <div class="form-head">
+          <div class="ent-mark maa lg">M</div>
+          <div class="form-title">Maavelus Ltd</div>
+          <span class="badge badge-active">Active</span>
+          <div class="right">
+            <button class="btn btn-primary disabled"><i class="ti ti-device-floppy"></i>Save changes</button>
+          </div>
+        </div>
+
+        <div class="form-body">
+
+          <!-- LEGAL -->
+          <div class="sec-label">Legal details</div>
+
+          <div class="form-grid-2">
+            <div class="field">
+              <label class="field-label">Legal name</label>
+              <input class="field-input" value="Maavelus Ltd">
+            </div>
+            <div class="field">
+              <label class="field-label">Trading name</label>
+              <input class="field-input" value="Maavelus">
+            </div>
+            <div class="field">
+              <label class="field-label">Company number</label>
+              <input class="field-input mono" value="16198899">
+            </div>
+            <div class="field">
+              <label class="field-label">VAT number</label>
+              <input class="field-input mono" value="GB 398 1234 56">
+            </div>
+            <div class="field full">
+              <label class="field-label">Registered address</label>
+              <textarea class="field-input" rows="3">14 Harley Street, London W1G 9PH</textarea>
+            </div>
+          </div>
+
+          <!-- BANK -->
+          <div class="sec-label">Bank details</div>
+
+          <div class="form-grid-3">
+            <div class="field">
+              <label class="field-label">Bank name</label>
+              <input class="field-input" value="Barclays Business">
+            </div>
+            <div class="field">
+              <label class="field-label">Sort code</label>
+              <input class="field-input mono" value="20-00-00">
+            </div>
+            <div class="field">
+              <label class="field-label">Account number</label>
+              <input class="field-input mono" value="31926483">
+            </div>
+            <div class="field full">
+              <label class="field-label">Account name</label>
+              <input class="field-input" value="Maavelus Ltd">
+            </div>
+          </div>
+
+          <div class="sec-note">
+            <i class="ti ti-lock"></i>
+            Bank details are encrypted at rest and only shown to super admins.
+          </div>
+
+          <!-- BRANDING -->
+          <div class="sec-label">Branding &amp; email</div>
+
+          <div class="upload">
+            <div class="ic"><i class="ti ti-upload"></i></div>
+            <div class="lbl"><strong>Upload logo</strong> or drag a file here</div>
+            <div class="hint">PNG or SVG · max 1MB</div>
+          </div>
+
+          <div class="form-grid-2 field-margin">
+            <div class="field">
+              <label class="field-label">Email sender name</label>
+              <input class="field-input" value="Maavelus Ltd">
+            </div>
+            <div class="field">
+              <label class="field-label">Reply-to email</label>
+              <input class="field-input" value="invoices@maavelus.co.uk">
+            </div>
+            <div class="field full">
+              <label class="field-label">Postmark sending domain</label>
+              <div class="field-suffix">
+                <input class="field-input mono" value="maavelus.co.uk">
+                <span class="suffix-badge"><span class="badge badge-active badge-sm">Verified</span></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- QBO -->
+          <div class="sec-label">QuickBooks Online</div>
+
+          <div class="qbo-card">
+            <div class="qbo-logo">QBO</div>
+            <div>
+              <div class="qbo-status">Not connected</div>
+              <div class="qbo-sub">Invoices will sync automatically once connected.</div>
+            </div>
+            <div class="right">
+              <button class="btn btn-primary"><i class="ti ti-plug-connected"></i>Connect QuickBooks Online</button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  // Entity list selection
+  document.querySelectorAll('.ent-row').forEach(r => {
+    r.addEventListener('click', () => {
+      document.querySelectorAll('.ent-row').forEach(x => x.classList.remove('selected'));
+      r.classList.add('selected');
+    });
+  });
+
+  // Disabled save button is no-op
+  document.querySelectorAll('.btn-primary.disabled').forEach(b => {
+    b.addEventListener('click', e => e.preventDefault());
+  });
+</script>
+
+</body>
+</html>
