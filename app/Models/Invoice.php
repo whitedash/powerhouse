@@ -2,10 +2,41 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $number
+ * @property int $customer_id
+ * @property int $billing_entity_id
+ * @property string $type
+ * @property string $status
+ * @property string $subtotal
+ * @property string $vat_rate
+ * @property string $vat_amount
+ * @property string $total
+ * @property string $amount_paid
+ * @property Carbon|null $issue_date
+ * @property Carbon|null $due_date
+ * @property Carbon|null $paid_at
+ * @property string|null $payment_method
+ * @property string|null $payment_reference
+ * @property string|null $notes
+ * @property string|null $pdf_path
+ * @property Carbon|null $sent_at
+ * @property string|null $qbo_invoice_id
+ * @property int|null $created_by
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Customer|null $customer
+ * @property-read BillingEntity|null $billingEntity
+ * @property-read User|null $createdBy
+ * @property-read Collection<int, InvoiceLine> $lines
+ */
 class Invoice extends Model
 {
     protected $fillable = [

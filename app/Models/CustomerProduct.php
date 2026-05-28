@@ -4,7 +4,28 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $customer_id
+ * @property int $product_id
+ * @property int|null $billing_entity_id
+ * @property string|null $plan
+ * @property string|null $price_monthly
+ * @property string $status
+ * @property Carbon|null $trial_ends_at
+ * @property Carbon|null $started_at
+ * @property Carbon|null $cancelled_at
+ * @property int|null $oauth_client_id
+ * @property int|null $wp_user_id
+ * @property array<string, mixed>|null $config
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Customer|null $customer
+ * @property-read Product|null $product
+ * @property-read BillingEntity|null $billingEntity
+ */
 class CustomerProduct extends Model
 {
     protected $fillable = [

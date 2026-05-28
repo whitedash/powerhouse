@@ -4,7 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $invoice_id
+ * @property string $description
+ * @property string|null $note
+ * @property string $quantity
+ * @property string $unit_price
+ * @property string $amount
+ * @property int $sort_order
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Invoice|null $invoice
+ */
 class InvoiceLine extends Model
 {
     protected $fillable = [

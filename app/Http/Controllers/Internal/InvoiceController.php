@@ -353,10 +353,7 @@ class InvoiceController extends Controller
 
         Gate::authorize('view', $invoice);
 
-        $address = $invoice->billingEntity?->address;
-        if (is_string($address)) {
-            $address = json_decode($address, true) ?: [];
-        }
+        $address = $invoice->billingEntity->address ?? [];
 
         $this->logActivity($request, 'invoice.pdf_downloaded', $invoice);
 

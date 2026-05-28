@@ -100,10 +100,11 @@ class CustomerController extends Controller
 
         $paginator = $query->paginate($filters['per_page'])->withQueryString();
 
-        $paginator->through(function (Customer $customer) {
+        $paginator->through(function (Customer $customer): array {
             $products = $customer->customerProducts
                 ->groupBy('product_id')
-                ->map(function ($group) {
+                ->map(function ($group): array {
+                    /** @var CustomerProduct $first */
                     $first = $group->first();
 
                     return [
@@ -116,7 +117,8 @@ class CustomerController extends Controller
                         'plan' => $first->plan,
                     ];
                 })
-                ->values();
+                ->values()
+                ->all();
 
             $mrr = (float) $customer->customerProducts
                 ->where('status', 'active')

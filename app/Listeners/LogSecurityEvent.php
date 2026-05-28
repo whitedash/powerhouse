@@ -3,10 +3,12 @@
 namespace App\Listeners;
 
 use App\Models\ActivityLog;
+use App\Models\User;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Request;
 
 class LogSecurityEvent
@@ -15,15 +17,15 @@ class LogSecurityEvent
     {
         $this->log(
             action: 'auth.login',
-            userId: $event->user?->getAuthIdentifier(),
-            userRole: $event->user->role ?? null,
+            userId: $event->user->getAuthIdentifier(),
+            userRole: $this->resolveRole($event->user),
             after: ['guard' => $event->guard],
         );
     }
 
     public function onFailed(Failed $event): void
     {
-        $email = is_array($event->credentials) ? ($event->credentials['email'] ?? null) : null;
+        $email = $event->credentials['email'] ?? null;
 
         $this->log(
             action: 'auth.failed',
@@ -37,8 +39,8 @@ class LogSecurityEvent
     {
         $this->log(
             action: 'auth.logout',
-            userId: $event->user?->getAuthIdentifier(),
-            userRole: $event->user->role ?? null,
+            userId: $event->user->getAuthIdentifier(),
+            userRole: $this->resolveRole($event->user),
             after: ['guard' => $event->guard],
         );
     }
@@ -47,9 +49,14 @@ class LogSecurityEvent
     {
         $this->log(
             action: 'auth.password_reset',
-            userId: $event->user?->getAuthIdentifier(),
-            userRole: $event->user->role ?? null,
+            userId: $event->user->getAuthIdentifier(),
+            userRole: $this->resolveRole($event->user),
         );
+    }
+
+    private function resolveRole(Authenticatable $user): ?string
+    {
+        return $user instanceof User ? $user->role : null;
     }
 
     private function log(

@@ -3,12 +3,48 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string|null $trading_name
+ * @property string|null $company_number
+ * @property string|null $vat_number
+ * @property string $type
+ * @property string|null $address_line1
+ * @property string|null $address_line2
+ * @property string|null $city
+ * @property string|null $postcode
+ * @property string|null $country
+ * @property array<string, mixed>|null $billing_address
+ * @property string $pipeline_stage
+ * @property int|null $assigned_to
+ * @property int|null $referred_by
+ * @property Carbon|null $archived_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read User|null $assignedTo
+ * @property-read Referrer|null $referredBy
+ * @property-read Collection<int, Contact> $contacts
+ * @property-read Contact|null $primaryContact
+ * @property-read Collection<int, PortalUser> $portalUsers
+ * @property-read Collection<int, CustomerProduct> $customerProducts
+ * @property-read Collection<int, Invoice> $invoices
+ * @property-read Collection<int, Domain> $domains
+ * @property-read Collection<int, Contract> $contracts
+ * @property-read Collection<int, SupportTicket> $supportTickets
+ * @property-read Collection<int, Note> $notes
+ * @property-read Collection<int, Task> $tasks
+ * @property-read CustomerReferral|null $referral
+ * @property-read Collection<int, AccountGroup> $groups
+ */
 class Customer extends Model
 {
     protected $fillable = [

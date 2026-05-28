@@ -7,5 +7,3 @@ parameters:
         - app
     excludePaths:
         - app/Http/Middleware/SecurityHeaders.php
-    checkMissingIterableValueType: false
-    checkGenericClassInNonGenericObjectType: false

@@ -2,11 +2,26 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property array<string, mixed>|null $payment_details
+ * @property bool $is_active
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read User|null $user
+ * @property-read Collection<int, CustomerReferral> $referrals
+ * @property-read Collection<int, Customer> $customers
+ * @property-read Collection<int, CommissionRule> $commissionRules
+ * @property-read Collection<int, CommissionLedger> $ledgerEntries
+ */
 class Referrer extends Model
 {
     protected $fillable = [

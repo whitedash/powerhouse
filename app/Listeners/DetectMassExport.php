@@ -40,8 +40,8 @@ class DetectMassExport
                 'endpoint' => $event->endpoint,
                 'window_minutes' => self::WINDOW_MINUTES,
             ],
-            'ip_address' => request()?->ip(),
-            'user_agent' => substr((string) request()?->userAgent(), 0, 500),
+            'ip_address' => request()->ip(),
+            'user_agent' => substr((string) request()->userAgent(), 0, 500),
         ]);
 
         $admin = User::where('role', 'super_admin')->first();

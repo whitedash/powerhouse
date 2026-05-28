@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Portal;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Invoice;
+use App\Models\PortalUser;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,8 +21,9 @@ class InvoiceController extends Controller
 
     public function downloadPdf(int $id, Request $request): \Symfony\Component\HttpFoundation\Response
     {
+        /** @var PortalUser|null $portalUser */
         $portalUser = Auth::guard('portal')->user();
-        abort_unless($portalUser, 401);
+        abort_unless($portalUser instanceof PortalUser, 401);
 
         // EnsurePortalDataOwnership middleware can't catch this — the
         // route param is invoice id, not customer id — so the scoping
@@ -36,10 +38,7 @@ class InvoiceController extends Controller
             ->where('customer_id', $portalUser->customer_id)
             ->findOrFail($id);
 
-        $address = $invoice->billingEntity?->address;
-        if (is_string($address)) {
-            $address = json_decode($address, true) ?: [];
-        }
+        $address = $invoice->billingEntity->address ?? [];
 
         ActivityLog::create([
             'user_id' => $portalUser->id,

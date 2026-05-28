@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\PortalUser;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,7 +14,7 @@ class EnsurePortalDataOwnership
     {
         $portalUser = Auth::guard('portal')->user();
 
-        if (! $portalUser) {
+        if (! $portalUser instanceof PortalUser) {
             abort(401);
         }
 

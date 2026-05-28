@@ -4,7 +4,17 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $customer_id
+ * @property int $referrer_id
+ * @property Carbon|null $attributed_at
+ * @property Carbon|null $created_at
+ * @property-read Customer|null $customer
+ * @property-read Referrer|null $referrer
+ */
 class CustomerReferral extends Model
 {
     public $timestamps = false;
