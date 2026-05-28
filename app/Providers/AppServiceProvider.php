@@ -5,9 +5,11 @@ namespace App\Providers;
 use App\Http\Middleware\RequirePkce;
 use App\Listeners\DetectMassExport;
 use App\Listeners\LogSecurityEvent;
+use App\Models\BillingEntity;
 use App\Models\CommissionLedger;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Policies\BillingEntityPolicy;
 use App\Policies\CommissionLedgerPolicy;
 use App\Policies\CustomerPolicy;
 use App\Policies\InvoicePolicy;
@@ -80,6 +82,7 @@ class AppServiceProvider extends ServiceProvider
 
     private function registerPolicies(): void
     {
+        Gate::policy(BillingEntity::class, BillingEntityPolicy::class);
         Gate::policy(Customer::class, CustomerPolicy::class);
         Gate::policy(Invoice::class, InvoicePolicy::class);
         Gate::policy(CommissionLedger::class, CommissionLedgerPolicy::class);

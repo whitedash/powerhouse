@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\StaffLoginController;
+use App\Http\Controllers\Internal\BillingEntityController as InternalBillingEntityController;
 use App\Http\Controllers\Internal\CustomerController as InternalCustomerController;
 use App\Http\Controllers\Internal\DashboardController as InternalDashboardController;
 use App\Http\Controllers\Internal\DomainController as InternalDomainController;
@@ -55,6 +56,19 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
     Route::get('/support', [InternalSupportController::class, 'index'])->name('internal.support.index');
     Route::get('/provisioning', [InternalProvisioningController::class, 'index'])->name('internal.provisioning.index');
     Route::get('/settings', [InternalSettingsController::class, 'index'])->name('internal.settings.index');
+
+    // Settings sub-pages that mutate global config (billing entities, etc.)
+    // are super_admin-only. Staff can read /settings overview but not the
+    // sensitive editors. Nested middleware extends — not replaces — the
+    // outer auth + role:super_admin,staff guard.
+    Route::middleware('role:super_admin')->prefix('settings')->name('internal.settings.')->group(function () {
+        Route::get('/billing-entities', [InternalBillingEntityController::class, 'index'])
+            ->name('billing-entities.index');
+        Route::post('/billing-entities', [InternalBillingEntityController::class, 'store'])
+            ->name('billing-entities.store');
+        Route::put('/billing-entities/{id}', [InternalBillingEntityController::class, 'update'])
+            ->name('billing-entities.update');
+    });
 });
 
 /*

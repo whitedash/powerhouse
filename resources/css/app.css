@@ -2325,3 +2325,332 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     margin-top: 10px;
     font-variant-numeric: tabular-nums;
 }
+
+/* ─── Settings · Billing entities (Phase 8) ─── */
+.billing-entities {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 24px;
+    align-items: start;
+}
+
+.billing-entities .ent-list-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+.billing-entities .ent-list-head {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.billing-entities .ent-list-head .title {
+    font: 600 15px/1.2 'Inter', sans-serif;
+    letter-spacing: -.005em;
+}
+.billing-entities .ent-list-head .right { margin-left: auto; }
+
+.billing-entities .ent-row {
+    padding: 16px 18px;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    transition: background .12s;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.billing-entities .ent-row + .ent-row { border-top: 1px solid var(--border-soft); }
+.billing-entities .ent-row:hover { background: var(--neutral-bg); }
+.billing-entities .ent-row.selected {
+    background: var(--warning-bg);
+    border-left-color: var(--accent);
+}
+.billing-entities .ent-row.selected:hover { background: #FEF3C7; }
+
+.billing-entities .ent-row .top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+.billing-entities .ent-mark {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font: 700 13px/1 'Inter', sans-serif;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, .18);
+}
+.billing-entities .ent-mark.maa {
+    background: linear-gradient(135deg, var(--accent), #FBBF24);
+    color: var(--bg-navy);
+    box-shadow: 0 2px 6px rgba(245, 158, 11, .35);
+}
+.billing-entities .ent-mark.kon {
+    background: linear-gradient(135deg, var(--bg-navy), #334155);
+}
+.billing-entities .ent-mark.teal {
+    background: linear-gradient(135deg, var(--teal), #14B8A6);
+}
+.billing-entities .ent-mark.purple {
+    background: linear-gradient(135deg, var(--purple), #A855F7);
+}
+.billing-entities .ent-mark.lg {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+    border-radius: 9px;
+}
+
+.billing-entities .ent-name {
+    font: 600 14px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+    letter-spacing: -.005em;
+}
+.billing-entities .ent-co {
+    font: 400 12px/1.3 'JetBrains Mono', monospace;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+    letter-spacing: 0;
+}
+.billing-entities .ent-row .top .right { margin-left: auto; }
+.billing-entities .ent-desc {
+    font: 400 12px/1.4 'Inter', sans-serif;
+    color: var(--text-secondary);
+    padding-left: 38px;
+}
+
+.billing-entities .ent-add {
+    margin: 0 12px 12px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font: 500 13px/1 'Inter', sans-serif;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, color .15s;
+    width: calc(100% - 24px);
+    background: transparent;
+}
+.billing-entities .ent-add svg { width: 16px; height: 16px; color: var(--text-tertiary); }
+.billing-entities .ent-add:hover {
+    border-color: var(--accent);
+    background: var(--warning-bg);
+    color: var(--accent);
+}
+.billing-entities .ent-add:hover svg { color: var(--accent); }
+.billing-entities .ent-add-divider {
+    border-top: 1px solid var(--border-soft);
+    margin-bottom: 12px;
+}
+
+.billing-entities .form-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+.billing-entities .form-head {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.billing-entities .form-title {
+    font: 700 18px/1.2 'Inter', sans-serif;
+    letter-spacing: -.01em;
+    color: var(--text-primary);
+}
+.billing-entities .form-head .right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.billing-entities .form-body { padding: 0 24px 24px; }
+
+.billing-entities .sec-label {
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    color: var(--text-tertiary);
+    padding: 22px 0 10px;
+    border-bottom: 1px solid var(--border-soft);
+    margin-bottom: 18px;
+}
+
+.billing-entities .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.billing-entities .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+.billing-entities .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.billing-entities .field-label {
+    font: 500 12px/1.2 'Inter', sans-serif;
+    color: var(--text-secondary);
+    letter-spacing: -.005em;
+}
+.billing-entities .field-input {
+    width: 100%;
+    height: 38px;
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: var(--radius-md);
+    padding: 0 12px;
+    font: 400 14px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: 0;
+    transition: border-color .15s, box-shadow .15s;
+}
+.billing-entities .field-input:hover { border-color: #CBD5E1; }
+.billing-entities .field-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, .18);
+}
+.billing-entities .field-input.mono {
+    font: 500 13.5px/1 'JetBrains Mono', monospace;
+    letter-spacing: .01em;
+}
+.billing-entities .field-input::placeholder { color: var(--text-tertiary); }
+.billing-entities .field-input.has-err { border-color: var(--danger); }
+
+.billing-entities textarea.field-input {
+    height: auto;
+    padding: 10px 12px;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 76px;
+    font-family: 'Inter', sans-serif;
+}
+
+.billing-entities .field.full { grid-column: 1 / -1; }
+.billing-entities .field-err {
+    font: 400 11.5px/1.4 'Inter', sans-serif;
+    color: var(--danger);
+}
+
+.billing-entities .field-suffix { position: relative; }
+.billing-entities .field-suffix .field-input { padding-right: 96px; }
+.billing-entities .field-suffix .suffix-badge {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.billing-entities .field-margin { margin-top: 16px; }
+
+.billing-entities .sec-note {
+    background: var(--neutral-bg);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    margin-top: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font: 400 12px/1.5 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.billing-entities .sec-note svg {
+    width: 14px;
+    height: 14px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.billing-entities .upload {
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    text-align: center;
+    background: var(--neutral-bg);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+.billing-entities .upload:hover {
+    border-color: var(--accent);
+    background: var(--warning-bg);
+}
+.billing-entities .upload .ic {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #fff;
+    display: grid;
+    place-items: center;
+    color: var(--text-tertiary);
+    border: 1px solid var(--border);
+}
+.billing-entities .upload .ic svg { width: 20px; height: 20px; }
+.billing-entities .upload .lbl {
+    font: 500 13px/1.3 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.billing-entities .upload .lbl strong {
+    color: var(--accent);
+    font-weight: 600;
+}
+.billing-entities .upload .hint {
+    font: 400 12px/1.3 'Inter', sans-serif;
+    color: var(--text-tertiary);
+}
+
+.billing-entities .qbo-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    align-items: center;
+    gap: 14px;
+}
+.billing-entities .qbo-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 9px;
+    background: #2CA01C;
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font: 700 11px/1 'Inter', sans-serif;
+    letter-spacing: -.005em;
+    box-shadow: 0 2px 6px rgba(44, 160, 28, .3);
+    grid-row: span 2;
+}
+.billing-entities .qbo-status {
+    font: 600 14px/1.2 'Inter', sans-serif;
+    color: var(--text-primary);
+    letter-spacing: -.005em;
+}
+.billing-entities .qbo-sub {
+    font: 400 12px/1.3 'Inter', sans-serif;
+    color: var(--text-secondary);
+    margin-top: 3px;
+}
+.billing-entities .qbo-card .right { grid-row: span 2; }
+
+/* Save-row footer (visible only when form is dirty) */
+.billing-entities .save-row {
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
