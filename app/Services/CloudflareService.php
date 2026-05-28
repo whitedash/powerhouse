@@ -4,9 +4,7 @@ namespace App\Services;
 
 class CloudflareService
 {
-    public function syncZones(): void
-    {
-    }
+    public function syncZones(): void {}
 
     public function getZone(string $zoneId): ?array
     {

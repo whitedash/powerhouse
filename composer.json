@@ -12,11 +12,15 @@
         "laravel/framework": "^13.8",
         "laravel/passport": "^13.7",
         "laravel/tinker": "^3.0",
+        "pragmarx/google2fa-laravel": "^3.0",
         "spatie/laravel-activitylog": "^5.0",
+        "spatie/laravel-responsecache": "^8.4",
         "tightenco/ziggy": "^2.6"
     },
     "require-dev": {
+        "barryvdh/laravel-debugbar": "*",
         "fakerphp/faker": "^1.23",
+        "larastan/larastan": "^3.10",
         "laravel/pail": "^1.2.5",
         "laravel/pao": "^1.0.6",
         "laravel/pint": "^1.27",

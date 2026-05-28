@@ -14,17 +14,11 @@ class InvoiceService
         return 0;
     }
 
-    public function recalculateTotals(int $invoiceId): void
-    {
-    }
+    public function recalculateTotals(int $invoiceId): void {}
 
-    public function send(int $invoiceId): void
-    {
-    }
+    public function send(int $invoiceId): void {}
 
-    public function markPaid(int $invoiceId, array $paymentData): void
-    {
-    }
+    public function markPaid(int $invoiceId, array $paymentData): void {}
 
     public function generatePdf(int $invoiceId): string
     {

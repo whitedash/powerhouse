@@ -3,7 +3,9 @@
 ## Mandatory before every session
 1. Read this file completely
 2. Run `php artisan migrate:status` and report any pending migrations
-3. Never guess column names — check migrations or run
+3. Run `composer audit` and `npm audit`. Report any high/critical
+   vulnerabilities before proceeding.
+4. Never guess column names — check migrations or run
    `php artisan db:show --table=TABLE_NAME`
 
 ## Stack
@@ -35,7 +37,19 @@ for every layout, component, and interaction pattern.
 ## Key files
 - SCHEMA.md — complete database schema (source of truth)
 - DECISION-LOG.md — architectural decisions
+- SECURITY.md — production deploy checklist + threat model
 - /design/ — all 16 HTML screen designs
+
+## Code quality
+- `vendor/bin/pint` — code style (Laravel preset + extra rules)
+- `vendor/bin/phpstan analyse` — static analysis, level 5
+
+## Write operations
+- Validation lives in `app/Http/Requests/*Request.php`, not in
+  controllers. Each request must implement `authorize()` calling
+  a policy (`$user->can('action', Model::class)`).
+- All persistence inside transactions.
+- Every mutation logged to `activity_log`.
 
 ## Restore to main rule
 Always restore to main branch before starting a new session

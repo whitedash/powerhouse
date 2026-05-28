@@ -78,7 +78,8 @@ Route::prefix('partners')->middleware(['auth', 'role:referrer'])->group(function
 */
 Route::middleware('guest')->group(function () {
     Route::get('/login', [StaffLoginController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [StaffLoginController::class, 'login']);
+    Route::post('/login', [StaffLoginController::class, 'login'])
+        ->middleware('throttle:staff-login');
 });
 
 Route::post('/logout', [StaffLoginController::class, 'logout'])

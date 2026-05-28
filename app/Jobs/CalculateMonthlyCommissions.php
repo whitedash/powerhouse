@@ -16,11 +16,7 @@ class CalculateMonthlyCommissions implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public function __construct(public string $period)
-    {
-    }
+    public function __construct(public string $period) {}
 
-    public function handle(CommissionService $service): void
-    {
-    }
+    public function handle(CommissionService $service): void {}
 }

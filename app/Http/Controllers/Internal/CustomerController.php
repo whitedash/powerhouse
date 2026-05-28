@@ -3,15 +3,18 @@
 namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreCustomerRequest;
 use App\Models\ActivityLog;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerProduct;
 use App\Models\Product;
 use App\Models\Referrer;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -34,6 +37,8 @@ class CustomerController extends Controller
 
     public function index(Request $request): Response
     {
+        Gate::authorize('viewAny', Customer::class);
+
         $filters = [
             'search' => trim((string) $request->query('search', '')),
             'pipeline_stage' => $request->query('pipeline_stage'),
@@ -89,6 +94,7 @@ class CustomerController extends Controller
                 ->groupBy('product_id')
                 ->map(function ($group) {
                     $first = $group->first();
+
                     return [
                         'slug' => $first->product?->slug,
                         'name' => $first->product?->name,
@@ -158,8 +164,7 @@ class CustomerController extends Controller
             'pipeline_stages' => self::PIPELINE_STAGES,
             'types' => self::TYPE_VALUES,
             'contact_roles' => self::CONTACT_ROLES,
-            'assignable_users' => DB::table('users')
-                ->whereIn('role', ['super_admin', 'staff'])
+            'assignable_users' => User::whereIn('role', ['super_admin', 'staff'])
                 ->orderBy('name')
                 ->get(['id', 'name', 'role']),
         ]);
@@ -167,29 +172,14 @@ class CustomerController extends Controller
 
     public function show(int $id): Response
     {
+        Gate::authorize('view', Customer::class);
+
         return Inertia::render('Internal/Customers/Show', ['id' => $id]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreCustomerRequest $request): RedirectResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'trading_name' => ['nullable', 'string', 'max:255'],
-            'company_number' => ['nullable', 'string', 'max:50'],
-            'vat_number' => ['nullable', 'string', 'max:50'],
-            'type' => ['required', 'in:'.implode(',', self::TYPE_VALUES)],
-            'address_line1' => ['required', 'string', 'max:255'],
-            'address_line2' => ['nullable', 'string', 'max:255'],
-            'city' => ['required', 'string', 'max:120'],
-            'postcode' => ['required', 'string', 'max:20'],
-            'country' => ['nullable', 'string', 'size:2'],
-            'pipeline_stage' => ['nullable', 'in:'.implode(',', self::PIPELINE_STAGES)],
-            'assigned_to' => ['nullable', 'exists:users,id'],
-            'contact_name' => ['required', 'string', 'max:255'],
-            'contact_email' => ['required', 'email', 'max:255'],
-            'contact_phone' => ['nullable', 'string', 'max:50'],
-            'contact_role' => ['nullable', 'in:'.implode(',', self::CONTACT_ROLES)],
-        ]);
+        $data = $request->validated();
 
         $customer = DB::transaction(function () use ($data, $request) {
             $customer = Customer::create([

@@ -33,6 +33,7 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'two_factor_secret' => 'encrypted',
             'two_factor_confirmed_at' => 'datetime',
             'last_login_at' => 'datetime',
         ];

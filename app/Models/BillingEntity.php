@@ -36,6 +36,11 @@ class BillingEntity extends Model
             'address' => 'array',
             'qbo_token_expires_at' => 'datetime',
             'is_active' => 'boolean',
+            'sort_code' => 'encrypted',
+            'account_number' => 'encrypted',
+            'account_name' => 'encrypted',
+            'qbo_access_token' => 'encrypted',
+            'qbo_refresh_token' => 'encrypted',
         ];
     }
 

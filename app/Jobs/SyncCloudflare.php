@@ -16,7 +16,5 @@ class SyncCloudflare implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public function handle(CloudflareService $service): void
-    {
-    }
+    public function handle(CloudflareService $service): void {}
 }

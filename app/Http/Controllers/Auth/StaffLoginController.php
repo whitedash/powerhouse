@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -30,6 +31,10 @@ class StaffLoginController extends Controller
             ]);
         }
 
+        // Clear the rate-limit window for this email + IP on success so a few
+        // fat-finger attempts don't reduce the budget for the real user.
+        RateLimiter::clear($this->throttleKey($request));
+
         $request->session()->regenerate();
 
         $request->user()->forceFill([
@@ -48,5 +53,10 @@ class StaffLoginController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('login');
+    }
+
+    private function throttleKey(Request $request): string
+    {
+        return strtolower((string) $request->input('email')).'|'.$request->ip();
     }
 }

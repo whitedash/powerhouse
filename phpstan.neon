@@ -1,0 +1,11 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - app
+    excludePaths:
+        - app/Http/Middleware/SecurityHeaders.php
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: false

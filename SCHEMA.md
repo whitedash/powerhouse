@@ -3,7 +3,8 @@
 
 ## users
 id, name, email, password, role ENUM(super_admin|staff|referrer),
-avatar_colour, two_factor_secret, two_factor_confirmed_at,
+avatar_colour, two_factor_secret TEXT (encrypted),
+two_factor_confirmed_at,
 last_login_at, last_login_ip, created_at, updated_at
 
 ## customers
@@ -51,11 +52,15 @@ config JSON nullable, created_at, updated_at
 
 ## billing_entities
 id, name, legal_name, company_number, vat_number,
-address JSON, bank_name, sort_code, account_number,
-account_name, logo_path nullable, postmark_sender_email,
+address JSON, bank_name,
+sort_code TEXT (encrypted), account_number TEXT (encrypted),
+account_name TEXT (encrypted),
+logo_path nullable, postmark_sender_email,
 postmark_sender_name, postmark_domain nullable,
-qbo_realm_id nullable, qbo_access_token TEXT nullable,
-qbo_refresh_token TEXT nullable, qbo_token_expires_at nullable,
+qbo_realm_id nullable,
+qbo_access_token TEXT nullable (encrypted),
+qbo_refresh_token TEXT nullable (encrypted),
+qbo_token_expires_at nullable,
 is_active BOOLEAN DEFAULT true, created_at, updated_at
 
 ## invoices
