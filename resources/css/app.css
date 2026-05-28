@@ -1332,3 +1332,21 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     font-variant-numeric: tabular-nums;
 }
 .legend-rec svg { width: 16px; height: 16px; }
+
+/* ─────────────────────────────────────────────────────────────────
+ * Base card container — verbatim from design HTML.
+ *
+ * Belatedly added in the Phase 4-fix sweep: the Customer Detail page
+ * uses `<section class="card">` for every panel, and the base rule
+ * was missed when Phase 4 CSS was appended (earlier phases never
+ * needed plain `.card` — Phase 3 used `.table-card`, Phase 1b only
+ * added sidebar/topbar primitives). Every detail-page section was
+ * rendering as a transparent block until this landed.
+ * ───────────────────────────────────────────────────────────────── */
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
