@@ -163,17 +163,21 @@ function logout() {
                     <div v-if="title" class="topbar-title">{{ title }}</div>
                 </div>
 
-                <div class="topbar-search">
-                    <span class="search-icon"><IconSearch :size="18" stroke-width="1.75" /></span>
-                    <input placeholder="Search customers, invoices, products…">
-                    <span class="kbd">⌘K</span>
-                </div>
+                <div class="topbar-actions">
+                    <slot name="topbar-actions" />
+                    <div v-if="$slots['topbar-actions']" class="divider-v" />
 
-                <button class="bell-btn" aria-label="Notifications">
-                    <IconBell :size="20" stroke-width="1.75" />
-                </button>
+                    <div class="topbar-search">
+                        <span class="search-icon"><IconSearch :size="18" stroke-width="1.75" /></span>
+                        <input placeholder="Search customers, invoices, products…">
+                        <span class="kbd">⌘K</span>
+                    </div>
 
-                <div class="divider" />
+                    <button class="bell-btn" aria-label="Notifications">
+                        <IconBell :size="20" stroke-width="1.75" />
+                    </button>
+
+                    <div class="divider-v" />
 
                 <Menu as="div" class="topbar-user-menu">
                     <MenuButton class="avatar-wrap">
@@ -198,6 +202,7 @@ function logout() {
                         </MenuItem>
                     </MenuItems>
                 </Menu>
+                </div>
             </div>
 
             <div class="content">

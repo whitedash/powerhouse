@@ -29,6 +29,7 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
     Route::get('/', InternalDashboardController::class)->name('internal.dashboard');
 
     Route::get('/customers', [InternalCustomerController::class, 'index'])->name('internal.customers.index');
+    Route::post('/customers', [InternalCustomerController::class, 'store'])->name('internal.customers.store');
     Route::get('/customers/{id}', [InternalCustomerController::class, 'show'])->name('internal.customers.show');
 
     Route::get('/invoices', [InternalInvoiceController::class, 'index'])->name('internal.invoices.index');
