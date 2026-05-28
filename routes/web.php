@@ -37,6 +37,10 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
 
     Route::post('/customers', [InternalCustomerController::class, 'store'])->name('internal.customers.store');
     Route::get('/customers/{id}', [InternalCustomerController::class, 'show'])->name('internal.customers.show');
+    Route::put('/customers/{id}', [InternalCustomerController::class, 'update'])->name('internal.customers.update');
+    Route::post('/customers/{id}/notes', [InternalCustomerController::class, 'storeNote'])->name('internal.customers.notes.store');
+    Route::post('/customers/{id}/tasks', [InternalCustomerController::class, 'storeTask'])->name('internal.customers.tasks.store');
+    Route::delete('/customers/{id}/archive', [InternalCustomerController::class, 'archive'])->name('internal.customers.archive');
 
     Route::get('/invoices/new', [InternalInvoiceController::class, 'create'])->name('internal.invoices.create');
     Route::get('/invoices/{id}', [InternalInvoiceController::class, 'show'])->name('internal.invoices.show');

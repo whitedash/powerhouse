@@ -104,9 +104,10 @@ class Customer extends Model
 
     public function groups(): BelongsToMany
     {
+        // Pivot table has only created_at (no updated_at) per SCHEMA.md,
+        // so withTimestamps() is intentionally NOT chained here.
         return $this->belongsToMany(AccountGroup::class, 'customer_group_memberships', 'customer_id', 'group_id')
-            ->withPivot('role')
-            ->withTimestamps();
+            ->withPivot('role', 'created_at');
     }
 
     /**

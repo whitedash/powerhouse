@@ -5,12 +5,16 @@ namespace App\Http\Controllers\Internal;
 use App\Events\PaginatedListAccessed;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCustomerRequest;
+use App\Http\Requests\UpdateCustomerRequest;
 use App\Models\ActivityLog;
+use App\Models\BillingEntity;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerProduct;
+use App\Models\Note;
 use App\Models\Product;
 use App\Models\Referrer;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,6 +30,8 @@ class CustomerController extends Controller
     private const TYPE_VALUES = ['restaurant', 'bar', 'bakery', 'cafe', 'venue', 'other'];
 
     private const CONTACT_ROLES = ['owner', 'manager', 'accounts', 'other'];
+
+    private const NOTE_TYPES = ['internal', 'call', 'meeting', 'email'];
 
     private const SORT_OPTIONS = ['last_active', 'name', 'created_at'];
 
@@ -177,9 +183,191 @@ class CustomerController extends Controller
 
     public function show(int $id): Response
     {
-        Gate::authorize('view', Customer::class);
+        $customer = Customer::with([
+            'contacts',
+            'assignedTo:id,name,role,avatar_colour',
+            'customerProducts.product',
+            'customerProducts.billingEntity:id,name',
+            'referral.referrer.user:id,name,role,avatar_colour',
+            'notes' => fn ($q) => $q->with('createdBy:id,name,role,avatar_colour')
+                ->orderByDesc('created_at')
+                ->limit(10),
+            'tasks' => fn ($q) => $q->where('status', 'open')->orderBy('due_date'),
+            'domains',
+            'invoices' => fn ($q) => $q->with('billingEntity:id,name')
+                ->orderByDesc('created_at')
+                ->limit(5),
+            'groups.customers:id,name',
+            'contracts:id,customer_id,title,status,type',
+            'supportTickets:id,customer_id,subject,status',
+        ])->findOrFail($id);
 
-        return Inertia::render('Internal/Customers/Show', ['id' => $id]);
+        Gate::authorize('view', $customer);
+
+        $totalSpend = (float) $customer->invoices()->where('status', 'paid')->sum('total');
+        $openInvoiceCount = $customer->invoices()->whereIn('status', ['sent', 'overdue'])->count();
+        $openTicketCount = $customer->supportTickets()
+            ->whereNotIn('status', ['resolved', 'closed'])
+            ->count();
+
+        $mrr = (float) $customer->customerProducts
+            ->where('status', 'active')
+            ->sum('price_monthly');
+
+        $referrerUser = $customer->referral?->referrer?->user;
+        $firstGroup = $customer->groups->first();
+
+        $activity = ActivityLog::where('entity_type', 'customer')
+            ->where('entity_id', $customer->id)
+            ->orderByDesc('created_at')
+            ->limit(8)
+            ->get()
+            ->map(fn (ActivityLog $a) => [
+                'id' => $a->id,
+                'action' => $a->action,
+                'after' => $a->after,
+                'before' => $a->before,
+                'created_at' => $a->created_at?->toIso8601String(),
+                'user_id' => $a->user_id,
+            ]);
+
+        return Inertia::render('Internal/Customers/Show', [
+            'customer' => [
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'trading_name' => $customer->trading_name,
+                'company_number' => $customer->company_number,
+                'vat_number' => $customer->vat_number,
+                'type' => $customer->type,
+                'address_line1' => $customer->address_line1,
+                'address_line2' => $customer->address_line2,
+                'city' => $customer->city,
+                'postcode' => $customer->postcode,
+                'country' => $customer->country,
+                'billing_address' => $customer->billing_address,
+                'pipeline_stage' => $customer->pipeline_stage,
+                'assigned_to' => $customer->assigned_to,
+                'assigned_user' => $customer->assignedTo
+                    ? [
+                        'id' => $customer->assignedTo->id,
+                        'name' => $customer->assignedTo->name,
+                        'role' => $customer->assignedTo->role,
+                        'avatar_colour' => $customer->assignedTo->avatar_colour,
+                    ]
+                    : null,
+                'archived_at' => $customer->archived_at?->toIso8601String(),
+                'created_at' => $customer->created_at?->toIso8601String(),
+
+                'contacts' => $customer->contacts->map(fn (Contact $c) => [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'email' => $c->email,
+                    'phone' => $c->phone,
+                    'role' => $c->role,
+                    'is_primary' => (bool) $c->is_primary,
+                ])->values(),
+
+                'products' => $customer->customerProducts->map(fn ($cp) => [
+                    'id' => $cp->id,
+                    'product_id' => $cp->product_id,
+                    'slug' => $cp->product?->slug,
+                    'name' => $cp->product?->name,
+                    'icon_colour' => $cp->product?->icon_colour,
+                    'pb_class' => self::PRODUCT_SLUG_TO_PB[$cp->product?->slug] ?? 'teal',
+                    'status' => $cp->status,
+                    'plan' => $cp->plan,
+                    'price_monthly' => (float) ($cp->price_monthly ?? 0),
+                    'trial_ends_at' => $cp->trial_ends_at?->toIso8601String(),
+                    'started_at' => $cp->started_at?->toIso8601String(),
+                    'cancelled_at' => $cp->cancelled_at?->toIso8601String(),
+                    'billing_entity' => $cp->billingEntity
+                        ? ['id' => $cp->billingEntity->id, 'name' => $cp->billingEntity->name]
+                        : null,
+                ])->values(),
+
+                'mrr' => $mrr,
+                'total_spend' => $totalSpend,
+                'open_invoices' => $openInvoiceCount,
+                'open_tickets' => $openTicketCount,
+
+                'referrer' => $customer->referral && $referrerUser
+                    ? [
+                        'referrer_id' => $customer->referral->referrer_id,
+                        'name' => $referrerUser->name,
+                        'attributed_at' => $customer->referral->attributed_at?->toIso8601String(),
+                    ]
+                    : null,
+
+                'group' => $firstGroup
+                    ? [
+                        'id' => $firstGroup->id,
+                        'name' => $firstGroup->name,
+                        'member_count' => $firstGroup->customers->count(),
+                    ]
+                    : null,
+
+                'notes' => $customer->notes->map(fn (Note $n) => [
+                    'id' => $n->id,
+                    'type' => $n->type,
+                    'body' => $n->body,
+                    'created_at' => $n->created_at?->toIso8601String(),
+                    'creator' => $n->createdBy
+                        ? [
+                            'id' => $n->createdBy->id,
+                            'name' => $n->createdBy->name,
+                            'role' => $n->createdBy->role,
+                            'avatar_colour' => $n->createdBy->avatar_colour,
+                        ]
+                        : null,
+                ])->values(),
+
+                'tasks' => $customer->tasks->map(fn (Task $t) => [
+                    'id' => $t->id,
+                    'title' => $t->title,
+                    'status' => $t->status,
+                    'due_date' => $t->due_date?->toDateString(),
+                    'customer_id' => $t->customer_id,
+                ])->values(),
+
+                'invoices' => $customer->invoices->map(fn ($i) => [
+                    'id' => $i->id,
+                    'number' => $i->number,
+                    'type' => $i->type,
+                    'status' => $i->status,
+                    'total' => (float) $i->total,
+                    'issue_date' => $i->issue_date?->toDateString(),
+                    'paid_at' => $i->paid_at?->toIso8601String(),
+                    'billing_entity' => $i->billingEntity
+                        ? ['name' => $i->billingEntity->name]
+                        : null,
+                ])->values(),
+
+                'domains' => $customer->domains->map(fn ($d) => [
+                    'id' => $d->id,
+                    'domain' => $d->domain,
+                    'expiry_date' => $d->expiry_date?->toDateString(),
+                    'ssl_expiry_date' => $d->ssl_expiry_date?->toDateString(),
+                    'is_in_cloudflare' => (bool) $d->is_in_cloudflare,
+                    'status' => $this->domainStatus($d),
+                ])->values(),
+
+                'contracts_count' => $customer->contracts->count(),
+
+                'activity' => $activity,
+            ],
+            'users' => User::whereIn('role', ['super_admin', 'staff'])
+                ->get(['id', 'name', 'role', 'avatar_colour']),
+            'all_products' => Product::where('is_active', true)
+                ->orWhere('is_coming_soon', true)
+                ->orderBy('sort_order')
+                ->get(['id', 'slug', 'name', 'icon_colour', 'is_coming_soon']),
+            'billing_entities' => BillingEntity::where('is_active', true)
+                ->get(['id', 'name']),
+            'pipeline_stages' => self::PIPELINE_STAGES,
+            'contact_roles' => self::CONTACT_ROLES,
+            'note_types' => self::NOTE_TYPES,
+            'types' => self::TYPE_VALUES,
+        ]);
     }
 
     public function store(StoreCustomerRequest $request): RedirectResponse
@@ -211,16 +399,7 @@ class CustomerController extends Controller
                 'is_primary' => true,
             ]);
 
-            ActivityLog::create([
-                'user_id' => $request->user()?->id,
-                'user_role' => $request->user()?->role,
-                'action' => 'customer.created',
-                'entity_type' => 'customer',
-                'entity_id' => $customer->id,
-                'after' => ['name' => $customer->name],
-                'ip_address' => $request->ip(),
-                'user_agent' => substr((string) $request->userAgent(), 0, 500),
-            ]);
+            $this->logActivity($request, 'customer.created', $customer, after: ['name' => $customer->name]);
 
             return $customer;
         });
@@ -228,5 +407,137 @@ class CustomerController extends Controller
         return redirect()
             ->route('internal.customers.show', $customer->id)
             ->with('success', "Created {$customer->name}");
+    }
+
+    public function update(int $id, UpdateCustomerRequest $request): RedirectResponse
+    {
+        $customer = Customer::findOrFail($id);
+        Gate::authorize('update', $customer);
+
+        $data = $request->validated();
+
+        DB::transaction(function () use ($customer, $data, $request) {
+            $before = $customer->only(array_keys($data));
+            $customer->update($data);
+            $after = $customer->fresh()->only(array_keys($data));
+
+            $this->logActivity($request, 'customer.updated', $customer, before: $before, after: $after);
+        });
+
+        return redirect()
+            ->route('internal.customers.show', $customer->id)
+            ->with('success', 'Customer updated.');
+    }
+
+    public function storeNote(int $id, Request $request): RedirectResponse
+    {
+        $customer = Customer::findOrFail($id);
+        Gate::authorize('update', $customer);
+
+        $data = $request->validate([
+            'type' => ['required', 'in:'.implode(',', self::NOTE_TYPES)],
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        DB::transaction(function () use ($customer, $data, $request) {
+            Note::create([
+                'customer_id' => $customer->id,
+                'created_by' => $request->user()->id,
+                'type' => $data['type'],
+                'body' => $data['body'],
+            ]);
+
+            $this->logActivity($request, 'customer.note_added', $customer, after: ['type' => $data['type']]);
+        });
+
+        return back()->with('success', 'Note added.');
+    }
+
+    public function storeTask(int $id, Request $request): RedirectResponse
+    {
+        $customer = Customer::findOrFail($id);
+        Gate::authorize('update', $customer);
+
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:500'],
+            'due_date' => ['nullable', 'date'],
+        ]);
+
+        DB::transaction(function () use ($customer, $data, $request) {
+            Task::create([
+                'customer_id' => $customer->id,
+                'assigned_to' => $request->user()->id,
+                'created_by' => $request->user()->id,
+                'title' => $data['title'],
+                'status' => 'open',
+                'due_date' => $data['due_date'] ?? null,
+            ]);
+
+            $this->logActivity($request, 'customer.task_added', $customer, after: ['title' => $data['title']]);
+        });
+
+        return back()->with('success', 'Task added.');
+    }
+
+    public function archive(int $id, Request $request): RedirectResponse
+    {
+        $customer = Customer::findOrFail($id);
+        Gate::authorize('update', $customer);
+
+        DB::transaction(function () use ($customer, $request) {
+            $customer->update(['archived_at' => now()]);
+
+            $this->logActivity($request, 'customer.archived', $customer, after: ['name' => $customer->name]);
+        });
+
+        return redirect()
+            ->route('internal.customers.index')
+            ->with('success', "Archived {$customer->name}");
+    }
+
+    private function logActivity(
+        Request $request,
+        string $action,
+        Customer $customer,
+        ?array $before = null,
+        ?array $after = null,
+    ): void {
+        ActivityLog::create([
+            'user_id' => $request->user()?->id,
+            'user_role' => $request->user()?->role,
+            'action' => $action,
+            'entity_type' => 'customer',
+            'entity_id' => $customer->id,
+            'before' => $before,
+            'after' => $after,
+            'ip_address' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 500),
+        ]);
+    }
+
+    private function domainStatus($d): string
+    {
+        if (! $d->is_in_cloudflare) {
+            return 'external';
+        }
+
+        $expiry = $d->expiry_date;
+        $ssl = $d->ssl_expiry_date;
+        $today = now()->startOfDay();
+        $soonest = collect([$expiry, $ssl])->filter()->min();
+
+        if (! $soonest) {
+            return 'healthy';
+        }
+
+        $days = $today->diffInDays($soonest, false);
+        if ($days < 7) {
+            return 'critical';
+        }
+        if ($days < 30) {
+            return 'expiring';
+        }
+
+        return 'healthy';
     }
 }
