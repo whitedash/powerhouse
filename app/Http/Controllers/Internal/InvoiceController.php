@@ -10,6 +10,7 @@ use App\Models\BillingEntity;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -190,6 +191,182 @@ class InvoiceController extends Controller
                 ? (int) $request->query('customer_id')
                 : null,
         ]);
+    }
+
+    public function edit(int $id): Response
+    {
+        $invoice = Invoice::with([
+            'lines' => fn ($q) => $q->orderBy('sort_order'),
+            'customer:id,name,city',
+            'billingEntity:id,name',
+        ])->findOrFail($id);
+
+        // Update policy is draft-only — non-draft will 403 here.
+        Gate::authorize('update', $invoice);
+
+        $today = Carbon::today();
+
+        $customers = Customer::whereNull('archived_at')
+            ->with('primaryContact:id,customer_id,email')
+            ->orderBy('name')
+            ->get(['id', 'name', 'city', 'country', 'created_at'])
+            ->map(fn (Customer $c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'city' => $c->city,
+                'country' => $c->country,
+                'billing_email' => $c->primaryContact?->email,
+                'created_at' => $c->created_at?->toIso8601String(),
+            ])
+            ->values();
+
+        return Inertia::render('Internal/Invoices/Edit', [
+            'invoice' => [
+                'id' => $invoice->id,
+                'number' => $invoice->number,
+                'type' => $invoice->type,
+                'status' => $invoice->status,
+                'customer_id' => $invoice->customer_id,
+                'billing_entity_id' => $invoice->billing_entity_id,
+                'issue_date' => $invoice->issue_date?->toDateString(),
+                'due_date' => $invoice->due_date?->toDateString(),
+                'vat_rate' => (float) $invoice->vat_rate,
+                'notes' => $invoice->notes,
+                'lines' => $invoice->lines->map(fn ($l) => [
+                    'id' => $l->id,
+                    'description' => $l->description,
+                    'note' => $l->note,
+                    'quantity' => (float) $l->quantity,
+                    'unit_price' => (float) $l->unit_price,
+                    'sort_order' => (int) $l->sort_order,
+                ])->values(),
+            ],
+            'customers' => $customers,
+            'billing_entities' => BillingEntity::where('is_active', true)
+                ->orderBy('name')
+                ->get([
+                    'id', 'name', 'legal_name', 'company_number', 'vat_number',
+                    'address', 'bank_name', 'sort_code', 'account_number',
+                    'account_name', 'postmark_sender_email',
+                ]),
+            'next_number' => $invoice->number,
+            'today' => $today->toDateString(),
+            'default_due_date' => $today->copy()->addDays(14)->toDateString(),
+            'vat_rates' => [0, 5, 20],
+            'payment_terms' => ['Net 7', 'Net 14', 'Net 30', 'Due on receipt'],
+            'types' => self::TYPES,
+            'preselected_customer_id' => $invoice->customer_id,
+        ]);
+    }
+
+    public function update(int $id, StoreInvoiceRequest $request): RedirectResponse
+    {
+        $invoice = Invoice::findOrFail($id);
+        Gate::authorize('update', $invoice);
+
+        $data = $request->validated();
+        $sendAfter = (bool) ($data['send_after_create'] ?? false);
+
+        DB::transaction(function () use ($invoice, $data, $request, $sendAfter) {
+            $lines = collect($data['lines']);
+            $subtotal = $lines->reduce(
+                fn (float $carry, array $l) => $carry + round((float) $l['quantity'] * (float) $l['unit_price'], 2),
+                0.0,
+            );
+            $vatRate = (float) $data['vat_rate'];
+            $vatAmount = round($subtotal * ($vatRate / 100), 2);
+            $total = round($subtotal + $vatAmount, 2);
+
+            $invoice->update([
+                'customer_id' => $data['customer_id'],
+                'billing_entity_id' => $data['billing_entity_id'],
+                'type' => $data['type'],
+                'subtotal' => $subtotal,
+                'vat_rate' => $vatRate,
+                'vat_amount' => $vatAmount,
+                'total' => $total,
+                'issue_date' => $data['issue_date'],
+                'due_date' => $data['due_date'],
+                'notes' => $data['notes'] ?? null,
+            ]);
+
+            // Sync lines: keep submitted IDs, delete the rest.
+            $submittedIds = collect($data['lines'])
+                ->pluck('id')
+                ->filter()
+                ->all();
+            $invoice->lines()
+                ->whereNotIn('id', $submittedIds ?: [0])
+                ->delete();
+
+            foreach ($data['lines'] as $i => $line) {
+                $attributes = [
+                    'invoice_id' => $invoice->id,
+                    'description' => $line['description'],
+                    'note' => $line['note'] ?? null,
+                    'quantity' => (float) $line['quantity'],
+                    'unit_price' => (float) $line['unit_price'],
+                    'amount' => round((float) $line['quantity'] * (float) $line['unit_price'], 2),
+                    'sort_order' => $i,
+                ];
+
+                if (! empty($line['id'])) {
+                    InvoiceLine::where('id', $line['id'])
+                        ->where('invoice_id', $invoice->id)
+                        ->update($attributes);
+                } else {
+                    InvoiceLine::create($attributes);
+                }
+            }
+
+            $this->logActivity($request, 'invoice.updated', $invoice, after: [
+                'total' => $total,
+            ]);
+
+            if ($sendAfter && $invoice->status === 'draft') {
+                $invoice->update([
+                    'status' => 'sent',
+                    'sent_at' => now(),
+                ]);
+
+                $this->logActivity($request, 'invoice.sent', $invoice, after: [
+                    'number' => $invoice->number,
+                ]);
+
+                Cache::forget('nav.invoices_outstanding');
+            }
+        });
+
+        return redirect()
+            ->route('internal.invoices.show', $invoice->id)
+            ->with('success', "Invoice {$invoice->number} updated.");
+    }
+
+    public function downloadPdf(int $id, Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $invoice = Invoice::with([
+            'customer',
+            'customer.primaryContact',
+            'billingEntity',
+            'lines' => fn ($q) => $q->orderBy('sort_order'),
+        ])->findOrFail($id);
+
+        Gate::authorize('view', $invoice);
+
+        $address = $invoice->billingEntity?->address;
+        if (is_string($address)) {
+            $address = json_decode($address, true) ?: [];
+        }
+
+        $this->logActivity($request, 'invoice.pdf_downloaded', $invoice);
+
+        $pdf = Pdf::loadView('pdf.invoice', [
+            'invoice' => $invoice,
+            'address' => $address,
+            'billing_email' => $invoice->customer?->primaryContact?->email,
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download('invoice-'.$invoice->number.'.pdf');
     }
 
     public function store(StoreInvoiceRequest $request): RedirectResponse

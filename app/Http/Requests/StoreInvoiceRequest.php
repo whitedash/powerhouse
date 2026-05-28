@@ -24,6 +24,7 @@ class StoreInvoiceRequest extends FormRequest
             'vat_rate' => ['required', Rule::in([0, 5, 20])],
             'notes' => ['nullable', 'string', 'max:1000'],
             'lines' => ['required', 'array', 'min:1', 'max:20'],
+            'lines.*.id' => ['nullable', 'integer', 'exists:invoice_lines,id'],
             'lines.*.description' => ['required', 'string', 'max:500'],
             'lines.*.note' => ['nullable', 'string', 'max:500'],
             'lines.*.quantity' => ['required', 'numeric', 'min:0.001', 'max:9999'],

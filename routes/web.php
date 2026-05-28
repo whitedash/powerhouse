@@ -45,6 +45,9 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
     Route::get('/invoices/new', [InternalInvoiceController::class, 'create'])->name('internal.invoices.create');
     Route::post('/invoices', [InternalInvoiceController::class, 'store'])->name('internal.invoices.store');
     Route::get('/invoices/{id}', [InternalInvoiceController::class, 'show'])->name('internal.invoices.show');
+    Route::get('/invoices/{id}/edit', [InternalInvoiceController::class, 'edit'])->name('internal.invoices.edit');
+    Route::put('/invoices/{id}', [InternalInvoiceController::class, 'update'])->name('internal.invoices.update');
+    Route::get('/invoices/{id}/pdf', [InternalInvoiceController::class, 'downloadPdf'])->name('internal.invoices.pdf');
     Route::post('/invoices/{id}/mark-paid', [InternalInvoiceController::class, 'markPaid'])->name('internal.invoices.mark-paid');
     Route::post('/invoices/{id}/void', [InternalInvoiceController::class, 'voidInvoice'])->name('internal.invoices.void');
     Route::post('/invoices/{id}/send', [InternalInvoiceController::class, 'sendInvoice'])->name('internal.invoices.send');
@@ -63,6 +66,7 @@ Route::prefix('account')->middleware('portal_auth')->group(function () {
     Route::get('/', PortalDashboardController::class)->name('portal.dashboard');
     Route::get('/products', [PortalProductController::class, 'index'])->name('portal.products');
     Route::get('/invoices', [PortalInvoiceController::class, 'index'])->name('portal.invoices');
+    Route::get('/invoices/{id}/pdf', [PortalInvoiceController::class, 'downloadPdf'])->name('portal.invoices.pdf');
     Route::get('/support', [PortalSupportController::class, 'index'])->name('portal.support');
     Route::get('/settings', [PortalSettingsController::class, 'index'])->name('portal.settings');
 });

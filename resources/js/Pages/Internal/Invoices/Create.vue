@@ -32,12 +32,24 @@ const props = defineProps({
     payment_terms: { type: Array, default: () => [] },
     types: { type: Array, default: () => [] },
     preselected_customer_id: { type: Number, default: null },
+    invoice: { type: Object, default: null },
+    mode: { type: String, default: 'create' },
 });
 
-const breadcrumbs = [
-    { label: 'Invoices', href: '/invoices' },
-    { label: 'New invoice' },
-];
+const isEdit = computed(() => props.mode === 'edit' && props.invoice);
+const pageTitle = computed(() => isEdit.value ? `Edit ${props.invoice.number}` : 'New invoice');
+const breadcrumbs = computed(() => isEdit.value
+    ? [
+        { label: 'Invoices', href: '/invoices' },
+        { label: props.invoice.number, href: `/invoices/${props.invoice.id}` },
+        { label: 'Edit' },
+    ]
+    : [
+        { label: 'Invoices', href: '/invoices' },
+        { label: 'New invoice' },
+    ],
+);
+const canSendFromEdit = computed(() => isEdit.value && props.invoice.status === 'draft');
 
 const PAYMENT_TERM_DAYS = {
     'Net 7': 7,
@@ -49,21 +61,47 @@ const PAYMENT_TERM_DAYS = {
 const MAX_LINES = 20;
 
 /* ─── Form state ─── */
-const form = useForm({
-    customer_id: props.preselected_customer_id ?? null,
-    billing_entity_id: null,
-    type: 'subscription',
-    issue_date: props.today,
-    due_date: props.default_due_date,
-    vat_rate: 20,
-    notes: '',
-    lines: [
-        { description: '', note: '', quantity: 1, unit_price: 0 },
-    ],
-    send_after_create: false,
-});
+const initialForm = (() => {
+    if (props.mode === 'edit' && props.invoice) {
+        return {
+            customer_id: props.invoice.customer_id ?? null,
+            billing_entity_id: props.invoice.billing_entity_id ?? null,
+            type: props.invoice.type ?? 'subscription',
+            issue_date: props.invoice.issue_date ?? props.today,
+            due_date: props.invoice.due_date ?? props.default_due_date,
+            vat_rate: Number(props.invoice.vat_rate ?? 20),
+            notes: props.invoice.notes ?? '',
+            lines: (props.invoice.lines ?? []).length
+                ? props.invoice.lines.map((l) => ({
+                    id: l.id,
+                    description: l.description ?? '',
+                    note: l.note ?? '',
+                    quantity: Number(l.quantity ?? 1),
+                    unit_price: Number(l.unit_price ?? 0),
+                }))
+                : [{ description: '', note: '', quantity: 1, unit_price: 0 }],
+            send_after_create: false,
+        };
+    }
 
-const dueDateTouched = ref(false);
+    return {
+        customer_id: props.preselected_customer_id ?? null,
+        billing_entity_id: null,
+        type: 'subscription',
+        issue_date: props.today,
+        due_date: props.default_due_date,
+        vat_rate: 20,
+        notes: '',
+        lines: [
+            { description: '', note: '', quantity: 1, unit_price: 0 },
+        ],
+        send_after_create: false,
+    };
+})();
+
+const form = useForm(initialForm);
+
+const dueDateTouched = ref(isEdit.value);
 const currentPaymentTerm = ref('Net 14');
 
 function applyPaymentTerm(term) {
@@ -209,47 +247,87 @@ const settings = ref({
 /* ─── Submission ─── */
 function submitDraft() {
     form.send_after_create = false;
-    form.post('/invoices', { preserveScroll: true });
+    if (isEdit.value) {
+        form.put(`/invoices/${props.invoice.id}`, { preserveScroll: true });
+    } else {
+        form.post('/invoices', { preserveScroll: true });
+    }
 }
 
 function submitSend() {
     if (!isValid.value) return;
     form.send_after_create = true;
-    form.post('/invoices', { preserveScroll: true });
+    if (isEdit.value) {
+        if (!canSendFromEdit.value) return;
+        form.put(`/invoices/${props.invoice.id}`, { preserveScroll: true });
+    } else {
+        form.post('/invoices', { preserveScroll: true });
+    }
 }
 
 function discard() {
+    if (isEdit.value) {
+        if (!confirm('Discard your changes? Unsaved edits will be lost.')) return;
+        router.visit(`/invoices/${props.invoice.id}`);
+
+        return;
+    }
     if (!confirm('Discard this draft? Unsaved changes will be lost.')) return;
     router.visit('/invoices');
 }
 </script>
 
 <template>
-    <Head title="New invoice" />
+    <Head :title="pageTitle" />
 
-    <InternalLayout title="New invoice" :breadcrumbs="breadcrumbs" active-nav="invoices">
+    <InternalLayout :title="pageTitle" :breadcrumbs="breadcrumbs" active-nav="invoices">
         <template #topbar-actions>
-            <button type="button" class="btn btn-ghost danger" @click="discard">
-                <IconTrash :size="15" stroke-width="1.75" />
-                Discard
-            </button>
-            <button type="button" class="btn btn-secondary" :disabled="form.processing" @click="submitDraft">
-                <IconDeviceFloppy :size="15" stroke-width="1.75" />
-                {{ form.processing && !form.send_after_create ? 'Saving…' : 'Save as draft' }}
-            </button>
-            <span class="has-tip">
-                <button
-                    type="button"
-                    class="btn btn-primary"
-                    :class="{ disabled: !isValid }"
-                    :disabled="!isValid || form.processing"
-                    @click="submitSend"
-                >
-                    <IconSend :size="15" stroke-width="1.75" />
-                    {{ form.processing && form.send_after_create ? 'Sending…' : 'Send invoice' }}
+            <template v-if="isEdit">
+                <button type="button" class="btn btn-ghost" @click="discard">
+                    <IconX :size="15" stroke-width="1.75" />
+                    Cancel
                 </button>
-                <span v-if="!isValid" class="tip">Complete all required fields to send</span>
-            </span>
+                <button type="button" class="btn btn-secondary" :disabled="form.processing" @click="submitDraft">
+                    <IconDeviceFloppy :size="15" stroke-width="1.75" />
+                    {{ form.processing && !form.send_after_create ? 'Saving…' : 'Save changes' }}
+                </button>
+                <span v-if="canSendFromEdit" class="has-tip">
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        :class="{ disabled: !isValid }"
+                        :disabled="!isValid || form.processing"
+                        @click="submitSend"
+                    >
+                        <IconSend :size="15" stroke-width="1.75" />
+                        {{ form.processing && form.send_after_create ? 'Sending…' : 'Save & send' }}
+                    </button>
+                    <span v-if="!isValid" class="tip">Complete all required fields to send</span>
+                </span>
+            </template>
+            <template v-else>
+                <button type="button" class="btn btn-ghost danger" @click="discard">
+                    <IconTrash :size="15" stroke-width="1.75" />
+                    Discard
+                </button>
+                <button type="button" class="btn btn-secondary" :disabled="form.processing" @click="submitDraft">
+                    <IconDeviceFloppy :size="15" stroke-width="1.75" />
+                    {{ form.processing && !form.send_after_create ? 'Saving…' : 'Save as draft' }}
+                </button>
+                <span class="has-tip">
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        :class="{ disabled: !isValid }"
+                        :disabled="!isValid || form.processing"
+                        @click="submitSend"
+                    >
+                        <IconSend :size="15" stroke-width="1.75" />
+                        {{ form.processing && form.send_after_create ? 'Sending…' : 'Send invoice' }}
+                    </button>
+                    <span v-if="!isValid" class="tip">Complete all required fields to send</span>
+                </span>
+            </template>
         </template>
 
         <div class="new-invoice">
@@ -304,10 +382,15 @@ function discard() {
                             <div class="doc-title">INVOICE</div>
                             <div class="doc-num">
                                 {{ next_number }}
-                                <IconInfoCircle :size="13" stroke-width="1.75" />
-                                <span class="tip">Auto-assigned on save</span>
+                                <template v-if="!isEdit">
+                                    <IconInfoCircle :size="13" stroke-width="1.75" />
+                                    <span class="tip">Auto-assigned on save</span>
+                                </template>
                             </div>
-                            <span class="badge badge-inactive badge-lg">Draft</span>
+                            <span
+                                class="badge badge-lg"
+                                :class="isEdit && invoice.status !== 'draft' ? 'badge-pending' : 'badge-inactive'"
+                            >{{ isEdit ? (invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)) : 'Draft' }}</span>
                         </div>
                     </div>
 
@@ -610,6 +693,7 @@ function discard() {
                     <section class="cfg-card send-card">
                         <div class="cfg-body">
                             <button
+                                v-if="!isEdit || canSendFromEdit"
                                 type="button"
                                 class="btn btn-primary send-btn"
                                 :class="{ disabled: !isValid }"
@@ -617,14 +701,15 @@ function discard() {
                                 @click="submitSend"
                             >
                                 <IconSend :size="15" stroke-width="1.75" />
-                                {{ form.processing && form.send_after_create ? 'Sending…' : 'Send invoice' }}
+                                <template v-if="isEdit">{{ form.processing && form.send_after_create ? 'Sending…' : 'Save & send' }}</template>
+                                <template v-else>{{ form.processing && form.send_after_create ? 'Sending…' : 'Send invoice' }}</template>
                             </button>
-                            <div v-if="!isValid" class="send-hint">
+                            <div v-if="!isValid && (!isEdit || canSendFromEdit)" class="send-hint">
                                 <IconLock :size="13" stroke-width="1.75" />
                                 Complete all required fields
                             </div>
 
-                            <div class="send-divider" />
+                            <div v-if="!isEdit || canSendFromEdit" class="send-divider" />
 
                             <button
                                 type="button"
@@ -633,14 +718,26 @@ function discard() {
                                 @click="submitDraft"
                             >
                                 <IconDeviceFloppy :size="15" stroke-width="1.75" />
-                                {{ form.processing && !form.send_after_create ? 'Saving…' : 'Save as draft' }}
+                                <template v-if="isEdit">{{ form.processing && !form.send_after_create ? 'Saving…' : 'Save changes' }}</template>
+                                <template v-else>{{ form.processing && !form.send_after_create ? 'Saving…' : 'Save as draft' }}</template>
                             </button>
-                            <button type="button" class="preview-link">
+                            <a
+                                v-if="isEdit"
+                                :href="`/invoices/${invoice.id}/pdf`"
+                                target="_blank"
+                                rel="noopener"
+                                class="preview-link"
+                            >
+                                <IconEye :size="15" stroke-width="1.75" />
+                                Preview PDF
+                            </a>
+                            <button v-else type="button" class="preview-link">
                                 <IconEye :size="15" stroke-width="1.75" />
                                 Preview PDF
                             </button>
 
-                            <div class="send-micro">Invoice number {{ next_number }} will be assigned on save</div>
+                            <div v-if="!isEdit" class="send-micro">Invoice number {{ next_number }} will be assigned on save</div>
+                            <div v-else class="send-micro">Editing {{ invoice.number }}</div>
                         </div>
                     </section>
                 </aside>

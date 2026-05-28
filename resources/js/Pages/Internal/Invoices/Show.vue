@@ -189,7 +189,7 @@ function sendReminder() {
 }
 
 function downloadPdf() {
-    // Stub for future Postmark/PDF sprint
+    window.open(`/invoices/${inv.value.id}/pdf`, '_blank', 'noopener');
 }
 
 function gotoCustomer() {
@@ -197,7 +197,7 @@ function gotoCustomer() {
 }
 
 function gotoEdit() {
-    // Stub — invoice edit form lands in a later sprint
+    router.visit(`/invoices/${inv.value.id}/edit`);
 }
 
 /* ─── Activity row icon / colour mapping ─── */
