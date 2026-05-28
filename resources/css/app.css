@@ -1144,3 +1144,191 @@ body {
 }
 .tab-empty h3 { font: 600 16px/1.3 'Inter', sans-serif; color: var(--text-primary); margin: 0 0 4px; }
 .tab-empty p { font: 400 13px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin: 0 0 12px; }
+
+/* ─────────────────────────────────────────────────────────────────
+ * Invoices List — verbatim from design/Invoices List.html
+ * Some classes (`.cust-name`, `.cell-cust .avatar`) are styled
+ * differently to the Customers-List page, so the list-page-specific
+ * overrides are namespaced under `.invoices-list` to avoid bleeding.
+ * ───────────────────────────────────────────────────────────────── */
+
+/* Stat-pill extras */
+.stat-pill .d.amber { background: var(--warning); }
+.stat-pill .d.red   { background: var(--danger); }
+.stat-pill .sub {
+    color: var(--text-tertiary);
+    font-weight: 400;
+    font-size: 12px;
+    padding-left: 4px;
+    border-left: 1px solid var(--border);
+    margin-left: 2px;
+}
+
+/* Filter bar — date-range chip */
+.dd-btn.active-range {
+    border-color: rgba(245, 158, 11, .4);
+    background: rgba(245, 158, 11, .05);
+}
+.dd-btn.active-range svg { color: var(--accent); }
+
+/* Badge: icon-pre (e.g. Void with the ti-ban prefix) */
+.badge-icon-pre { padding-left: 7px; }
+.badge-icon-pre svg { width: 11px; height: 11px; margin-right: 1px; }
+.badge-icon-pre::before { display: none; }
+
+/* Entity pill — white background, neutral text, swatch dot */
+.entity-pill {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    background: #fff;
+    border: 1px solid var(--border);
+    font: 500 11px/1.4 'Inter', sans-serif;
+    color: var(--text-secondary);
+    letter-spacing: -.005em;
+    white-space: nowrap;
+}
+.entity-pill .swatch {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--text-tertiary);
+    margin-right: 6px;
+}
+.entity-pill.maa .swatch { background: var(--teal); }
+.entity-pill.kon .swatch { background: var(--purple); }
+.entity-pill.gold .swatch { background: var(--accent); }
+.entity-pill.blue .swatch { background: var(--info); }
+
+/* Bulk action bar */
+.bulk-bar {
+    margin-top: 12px;
+    background: var(--bg-navy);
+    border-radius: var(--radius-md);
+    height: 44px;
+    padding: 0 16px;
+    display: flex; align-items: center; gap: 12px;
+    color: #fff;
+    box-shadow: 0 4px 12px -4px rgba(15, 23, 42, .25);
+}
+.bulk-bar .count { font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em; }
+.bulk-bar .count strong { font-weight: 600; }
+.bulk-bar .actions { display: flex; align-items: center; gap: 4px; margin-left: 8px; }
+.bulk-act {
+    background: transparent; border: 0; cursor: pointer;
+    color: rgba(255, 255, 255, .85);
+    font: 500 12.5px/1 'Inter', sans-serif;
+    padding: 6px 10px;
+    border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: background .12s, color .12s;
+}
+.bulk-act svg { width: 15px; height: 15px; }
+.bulk-act:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+.bulk-act.danger { color: #FCA5A5; }
+.bulk-act.danger:hover { background: rgba(239, 68, 68, .18); color: #FECACA; }
+.bulk-divider { width: 1px; height: 20px; background: rgba(255, 255, 255, .12); }
+.bulk-bar .clear {
+    margin-left: auto;
+    background: transparent; border: 0; cursor: pointer;
+    color: rgba(255, 255, 255, .6);
+    font: 500 12.5px/1 'Inter', sans-serif;
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 6px; border-radius: 5px;
+    transition: color .12s, background .12s;
+}
+.bulk-bar .clear:hover { color: #fff; background: rgba(255, 255, 255, .08); }
+.bulk-bar .clear svg { width: 13px; height: 13px; }
+
+/* Invoice cell content (table cells, not the detail-page .inv-row) */
+.inv-num { font: 600 13px/1.3 'Inter', sans-serif; letter-spacing: -.005em; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.inv-line { font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+.inv-type { margin-top: 6px; }
+tr.row-void .inv-num { color: var(--text-tertiary); }
+
+/* Amount cell (right-aligned, tabular) */
+.amt-cell { text-align: right; }
+.amt {
+    font: 600 15px/1 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+    letter-spacing: -.005em;
+}
+.amt.warn   { color: #B45309; }
+.amt.danger { color: var(--danger); }
+.amt.muted  { color: var(--text-tertiary); text-decoration: line-through; font-weight: 500; }
+
+/* Status cell — paid stack + cluster (single-line constraint) */
+.status-stack { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.status-stack .paid-on {
+    font: 400 11px/1 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    padding-left: 2px;
+}
+.status-cluster { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; white-space: nowrap; }
+.status-cluster > * { white-space: nowrap; }
+
+/* Due cell */
+.due {
+    font: 500 13px/1.2 'Inter', sans-serif;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.due.danger { color: var(--danger); font-weight: 600; }
+.due.warn { color: #B45309; font-weight: 600; }
+.due.muted { color: var(--text-tertiary); font-weight: 400; }
+.due-stack { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+
+/* Row state tints — overdue red, due-today amber, void faded.
+ * Higher-specificity than `.tbl tbody tr:hover` so the tint wins. */
+.invoices-list .tbl tbody tr.row-overdue td {
+    background: var(--danger-bg);
+    box-shadow: inset 3px 0 0 var(--danger);
+}
+.invoices-list .tbl tbody tr.row-overdue:hover td { background: #FEF0F0; }
+.invoices-list .tbl tbody tr.row-due-today td {
+    background: var(--warning-bg);
+    box-shadow: inset 2px 0 0 var(--warning);
+}
+.invoices-list .tbl tbody tr.row-due-today:hover td { background: #FFF7E5; }
+.invoices-list .tbl tbody tr.row-void td { opacity: .6; }
+
+/* Customer cell sizing differs from Phase 3 — scoped */
+.invoices-list .cell-cust .avatar { width: 30px; height: 30px; font-size: 11px; }
+.invoices-list .cust-name {
+    font: 500 13px/1.3 'Inter', sans-serif;
+    letter-spacing: -.005em;
+    color: var(--text-primary);
+    text-overflow: ellipsis; overflow: hidden; white-space: nowrap;
+}
+.invoices-list .cust-loc { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 2px; }
+
+/* Entity legend strip below the table footer */
+.entity-legend {
+    background: var(--neutral-bg);
+    border-top: 1px solid var(--border-soft);
+    padding: 10px 20px;
+    display: flex; align-items: center; gap: 14px;
+    font: 400 12px/1 'Inter', sans-serif;
+}
+.entity-legend .lbl {
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .12em;
+    color: var(--text-tertiary);
+}
+.legend-item {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--text-secondary);
+}
+.legend-item .num {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.legend-spacer { flex: 1; }
+.legend-rec {
+    display: inline-flex; align-items: center; gap: 6px;
+    font: 600 13px/1 'Inter', sans-serif;
+    color: var(--success);
+    font-variant-numeric: tabular-nums;
+}
+.legend-rec svg { width: 16px; height: 16px; }
