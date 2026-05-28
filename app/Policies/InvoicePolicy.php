@@ -40,4 +40,24 @@ class InvoicePolicy
     {
         return $user->isSuperAdmin();
     }
+
+    /**
+     * Transition draft → sent. Any staff member can send an invoice they
+     * have view rights to; only draft invoices can be sent (controller
+     * enforces the status check; the policy stays simple).
+     */
+    public function send(User $user, ?Invoice $invoice = null): bool
+    {
+        return $user->isStaff();
+    }
+
+    /**
+     * Record a payment against an existing invoice. Distinct from
+     * `update` (which is the draft-editing ability) because marking
+     * paid is a status transition on a sent/overdue invoice.
+     */
+    public function markPaid(User $user, ?Invoice $invoice = null): bool
+    {
+        return $user->isStaff();
+    }
 }
