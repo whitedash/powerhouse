@@ -69,6 +69,10 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
             ->name('billing-entities.store');
         Route::put('/billing-entities/{id}', [InternalBillingEntityController::class, 'update'])
             ->name('billing-entities.update');
+        Route::post('/billing-entities/{id}/logo', [InternalBillingEntityController::class, 'uploadLogo'])
+            ->name('billing-entities.logo');
+        Route::delete('/billing-entities/{id}/logo', [InternalBillingEntityController::class, 'deleteLogo'])
+            ->name('billing-entities.logo.delete');
         Route::delete('/billing-entities/{id}', [InternalBillingEntityController::class, 'destroy'])
             ->name('billing-entities.destroy');
     });

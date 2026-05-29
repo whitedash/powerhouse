@@ -3308,3 +3308,79 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
+
+/* ─── Billing entities · VAT helper + logo uploader ─── */
+.billing-entities .field-help {
+    font: 400 11px/1.4 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+}
+
+.logo-uploader {
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    background: var(--neutral-bg);
+    transition: border-color .15s, background .15s;
+    position: relative;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.logo-uploader:hover {
+    border-color: var(--accent);
+    background: var(--warning-bg);
+}
+.logo-uploader.uploading {
+    cursor: progress;
+}
+.logo-preview {
+    max-height: 60px;
+    max-width: 180px;
+    object-fit: contain;
+}
+.logo-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.logo-placeholder svg {
+    width: 24px;
+    height: 24px;
+    color: var(--text-tertiary);
+}
+.logo-placeholder .logo-label {
+    font: 500 13px/1.4 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.logo-hint {
+    font: 400 11px/1.3 'Inter', sans-serif;
+    color: var(--text-tertiary);
+}
+.logo-loading {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, .85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font: 500 13px/1 'Inter', sans-serif;
+    color: var(--text-secondary);
+    border-radius: var(--radius-lg);
+}
+.logo-remove {
+    background: none;
+    border: 0;
+    cursor: pointer;
+    font: 500 12px/1 'Inter', sans-serif;
+    color: var(--danger);
+    padding: 6px 4px 0;
+    align-self: flex-end;
+}
+.logo-remove:hover { color: #B91C1C; }

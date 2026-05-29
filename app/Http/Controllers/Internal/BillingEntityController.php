@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreBillingEntityRequest;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
+use App\Services\FileUploadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -36,6 +38,13 @@ class BillingEntityController extends Controller
                 'account_number' => $e->account_number,
                 'account_name' => $e->account_name,
                 'logo_path' => $e->logo_path,
+                // Signed temporary URL the Vue side can drop straight into
+                // an <img> src. The 'serve' => true on the private disk
+                // (config/filesystems.php) auto-registers a route that
+                // validates the signature, so no extra controller needed.
+                'logo_url' => $e->logo_path
+                    ? Storage::disk('private')->temporaryUrl($e->logo_path, now()->addMinutes(30))
+                    : null,
                 'postmark_sender_email' => $e->postmark_sender_email,
                 'postmark_sender_name' => $e->postmark_sender_name,
                 'postmark_domain' => $e->postmark_domain,
@@ -94,6 +103,65 @@ class BillingEntityController extends Controller
         return back()->with('success', "{$entity->name} updated successfully.");
     }
 
+    public function uploadLogo(int $id, Request $request, FileUploadService $files): RedirectResponse
+    {
+        $entity = BillingEntity::findOrFail($id);
+        Gate::authorize('update', $entity);
+
+        // The 'logo' rule is a first-pass sanity check on size/MIME; the
+        // service does the real validation (size, MIME-by-bytes, EXIF
+        // strip, SVG sanitise) and throws ValidationException on failure.
+        $request->validate([
+            'logo' => ['required', 'file', 'mimes:jpeg,png,svg,webp', 'max:1024'],
+        ]);
+
+        DB::transaction(function () use ($entity, $request, $files) {
+            $oldPath = $entity->logo_path;
+
+            $path = $files->store($request->file('logo'), 'logo');
+
+            $entity->update(['logo_path' => $path]);
+
+            $this->logActivity($request, 'billing_entity.logo_uploaded', $entity, after: [
+                'logo_path' => $path,
+            ]);
+
+            // Replace, not stack: the old file is unreachable now that the
+            // model points at the new path, so delete it from disk. Done
+            // after the new path is committed so a crash mid-flow doesn't
+            // orphan the entity with a missing logo.
+            if ($oldPath) {
+                $files->delete($oldPath);
+            }
+        });
+
+        return back()->with('success', 'Logo updated successfully.');
+    }
+
+    public function deleteLogo(int $id, Request $request, FileUploadService $files): RedirectResponse
+    {
+        $entity = BillingEntity::findOrFail($id);
+        Gate::authorize('update', $entity);
+
+        if (! $entity->logo_path) {
+            return back();
+        }
+
+        DB::transaction(function () use ($entity, $request, $files) {
+            $oldPath = $entity->logo_path;
+
+            $entity->update(['logo_path' => null]);
+
+            $this->logActivity($request, 'billing_entity.logo_removed', $entity, before: [
+                'logo_path' => $oldPath,
+            ]);
+
+            $files->delete($oldPath);
+        });
+
+        return back()->with('success', 'Logo removed.');
+    }
+
     public function destroy(int $id, Request $request): RedirectResponse
     {
         $entity = BillingEntity::findOrFail($id);
@@ -136,7 +204,7 @@ class BillingEntityController extends Controller
             'name' => $data['name'],
             'legal_name' => $data['legal_name'],
             'company_number' => $data['company_number'],
-            'vat_number' => $data['vat_number'],
+            'vat_number' => $data['vat_number'] ?? null,
             'address' => [
                 'line1' => $data['address_line1'],
                 'line2' => $data['address_line2'] ?? null,

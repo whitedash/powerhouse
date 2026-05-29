@@ -9,6 +9,7 @@ use App\Models\PortalUser;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -68,6 +69,7 @@ class InvoiceController extends Controller
             'invoice' => $invoice,
             'address' => $invoice->billingEntity->address ?? [],
             'billing_email' => $invoice->customer?->primaryContact?->email,
+            'logo_path' => $this->resolveLogoPath($invoice),
         ])
             ->setPaper('a4', 'portrait')
             ->setOptions([
@@ -76,6 +78,26 @@ class InvoiceController extends Controller
                 'isRemoteEnabled' => false,
                 'isPhpEnabled' => false,
             ]);
+    }
+
+    private function resolveLogoPath(Invoice $invoice): ?string
+    {
+        // See Internal\InvoiceController::resolveLogoPath — dompdf chroot
+        // rejects absolute filesystem paths outside its vendor dir, so
+        // we embed the logo as a base64 data URL.
+        $path = $invoice->billingEntity?->logo_path;
+        if (! $path) {
+            return null;
+        }
+
+        $absolute = Storage::disk('private')->path($path);
+        if (! file_exists($absolute)) {
+            return null;
+        }
+
+        $mime = mime_content_type($absolute) ?: 'image/png';
+
+        return 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($absolute));
     }
 
     private function logActivity(Request $request, string $action, Invoice $invoice, PortalUser $portalUser): void

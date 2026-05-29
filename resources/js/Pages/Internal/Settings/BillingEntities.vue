@@ -138,6 +138,48 @@ function discardChanges() {
     form.clearErrors();
 }
 
+/* ─── Logo upload ─── */
+const logoInput = ref(null);
+const logoForm = useForm({ logo: null });
+const showRemoveLogoModal = ref(false);
+
+function triggerLogoUpload() {
+    if (!selectedEntity.value || logoForm.processing) return;
+    logoInput.value?.click();
+}
+
+function handleLogoUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file || !selectedEntity.value) return;
+    logoForm.logo = file;
+    logoForm.post(`/settings/billing-entities/${selectedEntity.value.id}/logo`, {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            if (logoInput.value) logoInput.value.value = '';
+            logoForm.reset();
+        },
+        onError: (errors) => {
+            // eslint-disable-next-line no-console
+            console.error('Logo upload failed:', errors);
+            if (logoInput.value) logoInput.value.value = '';
+        },
+    });
+}
+
+function removeLogo() {
+    if (!selectedEntity.value?.logo_url) return;
+    showRemoveLogoModal.value = true;
+}
+
+function handleRemoveLogo() {
+    if (!selectedEntity.value) return;
+    router.delete(`/settings/billing-entities/${selectedEntity.value.id}/logo`, {
+        preserveScroll: true,
+        onFinish: () => { showRemoveLogoModal.value = false; },
+    });
+}
+
 /* ─── Delete entity (via ConfirmModal) ─── */
 const showDeleteModal = ref(false);
 const deleteProcessing = ref(false);
@@ -319,6 +361,7 @@ const qboConnected = computed(() => !!selectedEntity.value?.qbo_realm_id);
                                 :class="{ 'has-err': form.errors.vat_number }"
                                 type="text"
                             >
+                            <div class="field-help">Leave blank if not VAT registered</div>
                             <div v-if="form.errors.vat_number" class="field-err">{{ form.errors.vat_number }}</div>
                         </div>
                         <div class="field full">
@@ -435,11 +478,42 @@ const qboConnected = computed(() => !!selectedEntity.value?.qbo_realm_id);
                     <!-- BRANDING -->
                     <div class="sec-label">Branding &amp; email</div>
 
-                    <div class="upload" role="button" tabindex="0" aria-disabled="true">
-                        <div class="ic"><IconUpload :size="20" stroke-width="1.75" /></div>
-                        <div class="lbl"><strong>Upload logo</strong> or drag a file here</div>
-                        <div class="hint">PNG or SVG · max 1MB</div>
+                    <input
+                        ref="logoInput"
+                        type="file"
+                        accept="image/jpeg,image/png,image/svg+xml,image/webp"
+                        style="display: none;"
+                        @change="handleLogoUpload"
+                    >
+                    <div
+                        class="logo-uploader"
+                        :class="{ uploading: logoForm.processing }"
+                        role="button"
+                        tabindex="0"
+                        @click="triggerLogoUpload"
+                        @keydown.enter.prevent="triggerLogoUpload"
+                        @keydown.space.prevent="triggerLogoUpload"
+                    >
+                        <img
+                            v-if="selectedEntity.logo_url"
+                            :src="selectedEntity.logo_url"
+                            class="logo-preview"
+                            alt="Entity logo"
+                        >
+                        <div v-else class="logo-placeholder">
+                            <IconUpload :size="24" stroke-width="1.75" />
+                            <span class="logo-label"><strong>Upload logo</strong> or drag a file here</span>
+                            <span class="logo-hint">PNG, JPG, SVG or WebP · max 1 MB</span>
+                        </div>
+                        <div v-if="logoForm.processing" class="logo-loading">Uploading…</div>
                     </div>
+                    <div v-if="logoForm.errors.logo" class="field-err" style="margin-top: 6px;">{{ logoForm.errors.logo }}</div>
+                    <button
+                        v-if="selectedEntity.logo_url"
+                        type="button"
+                        class="logo-remove"
+                        @click.stop="removeLogo"
+                    >Remove logo</button>
 
                     <div class="form-grid-2 field-margin">
                         <div class="field">
@@ -598,6 +672,7 @@ const qboConnected = computed(() => !!selectedEntity.value?.qbo_realm_id);
                                     <div class="field">
                                         <label class="field-label">VAT number</label>
                                         <input v-model="createForm.vat_number" class="field-input mono" :class="{ 'has-err': createForm.errors.vat_number }" type="text">
+                                        <div class="field-help">Leave blank if not VAT registered</div>
                                         <div v-if="createForm.errors.vat_number" class="field-err">{{ createForm.errors.vat_number }}</div>
                                     </div>
                                     <div class="field full">
@@ -704,6 +779,15 @@ const qboConnected = computed(() => !!selectedEntity.value?.qbo_realm_id);
             variant="danger"
             :loading="deleteProcessing"
             @confirm="handleDelete"
+        />
+
+        <ConfirmModal
+            v-model:show="showRemoveLogoModal"
+            title="Remove logo?"
+            message="The logo will be removed from this billing entity. Invoices already generated will not be affected."
+            confirm-label="Remove logo"
+            variant="warning"
+            @confirm="handleRemoveLogo"
         />
     </InternalLayout>
 </template>

@@ -451,7 +451,14 @@
             </colgroup>
             <tbody><tr>
               <td width="52" valign="top" style="padding-right: 12px;">
-                <div class="brand-mark">W</div>
+                @if(! empty($logo_path))
+                  {{-- $logo_path is a data: URL. The controller builds it
+                       to sidestep dompdf's chroot restriction on absolute
+                       filesystem paths. --}}
+                  <img src="{{ $logo_path }}" alt="" style="height: 40px; max-width: 120px; object-fit: contain;">
+                @else
+                  <div class="brand-mark">W</div>
+                @endif
               </td>
               <td valign="top">
                 <div class="company-name">{{ $entity?->name }}</div>

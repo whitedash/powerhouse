@@ -17,6 +17,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -380,6 +381,7 @@ class InvoiceController extends Controller
             'invoice' => $invoice,
             'address' => $invoice->billingEntity->address ?? [],
             'billing_email' => $invoice->customer?->primaryContact?->email,
+            'logo_path' => $this->resolveLogoPath($invoice),
         ])
             ->setPaper('a4', 'portrait')
             // 96 DPI gives dompdf a larger pixel canvas (794×1123 vs the
@@ -391,6 +393,34 @@ class InvoiceController extends Controller
                 'isRemoteEnabled' => false,
                 'isPhpEnabled' => false,
             ]);
+    }
+
+    /**
+     * Build a base64 data URL for the entity logo.
+     *
+     * dompdf's default `chroot` is the dompdf vendor directory, so any
+     * absolute filesystem path outside it (e.g. our storage/app/private
+     * uploads) is silently rejected — the <img> just doesn't render.
+     * Embedding as a data: URL sidesteps the chroot entirely.
+     *
+     * Returns null on missing path or missing file — the Blade then
+     * falls back to the gold "W" brand mark.
+     */
+    private function resolveLogoPath(Invoice $invoice): ?string
+    {
+        $path = $invoice->billingEntity?->logo_path;
+        if (! $path) {
+            return null;
+        }
+
+        $absolute = Storage::disk('private')->path($path);
+        if (! file_exists($absolute)) {
+            return null;
+        }
+
+        $mime = mime_content_type($absolute) ?: 'image/png';
+
+        return 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($absolute));
     }
 
     public function store(StoreInvoiceRequest $request): RedirectResponse

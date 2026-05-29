@@ -24,7 +24,7 @@ class StoreBillingEntityRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'legal_name' => ['required', 'string', 'max:255'],
             'company_number' => ['required', 'string', 'max:50'],
-            'vat_number' => ['required', 'string', 'max:50'],
+            'vat_number' => ['nullable', 'string', 'max:50'],
             'address_line1' => ['required', 'string', 'max:255'],
             'address_line2' => ['nullable', 'string', 'max:255'],
             'city' => ['required', 'string', 'max:100'],
