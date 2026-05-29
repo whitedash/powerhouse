@@ -209,7 +209,12 @@ class CustomerController extends Controller
             'notes' => fn ($q) => $q->with('createdBy:id,name,role,avatar_colour')
                 ->orderByDesc('created_at')
                 ->limit(10),
-            'tasks' => fn ($q) => $q->where('status', 'open')->orderBy('due_date'),
+            // Load ALL activities for the timeline tab — completed +
+            // open + notes — and order them so pinned/incomplete rise
+            // to the top, completed sink to the bottom. The sidebar
+            // card filters down to open ones client-side.
+            'tasks' => fn ($q) => $q->with(['contact:id,name', 'assignedTo:id,name'])
+                ->orderByRaw('is_pinned DESC, status = "complete", due_at IS NULL, due_at ASC, created_at DESC'),
             'domains',
             'invoices' => fn ($q) => $q->with('billingEntity:id,name')
                 ->orderByDesc('created_at')
@@ -355,9 +360,25 @@ class CustomerController extends Controller
                 'tasks' => $customer->tasks->map(fn (Task $t) => [
                     'id' => $t->id,
                     'title' => $t->title,
+                    'type' => $t->type,
+                    'type_icon' => $t->type_icon,
+                    'type_colour' => $t->type_colour,
+                    'priority' => $t->priority,
+                    'description' => $t->description,
                     'status' => $t->status,
-                    'due_date' => $t->due_date?->toDateString(),
+                    'due_at' => $t->due_at?->toIso8601String(),
+                    'completed_at' => $t->completed_at?->toIso8601String(),
+                    'completed_at_human' => $t->completed_at?->diffForHumans(),
+                    'outcome' => $t->outcome,
+                    'duration_minutes' => $t->duration_minutes,
+                    'is_pinned' => $t->is_pinned,
+                    'is_overdue' => $t->is_overdue,
+                    'contact_id' => $t->contact_id,
+                    'contact_name' => $t->contact?->name,
                     'customer_id' => $t->customer_id,
+                    'assigned_to' => $t->assigned_to,
+                    'assigned_to_name' => $t->assignedTo?->name,
+                    'created_by' => $t->created_by,
                 ])->values(),
 
                 'invoices' => $customer->invoices->map(fn ($i) => [

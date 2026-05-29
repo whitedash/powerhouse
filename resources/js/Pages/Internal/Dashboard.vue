@@ -39,8 +39,13 @@ import {
     IconSend,
     IconX,
     IconSearch,
+    IconPhone,
+    IconMail,
+    IconNotes,
+    IconPin,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
+import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 
 const props = defineProps({
     greeting: { type: String, required: true },
@@ -57,6 +62,7 @@ const props = defineProps({
     platform_health: { type: Array, default: () => [] },
     customers: { type: Array, default: () => [] },
     assignable_users: { type: Array, default: () => [] },
+    contacts_by_customer: { type: Object, default: () => ({}) },
 });
 
 const breadcrumbs = [{ label: 'Overview' }];
@@ -135,16 +141,85 @@ function actSub(a) {
     return null;
 }
 
-/* ─── Tasks ─── */
+/* ─── Tasks / activities ─── */
 function taskDueLabel(t) {
-    if (!t.due_date) return { text: 'No date', cls: 'empty' };
-    if (t.is_due_today) return { text: 'Due today', cls: 'amber' };
+    if (! t.due_at) return { text: 'No date', cls: 'empty' };
+    if (t.is_due_today) return { text: 'Today', cls: 'amber' };
     if (t.is_overdue) return { text: 'Overdue', cls: 'red' };
-    const d = new Date(t.due_date);
+    const d = new Date(t.due_at);
 
     return { text: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), cls: 'muted' };
 }
 const tasksDueToday = computed(() => props.tasks.filter((t) => t.is_due_today).length);
+
+/*
+ * The 5 activity types backing the new task slide-over. Tabler icon
+ * names match the server-side Task::$type_icon accessor so the same
+ * source-of-truth drives both the form picker and the timeline.
+ */
+const ACTIVITY_TYPES = [
+    { value: 'task',    label: 'Task',    icon: 'IconCheckbox' },
+    { value: 'call',    label: 'Call',    icon: 'IconPhone' },
+    { value: 'email',   label: 'Email',   icon: 'IconMail' },
+    { value: 'meeting', label: 'Meeting', icon: 'IconUsersGroup' },
+    { value: 'note',    label: 'Note',    icon: 'IconNotes' },
+];
+
+function placeholderForType(type) {
+    return {
+        task: 'What needs to be done?',
+        call: 'Who to call / purpose of call',
+        email: 'Email subject / purpose',
+        meeting: 'Meeting title / agenda item',
+        note: 'Note title (optional)',
+    }[type] ?? '';
+}
+
+function descriptionLabelForType(type) {
+    return {
+        task: 'Details',
+        call: 'Call notes',
+        email: 'Email content / notes',
+        meeting: 'Agenda / notes',
+        note: 'Note content',
+    }[type] ?? 'Details';
+}
+
+function scheduleLabelForType(type) {
+    if (type === 'note') return null; // notes have no schedule
+    return ['call', 'meeting', 'email'].includes(type) ? 'Scheduled' : 'Due';
+}
+
+function listLabelForType(t) {
+    const parts = [t.type.charAt(0).toUpperCase() + t.type.slice(1)];
+    if (t.customer?.name) parts.push(t.customer.name);
+
+    return parts.join(' · ');
+}
+
+/*
+ * Resolve a Tabler icon component name to its imported component.
+ * Wrapping in computed() keeps the lookup reactive — if a row's type
+ * changes the right glyph rerenders without a parent re-mount.
+ */
+const ICON_MAP = {
+    IconCheckbox, IconPhone, IconMail, IconUsersGroup, IconNotes,
+};
+function iconForType(type) {
+    return ICON_MAP[ACTIVITY_TYPES.find((t) => t.value === type)?.icon] ?? IconCheckbox;
+}
+function iconByName(name) {
+    // Server sends 'phone' / 'mail' / 'users' / 'notes' / 'checkbox'.
+    const mapping = {
+        phone: IconPhone,
+        mail: IconMail,
+        users: IconUsersGroup,
+        notes: IconNotes,
+        checkbox: IconCheckbox,
+    };
+
+    return mapping[name] ?? IconCheckbox;
+}
 
 /* ─── Referrer avatars ─── */
 const AV_PALETTE = ['av-1', 'av-2', 'av-3', 'av-5', 'av-amber', 'av-teal'];
@@ -180,28 +255,64 @@ const me = computed(() => {
 });
 
 const taskForm = useForm({
+    type: 'task',
     title: '',
-    due_date: '',
+    description: '',
+    priority: 'medium',
     customer_id: null,
+    contact_id: null,
     assigned_to: null,
+    due_at: '',   // YYYY-MM-DD from the date input
+    due_time: '', // HH:mm from the time input
+    duration_minutes: null,
 });
 
 function openNewTask() {
     taskForm.reset();
     taskForm.clearErrors();
+    taskForm.type = 'task';
+    taskForm.priority = 'medium';
     taskForm.assigned_to = me.value;
     customerSearch.value = '';
     showNewTask.value = true;
 }
 
 function submitNewTask() {
-    taskForm.post('/tasks', {
-        preserveScroll: true,
-        onSuccess: () => {
-            showNewTask.value = false;
-        },
-    });
+    // Stitch the date + time inputs into a single ISO-ish value the
+    // server can Carbon::parse. A bare date keeps the controller's
+    // 09:00 default; a date+time sends the exact moment.
+    const payload = { ...taskForm.data() };
+    if (payload.due_at && payload.due_time) {
+        payload.due_at = `${payload.due_at} ${payload.due_time}`;
+    }
+    delete payload.due_time;
+
+    // Notes never carry a schedule — strip it explicitly so the server
+    // doesn't see a half-formed date.
+    if (payload.type === 'note') {
+        payload.due_at = null;
+        payload.duration_minutes = null;
+    }
+    if (! ['call', 'meeting'].includes(payload.type)) {
+        payload.duration_minutes = null;
+    }
+
+    taskForm
+        .transform(() => payload)
+        .post('/tasks', {
+            preserveScroll: true,
+            onSuccess: () => {
+                showNewTask.value = false;
+            },
+        });
 }
+
+/* Available contacts for the currently-selected customer in the form */
+const availableContacts = computed(() => {
+    if (! taskForm.customer_id) return [];
+
+    return props.contacts_by_customer?.[taskForm.customer_id] ?? [];
+});
 
 const filteredCustomers = computed(() => {
     const q = customerSearch.value.trim().toLowerCase();
@@ -222,16 +333,36 @@ function clearCustomer() {
     customerSearch.value = '';
 }
 
-/* ─── Complete a task (optimistic dim then refresh) ─── */
+/* ─── Complete activity — outcome modal flow ────────────────────────
+ *
+ * Clicking the round check button no longer fires /complete directly;
+ * it opens a small dialog asking for an optional outcome. This is the
+ * same path the Customer page uses, so completion telemetry is uniform
+ * regardless of where the user is. The outcome is *optional* — the
+ * confirm button submits regardless, just with an empty body.
+ */
 const completingId = ref(null);
+const showCompleteModal = ref(false);
+const completingActivity = ref(null);
+const outcomeText = ref('');
 
-function completeTask(taskId) {
-    if (completingId.value === taskId) return;
-    completingId.value = taskId;
-    router.post(`/tasks/${taskId}/complete`, {}, {
+function askComplete(task) {
+    completingActivity.value = task;
+    outcomeText.value = '';
+    showCompleteModal.value = true;
+}
+
+function performComplete() {
+    if (! completingActivity.value) return;
+    const id = completingActivity.value.id;
+    completingId.value = id;
+    router.post(`/tasks/${id}/complete`, { outcome: outcomeText.value || null }, {
         preserveScroll: true,
         onFinish: () => {
             completingId.value = null;
+            showCompleteModal.value = false;
+            completingActivity.value = null;
+            outcomeText.value = '';
         },
     });
 }
@@ -492,17 +623,17 @@ function completeTask(taskId) {
                         </div>
                     </div>
 
-                    <!-- Tasks -->
+                    <!-- Activities (open, assigned to me) -->
                     <div class="card shadow-sm">
                         <div class="card-header">
                             <div class="h-icon"><IconCheckbox :size="16" stroke-width="1.75" /></div>
                             <div>
-                                <h3>Tasks</h3>
+                                <h3>Activities</h3>
                                 <div class="sub">{{ tasks.length }} open<template v-if="tasksDueToday"> · {{ tasksDueToday }} due today</template></div>
                             </div>
                             <div class="right">
                                 <button type="button" class="btn btn-ghost btn-sm" @click="openNewTask">
-                                    <IconPlus :size="14" stroke-width="1.75" />New task
+                                    <IconPlus :size="14" stroke-width="1.75" />New activity
                                 </button>
                             </div>
                         </div>
@@ -510,27 +641,42 @@ function completeTask(taskId) {
                             <div
                                 v-for="t in tasks"
                                 :key="t.id"
-                                class="task-row"
+                                class="task-row act-list-row"
                                 :class="{ completing: completingId === t.id }"
                             >
                                 <button
                                     type="button"
                                     class="cb"
-                                    :aria-label="`Complete task: ${t.title}`"
+                                    :aria-label="`Complete activity: ${t.title}`"
                                     :disabled="completingId === t.id"
-                                    @click="completeTask(t.id)"
+                                    @click="askComplete(t)"
                                 />
-                                <div>
-                                    <div class="task-text">{{ t.title }}</div>
-                                    <div v-if="t.customer" class="task-meta">
-                                        <span class="pill">{{ t.customer.name }}</span>
+                                <span
+                                    class="act-list-type-icon"
+                                    :style="{ color: t.type_colour }"
+                                    :title="t.type"
+                                >
+                                    <component :is="iconByName(t.type_icon)" :size="14" stroke-width="1.75" />
+                                </span>
+                                <div class="act-list-main">
+                                    <div class="task-text">
+                                        <IconPin v-if="t.is_pinned" :size="11" stroke-width="2" style="color: var(--accent); margin-right: 4px;" />
+                                        {{ t.title }}
+                                        <span
+                                            class="act-priority-dot"
+                                            :class="t.priority"
+                                            :title="`Priority: ${t.priority}`"
+                                        />
+                                    </div>
+                                    <div class="task-meta">
+                                        <span>{{ listLabelForType(t) }}</span>
                                     </div>
                                 </div>
                                 <div class="due" :class="taskDueLabel(t).cls">{{ taskDueLabel(t).text }}</div>
                             </div>
                         </div>
                         <div v-else style="padding: 24px; text-align: center; color: var(--text-tertiary); font: 400 13px/1.4 'Inter', sans-serif;">
-                            No tasks assigned to you
+                            No activities assigned to you
                         </div>
                     </div>
 
@@ -701,29 +847,103 @@ function completeTask(taskId) {
                     <DialogPanel class="slide-over-panel">
                         <form class="slide-over-form" @submit.prevent="submitNewTask">
                             <header class="slide-over-header">
-                                <h2>New task</h2>
+                                <h2>New activity</h2>
                                 <button type="button" class="icon-btn" aria-label="Close" @click="showNewTask = false">
                                     <IconX :size="18" stroke-width="1.75" />
                                 </button>
                             </header>
 
                             <div class="slide-over-body">
+                                <!-- Activity type picker -->
+                                <div class="form-section">
+                                    <div class="activity-type-picker">
+                                        <button
+                                            v-for="t in ACTIVITY_TYPES"
+                                            :key="t.value"
+                                            type="button"
+                                            class="atp-btn"
+                                            :class="{ active: taskForm.type === t.value }"
+                                            @click="taskForm.type = t.value"
+                                        >
+                                            <component :is="iconForType(t.value)" :size="18" stroke-width="1.75" />
+                                            <span>{{ t.label }}</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Title -->
                                 <div class="form-section">
                                     <div class="form-row single">
                                         <div class="form-field">
-                                            <label for="task_title">Task<span class="req">*</span></label>
+                                            <label for="task_title">
+                                                {{ taskForm.type === 'note' ? 'Title (optional)' : 'Title' }}
+                                                <span v-if="taskForm.type !== 'note'" class="req">*</span>
+                                            </label>
                                             <input
                                                 id="task_title"
                                                 v-model="taskForm.title"
                                                 type="text"
-                                                placeholder="What needs to be done?"
+                                                :placeholder="placeholderForType(taskForm.type)"
                                                 maxlength="500"
                                                 :class="{ 'has-err': taskForm.errors.title }"
-                                                required
+                                                :required="taskForm.type !== 'note'"
                                             >
                                             <div v-if="taskForm.errors.title" class="err">{{ taskForm.errors.title }}</div>
                                         </div>
                                     </div>
+                                </div>
+
+                                <!-- Description -->
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label for="task_desc">{{ descriptionLabelForType(taskForm.type) }}</label>
+                                            <textarea
+                                                id="task_desc"
+                                                v-model="taskForm.description"
+                                                rows="4"
+                                                maxlength="5000"
+                                                :class="{ 'has-err': taskForm.errors.description }"
+                                            />
+                                            <div v-if="taskForm.errors.description" class="err">{{ taskForm.errors.description }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Priority + Duration (call/meeting only) -->
+                                <div class="form-section">
+                                    <div class="form-row">
+                                        <div class="form-field">
+                                            <label>Priority</label>
+                                            <div class="priority-pills">
+                                                <button
+                                                    v-for="p in ['low', 'medium', 'high']"
+                                                    :key="p"
+                                                    type="button"
+                                                    class="pp-btn"
+                                                    :class="[p, { active: taskForm.priority === p }]"
+                                                    @click="taskForm.priority = p"
+                                                >{{ p.charAt(0).toUpperCase() + p.slice(1) }}</button>
+                                            </div>
+                                        </div>
+                                        <div v-if="['call', 'meeting'].includes(taskForm.type)" class="form-field">
+                                            <label for="task_dur">Duration (minutes)</label>
+                                            <input
+                                                id="task_dur"
+                                                v-model.number="taskForm.duration_minutes"
+                                                type="number"
+                                                min="1"
+                                                max="480"
+                                                placeholder="e.g. 30"
+                                                :class="{ 'has-err': taskForm.errors.duration_minutes }"
+                                            >
+                                            <div v-if="taskForm.errors.duration_minutes" class="err">{{ taskForm.errors.duration_minutes }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Customer + Contact -->
+                                <div class="form-section">
                                     <div class="form-row single">
                                         <div class="form-field">
                                             <label>Customer (optional)</label>
@@ -756,18 +976,45 @@ function completeTask(taskId) {
                                             </template>
                                         </div>
                                     </div>
+                                    <div v-if="taskForm.customer_id && availableContacts.length > 0" class="form-row single">
+                                        <div class="form-field">
+                                            <label for="task_contact">Contact (optional)</label>
+                                            <select id="task_contact" v-model="taskForm.contact_id">
+                                                <option :value="null">— no specific contact —</option>
+                                                <option v-for="ct in availableContacts" :key="ct.id" :value="ct.id">{{ ct.name }}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Schedule (date+time) — hidden for notes -->
+                                <div v-if="taskForm.type !== 'note'" class="form-section">
                                     <div class="form-row">
                                         <div class="form-field">
-                                            <label for="task_due">Due date (optional)</label>
+                                            <label for="task_due">{{ scheduleLabelForType(taskForm.type) }} date</label>
                                             <input
                                                 id="task_due"
-                                                v-model="taskForm.due_date"
+                                                v-model="taskForm.due_at"
                                                 type="date"
                                                 :min="todayIso"
-                                                :class="{ 'has-err': taskForm.errors.due_date }"
+                                                :class="{ 'has-err': taskForm.errors.due_at }"
                                             >
-                                            <div v-if="taskForm.errors.due_date" class="err">{{ taskForm.errors.due_date }}</div>
+                                            <div v-if="taskForm.errors.due_at" class="err">{{ taskForm.errors.due_at }}</div>
                                         </div>
+                                        <div class="form-field">
+                                            <label for="task_time">Time (optional)</label>
+                                            <input
+                                                id="task_time"
+                                                v-model="taskForm.due_time"
+                                                type="time"
+                                            >
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Assignee -->
+                                <div class="form-section">
+                                    <div class="form-row single">
                                         <div class="form-field">
                                             <label for="task_assigned">Assign to<span class="req">*</span></label>
                                             <select
@@ -787,7 +1034,7 @@ function completeTask(taskId) {
                                 <button type="button" class="btn btn-secondary" @click="showNewTask = false">Cancel</button>
                                 <button type="submit" class="btn btn-primary" :disabled="taskForm.processing">
                                     <IconPlus :size="15" stroke-width="1.75" />
-                                    {{ taskForm.processing ? 'Creating…' : 'Create task' }}
+                                    {{ taskForm.processing ? 'Creating…' : 'Save activity' }}
                                 </button>
                             </footer>
                         </form>
@@ -795,5 +1042,31 @@ function completeTask(taskId) {
                 </TransitionChild>
             </Dialog>
         </TransitionRoot>
+
+        <ConfirmModal
+            v-model:show="showCompleteModal"
+            :title="completingActivity ? `Complete: ${completingActivity.title}` : 'Complete activity'"
+            message=""
+            confirm-label="Mark complete"
+            variant="primary"
+            :loading="completingId !== null"
+            @confirm="performComplete"
+        >
+            <!--
+              ConfirmModal renders its default slot below the message,
+              perfect spot for an optional outcome blurb. The outcome
+              lands on tasks.outcome and shows in the customer timeline.
+            -->
+            <div class="form-field" style="margin-top: 8px;">
+                <label>Outcome / notes (optional)</label>
+                <textarea
+                    v-model="outcomeText"
+                    rows="3"
+                    maxlength="2000"
+                    placeholder="What was the result? Any follow-up needed?"
+                    style="width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-md);"
+                />
+            </div>
+        </ConfirmModal>
     </InternalLayout>
 </template>

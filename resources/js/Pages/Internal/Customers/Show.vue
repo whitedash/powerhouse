@@ -45,6 +45,11 @@ import {
     IconClock,
     IconBan,
     IconRefresh,
+    IconUser,
+    IconCalendar,
+    IconUserCheck,
+    IconMessageCircle,
+    IconPin,
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -112,13 +117,14 @@ const PRODUCT_PB_COLOURS = {
 /* ─── Tabs ─── */
 const activeTab = ref('overview');
 const tabs = computed(() => [
-    { key: 'overview',  label: 'Overview' },
-    { key: 'invoices',  label: 'Invoices',  count: props.customer.invoices.length },
-    { key: 'products',  label: 'Products',  count: props.customer.products.length },
-    { key: 'contracts', label: 'Contracts', count: props.customer.contracts_count },
-    { key: 'support',   label: 'Support',   count: props.customer.open_tickets },
-    { key: 'activity',  label: 'Activity' },
-    { key: 'notes',     label: 'Notes',     count: props.customer.notes.length },
+    { key: 'overview',   label: 'Overview' },
+    { key: 'invoices',   label: 'Invoices',   count: props.customer.invoices.length },
+    { key: 'products',   label: 'Products',   count: props.customer.products.length },
+    { key: 'contracts',  label: 'Contracts',  count: props.customer.contracts_count },
+    { key: 'support',    label: 'Support',    count: props.customer.open_tickets },
+    { key: 'activities', label: 'Activities', count: props.customer.tasks.length },
+    { key: 'activity',   label: 'Audit log' },
+    { key: 'notes',      label: 'Notes',      count: props.customer.notes.length },
 ]);
 
 /* ─── Breadcrumbs / header data ─── */
@@ -286,16 +292,253 @@ function submitNote() {
     });
 }
 
-/* ─── Add task ─── */
+/* ─── CRM activities (formerly just "tasks") ─────────────────────── */
+
+/*
+ * The 5 activity types backing the slide-over. Tabler icon names
+ * match the server's Task::$type_icon accessor — same source of
+ * truth shared with Dashboard.vue.
+ */
+const ACTIVITY_TYPES = [
+    { value: 'task',    label: 'Task',    icon: 'IconCheckbox' },
+    { value: 'call',    label: 'Call',    icon: 'IconPhone' },
+    { value: 'email',   label: 'Email',   icon: 'IconMail' },
+    { value: 'meeting', label: 'Meeting', icon: 'IconUsersGroup' },
+    { value: 'note',    label: 'Note',    icon: 'IconNotes' },
+];
+
+function placeholderForType(type) {
+    return {
+        task: 'What needs to be done?',
+        call: 'Who to call / purpose of call',
+        email: 'Email subject / purpose',
+        meeting: 'Meeting title / agenda item',
+        note: 'Note title (optional)',
+    }[type] ?? '';
+}
+
+function descriptionLabelForType(type) {
+    return {
+        task: 'Details',
+        call: 'Call notes',
+        email: 'Email content / notes',
+        meeting: 'Agenda / notes',
+        note: 'Note content',
+    }[type] ?? 'Details';
+}
+
+function scheduleLabelForType(type) {
+    if (type === 'note') return null;
+    return ['call', 'meeting', 'email'].includes(type) ? 'Scheduled' : 'Due';
+}
+
+function activityTypeLabel(type) {
+    return ACTIVITY_TYPES.find((t) => t.value === type)?.label ?? type;
+}
+
+function iconForType(type) {
+    const map = {
+        task: IconCheckbox,
+        call: IconPhone,
+        email: IconMail,
+        meeting: IconUsersGroup,
+        note: IconNotes,
+    };
+
+    return map[type] ?? IconCheckbox;
+}
+
+function iconByName(name) {
+    return {
+        phone: IconPhone,
+        mail: IconMail,
+        users: IconUsersGroup,
+        notes: IconNotes,
+        checkbox: IconCheckbox,
+    }[name] ?? IconCheckbox;
+}
+
+function formatDueAt(iso) {
+    if (! iso) return '';
+    const d = new Date(iso);
+    const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
+
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+        + (hasTime ? ' · ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '');
+}
+
 const showAddTask = ref(false);
-const taskForm = useForm({ title: '', due_date: '' });
+const editingActivityId = ref(null);
+
+const taskForm = useForm({
+    type: 'task',
+    title: '',
+    description: '',
+    priority: 'medium',
+    customer_id: props.customer.id,
+    contact_id: null,
+    assigned_to: null,
+    due_at: '',
+    due_time: '',
+    duration_minutes: null,
+});
+
+function openAddTask(type = 'task') {
+    taskForm.reset();
+    taskForm.clearErrors();
+    taskForm.customer_id = props.customer.id;
+    taskForm.type = type;
+    taskForm.priority = 'medium';
+    editingActivityId.value = null;
+    showAddTask.value = true;
+}
+
+function openEditTask(t) {
+    taskForm.reset();
+    taskForm.clearErrors();
+    taskForm.customer_id = props.customer.id;
+    taskForm.type = t.type;
+    taskForm.title = t.title ?? '';
+    taskForm.description = t.description ?? '';
+    taskForm.priority = t.priority ?? 'medium';
+    taskForm.contact_id = t.contact_id ?? null;
+    taskForm.assigned_to = t.assigned_to ?? null;
+    taskForm.duration_minutes = t.duration_minutes ?? null;
+
+    if (t.due_at) {
+        const d = new Date(t.due_at);
+        taskForm.due_at = d.toISOString().slice(0, 10);
+        taskForm.due_time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    } else {
+        taskForm.due_at = '';
+        taskForm.due_time = '';
+    }
+
+    editingActivityId.value = t.id;
+    showAddTask.value = true;
+}
+
+function closeTaskForm() {
+    showAddTask.value = false;
+    editingActivityId.value = null;
+    taskForm.reset();
+}
 
 function submitTask() {
-    taskForm.post(`/customers/${props.customer.id}/tasks`, {
+    const payload = { ...taskForm.data() };
+    if (payload.due_at && payload.due_time) {
+        payload.due_at = `${payload.due_at} ${payload.due_time}`;
+    }
+    delete payload.due_time;
+
+    if (payload.type === 'note') {
+        payload.due_at = null;
+        payload.duration_minutes = null;
+    }
+    if (! ['call', 'meeting'].includes(payload.type)) {
+        payload.duration_minutes = null;
+    }
+
+    const onSuccess = () => {
+        closeTaskForm();
+    };
+
+    if (editingActivityId.value) {
+        taskForm
+            .transform(() => payload)
+            .put(`/tasks/${editingActivityId.value}`, { preserveScroll: true, onSuccess });
+    } else {
+        taskForm
+            .transform(() => payload)
+            .post('/tasks', { preserveScroll: true, onSuccess });
+    }
+}
+
+/* Contacts for this customer's activity form */
+const customerContactsForPicker = computed(() =>
+    props.customer.contacts.map((c) => ({ id: c.id, name: c.name })),
+);
+
+/* ─── Activity timeline state ─── */
+const activityFilter = ref('all'); // all | task | call | email | meeting | note
+const showCompletedActivities = ref(false);
+
+const filteredActivities = computed(() => {
+    let list = props.customer.tasks;
+    if (activityFilter.value !== 'all') {
+        list = list.filter((t) => t.type === activityFilter.value);
+    }
+    if (! showCompletedActivities.value) {
+        list = list.filter((t) => t.status !== 'complete');
+    }
+
+    return list;
+});
+
+const activityCounts = computed(() => {
+    const open = props.customer.tasks.filter((t) => t.status !== 'complete');
+    const result = { all: open.length };
+    for (const type of ['task', 'call', 'email', 'meeting', 'note']) {
+        result[type] = open.filter((t) => t.type === type).length;
+    }
+
+    return result;
+});
+
+/* ─── Complete activity — outcome modal ────────────────────────────── */
+const showCompleteActivity = ref(false);
+const completingActivity = ref(null);
+const completeOutcome = ref('');
+const completeProcessing = ref(false);
+
+function askCompleteActivity(t) {
+    completingActivity.value = t;
+    completeOutcome.value = '';
+    showCompleteActivity.value = true;
+}
+
+function performCompleteActivity() {
+    if (! completingActivity.value) return;
+    completeProcessing.value = true;
+    router.post(
+        `/tasks/${completingActivity.value.id}/complete`,
+        { outcome: completeOutcome.value || null },
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                completeProcessing.value = false;
+                showCompleteActivity.value = false;
+                completingActivity.value = null;
+                completeOutcome.value = '';
+            },
+        },
+    );
+}
+
+/* Toggle pin (sidebar / timeline) */
+function togglePinActivity(t) {
+    router.post(`/tasks/${t.id}/pin`, {}, { preserveScroll: true });
+}
+
+/* Delete activity */
+const showDeleteActivity = ref(false);
+const deletingActivity = ref(null);
+const deleteActivityProcessing = ref(false);
+
+function askDeleteActivity(t) {
+    deletingActivity.value = t;
+    showDeleteActivity.value = true;
+}
+
+function performDeleteActivity() {
+    if (! deletingActivity.value) return;
+    deleteActivityProcessing.value = true;
+    router.delete(`/tasks/${deletingActivity.value.id}`, {
         preserveScroll: true,
-        onSuccess: () => {
-            taskForm.reset();
-            showAddTask.value = false;
+        onFinish: () => {
+            deleteActivityProcessing.value = false;
+            showDeleteActivity.value = false;
+            deletingActivity.value = null;
         },
     });
 }
@@ -588,19 +831,10 @@ const suspendMessage = computed(() => {
     return `This will suspend ${suspendTarget.value.name} for ${props.customer.name}. Their access will be removed immediately.`;
 });
 
-/* ─── Task completion (optimistic dim before refresh) ─── */
-const completingTaskId = ref(null);
-
-function completeTask(taskId) {
-    if (completingTaskId.value === taskId) return;
-    completingTaskId.value = taskId;
-    router.post(`/tasks/${taskId}/complete`, {}, {
-        preserveScroll: true,
-        onFinish: () => {
-            completingTaskId.value = null;
-        },
-    });
-}
+// Task completion + outcome flow lives further up in the CRM activities
+// block — completingTaskId is gone, replaced by completingActivity +
+// performCompleteActivity which posts an optional outcome with the
+// completion.
 
 function copyText(value) {
     if (!value) return;
@@ -1124,62 +1358,66 @@ const headerStatusBadge = computed(() => {
                         </div>
                     </section>
 
-                    <!-- Tasks -->
+                    <!-- Activities (open only — full timeline lives in the Activities tab) -->
                     <section class="card">
                         <header class="card-header">
                             <div class="h-icon"><IconCheckbox :size="16" stroke-width="1.75" /></div>
                             <div>
-                                <h3>Tasks</h3>
-                                <div class="sub">Tied to this customer</div>
+                                <h3>Activities</h3>
+                                <div class="sub">{{ activityCounts.all }} open</div>
                             </div>
                             <div class="right">
-                                <span class="h-badge amber">{{ customer.tasks.length }} open</span>
-                                <button type="button" class="ghost-link" @click="showAddTask = !showAddTask">
+                                <button type="button" class="ghost-link" @click="openAddTask('task')">
                                     <IconPlus :size="14" stroke-width="1.75" />
-                                    Add
+                                    New
                                 </button>
                             </div>
                         </header>
-                        <div v-if="showAddTask" style="padding: 14px 18px; border-bottom: 1px solid var(--border-soft); background: #FBFCFE;">
-                            <form class="form-section" @submit.prevent="submitTask">
-                                <div class="form-field">
-                                    <label>Title<span class="req">*</span></label>
-                                    <input v-model="taskForm.title" type="text" :class="{ 'has-err': taskForm.errors.title }" required>
-                                </div>
-                                <div class="form-field">
-                                    <label>Due date</label>
-                                    <input v-model="taskForm.due_date" type="date">
-                                </div>
-                                <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                                    <button type="button" class="btn btn-secondary btn-sm" @click="showAddTask = false">Cancel</button>
-                                    <button type="submit" class="btn btn-primary btn-sm" :disabled="taskForm.processing">
-                                        {{ taskForm.processing ? 'Saving…' : 'Add task' }}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                        <div v-if="customer.tasks.length">
+                        <div v-if="customer.tasks.filter((t) => t.status !== 'complete').length">
                             <div
-                                v-for="t in customer.tasks"
+                                v-for="t in customer.tasks.filter((t) => t.status !== 'complete').slice(0, 6)"
                                 :key="t.id"
-                                class="task-row"
-                                :class="{ completing: completingTaskId === t.id }"
+                                class="task-row act-list-row"
+                                :class="{ completing: completingActivity?.id === t.id }"
                             >
                                 <button
                                     type="button"
                                     class="cb"
-                                    :aria-label="`Complete task: ${t.title}`"
-                                    :disabled="completingTaskId === t.id"
-                                    @click="completeTask(t.id)"
+                                    :aria-label="`Complete: ${t.title}`"
+                                    :disabled="completingActivity?.id === t.id"
+                                    @click="askCompleteActivity(t)"
                                 />
-                                <div>
-                                    <div class="task-text">{{ t.title }}</div>
+                                <span class="act-list-type-icon" :style="{ color: t.type_colour }" :title="t.type">
+                                    <component :is="iconByName(t.type_icon)" :size="14" stroke-width="1.75" />
+                                </span>
+                                <div class="act-list-main">
+                                    <div class="task-text">
+                                        <IconPin v-if="t.is_pinned" :size="11" stroke-width="2" style="color: var(--accent); margin-right: 4px;" />
+                                        {{ t.title }}
+                                        <span class="act-priority-dot" :class="t.priority" :title="`Priority: ${t.priority}`" />
+                                    </div>
+                                    <div v-if="t.contact_name" class="task-meta">
+                                        <IconUser :size="11" stroke-width="1.75" />
+                                        {{ t.contact_name }}
+                                    </div>
                                 </div>
-                                <div class="due" :class="dueLabel(t.due_date).class">{{ dueLabel(t.due_date).label }}</div>
+                                <div v-if="t.due_at" class="due" :class="t.is_overdue ? 'red' : 'muted'" style="font-size: 11px;">
+                                    {{ formatDueAt(t.due_at) }}
+                                </div>
+                            </div>
+                            <div v-if="activityCounts.all > 6" style="padding: 8px 18px 12px; text-align: center;">
+                                <button type="button" class="ghost-link" @click="activeTab = 'activities'">
+                                    View all activities
+                                    <IconArrowRight :size="14" stroke-width="1.75" />
+                                </button>
                             </div>
                         </div>
                         <div v-else class="tab-empty" style="padding: 28px 18px;">
-                            <p>No open tasks.</p>
+                            <p>No open activities.</p>
+                            <button type="button" class="ghost-link" @click="openAddTask('task')">
+                                <IconPlus :size="14" stroke-width="1.75" />
+                                Add first activity
+                            </button>
                         </div>
                     </section>
 
@@ -1430,6 +1668,150 @@ const headerStatusBadge = computed(() => {
             </div>
 
             <!-- ═══ ACTIVITY TAB ═══ -->
+            <!-- ═══ ACTIVITIES TAB ═══ -->
+            <div v-else-if="activeTab === 'activities'" style="margin: 0 -24px -24px; padding: 24px;">
+                <section class="card">
+                    <header class="card-header">
+                        <div class="h-icon"><IconCheckbox :size="16" stroke-width="1.75" /></div>
+                        <div>
+                            <h3>Activities &amp; tasks</h3>
+                            <div class="sub">Calls, emails, meetings, notes &amp; tasks for {{ customer.name }}</div>
+                        </div>
+                        <div class="right">
+                            <button type="button" class="btn btn-primary btn-sm" @click="openAddTask('task')">
+                                <IconPlus :size="14" stroke-width="1.75" />
+                                New activity
+                            </button>
+                        </div>
+                    </header>
+
+                    <!-- Filter strip -->
+                    <div class="activities-filter-bar">
+                        <button
+                            type="button"
+                            class="af-chip"
+                            :class="{ active: activityFilter === 'all' }"
+                            @click="activityFilter = 'all'"
+                        >
+                            All
+                            <span v-if="activityCounts.all" class="af-count">{{ activityCounts.all }}</span>
+                        </button>
+                        <button
+                            v-for="t in ACTIVITY_TYPES"
+                            :key="t.value"
+                            type="button"
+                            class="af-chip"
+                            :class="{ active: activityFilter === t.value }"
+                            @click="activityFilter = t.value"
+                        >
+                            {{ t.label }}s<span v-if="activityCounts[t.value]" class="af-count">{{ activityCounts[t.value] }}</span>
+                        </button>
+                        <label class="af-toggle">
+                            <input v-model="showCompletedActivities" type="checkbox">
+                            <span>Show completed</span>
+                        </label>
+                    </div>
+
+                    <!-- Timeline -->
+                    <div v-if="filteredActivities.length" class="activity-timeline">
+                        <article
+                            v-for="t in filteredActivities"
+                            :key="t.id"
+                            class="activity-item"
+                            :class="[
+                                'act-' + t.type,
+                                {
+                                    completed: t.status === 'complete',
+                                    overdue: t.is_overdue,
+                                    pinned: t.is_pinned,
+                                },
+                            ]"
+                        >
+                            <div class="act-type-icon" :style="{ background: t.type_colour }">
+                                <component :is="iconByName(t.type_icon)" :size="14" stroke-width="2" color="#fff" />
+                            </div>
+
+                            <div class="act-content">
+                                <header class="act-header">
+                                    <span class="act-title" :class="{ done: t.status === 'complete' }">
+                                        {{ t.title || activityTypeLabel(t.type) }}
+                                    </span>
+                                    <span class="act-priority-dot" :class="t.priority" :title="`Priority: ${t.priority}`" />
+                                    <span v-if="t.contact_name" class="act-contact">
+                                        <IconUser :size="11" stroke-width="1.75" />
+                                        {{ t.contact_name }}
+                                    </span>
+                                    <span v-if="t.is_overdue" class="warn-pill red">Overdue</span>
+                                    <span v-if="t.is_pinned" class="act-pin" title="Pinned">
+                                        <IconPin :size="11" stroke-width="2" />
+                                    </span>
+                                    <Menu as="div" class="dd-menu" style="margin-left: auto;">
+                                        <MenuButton class="icon-btn" aria-label="Activity actions">
+                                            <IconDots :size="14" stroke-width="1.75" />
+                                        </MenuButton>
+                                        <MenuItems class="dd-popover right-align">
+                                            <MenuItem v-if="t.status !== 'complete'" v-slot="{ active }">
+                                                <button type="button" :class="['dd-option', { active }]" @click="askCompleteActivity(t)">Mark complete</button>
+                                            </MenuItem>
+                                            <MenuItem v-slot="{ active }">
+                                                <button type="button" :class="['dd-option', { active }]" @click="openEditTask(t)">Edit</button>
+                                            </MenuItem>
+                                            <MenuItem v-slot="{ active }">
+                                                <button type="button" :class="['dd-option', { active }]" @click="togglePinActivity(t)">{{ t.is_pinned ? 'Unpin' : 'Pin to top' }}</button>
+                                            </MenuItem>
+                                            <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
+                                            <MenuItem v-slot="{ active }">
+                                                <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDeleteActivity(t)">Delete</button>
+                                            </MenuItem>
+                                        </MenuItems>
+                                    </Menu>
+                                </header>
+
+                                <div v-if="t.description" class="act-desc">{{ t.description }}</div>
+
+                                <div v-if="t.outcome" class="act-outcome">
+                                    <IconMessageCircle :size="13" stroke-width="1.75" />
+                                    <span>{{ t.outcome }}</span>
+                                </div>
+
+                                <div class="act-meta">
+                                    <span v-if="t.due_at">
+                                        <IconCalendar :size="12" stroke-width="1.75" />
+                                        {{ formatDueAt(t.due_at) }}
+                                    </span>
+                                    <span v-if="t.duration_minutes">
+                                        <IconClock :size="12" stroke-width="1.75" />
+                                        {{ t.duration_minutes }}min
+                                    </span>
+                                    <span v-if="t.assigned_to_name">
+                                        <IconUserCheck :size="12" stroke-width="1.75" />
+                                        {{ t.assigned_to_name }}
+                                    </span>
+                                    <span v-if="t.completed_at_human" class="act-done-time">
+                                        ✓ Completed {{ t.completed_at_human }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <button
+                                v-if="t.type !== 'note' && t.status !== 'complete'"
+                                type="button"
+                                class="act-complete-btn"
+                                :title="`Mark '${t.title}' complete`"
+                                @click="askCompleteActivity(t)"
+                            >
+                                <IconCheck :size="14" stroke-width="2.25" />
+                            </button>
+                        </article>
+                    </div>
+                    <div v-else class="tab-empty">
+                        <h3>No matching activities</h3>
+                        <p v-if="customer.tasks.length === 0">Log a call, schedule a meeting, or add a note to get started.</p>
+                        <p v-else>Adjust the filters above or create a new activity.</p>
+                    </div>
+                </section>
+            </div>
+
             <div v-else-if="activeTab === 'activity'" style="margin: 0 -24px -24px; padding: 24px;">
                 <section class="card">
                     <header class="card-header">
@@ -2130,6 +2512,193 @@ const headerStatusBadge = computed(() => {
             variant="danger"
             :loading="removeReferralProcessing"
             @confirm="performRemoveReferral"
+        />
+
+        <!-- Activity create/edit slide-over -->
+        <TransitionRoot as="template" :show="showAddTask">
+            <Dialog as="div" class="slide-over-dialog" @close="closeTaskForm">
+                <TransitionChild
+                    as="template"
+                    enter="transition-opacity ease-out duration-200" enter-from="opacity-0" enter-to="opacity-100"
+                    leave="transition-opacity ease-in duration-150" leave-from="opacity-100" leave-to="opacity-0"
+                >
+                    <div class="slide-over-backdrop" />
+                </TransitionChild>
+                <TransitionChild
+                    as="template"
+                    enter="transform transition ease-out duration-200" enter-from="translate-x-full" enter-to="translate-x-0"
+                    leave="transform transition ease-in duration-150" leave-from="translate-x-0" leave-to="translate-x-full"
+                >
+                    <DialogPanel class="slide-over-panel" style="width: 480px;">
+                        <form class="slide-over-form" @submit.prevent="submitTask">
+                            <header class="slide-over-header">
+                                <h2>{{ editingActivityId ? 'Edit activity' : 'New activity' }}</h2>
+                                <button type="button" class="icon-btn" aria-label="Close" @click="closeTaskForm">
+                                    <IconX :size="18" stroke-width="1.75" />
+                                </button>
+                            </header>
+                            <div class="slide-over-body">
+                                <div class="form-section">
+                                    <div class="activity-type-picker">
+                                        <button
+                                            v-for="at in ACTIVITY_TYPES"
+                                            :key="at.value"
+                                            type="button"
+                                            class="atp-btn"
+                                            :class="{ active: taskForm.type === at.value }"
+                                            @click="taskForm.type = at.value"
+                                        >
+                                            <component :is="iconForType(at.value)" :size="18" stroke-width="1.75" />
+                                            <span>{{ at.label }}</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>
+                                                {{ taskForm.type === 'note' ? 'Title (optional)' : 'Title' }}
+                                                <span v-if="taskForm.type !== 'note'" class="req">*</span>
+                                            </label>
+                                            <input
+                                                v-model="taskForm.title"
+                                                type="text"
+                                                :placeholder="placeholderForType(taskForm.type)"
+                                                maxlength="500"
+                                                :class="{ 'has-err': taskForm.errors.title }"
+                                                :required="taskForm.type !== 'note'"
+                                            >
+                                            <div v-if="taskForm.errors.title" class="err">{{ taskForm.errors.title }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>{{ descriptionLabelForType(taskForm.type) }}</label>
+                                            <textarea
+                                                v-model="taskForm.description"
+                                                rows="4"
+                                                maxlength="5000"
+                                                :class="{ 'has-err': taskForm.errors.description }"
+                                            />
+                                            <div v-if="taskForm.errors.description" class="err">{{ taskForm.errors.description }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-section">
+                                    <div class="form-row">
+                                        <div class="form-field">
+                                            <label>Priority</label>
+                                            <div class="priority-pills">
+                                                <button
+                                                    v-for="p in ['low', 'medium', 'high']"
+                                                    :key="p"
+                                                    type="button"
+                                                    class="pp-btn"
+                                                    :class="[p, { active: taskForm.priority === p }]"
+                                                    @click="taskForm.priority = p"
+                                                >{{ p.charAt(0).toUpperCase() + p.slice(1) }}</button>
+                                            </div>
+                                        </div>
+                                        <div v-if="['call', 'meeting'].includes(taskForm.type)" class="form-field">
+                                            <label>Duration (minutes)</label>
+                                            <input
+                                                v-model.number="taskForm.duration_minutes"
+                                                type="number"
+                                                min="1"
+                                                max="480"
+                                                placeholder="e.g. 30"
+                                                :class="{ 'has-err': taskForm.errors.duration_minutes }"
+                                            >
+                                            <div v-if="taskForm.errors.duration_minutes" class="err">{{ taskForm.errors.duration_minutes }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-if="customerContactsForPicker.length > 0" class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Contact (optional)</label>
+                                            <select v-model="taskForm.contact_id">
+                                                <option :value="null">— no specific contact —</option>
+                                                <option v-for="ct in customerContactsForPicker" :key="ct.id" :value="ct.id">{{ ct.name }}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-if="taskForm.type !== 'note'" class="form-section">
+                                    <div class="form-row">
+                                        <div class="form-field">
+                                            <label>{{ scheduleLabelForType(taskForm.type) }} date</label>
+                                            <input
+                                                v-model="taskForm.due_at"
+                                                type="date"
+                                                :class="{ 'has-err': taskForm.errors.due_at }"
+                                            >
+                                            <div v-if="taskForm.errors.due_at" class="err">{{ taskForm.errors.due_at }}</div>
+                                        </div>
+                                        <div class="form-field">
+                                            <label>Time (optional)</label>
+                                            <input v-model="taskForm.due_time" type="time">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Assign to</label>
+                                            <select v-model="taskForm.assigned_to">
+                                                <option :value="null">— default to me —</option>
+                                                <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <footer class="slide-over-footer">
+                                <button type="button" class="btn btn-secondary" @click="closeTaskForm">Cancel</button>
+                                <button type="submit" class="btn btn-primary" :disabled="taskForm.processing">
+                                    {{ taskForm.processing ? 'Saving…' : 'Save activity' }}
+                                </button>
+                            </footer>
+                        </form>
+                    </DialogPanel>
+                </TransitionChild>
+            </Dialog>
+        </TransitionRoot>
+
+        <ConfirmModal
+            v-model:show="showCompleteActivity"
+            :title="completingActivity ? `Complete: ${completingActivity.title}` : 'Complete activity'"
+            message=""
+            confirm-label="Mark complete"
+            variant="primary"
+            :loading="completeProcessing"
+            @confirm="performCompleteActivity"
+        >
+            <div class="form-field" style="margin-top: 8px;">
+                <label>Outcome / notes (optional)</label>
+                <textarea
+                    v-model="completeOutcome"
+                    rows="3"
+                    maxlength="2000"
+                    placeholder="What was the result? Any follow-up needed?"
+                    style="width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-md);"
+                />
+            </div>
+        </ConfirmModal>
+
+        <ConfirmModal
+            v-model:show="showDeleteActivity"
+            :title="deletingActivity ? `Delete ${deletingActivity.title}?` : 'Delete activity?'"
+            message="This activity will be permanently removed. This cannot be undone."
+            confirm-label="Delete"
+            variant="danger"
+            :loading="deleteActivityProcessing"
+            @confirm="performDeleteActivity"
         />
 
         <!--

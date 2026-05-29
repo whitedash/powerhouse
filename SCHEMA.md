@@ -237,11 +237,22 @@ type ENUM(internal|call|meeting|email),
 body TEXT, created_at, updated_at
 
 ## tasks
-id, customer_id FK nullable, assigned_to FK users,
-created_by FK users, title VARCHAR(500),
+id, customer_id FK nullable, contact_id FK nullable,
+assigned_to FK users, created_by FK users,
+title VARCHAR(500),
+type ENUM(task|call|email|meeting|note) DEFAULT 'task',
+description TEXT nullable,
+priority ENUM(low|medium|high) DEFAULT 'medium',
 status ENUM(open|complete),
-due_date DATE nullable, completed_at nullable,
+due_date DATE nullable (legacy — kept for safety),
+due_at TIMESTAMP nullable (canonical schedule),
+completed_at TIMESTAMP nullable,
+outcome TEXT nullable,
+duration_minutes UNSIGNED INT nullable,
+is_pinned BOOLEAN DEFAULT false,
 created_at, updated_at
+-- Repurposed from simple tasks into CRM activity model.
+-- INDEX (customer_id, is_pinned, due_at) for the timeline query.
 
 ## activity_log
 id, user_id BIGINT nullable, user_role VARCHAR(50) nullable,

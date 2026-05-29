@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -90,6 +91,11 @@ class DashboardController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'role', 'avatar_colour'])
                 ->all(),
+            // Map of customer_id => [{id,name}] for the activity
+            // slide-over's contact dropdown — populated client-side
+            // when the operator picks a customer. Loaded once at
+            // page level instead of an extra fetch per customer pick.
+            'contacts_by_customer' => $this->buildContactsByCustomer(),
         ]);
     }
 
@@ -320,19 +326,47 @@ class DashboardController extends Controller
 
         return Task::where('assigned_to', $userId)
             ->where('status', 'open')
-            ->with('customer:id,name')
-            ->orderByRaw('due_date IS NULL, due_date ASC')
+            ->with(['customer:id,name', 'contact:id,name'])
+            ->orderByRaw('is_pinned DESC, due_at IS NULL, due_at ASC')
             ->take(5)
             ->get()
             ->map(fn (Task $t): array => [
                 'id' => $t->id,
                 'title' => $t->title,
-                'due_date' => $t->due_date?->toDateString(),
-                'is_overdue' => $t->due_date && $t->due_date->isPast() && ! $t->due_date->isToday(),
-                'is_due_today' => $t->due_date && $t->due_date->isToday(),
+                'type' => $t->type,
+                'type_icon' => $t->type_icon,
+                'type_colour' => $t->type_colour,
+                'priority' => $t->priority,
+                'description' => $t->description ? Str::limit($t->description, 80) : null,
+                'due_at' => $t->due_at?->toIso8601String(),
+                'is_overdue' => $t->is_overdue,
+                'is_due_today' => $t->due_at && $t->due_at->isToday(),
+                'is_pinned' => $t->is_pinned,
+                'contact_name' => $t->contact?->name,
                 'customer' => $t->customer
                     ? ['id' => $t->customer->id, 'name' => $t->customer->name]
                     : null,
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<int, array{id: int, name: string}>>
+     */
+    private function buildContactsByCustomer(): array
+    {
+        // Single grouped query rather than N+1 per customer. Trimmed to
+        // active customers because we only let the slide-over attach
+        // activities to live accounts.
+        return Customer::whereNull('archived_at')
+            ->with('contacts:id,customer_id,name')
+            ->whereHas('contacts')
+            ->get(['id'])
+            ->mapWithKeys(fn (Customer $c): array => [
+                $c->id => $c->contacts->map(fn ($ct): array => [
+                    'id' => $ct->id,
+                    'name' => $ct->name,
+                ])->values()->all(),
             ])
             ->all();
     }

@@ -7533,3 +7533,249 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     outline: 2px solid var(--accent);
     outline-offset: -2px;
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * CRM ACTIVITIES — Dashboard list + customer timeline + slide-over form
+ * Scoped under .activity-type-picker, .activity-item, .act-* helpers.
+ * Shared between Dashboard.vue (compact list) and Customers/Show.vue
+ * (full timeline) — same icon-by-name resolution keeps both surfaces
+ * coherent.
+ * ──────────────────────────────────────────────────────────────────── */
+
+/* ───── Activity type picker (slide-over) ───── */
+.activity-type-picker {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    margin-bottom: 4px;
+}
+.atp-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 6px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font: 500 11px/1 'Inter', sans-serif;
+    color: var(--text-secondary);
+    background: #fff;
+    transition: all .15s;
+}
+.atp-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.atp-btn.active {
+    border-color: var(--accent);
+    background: var(--warning-bg);
+    color: var(--accent);
+}
+
+/* ───── Priority pill row ───── */
+.priority-pills {
+    display: inline-flex;
+    gap: 6px;
+}
+.pp-btn {
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1.5px solid var(--border);
+    background: #fff;
+    cursor: pointer;
+    font: 500 12px/1 'Inter', sans-serif;
+    color: var(--text-secondary);
+    transition: all .15s;
+}
+.pp-btn:hover { border-color: var(--text-secondary); }
+.pp-btn.low.active     { border-color: var(--success); color: var(--success); background: var(--success-bg); }
+.pp-btn.medium.active  { border-color: var(--warning); color: var(--warning); background: var(--warning-bg); }
+.pp-btn.high.active    { border-color: var(--danger);  color: var(--danger);  background: var(--danger-bg); }
+
+/* ───── Filter bar (Activities tab on customer Show) ───── */
+.activities-filter-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border-soft);
+}
+.af-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #fff;
+    cursor: pointer;
+    font: 500 12.5px/1 'Inter', sans-serif;
+    color: var(--text-secondary);
+    transition: all .12s;
+}
+.af-chip:hover { border-color: #CBD5E1; color: var(--text-primary); }
+.af-chip.active {
+    background: var(--accent);
+    color: var(--bg-navy);
+    border-color: var(--accent);
+    font-weight: 600;
+}
+.af-count {
+    font: 500 11px/1 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+}
+.af-chip.active .af-count { color: var(--bg-navy); }
+.af-chip:not(.active) .af-count {
+    background: var(--neutral-bg);
+    color: var(--text-tertiary);
+    padding: 1px 6px;
+    border-radius: 999px;
+}
+.af-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font: 500 12.5px/1 'Inter', sans-serif;
+    color: var(--text-secondary);
+    margin-left: auto;
+    cursor: pointer;
+}
+.af-toggle input { accent-color: var(--accent); }
+
+/* ───── Activity timeline (customer Show.vue activities tab) ───── */
+.activity-timeline {
+    padding: 4px 18px 18px;
+}
+.activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border-soft);
+    position: relative;
+}
+.activity-item:last-child { border-bottom: 0; }
+.activity-item.completed { opacity: .65; }
+.activity-item.pinned {
+    background: rgba(245, 158, 11, .04);
+    padding: 14px 12px;
+    margin: 0 -12px;
+    border-radius: var(--radius-md);
+}
+
+.act-type-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    color: #fff;
+    opacity: .9;
+}
+
+.act-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.act-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+.act-title {
+    font: 600 13.5px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+    letter-spacing: -.005em;
+}
+.act-title.done {
+    text-decoration: line-through;
+    color: var(--text-tertiary);
+}
+
+.act-priority-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.act-priority-dot.high   { background: var(--danger); }
+.act-priority-dot.medium { background: var(--warning); }
+.act-priority-dot.low    { background: var(--success); }
+
+.act-contact {
+    display: inline-flex; align-items: center; gap: 4px;
+    font: 400 12px/1 'Inter', sans-serif;
+    color: var(--text-tertiary);
+}
+.act-pin { color: var(--accent); display: inline-flex; align-items: center; }
+
+.act-desc {
+    font: 400 13px/1.5 'Inter', sans-serif;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    white-space: pre-wrap;
+}
+
+.act-outcome {
+    font: 400 12.5px/1.45 'Inter', sans-serif;
+    color: var(--text-secondary);
+    background: var(--neutral-bg);
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+    border-left: 2px solid var(--success);
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+}
+.act-outcome svg { color: var(--success); flex-shrink: 0; margin-top: 2px; }
+
+.act-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    font: 400 11px/1.4 'Inter', sans-serif;
+    color: var(--text-tertiary);
+}
+.act-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.act-meta svg { color: var(--text-tertiary); }
+.act-done-time { color: var(--success); }
+
+.act-complete-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: #fff;
+    cursor: pointer;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    margin-top: 4px;
+    color: var(--text-tertiary);
+    transition: all .15s;
+}
+.act-complete-btn:hover {
+    border-color: var(--success);
+    background: var(--success);
+    color: #fff;
+}
+
+/* ───── Compact activity list (Dashboard.vue + sidebar Tasks card) ───── */
+.act-list-row {
+    display: grid;
+    grid-template-columns: 20px 20px 1fr auto;
+    align-items: center;
+    gap: 8px;
+}
+.act-list-type-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.act-list-main { min-width: 0; }

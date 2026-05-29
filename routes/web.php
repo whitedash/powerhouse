@@ -76,7 +76,10 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // Global task endpoints — for the dashboard New-task slide-over and
     // checkbox-completion on every list that surfaces tasks.
     Route::post('/tasks', [InternalTaskController::class, 'store'])->name('internal.tasks.store');
+    Route::put('/tasks/{id}', [InternalTaskController::class, 'update'])->name('internal.tasks.update');
     Route::post('/tasks/{id}/complete', [InternalTaskController::class, 'complete'])->name('internal.tasks.complete');
+    Route::post('/tasks/{id}/pin', [InternalTaskController::class, 'togglePin'])->name('internal.tasks.pin');
+    Route::delete('/tasks/{id}', [InternalTaskController::class, 'destroy'])->name('internal.tasks.destroy');
     Route::delete('/customers/{id}/archive', [InternalCustomerController::class, 'archive'])->name('internal.customers.archive');
 
     // Portal access — issue or rotate portal credentials for a customer.
