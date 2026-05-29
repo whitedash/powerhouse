@@ -8,6 +8,7 @@ use App\Http\Controllers\Internal\DomainController as InternalDomainController;
 use App\Http\Controllers\Internal\InvoiceController as InternalInvoiceController;
 use App\Http\Controllers\Internal\MaavelusStatementController as InternalMaavelusStatementController;
 use App\Http\Controllers\Internal\ProductController as InternalProductController;
+use App\Http\Controllers\Internal\ProductOverviewController as InternalProductOverviewController;
 use App\Http\Controllers\Internal\ProductPlanCategoryController as InternalProductPlanCategoryController;
 use App\Http\Controllers\Internal\ProductPlanController as InternalProductPlanController;
 use App\Http\Controllers\Internal\ProductPlanPriceController as InternalProductPlanPriceController;
@@ -86,6 +87,11 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
     Route::post('/invoices/{id}/pause-reminders', [InternalInvoiceController::class, 'pauseReminders'])->name('internal.invoices.pause-reminders');
     Route::post('/invoices/{id}/resume-reminders', [InternalInvoiceController::class, 'resumeReminders'])->name('internal.invoices.resume-reminders');
     Route::get('/domains', [InternalDomainController::class, 'index'])->name('internal.domains.index');
+
+    // Product overview pages — one per product, navigated to from
+    // the sidebar Products section. Lives outside the settings group
+    // because it's read-only for staff (no super_admin gate).
+    Route::get('/products/{slug}', [InternalProductOverviewController::class, 'show'])->name('internal.products.show');
     Route::get('/support', [InternalSupportController::class, 'index'])->name('internal.support.index');
     Route::get('/provisioning', [InternalProvisioningController::class, 'index'])->name('internal.provisioning.index');
     Route::post('/provisioning/toggle', [InternalProvisioningController::class, 'toggle'])->name('internal.provisioning.toggle');

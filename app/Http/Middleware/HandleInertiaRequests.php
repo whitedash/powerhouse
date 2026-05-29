@@ -85,7 +85,7 @@ class HandleInertiaRequests extends Middleware
                         },
                         'route' => match ($p->slug) {
                             'maavelus' => '/maavelus/statements',
-                            default => '/customers?product='.$p->slug,
+                            default => '/products/'.$p->slug,
                         },
                     ])
                     ->all())
