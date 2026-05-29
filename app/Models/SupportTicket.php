@@ -2,10 +2,33 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $customer_id
+ * @property int|null $contact_id
+ * @property int|null $product_id
+ * @property string $subject
+ * @property string $status
+ * @property string $priority
+ * @property int|null $assigned_to
+ * @property string|null $sentiment_score
+ * @property Carbon|null $sla_breach_at
+ * @property Carbon|null $resolved_at
+ * @property Carbon|null $closed_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Customer|null $customer
+ * @property-read Contact|null $contact
+ * @property-read Product|null $product
+ * @property-read User|null $assignedTo
+ * @property-read Collection<int, SupportMessage> $messages
+ */
 class SupportTicket extends Model
 {
     protected $fillable = [

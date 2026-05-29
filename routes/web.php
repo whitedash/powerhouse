@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
-    Route::get('/', InternalDashboardController::class)->name('internal.dashboard');
+    Route::get('/', [InternalDashboardController::class, 'index'])->name('internal.dashboard');
 
     // List/search endpoints — 60/min/user to slow bulk scraping
     Route::middleware('throttle:60,1')->group(function () {
