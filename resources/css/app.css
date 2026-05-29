@@ -3384,3 +3384,32 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     align-self: flex-end;
 }
 .logo-remove:hover { color: #B91C1C; }
+
+/* ─── Invoice reminders panel ─── */
+.inv-reminders {
+    padding: 14px 20px 16px;
+    border-top: 1px solid var(--border-soft);
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.inv-reminders .reminders-label {
+    font: 500 11px/1.2 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--text-tertiary);
+    margin-bottom: 6px;
+}
+.inv-reminders .reminders-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
+.inv-reminders .reminders-toggle .ghost-link {
+    font: 500 12px/1.4 'Inter', sans-serif;
+    padding: 4px 8px;
+}

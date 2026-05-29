@@ -65,4 +65,34 @@ class InvoicePolicy
     {
         return $user->isStaff();
     }
+
+    /**
+     * Send a chase reminder. Distinct from `send` (which is the
+     * draft → sent transition) because reminders go out repeatedly
+     * on already-issued invoices.
+     */
+    public function sendReminder(User $user, ?Invoice $invoice = null): bool
+    {
+        if (! $user->isStaff()) {
+            return false;
+        }
+
+        return $invoice === null
+            || in_array($invoice->status, ['sent', 'overdue'], true);
+    }
+
+    /**
+     * Pause / resume automated reminders on a single invoice.
+     * Staff can do this for any open invoice; the scheduled command
+     * respects the `reminders_paused` flag.
+     */
+    public function manageReminders(User $user, ?Invoice $invoice = null): bool
+    {
+        if (! $user->isStaff()) {
+            return false;
+        }
+
+        return $invoice === null
+            || in_array($invoice->status, ['sent', 'overdue'], true);
+    }
 }

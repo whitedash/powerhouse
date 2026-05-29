@@ -1,0 +1,140 @@
+<?php
+
+namespace App\Console\Commands;
+
+use App\Models\ActivityLog;
+use App\Models\Invoice;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+
+class SendInvoiceReminders extends Command
+{
+    protected $signature = 'invoices:send-reminders';
+
+    protected $description = 'Send automated payment reminders for overdue and outstanding invoices.';
+
+    /**
+     * Tier matrix — keyed on `days_overdue` (negative = days until due,
+     * positive = days past due). Each tier dictates the next-reminder
+     * cadence after firing.
+     */
+    private const TIERS = [
+        // days_overdue >= 30 → final notice, next nudge in 30 days
+        'final_notice' => ['min' => 30, 'next_in_days' => 30],
+        'second_reminder' => ['min' => 14, 'next_in_days' => 14],
+        'first_reminder' => ['min' => 1, 'next_in_days' => 7],
+        'due_today' => ['min' => -1, 'next_in_days' => 3],
+        'due_soon' => ['min' => -3, 'next_in_days' => null], // next = due_date
+    ];
+
+    public function handle(): int
+    {
+        $now = now();
+
+        // Step 1: flip any sent invoices whose due_date has passed to
+        // overdue. The nav badge counts depend on this and the dashboard
+        // attention card surfaces them.
+        $flipped = Invoice::where('status', 'sent')
+            ->whereNotNull('due_date')
+            ->where('due_date', '<', $now->copy()->startOfDay())
+            ->get();
+
+        foreach ($flipped as $inv) {
+            $inv->update(['status' => 'overdue']);
+        }
+
+        if ($flipped->isNotEmpty()) {
+            Cache::forget('nav.invoices_overdue');
+            Cache::forget('nav.invoices_outstanding');
+            $this->info("Flipped {$flipped->count()} sent → overdue.");
+        }
+
+        // Step 2: pick up the invoices due for a nudge. The (next_reminder_at,
+        // reminders_paused, status) compound index covers this scan.
+        $invoices = Invoice::whereIn('status', ['sent', 'overdue'])
+            ->where('reminders_paused', false)
+            ->where(function ($q) use ($now) {
+                $q->whereNull('next_reminder_at')
+                    ->orWhere('next_reminder_at', '<=', $now);
+            })
+            ->with(['customer.primaryContact', 'billingEntity'])
+            ->get();
+
+        $processed = 0;
+
+        foreach ($invoices as $invoice) {
+            if (! $invoice->due_date) {
+                continue;
+            }
+
+            $daysOverdue = (int) $now->copy()->startOfDay()
+                ->diffInDays($invoice->due_date->copy()->startOfDay(), false);
+            // diffInDays(date, false) returns negative when the argument is
+            // in the future. Flip the sign so "overdue" reads as positive.
+            $daysOverdue = -$daysOverdue;
+
+            $tier = $this->resolveTier($daysOverdue);
+            if ($tier === null) {
+                continue;
+            }
+
+            $contact = $invoice->customer->primaryContact;
+            $recipient = $contact ? $contact->email : 'unknown';
+
+            DB::transaction(function () use ($invoice, $tier, $daysOverdue, $now, $recipient) {
+                $invoice->increment('reminder_count');
+
+                $nextAt = self::TIERS[$tier]['next_in_days'] === null
+                    ? $invoice->due_date->copy()->startOfDay()
+                    : $now->copy()->addDays(self::TIERS[$tier]['next_in_days']);
+
+                $invoice->update([
+                    'last_reminder_sent_at' => $now,
+                    'next_reminder_at' => $nextAt,
+                ]);
+
+                ActivityLog::create([
+                    'user_id' => null,
+                    'user_role' => 'system',
+                    'action' => 'invoice.reminder_sent',
+                    'entity_type' => 'invoice',
+                    'entity_id' => $invoice->id,
+                    'after' => [
+                        'tier' => $tier,
+                        'days_overdue' => $daysOverdue,
+                        'reminder_count' => $invoice->reminder_count,
+                        'recipient' => $recipient,
+                        'method' => 'automated',
+                    ],
+                    'ip_address' => null,
+                    'user_agent' => 'invoices:send-reminders',
+                ]);
+
+                // TODO: queue Postmark email here once the email sprint runs.
+                // InvoiceReminderMail::dispatch($invoice, $tier);
+            });
+
+            $this->info("Reminder sent: {$invoice->number} ({$tier})");
+            $processed++;
+        }
+
+        $this->info("Done. {$processed} reminder".($processed === 1 ? '' : 's').' processed.');
+
+        return self::SUCCESS;
+    }
+
+    private function resolveTier(int $daysOverdue): ?string
+    {
+        // First tier whose `min` is <= daysOverdue wins. The TIERS array
+        // is ordered descending by `min` so iteration short-circuits at
+        // the right boundary.
+        foreach (self::TIERS as $tier => $config) {
+            if ($daysOverdue >= $config['min']) {
+                return $tier;
+            }
+        }
+
+        return null;
+    }
+}

@@ -65,6 +65,9 @@ const ACTION_LABELS = {
     'invoice.marked_paid': 'Payment recorded',
     'invoice.voided': 'Invoice voided',
     'invoice.updated': 'Invoice updated',
+    'invoice.reminder_sent': 'Reminder sent',
+    'invoice.reminders_paused': 'Auto-reminders paused',
+    'invoice.reminders_resumed': 'Auto-reminders resumed',
 };
 
 const inv = computed(() => props.invoice);
@@ -142,6 +145,21 @@ const documentStatusLabel = computed(() => {
 
 const documentStatusBadgeClass = computed(() => STATUS_BADGE_CLASS[inv.value.status] ?? 'badge-inactive');
 
+/* ─── Reminder copy ─── */
+const reminderCountLabel = computed(() => {
+    const n = inv.value.reminder_count ?? 0;
+    if (n === 0) return 'Not yet';
+    if (n === 1) return '1 time';
+
+    return `${n} times`;
+});
+const nextAutoLabel = computed(() => {
+    if (inv.value.reminders_paused) return 'Paused';
+    if (!inv.value.next_reminder_at) return 'Not scheduled';
+
+    return formatDate(inv.value.next_reminder_at);
+});
+
 const dueDateClass = computed(() => {
     if (inv.value.status === 'overdue') return 'val-danger';
     if (isDueToday.value) return 'val-warn';
@@ -202,8 +220,21 @@ function handleVoid() {
 }
 
 function sendReminder() {
-    // Reuses the send endpoint until a dedicated reminder flow ships
-    router.post(`/invoices/${inv.value.id}/send`, {}, { preserveScroll: true });
+    router.post(`/invoices/${inv.value.id}/send-reminder`, {}, {
+        preserveScroll: true,
+        onError: (errors) => {
+            // eslint-disable-next-line no-console
+            console.error('Send reminder failed:', errors);
+        },
+    });
+}
+
+function pauseReminders() {
+    router.post(`/invoices/${inv.value.id}/pause-reminders`, {}, { preserveScroll: true });
+}
+
+function resumeReminders() {
+    router.post(`/invoices/${inv.value.id}/resume-reminders`, {}, { preserveScroll: true });
 }
 
 function downloadPdf() {
@@ -225,6 +256,9 @@ function activityIcon(action) {
         'invoice.marked_paid': 'IconCircleCheck',
         'invoice.voided': 'IconBan',
         'invoice.created': 'IconFilePlus',
+        'invoice.reminder_sent': 'IconSend',
+        'invoice.reminders_paused': 'IconClock',
+        'invoice.reminders_resumed': 'IconClock',
     }[action] || 'IconClock';
 }
 
@@ -235,6 +269,9 @@ function activityIconClass(action) {
         'invoice.voided': 'grey',
         'invoice.created': 'grey',
         'invoice.updated': 'grey',
+        'invoice.reminder_sent': 'blue',
+        'invoice.reminders_paused': 'grey',
+        'invoice.reminders_resumed': 'grey',
     }[action] || 'grey';
 }
 
@@ -528,11 +565,12 @@ const icons = {
                                 <button
                                     type="button"
                                     class="btn btn-secondary"
-                                    :class="{ warn: invoice.status === 'overdue' }"
+                                    :class="{ warn: invoice.status === 'overdue', disabled: invoice.reminder_sent_today }"
+                                    :disabled="invoice.reminder_sent_today"
                                     @click="sendReminder"
                                 >
                                     <IconMail :size="15" stroke-width="1.75" />
-                                    Send reminder
+                                    {{ invoice.reminder_sent_today ? 'Sent today' : 'Send reminder' }}
                                 </button>
                                 <button type="button" class="btn btn-secondary" @click="downloadPdf">
                                     <IconDownload :size="15" stroke-width="1.75" />
@@ -565,6 +603,41 @@ const icons = {
                                     View customer
                                 </button>
                             </template>
+                        </div>
+
+                        <!-- Reminders panel (sent/overdue only) -->
+                        <div
+                            v-if="['sent', 'overdue'].includes(invoice.status)"
+                            class="inv-reminders"
+                        >
+                            <div class="reminders-label">Reminders</div>
+                            <div class="inv-stat-row">
+                                <span class="k">Sent</span>
+                                <span class="v">{{ reminderCountLabel }}</span>
+                            </div>
+                            <div class="inv-stat-row">
+                                <span class="k">Last sent</span>
+                                <span class="v">{{ invoice.last_reminder_sent_at ? formatDate(invoice.last_reminder_sent_at) : 'Never' }}</span>
+                            </div>
+                            <div class="inv-stat-row">
+                                <span class="k">Next auto</span>
+                                <span class="v">{{ nextAutoLabel }}</span>
+                            </div>
+                            <div class="reminders-toggle">
+                                <span v-if="invoice.reminders_paused" class="badge badge-inactive badge-sm">Auto-reminders paused</span>
+                                <button
+                                    v-if="invoice.reminders_paused"
+                                    type="button"
+                                    class="ghost-link"
+                                    @click="resumeReminders"
+                                >Resume</button>
+                                <button
+                                    v-else
+                                    type="button"
+                                    class="ghost-link"
+                                    @click="pauseReminders"
+                                >Pause auto-reminders</button>
+                            </div>
                         </div>
                     </section>
 

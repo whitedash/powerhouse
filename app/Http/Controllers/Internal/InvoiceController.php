@@ -550,6 +550,12 @@ class InvoiceController extends Controller
                 'sent_at' => $invoice->sent_at?->toIso8601String(),
                 'created_at' => $invoice->created_at?->toIso8601String(),
 
+                'reminder_count' => $invoice->reminder_count,
+                'last_reminder_sent_at' => $invoice->last_reminder_sent_at?->toIso8601String(),
+                'next_reminder_at' => $invoice->next_reminder_at?->toIso8601String(),
+                'reminders_paused' => (bool) $invoice->reminders_paused,
+                'reminder_sent_today' => $invoice->last_reminder_sent_at?->isToday() ?? false,
+
                 'days_overdue' => $daysOverdue !== null ? max(1, $daysOverdue) : null,
                 'amount_due' => $amountDue,
 
@@ -693,6 +699,93 @@ class InvoiceController extends Controller
         });
 
         return back()->with('success', 'Invoice marked as sent. Email delivery will be added in a future sprint.');
+    }
+
+    public function sendReminder(int $id, Request $request): RedirectResponse
+    {
+        $invoice = Invoice::with('customer.primaryContact')->findOrFail($id);
+        Gate::authorize('sendReminder', $invoice);
+
+        // Throttle: one manual reminder per calendar day per invoice.
+        // Stops staff hammering the button at a customer and lets the
+        // automated scheduler set the cadence after that.
+        if ($invoice->last_reminder_sent_at && $invoice->last_reminder_sent_at->isToday()) {
+            return back()->with('error', 'A reminder was already sent today for this invoice.');
+        }
+
+        $contact = $invoice->customer->primaryContact;
+        $recipient = $contact ? $contact->email : 'unknown';
+
+        DB::transaction(function () use ($invoice, $request, $recipient) {
+            $invoice->increment('reminder_count');
+            $invoice->update([
+                'last_reminder_sent_at' => now(),
+                'next_reminder_at' => now()->addDays(7),
+            ]);
+
+            // The dashboard polls for overdue every page load via cache.
+            // If this is the first time we noticed the due date passed,
+            // flip status here so the nav badges and lists catch up.
+            if ($invoice->status === 'sent' && $invoice->due_date && $invoice->due_date->isPast()) {
+                $invoice->update(['status' => 'overdue']);
+                Cache::forget('nav.invoices_overdue');
+                Cache::forget('nav.invoices_outstanding');
+            }
+
+            $this->logActivity($request, 'invoice.reminder_sent', $invoice, after: [
+                'reminder_count' => $invoice->reminder_count,
+                'recipient' => $recipient,
+                'method' => 'manual',
+            ]);
+
+            // TODO: queue Postmark email here when the email sprint runs.
+            // InvoiceReminderMail::dispatch($invoice, 'manual');
+        });
+
+        $name = $invoice->customer->name;
+
+        return back()->with(
+            'success',
+            "Reminder logged for {$name}. Email delivery will be added in a future sprint.",
+        );
+    }
+
+    public function pauseReminders(int $id, Request $request): RedirectResponse
+    {
+        $invoice = Invoice::findOrFail($id);
+        Gate::authorize('manageReminders', $invoice);
+
+        if ($invoice->reminders_paused) {
+            return back();
+        }
+
+        DB::transaction(function () use ($invoice, $request) {
+            $invoice->update(['reminders_paused' => true]);
+            $this->logActivity($request, 'invoice.reminders_paused', $invoice, after: [
+                'number' => $invoice->number,
+            ]);
+        });
+
+        return back()->with('success', 'Auto-reminders paused for this invoice.');
+    }
+
+    public function resumeReminders(int $id, Request $request): RedirectResponse
+    {
+        $invoice = Invoice::findOrFail($id);
+        Gate::authorize('manageReminders', $invoice);
+
+        if (! $invoice->reminders_paused) {
+            return back();
+        }
+
+        DB::transaction(function () use ($invoice, $request) {
+            $invoice->update(['reminders_paused' => false]);
+            $this->logActivity($request, 'invoice.reminders_resumed', $invoice, after: [
+                'number' => $invoice->number,
+            ]);
+        });
+
+        return back()->with('success', 'Auto-reminders resumed for this invoice.');
     }
 
     /**

@@ -75,7 +75,12 @@ payment_method ENUM(bank_transfer|card|direct_debit|other) nullable,
 payment_reference VARCHAR(255) nullable,
 notes TEXT nullable, pdf_path VARCHAR(500) nullable,
 sent_at nullable, qbo_invoice_id VARCHAR(100) nullable,
+reminder_count INT UNSIGNED DEFAULT 0,
+last_reminder_sent_at nullable,
+next_reminder_at nullable,
+reminders_paused BOOLEAN DEFAULT FALSE,
 created_by BIGINT FK users, created_at, updated_at
+INDEX (next_reminder_at, reminders_paused, status)
 
 ## invoice_lines
 id, invoice_id FK, description VARCHAR(500),

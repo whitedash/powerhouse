@@ -210,7 +210,7 @@ function goNew() {
 
 /* ─── Per-row action menu handlers ─── */
 function rowSendReminder(id) {
-    router.post(`/invoices/${id}/send`, {}, {
+    router.post(`/invoices/${id}/send-reminder`, {}, {
         preserveScroll: true,
         onError: (errors) => {
             // eslint-disable-next-line no-console

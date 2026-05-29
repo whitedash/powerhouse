@@ -28,6 +28,10 @@ use Illuminate\Support\Carbon;
  * @property string|null $notes
  * @property string|null $pdf_path
  * @property Carbon|null $sent_at
+ * @property int $reminder_count
+ * @property Carbon|null $last_reminder_sent_at
+ * @property Carbon|null $next_reminder_at
+ * @property bool $reminders_paused
  * @property string|null $qbo_invoice_id
  * @property int|null $created_by
  * @property Carbon|null $created_at
@@ -58,6 +62,10 @@ class Invoice extends Model
         'notes',
         'pdf_path',
         'sent_at',
+        'reminder_count',
+        'last_reminder_sent_at',
+        'next_reminder_at',
+        'reminders_paused',
         'qbo_invoice_id',
         'created_by',
     ];
@@ -74,6 +82,9 @@ class Invoice extends Model
             'due_date' => 'date',
             'paid_at' => 'datetime',
             'sent_at' => 'datetime',
+            'last_reminder_sent_at' => 'datetime',
+            'next_reminder_at' => 'datetime',
+            'reminders_paused' => 'boolean',
         ];
     }
 

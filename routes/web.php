@@ -53,6 +53,9 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
     Route::post('/invoices/{id}/mark-paid', [InternalInvoiceController::class, 'markPaid'])->name('internal.invoices.mark-paid');
     Route::post('/invoices/{id}/void', [InternalInvoiceController::class, 'voidInvoice'])->name('internal.invoices.void');
     Route::post('/invoices/{id}/send', [InternalInvoiceController::class, 'sendInvoice'])->name('internal.invoices.send');
+    Route::post('/invoices/{id}/send-reminder', [InternalInvoiceController::class, 'sendReminder'])->name('internal.invoices.send-reminder');
+    Route::post('/invoices/{id}/pause-reminders', [InternalInvoiceController::class, 'pauseReminders'])->name('internal.invoices.pause-reminders');
+    Route::post('/invoices/{id}/resume-reminders', [InternalInvoiceController::class, 'resumeReminders'])->name('internal.invoices.resume-reminders');
     Route::get('/domains', [InternalDomainController::class, 'index'])->name('internal.domains.index');
     Route::get('/support', [InternalSupportController::class, 'index'])->name('internal.support.index');
     Route::get('/provisioning', [InternalProvisioningController::class, 'index'])->name('internal.provisioning.index');
