@@ -8,9 +8,11 @@ use App\Http\Requests\StoreCustomerRequest;
 use App\Http\Requests\UpdateCustomerRequest;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
+use App\Models\CommissionLedger;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerProduct;
+use App\Models\CustomerReferral;
 use App\Models\Note;
 use App\Models\PortalUser;
 use App\Models\Product;
@@ -306,6 +308,8 @@ class CustomerController extends Controller
                     'interval_label' => $cp->interval_label,
                     'trial_ends_at' => $cp->trial_ends_at?->toIso8601String(),
                     'started_at' => $cp->started_at?->toIso8601String(),
+                    'next_billing_date' => $cp->next_billing_date?->toIso8601String(),
+                    'cancels_at' => $cp->cancels_at?->toIso8601String(),
                     'cancelled_at' => $cp->cancelled_at?->toIso8601String(),
                     'billing_entity' => $cp->billingEntity
                         ? ['id' => $cp->billingEntity->id, 'name' => $cp->billingEntity->name]
@@ -840,6 +844,67 @@ class CustomerController extends Controller
         ]);
 
         return back()->with('success', "Portal access revoked for {$portalUser->email}.");
+    }
+
+    /**
+     * Tear down referral attribution. Sensitive enough that the route
+     * is super_admin-only — removing a referrer breaks future commission
+     * accruals on this customer, and silently voiding any pending
+     * commissions is the kind of thing a regular staff member should
+     * not be able to do unilaterally.
+     *
+     * Voided (not deleted) commissions: ledger entries are append-only
+     * by design, and the staff-side reports rely on the trail of every
+     * row that ever existed. Status='voided' takes them out of the
+     * "owed to referrer" sum without destroying audit history.
+     */
+    public function removeReferral(int $id, Request $request): RedirectResponse
+    {
+        $customer = Customer::findOrFail($id);
+        Gate::authorize('update', $customer);
+
+        $referral = CustomerReferral::where('customer_id', $customer->id)->first();
+        if (! $referral) {
+            return back()->withErrors([
+                'referral' => 'This customer has no referral attribution.',
+            ]);
+        }
+
+        $formerReferrerId = $referral->referrer_id;
+        $pendingCommissions = (float) CommissionLedger::where('customer_id', $customer->id)
+            ->where('referrer_id', $formerReferrerId)
+            ->whereIn('status', ['pending', 'approved'])
+            ->sum('commission_amount');
+
+        DB::transaction(function () use ($customer, $referral, $formerReferrerId, $pendingCommissions, $request) {
+            CommissionLedger::where('customer_id', $customer->id)
+                ->where('referrer_id', $formerReferrerId)
+                ->where('status', 'pending')
+                ->update(['status' => 'voided', 'voided_reason' => 'referral_removed']);
+
+            $referral->delete();
+
+            ActivityLog::create([
+                'user_id' => $request->user()?->id,
+                'user_role' => $request->user()?->role,
+                'action' => 'customer.referral_removed',
+                'entity_type' => 'customer',
+                'entity_id' => $customer->id,
+                'after' => [
+                    'former_referrer_id' => $formerReferrerId,
+                    'pending_commissions_voided' => $pendingCommissions,
+                ],
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 500),
+            ]);
+        });
+
+        $msg = 'Referral attribution removed.';
+        if ($pendingCommissions > 0) {
+            $msg .= ' £'.number_format($pendingCommissions, 2).' of pending commissions voided.';
+        }
+
+        return back()->with('success', $msg);
     }
 
     private function logActivity(

@@ -7494,3 +7494,42 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     text-decoration: none;
 }
 .portal-back-link:hover { color: var(--accent); }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * CUSTOMER DETAIL — date chips on product rows + clickable invoice rows
+ * ──────────────────────────────────────────────────────────────────── */
+
+.cp-dates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-top: 6px;
+}
+.cp-date {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font: 400 11px/1 'Inter', sans-serif;
+    color: var(--text-tertiary);
+}
+.cp-date svg { color: var(--text-tertiary); flex-shrink: 0; }
+.cp-date-renew     svg { color: var(--success); }
+.cp-date-trial     svg { color: var(--warning); }
+.cp-date-cancels   svg { color: var(--warning); }
+.cp-date-cancelled svg { color: var(--danger); }
+
+/* Whole-row invoice click target. The default .inv-row is a flex
+ * layout; adding cursor + hover background plus undoing anchor
+ * defaults lets us make it an <a> / <Link> without losing the
+ * grid behaviour underneath. */
+.inv-row-clickable {
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    transition: background .12s;
+}
+.inv-row-clickable:hover { background: var(--neutral-bg); }
+.inv-row-clickable:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}

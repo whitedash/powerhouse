@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     Dialog,
     DialogPanel,
@@ -40,6 +40,11 @@ import {
     IconDots,
     IconAlertTriangle,
     IconKey,
+    IconCalendarCheck,
+    IconCalendarX,
+    IconClock,
+    IconBan,
+    IconRefresh,
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -435,6 +440,26 @@ function performRevokePortal() {
     );
 }
 
+/* ─── Remove referral attribution (super_admin only) ─── */
+const showRemoveReferral = ref(false);
+const removeReferralProcessing = ref(false);
+
+// usePage() resolves at render time so the role check stays reactive
+// if the page reloads with a different session (eg. login swap).
+const page = usePage();
+const canRemoveReferral = computed(() => page.props.auth?.user?.role === 'super_admin');
+
+function performRemoveReferral() {
+    removeReferralProcessing.value = true;
+    router.delete(`/customers/${props.customer.id}/referral`, {
+        preserveScroll: true,
+        onFinish: () => {
+            removeReferralProcessing.value = false;
+            showRemoveReferral.value = false;
+        },
+    });
+}
+
 /* ─── Archive ─── */
 const showArchiveModal = ref(false);
 const archiveProcessing = ref(false);
@@ -817,6 +842,28 @@ const headerStatusBadge = computed(() => {
                                         <template v-else>Pre-revenue</template>
                                         <template v-if="p.billing_entity"> · {{ p.billing_entity.name }}</template>
                                     </div>
+                                    <div class="cp-dates">
+                                        <span v-if="p.started_at" class="cp-date">
+                                            <IconCalendarCheck :size="12" stroke-width="1.75" />
+                                            Active since {{ formatDate(p.started_at) }}
+                                        </span>
+                                        <span v-if="p.next_billing_date && p.status === 'active'" class="cp-date cp-date-renew">
+                                            <IconRefresh :size="12" stroke-width="1.75" />
+                                            Renews {{ formatDate(p.next_billing_date) }}
+                                        </span>
+                                        <span v-if="p.trial_ends_at && p.status === 'trial'" class="cp-date cp-date-trial">
+                                            <IconClock :size="12" stroke-width="1.75" />
+                                            Trial ends {{ formatDate(p.trial_ends_at) }}
+                                        </span>
+                                        <span v-if="p.cancels_at" class="cp-date cp-date-cancels">
+                                            <IconCalendarX :size="12" stroke-width="1.75" />
+                                            Cancels {{ formatDate(p.cancels_at) }}
+                                        </span>
+                                        <span v-if="p.cancelled_at && p.status === 'cancelled'" class="cp-date cp-date-cancelled">
+                                            <IconBan :size="12" stroke-width="1.75" />
+                                            Cancelled {{ formatDate(p.cancelled_at) }}
+                                        </span>
+                                    </div>
                                 </div>
                                 <div class="prod-actions">
                                     <span class="badge" :class="{ 'badge-active': p.status === 'active', 'badge-trial': p.status === 'trial', 'badge-inactive': ['suspended', 'cancelled'].includes(p.status) }">
@@ -869,7 +916,12 @@ const headerStatusBadge = computed(() => {
                             </div>
                         </header>
                         <div v-if="customer.invoices.length">
-                            <div v-for="inv in customer.invoices.slice(0, 3)" :key="inv.id" class="inv-row">
+                            <Link
+                                v-for="inv in customer.invoices.slice(0, 3)"
+                                :key="inv.id"
+                                :href="`/invoices/${inv.id}`"
+                                class="inv-row inv-row-clickable"
+                            >
                                 <div class="inv-ic" :class="invIcClass(inv.status)">
                                     <IconReceipt :size="16" stroke-width="1.75" />
                                 </div>
@@ -883,16 +935,8 @@ const headerStatusBadge = computed(() => {
                                 <div class="inv-right">
                                     <div class="inv-amt">{{ formatGBP(inv.total) }}</div>
                                     <span class="badge" :class="invBadgeClass(inv.status)">{{ inv.status }}</span>
-                                    <button v-if="inv.status === 'draft'" type="button" class="btn btn-primary btn-sm">
-                                        <IconSend :size="14" stroke-width="1.75" />
-                                        Send
-                                    </button>
-                                    <a v-else href="#" class="ghost-link" @click.prevent>
-                                        <IconDownload :size="14" stroke-width="1.75" />
-                                        Download
-                                    </a>
                                 </div>
-                            </div>
+                            </Link>
                         </div>
                         <div v-else class="tab-empty" style="padding: 32px 18px;">
                             <p>No invoices yet.</p>
@@ -1160,6 +1204,15 @@ const headerStatusBadge = computed(() => {
                         </div>
                         <div class="note-foot">
                             <Link href="/referrers" class="ghost-link">View referrer<IconArrowRight :size="14" stroke-width="1.75" /></Link>
+                            <button
+                                v-if="canRemoveReferral"
+                                type="button"
+                                class="ghost-link danger"
+                                style="font-size: 11px; margin-left: auto;"
+                                @click="showRemoveReferral = true"
+                            >
+                                Remove referral
+                            </button>
                         </div>
                     </section>
 
@@ -1230,7 +1283,12 @@ const headerStatusBadge = computed(() => {
                         </div>
                     </header>
                     <div v-if="customer.invoices.length">
-                        <div v-for="inv in customer.invoices" :key="inv.id" class="inv-row">
+                        <Link
+                            v-for="inv in customer.invoices"
+                            :key="inv.id"
+                            :href="`/invoices/${inv.id}`"
+                            class="inv-row inv-row-clickable"
+                        >
                             <div class="inv-ic" :class="invIcClass(inv.status)">
                                 <IconReceipt :size="16" stroke-width="1.75" />
                             </div>
@@ -1245,7 +1303,7 @@ const headerStatusBadge = computed(() => {
                                 <div class="inv-amt">{{ formatGBP(inv.total) }}</div>
                                 <span class="badge" :class="invBadgeClass(inv.status)">{{ inv.status }}</span>
                             </div>
-                        </div>
+                        </Link>
                     </div>
                     <div v-else class="tab-empty">
                         <h3>No invoices yet</h3>
@@ -1278,7 +1336,28 @@ const headerStatusBadge = computed(() => {
                                 <div class="pdesc">
                                     <template v-if="p.price_monthly">{{ formatGBP(p.price_monthly) }}/mo</template>
                                     <template v-else>—</template>
-                                    <template v-if="p.status === 'trial' && p.trial_ends_at"> · trial ends {{ formatDate(p.trial_ends_at) }}</template>
+                                </div>
+                                <div class="cp-dates">
+                                    <span v-if="p.started_at" class="cp-date">
+                                        <IconCalendarCheck :size="12" stroke-width="1.75" />
+                                        Active since {{ formatDate(p.started_at) }}
+                                    </span>
+                                    <span v-if="p.next_billing_date && p.status === 'active'" class="cp-date cp-date-renew">
+                                        <IconRefresh :size="12" stroke-width="1.75" />
+                                        Renews {{ formatDate(p.next_billing_date) }}
+                                    </span>
+                                    <span v-if="p.trial_ends_at && p.status === 'trial'" class="cp-date cp-date-trial">
+                                        <IconClock :size="12" stroke-width="1.75" />
+                                        Trial ends {{ formatDate(p.trial_ends_at) }}
+                                    </span>
+                                    <span v-if="p.cancels_at" class="cp-date cp-date-cancels">
+                                        <IconCalendarX :size="12" stroke-width="1.75" />
+                                        Cancels {{ formatDate(p.cancels_at) }}
+                                    </span>
+                                    <span v-if="p.cancelled_at && p.status === 'cancelled'" class="cp-date cp-date-cancelled">
+                                        <IconBan :size="12" stroke-width="1.75" />
+                                        Cancelled {{ formatDate(p.cancelled_at) }}
+                                    </span>
                                 </div>
                             </div>
                             <div class="prod-actions">
@@ -2041,6 +2120,16 @@ const headerStatusBadge = computed(() => {
             variant="danger"
             :loading="revokePortalProcessing"
             @confirm="performRevokePortal"
+        />
+
+        <ConfirmModal
+            v-model:show="showRemoveReferral"
+            title="Remove referral attribution?"
+            :message="`This will remove the referral attribution from ${customer.name}. Any pending commissions from this referral will be voided. This cannot be undone.`"
+            confirm-label="Remove referral"
+            variant="danger"
+            :loading="removeReferralProcessing"
+            @confirm="performRemoveReferral"
         />
 
         <!--

@@ -3,7 +3,6 @@ import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import {
     IconDownload,
-    IconExternalLink,
     IconReceipt,
     IconAlertCircle,
 } from '@tabler/icons-vue';
@@ -52,7 +51,21 @@ function statusBadge(status) {
                 <span>No invoices yet.</span>
             </div>
             <template v-else>
-                <div v-for="inv in invoices.data" :key="inv.id" class="inv-row">
+                <!--
+                  Rows are anchor-styled so the whole strip is clickable —
+                  opens the PDF preview in a new tab, which is the most
+                  useful action for a customer landing on this list. The
+                  explicit Download button stops propagation so clicking
+                  "PDF" doesn't double-fire both the preview and download.
+                -->
+                <a
+                    v-for="inv in invoices.data"
+                    :key="inv.id"
+                    :href="`/portal/invoices/${inv.id}/preview-pdf`"
+                    target="_blank"
+                    rel="noopener"
+                    class="inv-row inv-row-clickable"
+                >
                     <div class="inv-ic" :class="inv.status === 'paid' ? 'green' : 'muted'">
                         <IconReceipt :size="18" stroke-width="1.75" />
                     </div>
@@ -68,16 +81,16 @@ function statusBadge(status) {
                         <span class="badge badge-sm" :class="statusBadge(inv.status).cls">
                             {{ statusBadge(inv.status).label }}
                         </span>
-                        <a :href="`/portal/invoices/${inv.id}/preview-pdf`" class="ghost-link muted" target="_blank">
-                            <IconExternalLink :size="13" stroke-width="1.75" />
-                            View
-                        </a>
-                        <a :href="`/portal/invoices/${inv.id}/pdf`" class="ghost-link muted">
+                        <a
+                            :href="`/portal/invoices/${inv.id}/pdf`"
+                            class="ghost-link muted"
+                            @click.stop
+                        >
                             <IconDownload :size="13" stroke-width="1.75" />
                             PDF
                         </a>
                     </div>
-                </div>
+                </a>
             </template>
         </div>
 

@@ -84,6 +84,14 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::post('/customers/{id}/invite-portal', [InternalCustomerController::class, 'inviteToPortal'])->name('internal.customers.invite-portal');
     Route::post('/customers/{id}/portal-users/{portalUserId}/revoke', [InternalCustomerController::class, 'revokePortalAccess'])->name('internal.customers.revoke-portal');
 
+    // Referral tear-down is super_admin-only. The action voids
+    // pending commissions and detaches the referrer permanently —
+    // nothing a regular staff member should be able to trigger on
+    // their own.
+    Route::middleware('role:super_admin')->group(function () {
+        Route::delete('/customers/{id}/referral', [InternalCustomerController::class, 'removeReferral'])->name('internal.customers.referral.remove');
+    });
+
     // Product subscriptions on a customer — enabling a new product creates
     // a CustomerProduct, suspending removes their access. Both stay open
     // to staff (alongside super_admin) so account managers can wire up
