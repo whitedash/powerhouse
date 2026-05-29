@@ -16,6 +16,7 @@ import {
     IconX,
     IconAlertCircle,
     IconCheck,
+    IconTrash,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 
@@ -114,6 +115,15 @@ function saveDetail() {
 function discardChanges() {
     form.reset();
     form.clearErrors();
+}
+
+function deleteEntity() {
+    if (!selectedEntity.value) return;
+    const name = selectedEntity.value.name;
+    if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
+    router.delete(`/settings/billing-entities/${selectedEntity.value.id}`, {
+        preserveScroll: true,
+    });
 }
 
 /* ─── Slide-over (create) ─── */
@@ -465,6 +475,21 @@ const qboConnected = computed(() => !!selectedEntity.value?.qbo_realm_id);
                         <button type="submit" class="btn btn-primary" :disabled="form.processing">
                             <IconDeviceFloppy :size="15" stroke-width="1.75" />
                             {{ form.processing ? 'Saving…' : 'Save changes' }}
+                        </button>
+                    </div>
+
+                    <!-- Delete (only when the entity has no invoices) -->
+                    <div
+                        v-if="selectedEntity.invoice_count === 0"
+                        style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-soft); display: flex; justify-content: flex-end;"
+                    >
+                        <button
+                            type="button"
+                            class="btn btn-ghost danger"
+                            @click="deleteEntity"
+                        >
+                            <IconTrash :size="15" stroke-width="1.75" />
+                            Delete entity
                         </button>
                     </div>
                 </form>

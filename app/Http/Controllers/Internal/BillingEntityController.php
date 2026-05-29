@@ -94,6 +94,33 @@ class BillingEntityController extends Controller
         return back()->with('success', "{$entity->name} updated successfully.");
     }
 
+    public function destroy(int $id, Request $request): RedirectResponse
+    {
+        $entity = BillingEntity::findOrFail($id);
+        Gate::authorize('delete', $entity);
+
+        if ($entity->invoices()->exists()) {
+            return back()->with(
+                'error',
+                'Cannot delete a billing entity that has invoices. Deactivate it instead.',
+            );
+        }
+
+        $name = $entity->name;
+
+        DB::transaction(function () use ($entity, $request, $name) {
+            $this->logActivity($request, 'billing_entity.deleted', $entity, before: [
+                'name' => $name,
+            ]);
+
+            $entity->delete();
+        });
+
+        return redirect()
+            ->route('internal.settings.billing-entities.index')
+            ->with('success', "{$name} deleted successfully.");
+    }
+
     /**
      * Map flat validated payload to the column shape the model expects.
      * Address is passed as an array — the model's `'array'` cast handles
