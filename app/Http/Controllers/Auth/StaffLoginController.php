@@ -42,7 +42,16 @@ class StaffLoginController extends Controller
             'last_login_ip' => $request->ip(),
         ])->save();
 
-        return redirect()->intended('/');
+        // Role-aware landing. A referrer must never see the staff app —
+        // even with role checks on every internal route, sending them
+        // somewhere they can't read just causes a 403 loop. Steer them
+        // straight to their partner portal instead.
+        $destination = match ($request->user()->role) {
+            'referrer' => route('referrer.dashboard'),
+            default => '/',
+        };
+
+        return redirect()->intended($destination);
     }
 
     public function logout(Request $request): RedirectResponse

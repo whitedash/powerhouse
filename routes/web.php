@@ -26,10 +26,10 @@ use App\Http\Controllers\Portal\DashboardController as PortalDashboardController
 use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
 use App\Http\Controllers\Portal\SubscriptionController as PortalSubscriptionController;
 use App\Http\Controllers\Portal\SupportController as PortalSupportController;
+use App\Http\Controllers\Referrer\AccountController as ReferrerAccountController;
 use App\Http\Controllers\Referrer\CommissionController as ReferrerCommissionController;
 use App\Http\Controllers\Referrer\CustomerController as ReferrerCustomerController;
 use App\Http\Controllers\Referrer\DashboardController as ReferrerDashboardController;
-use App\Http\Controllers\Referrer\PayoutController as ReferrerPayoutController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -37,7 +37,7 @@ use Illuminate\Support\Facades\Route;
 | Group 1 — Internal (staff)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
+Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(function () {
     Route::get('/', [InternalDashboardController::class, 'index'])->name('internal.dashboard');
 
     // List/search endpoints — 60/min/user to slow bulk scraping
@@ -250,12 +250,26 @@ Route::get('/portal', fn () => redirect()->route('portal.dashboard'))
 | Group 3 — Referrer (partner)
 |--------------------------------------------------------------------------
 */
-Route::prefix('partners')->middleware(['auth', 'role:referrer'])->group(function () {
-    Route::get('/', ReferrerDashboardController::class)->name('referrer.dashboard');
-    Route::get('/customers', ReferrerCustomerController::class)->name('referrer.customers');
-    Route::get('/commissions', ReferrerCommissionController::class)->name('referrer.commissions');
-    Route::get('/payouts', ReferrerPayoutController::class)->name('referrer.payouts');
-});
+// Partner-facing portal. Same 'web' guard as staff (referrers are
+// users with role=referrer), but a dedicated /referrer prefix +
+// role:referrer middleware keeps them firmly out of /internal/*.
+Route::middleware(['auth', 'role:referrer'])
+    ->prefix('referrer')
+    ->name('referrer.')
+    ->group(function () {
+        Route::get('/dashboard', ReferrerDashboardController::class)->name('dashboard');
+        Route::get('/commissions', [ReferrerCommissionController::class, 'index'])->name('commissions');
+        Route::get('/customers', [ReferrerCustomerController::class, 'index'])->name('customers');
+
+        Route::get('/account', [ReferrerAccountController::class, 'index'])->name('account');
+        Route::put('/account', [ReferrerAccountController::class, 'update'])->name('account.update');
+        Route::put('/account/password', [ReferrerAccountController::class, 'updatePassword'])->name('account.password');
+        Route::put('/account/payment', [ReferrerAccountController::class, 'updatePayment'])->name('account.payment');
+    });
+
+// Bare /referrer → dashboard so the URL bar without a path lands somewhere.
+Route::get('/referrer', fn () => redirect()->route('referrer.dashboard'))
+    ->middleware(['auth', 'role:referrer']);
 
 /*
 |--------------------------------------------------------------------------

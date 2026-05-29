@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsurePortalUser;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RedirectIfPortalAuthenticated;
+use App\Http\Middleware\RedirectIfReferrer;
 use App\Http\Middleware\SanitizeInput;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
@@ -36,6 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'auth.portal' => EnsurePortalUser::class,
             'portal_owns' => EnsurePortalDataOwnership::class,
             'portal_guest' => RedirectIfPortalAuthenticated::class,
+            'block_referrer' => RedirectIfReferrer::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -36,7 +36,11 @@ class Referrer extends Model
     protected function casts(): array
     {
         return [
-            'payment_details' => 'array',
+            // Bank details for commission payouts — encrypted at rest
+            // (column widened to LONGTEXT in
+            // 2026_05_29_200000_widen_referrer_payment_details_for_encryption
+            // because encrypted payloads are not valid JSON).
+            'payment_details' => 'encrypted:array',
             'is_active' => 'boolean',
         ];
     }
