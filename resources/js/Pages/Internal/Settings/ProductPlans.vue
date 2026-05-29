@@ -553,7 +553,7 @@ function back() {
                             </div>
 
                             <!-- FEATURES -->
-                            <div class="plan-section">
+                            <div class="plan-section plan-section-features">
                                 <div class="plan-section-label">
                                     Features <span style="color: var(--text-tertiary);">· {{ plan.features.length }}</span>
                                 </div>
@@ -651,7 +651,7 @@ function back() {
                                     Add price
                                 </button>
                             </div>
-                            <div class="plan-section">
+                            <div class="plan-section plan-section-features">
                                 <div class="plan-section-label">
                                     Features <span style="color: var(--text-tertiary);">· {{ plan.features.length }}</span>
                                 </div>
