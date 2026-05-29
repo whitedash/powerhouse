@@ -18,6 +18,7 @@ use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -363,6 +364,15 @@ class CustomerController extends Controller
                 ->orWhere('is_coming_soon', true)
                 ->orderBy('sort_order')
                 ->get(['id', 'slug', 'name', 'icon_colour', 'is_coming_soon']),
+            // Active products this customer does NOT already have on an
+            // active/trial subscription — the Enable Product slide-over
+            // should not surface a product that's already running.
+            'available_products' => Product::where('is_active', true)
+                ->whereNotIn('id', $customer->customerProducts
+                    ->whereIn('status', ['active', 'trial'])
+                    ->pluck('product_id'))
+                ->orderBy('sort_order')
+                ->get(['id', 'slug', 'name', 'icon_colour']),
             'billing_entities' => BillingEntity::where('is_active', true)
                 ->get(['id', 'name']),
             'pipeline_stages' => self::PIPELINE_STAGES,
@@ -495,6 +505,94 @@ class CustomerController extends Controller
         return redirect()
             ->route('internal.customers.index')
             ->with('success', "Archived {$customer->name}");
+    }
+
+    public function enableProduct(int $id, Request $request): RedirectResponse
+    {
+        $customer = Customer::findOrFail($id);
+        Gate::authorize('update', $customer);
+
+        $data = $request->validate([
+            'product_id' => ['required', 'integer', 'exists:products,id'],
+            'billing_entity_id' => ['nullable', 'integer', 'exists:billing_entities,id'],
+            'plan' => ['nullable', 'string', 'max:100'],
+            'price_monthly' => ['nullable', 'numeric', 'min:0'],
+            'status' => ['required', 'in:active,trial'],
+            'trial_ends_at' => ['nullable', 'date', 'required_if:status,trial'],
+        ]);
+
+        // Block double-enable — a customer can't run two active/trial
+        // subscriptions for the same product simultaneously. The product
+        // picker already filters this server-side, but the API is the
+        // authoritative boundary.
+        $alreadyActive = $customer->customerProducts()
+            ->where('product_id', $data['product_id'])
+            ->whereIn('status', ['active', 'trial'])
+            ->exists();
+        if ($alreadyActive) {
+            return back()->with('error', 'This product is already enabled for this customer.');
+        }
+
+        DB::transaction(function () use ($customer, $data, $request) {
+            CustomerProduct::create([
+                'customer_id' => $customer->id,
+                'product_id' => $data['product_id'],
+                'billing_entity_id' => $data['billing_entity_id'] ?? null,
+                'plan' => $data['plan'] ?? null,
+                'price_monthly' => $data['price_monthly'] ?? null,
+                'status' => $data['status'],
+                'trial_ends_at' => $data['trial_ends_at'] ?? null,
+                'started_at' => now(),
+            ]);
+
+            $this->logActivity($request, 'product.enabled', $customer, after: [
+                'product_id' => $data['product_id'],
+                'status' => $data['status'],
+                'price_monthly' => $data['price_monthly'] ?? null,
+            ]);
+        });
+
+        // MRR + total-customer counters can move on a new active sub.
+        // nav.products is unaffected by customer-level subs but the
+        // spec asked for it; keeping it lets future product-card counts
+        // refresh on the next page load.
+        Cache::forget('dash.mrr');
+        Cache::forget('dash.total_customers');
+        Cache::forget('nav.products');
+
+        return back()->with('success', "Product enabled for {$customer->name}.");
+    }
+
+    public function suspendProduct(int $id, int $productId, Request $request): RedirectResponse
+    {
+        $customer = Customer::findOrFail($id);
+        Gate::authorize('update', $customer);
+
+        $cp = CustomerProduct::where('customer_id', $id)
+            ->where('id', $productId)
+            ->firstOrFail();
+
+        if ($cp->status === 'suspended' || $cp->status === 'cancelled') {
+            return back()->with('error', 'This subscription is already inactive.');
+        }
+
+        DB::transaction(function () use ($cp, $customer, $request) {
+            $before = ['status' => $cp->status];
+            $cp->update([
+                'status' => 'suspended',
+                'cancelled_at' => now(),
+            ]);
+
+            $this->logActivity($request, 'product.suspended', $customer, $before, [
+                'customer_product_id' => $cp->id,
+                'status' => 'suspended',
+            ]);
+        });
+
+        Cache::forget('dash.mrr');
+        Cache::forget('dash.total_customers');
+
+        return back()->with('success', 'Product subscription suspended.');
     }
 
     private function logActivity(

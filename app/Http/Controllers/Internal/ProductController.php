@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Product;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -69,6 +70,8 @@ class ProductController extends Controller
             return $product;
         });
 
+        Cache::forget('nav.products');
+
         return back()->with('success', "{$product->name} created.");
     }
 
@@ -105,6 +108,8 @@ class ProductController extends Controller
             ]);
         });
 
+        Cache::forget('nav.products');
+
         return back()->with('success', "{$product->name} updated.");
     }
 
@@ -138,6 +143,8 @@ class ProductController extends Controller
                 'is_active' => $newState,
             ]);
         });
+
+        Cache::forget('nav.products');
 
         $verb = $newState ? 'activated' : 'deactivated';
 

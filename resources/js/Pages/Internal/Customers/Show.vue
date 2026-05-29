@@ -4,6 +4,10 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     Dialog,
     DialogPanel,
+    Menu,
+    MenuButton,
+    MenuItem,
+    MenuItems,
     TransitionChild,
     TransitionRoot,
 } from '@headlessui/vue';
@@ -33,6 +37,8 @@ import {
     IconUserPlus,
     IconReceipt2,
     IconArchive,
+    IconDots,
+    IconAlertTriangle,
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -45,6 +51,7 @@ const props = defineProps({
     customer: { type: Object, required: true },
     users: { type: Array, default: () => [] },
     all_products: { type: Array, default: () => [] },
+    available_products: { type: Array, default: () => [] },
     billing_entities: { type: Array, default: () => [] },
     pipeline_stages: { type: Array, default: () => [] },
     contact_roles: { type: Array, default: () => [] },
@@ -310,6 +317,66 @@ function gotoInvoice() {
     router.visit(`/invoices/new?customer_id=${props.customer.id}`);
 }
 
+/* ─── Enable product slide-over ─── */
+const showEnableProduct = ref(false);
+const enableForm = useForm({
+    product_id: null,
+    billing_entity_id: null,
+    plan: '',
+    price_monthly: null,
+    status: 'active',
+    trial_ends_at: '',
+});
+
+function openEnableProduct() {
+    enableForm.reset();
+    enableForm.clearErrors();
+    enableForm.billing_entity_id = props.billing_entities[0]?.id ?? null;
+    showEnableProduct.value = true;
+}
+
+function selectProduct(productId) {
+    enableForm.product_id = productId;
+}
+
+function submitEnableProduct() {
+    enableForm.post(`/customers/${props.customer.id}/products`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showEnableProduct.value = false;
+            enableForm.reset();
+        },
+    });
+}
+
+/* ─── Suspend product confirm modal ─── */
+const showSuspendModal = ref(false);
+const suspendTarget = ref(null);
+const suspendProcessing = ref(false);
+
+function askSuspend(p) {
+    suspendTarget.value = p;
+    showSuspendModal.value = true;
+}
+
+function handleSuspend() {
+    if (! suspendTarget.value) return;
+    suspendProcessing.value = true;
+    router.post(`/customers/${props.customer.id}/products/${suspendTarget.value.id}/suspend`, {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            suspendProcessing.value = false;
+            showSuspendModal.value = false;
+            suspendTarget.value = null;
+        },
+    });
+}
+
+const suspendMessage = computed(() => {
+    if (! suspendTarget.value) return '';
+    return `This will suspend ${suspendTarget.value.name} for ${props.customer.name}. Their access will be removed immediately.`;
+});
+
 /* ─── Task completion (optimistic dim before refresh) ─── */
 const completingTaskId = ref(null);
 
@@ -548,7 +615,7 @@ const headerStatusBadge = computed(() => {
                                 <div class="sub">{{ customer.products.length }} on file · {{ formatGBP(customer.mrr) }} MRR</div>
                             </div>
                             <div class="right">
-                                <button type="button" class="btn btn-ghost btn-sm">
+                                <button type="button" class="btn btn-ghost btn-sm" @click="openEnableProduct">
                                     <IconPlus :size="14" stroke-width="1.75" />
                                     Enable product
                                 </button>
@@ -569,7 +636,24 @@ const headerStatusBadge = computed(() => {
                                     <span class="badge" :class="{ 'badge-active': p.status === 'active', 'badge-trial': p.status === 'trial', 'badge-inactive': ['suspended', 'cancelled'].includes(p.status) }">
                                         {{ p.status }}
                                     </span>
-                                    <a href="#" class="ghost-link" @click.prevent>Open<IconExternalLink :size="14" stroke-width="1.75" /></a>
+                                    <Menu v-if="['active', 'trial'].includes(p.status)" as="div" class="dd-menu">
+                                        <MenuButton class="icon-btn" aria-label="Product actions">
+                                            <IconDots :size="16" stroke-width="1.75" />
+                                        </MenuButton>
+                                        <MenuItems class="dd-popover right-align">
+                                            <MenuItem v-slot="{ active }">
+                                                <button type="button" :class="['dd-option', { active }]" disabled style="opacity: .55; cursor: not-allowed;">
+                                                    Open admin
+                                                </button>
+                                            </MenuItem>
+                                            <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
+                                            <MenuItem v-slot="{ active }">
+                                                <button type="button" :class="['dd-option', { active }]" style="color: var(--warning);" @click="askSuspend(p)">
+                                                    Suspend product
+                                                </button>
+                                            </MenuItem>
+                                        </MenuItems>
+                                    </Menu>
                                 </div>
                             </div>
                             <div class="sso-line">
@@ -579,6 +663,10 @@ const headerStatusBadge = computed(() => {
                         </div>
                         <div v-else class="tab-empty" style="padding: 32px 18px;">
                             <p>No products enabled yet.</p>
+                            <button type="button" class="btn btn-primary btn-sm" style="margin-top: 12px;" @click="openEnableProduct">
+                                <IconPlus :size="14" stroke-width="1.75" />
+                                Enable product
+                            </button>
                         </div>
                     </section>
 
@@ -929,6 +1017,12 @@ const headerStatusBadge = computed(() => {
                             <h3>Products</h3>
                             <div class="sub">All product subscriptions for this customer</div>
                         </div>
+                        <div class="right">
+                            <button type="button" class="btn btn-primary btn-sm" @click="openEnableProduct">
+                                <IconPlus :size="14" stroke-width="1.75" />
+                                Enable product
+                            </button>
+                        </div>
                     </header>
                     <div v-if="customer.products.length">
                         <div v-for="p in customer.products" :key="p.id" class="prod-row">
@@ -943,12 +1037,28 @@ const headerStatusBadge = computed(() => {
                             </div>
                             <div class="prod-actions">
                                 <span class="badge" :class="{ 'badge-active': p.status === 'active', 'badge-trial': p.status === 'trial', 'badge-inactive': ['suspended', 'cancelled'].includes(p.status) }">{{ p.status }}</span>
+                                <Menu v-if="['active', 'trial'].includes(p.status)" as="div" class="dd-menu">
+                                    <MenuButton class="icon-btn" aria-label="Product actions">
+                                        <IconDots :size="16" stroke-width="1.75" />
+                                    </MenuButton>
+                                    <MenuItems class="dd-popover right-align">
+                                        <MenuItem v-slot="{ active }">
+                                            <button type="button" :class="['dd-option', { active }]" style="color: var(--warning);" @click="askSuspend(p)">
+                                                Suspend product
+                                            </button>
+                                        </MenuItem>
+                                    </MenuItems>
+                                </Menu>
                             </div>
                         </div>
                     </div>
                     <div v-else class="tab-empty">
                         <h3>No products yet</h3>
                         <p>Enable a product to start tracking subscriptions for this customer.</p>
+                        <button type="button" class="btn btn-primary btn-sm" style="margin-top: 12px;" @click="openEnableProduct">
+                            <IconPlus :size="14" stroke-width="1.75" />
+                            Enable product
+                        </button>
                     </div>
                 </section>
             </div>
@@ -1237,6 +1347,156 @@ const headerStatusBadge = computed(() => {
             variant="warning"
             :loading="archiveProcessing"
             @confirm="handleArchive"
+        />
+
+        <!-- Enable product slide-over -->
+        <TransitionRoot as="template" :show="showEnableProduct">
+            <Dialog as="div" class="slide-over-dialog" @close="showEnableProduct = false">
+                <TransitionChild
+                    as="template"
+                    enter="transition-opacity ease-out duration-200"
+                    enter-from="opacity-0"
+                    enter-to="opacity-100"
+                    leave="transition-opacity ease-in duration-150"
+                    leave-from="opacity-100"
+                    leave-to="opacity-0"
+                >
+                    <div class="slide-over-backdrop" />
+                </TransitionChild>
+                <TransitionChild
+                    as="template"
+                    enter="transform transition ease-out duration-200"
+                    enter-from="translate-x-full"
+                    enter-to="translate-x-0"
+                    leave="transform transition ease-in duration-150"
+                    leave-from="translate-x-0"
+                    leave-to="translate-x-full"
+                >
+                    <DialogPanel class="slide-over-panel">
+                        <form class="slide-over-form" @submit.prevent="submitEnableProduct">
+                            <header class="slide-over-header">
+                                <h2>Enable product for {{ customer.name }}</h2>
+                                <button type="button" class="icon-btn" aria-label="Close" @click="showEnableProduct = false">
+                                    <IconX :size="18" stroke-width="1.75" />
+                                </button>
+                            </header>
+
+                            <div class="slide-over-body">
+                                <div class="form-section">
+                                    <h3>Product</h3>
+                                    <div v-if="! available_products.length" style="padding: 12px 14px; background: var(--neutral-bg); border-radius: var(--radius-md); color: var(--text-secondary); font: 400 13px/1.5 'Inter', sans-serif;">
+                                        All products are already enabled for this customer.
+                                    </div>
+                                    <div v-else class="ent-grid">
+                                        <button
+                                            v-for="p in available_products"
+                                            :key="p.id"
+                                            type="button"
+                                            class="ent-opt"
+                                            :class="{ selected: enableForm.product_id === p.id }"
+                                            @click="selectProduct(p.id)"
+                                        >
+                                            <div class="ent-icon" :style="{ background: p.icon_colour || '#0D9488', color: '#fff' }">
+                                                {{ p.name?.[0] || '?' }}
+                                            </div>
+                                            <div class="ent-meta">
+                                                <div class="nm">{{ p.name }}</div>
+                                                <div class="slug">{{ p.slug }}</div>
+                                            </div>
+                                        </button>
+                                    </div>
+                                    <div v-if="enableForm.errors.product_id" class="err">{{ enableForm.errors.product_id }}</div>
+                                </div>
+
+                                <div v-if="enableForm.product_id" class="form-section">
+                                    <h3>Plan &amp; pricing</h3>
+                                    <div class="form-row two">
+                                        <div class="form-field">
+                                            <label>Plan</label>
+                                            <input v-model="enableForm.plan" type="text" placeholder="e.g. Pro, Basic, Enterprise">
+                                            <div v-if="enableForm.errors.plan" class="err">{{ enableForm.errors.plan }}</div>
+                                        </div>
+                                        <div class="form-field">
+                                            <label>Monthly price (£)</label>
+                                            <input v-model.number="enableForm.price_monthly" type="number" min="0" step="0.01" placeholder="29.00">
+                                            <div v-if="enableForm.errors.price_monthly" class="err">{{ enableForm.errors.price_monthly }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-if="enableForm.product_id && billing_entities.length" class="form-section">
+                                    <h3>Billing entity</h3>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Bills under</label>
+                                            <select v-model="enableForm.billing_entity_id">
+                                                <option :value="null">— None —</option>
+                                                <option v-for="be in billing_entities" :key="be.id" :value="be.id">{{ be.name }}</option>
+                                            </select>
+                                            <div v-if="enableForm.errors.billing_entity_id" class="err">{{ enableForm.errors.billing_entity_id }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-if="enableForm.product_id" class="form-section">
+                                    <h3>Status</h3>
+                                    <div class="form-row two">
+                                        <button
+                                            type="button"
+                                            class="ent-opt"
+                                            :class="{ selected: enableForm.status === 'active' }"
+                                            style="padding: 10px 14px;"
+                                            @click="enableForm.status = 'active'"
+                                        >
+                                            <div class="ent-meta">
+                                                <div class="nm">Active</div>
+                                                <div class="slug">Billing starts now</div>
+                                            </div>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="ent-opt"
+                                            :class="{ selected: enableForm.status === 'trial' }"
+                                            style="padding: 10px 14px;"
+                                            @click="enableForm.status = 'trial'"
+                                        >
+                                            <div class="ent-meta">
+                                                <div class="nm">Trial</div>
+                                                <div class="slug">Free until end date</div>
+                                            </div>
+                                        </button>
+                                    </div>
+                                    <div v-if="enableForm.status === 'trial'" class="form-row single" style="margin-top: 10px;">
+                                        <div class="form-field">
+                                            <label>Trial ends<span class="req">*</span></label>
+                                            <input v-model="enableForm.trial_ends_at" type="date" required>
+                                            <div v-if="enableForm.errors.trial_ends_at" class="err">{{ enableForm.errors.trial_ends_at }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <footer class="slide-over-footer">
+                                <button type="button" class="btn btn-secondary" @click="showEnableProduct = false">Cancel</button>
+                                <button type="submit" class="btn btn-primary" :disabled="! enableForm.product_id || enableForm.processing">
+                                    <IconPlus :size="15" stroke-width="1.75" />
+                                    {{ enableForm.processing ? 'Enabling…' : 'Enable product' }}
+                                </button>
+                            </footer>
+                        </form>
+                    </DialogPanel>
+                </TransitionChild>
+            </Dialog>
+        </TransitionRoot>
+
+        <ConfirmModal
+            v-model:show="showSuspendModal"
+            :title="suspendTarget ? `Suspend ${suspendTarget.name}?` : 'Suspend product?'"
+            :message="suspendMessage"
+            confirm-label="Suspend"
+            variant="warning"
+            :loading="suspendProcessing"
+            @confirm="handleSuspend"
         />
     </InternalLayout>
 </template>

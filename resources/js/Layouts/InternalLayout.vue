@@ -19,6 +19,7 @@ import {
     IconClipboardList,
     IconBuildingStore,
     IconMessage2,
+    IconBox,
     IconHeadset,
     IconSettings,
     IconHelpCircle,
@@ -76,37 +77,72 @@ const supportBadge = computed(() => {
     return null;
 });
 
-const sections = computed(() => [
-    {
-        label: 'Workspace',
-        items: [
-            { key: 'overview',      label: 'Overview',      href: '/',           icon: IconLayoutDashboard },
-            { key: 'customers',     label: 'Customers',     href: '/customers',  icon: IconUsers },
-            { key: 'invoices',      label: 'Invoices',      href: '/invoices',   icon: IconReceipt,    badge: invoicesBadge.value },
-            { key: 'subscriptions', label: 'Subscriptions', href: '#',           icon: IconCreditCard },
-            { key: 'analytics',     label: 'Analytics',     href: '#',           icon: IconChartLine },
-            { key: 'referrers',     label: 'Referrers',     href: '/referrers',  icon: IconUsersGroup },
-        ],
-    },
-    {
-        label: 'Products',
-        items: [
-            { key: 'maavelus',      label: 'Maavelus',      href: '#', icon: IconToolsKitchen2 },
-            { key: 'maavelus-statements', label: 'Statements', href: '/maavelus/statements', icon: IconFileInvoice, sub: true },
-            { key: 'myorderpad',    label: 'MyOrderPad',    href: '#', icon: IconClipboardList },
-            { key: 'whitedash_b2b', label: 'Whitedash B2B', href: '#', icon: IconBuildingStore },
-            { key: 'smscube',       label: 'SMScube',       href: '#', icon: IconMessage2 },
-        ],
-    },
-    {
-        label: 'Account',
-        items: [
-            { key: 'support',  label: 'Support',     href: '/support',  icon: IconHeadset,   badge: supportBadge.value },
-            { key: 'settings', label: 'Settings',    href: '/settings', icon: IconSettings },
-            { key: 'help',     label: 'Help & docs', href: '#',         icon: IconHelpCircle },
-        ],
-    },
-]);
+/*
+ * Sidebar Products are server-driven (HandleInertiaRequests.share()
+ * → nav_products). The slug → tabler-icon mapping lives in PHP; the
+ * client only needs to resolve the icon name back to the imported
+ * component so it can keep rendering via <component :is>.
+ */
+const PRODUCT_ICONS = {
+    'tools-kitchen-2': IconToolsKitchen2,
+    'clipboard-list': IconClipboardList,
+    'building-store': IconBuildingStore,
+    'message-2': IconMessage2,
+    'box': IconBox,
+};
+
+const productItems = computed(() => {
+    const raw = page.props.nav_products ?? [];
+
+    return raw.map((p) => ({
+        key: p.slug,
+        label: p.name,
+        href: p.route,
+        icon: PRODUCT_ICONS[p.icon] ?? IconBox,
+    }));
+});
+
+const hasMaavelus = computed(() => (page.props.nav_products ?? []).some((p) => p.slug === 'maavelus'));
+
+const sections = computed(() => {
+    const products = [...productItems.value];
+    // Statements is a sub-item under Maavelus — only surface it if
+    // Maavelus is actually in the active product set. Insertion
+    // immediately after Maavelus preserves the visual nesting.
+    if (hasMaavelus.value) {
+        const idx = products.findIndex((p) => p.key === 'maavelus');
+        products.splice(idx + 1, 0, {
+            key: 'maavelus-statements',
+            label: 'Statements',
+            href: '/maavelus/statements',
+            icon: IconFileInvoice,
+            sub: true,
+        });
+    }
+
+    return [
+        {
+            label: 'Workspace',
+            items: [
+                { key: 'overview',      label: 'Overview',      href: '/',           icon: IconLayoutDashboard },
+                { key: 'customers',     label: 'Customers',     href: '/customers',  icon: IconUsers },
+                { key: 'invoices',      label: 'Invoices',      href: '/invoices',   icon: IconReceipt,    badge: invoicesBadge.value },
+                { key: 'subscriptions', label: 'Subscriptions', href: '#',           icon: IconCreditCard },
+                { key: 'analytics',     label: 'Analytics',     href: '#',           icon: IconChartLine },
+                { key: 'referrers',     label: 'Referrers',     href: '/referrers',  icon: IconUsersGroup },
+            ],
+        },
+        ...(products.length > 0 ? [{ label: 'Products', items: products }] : []),
+        {
+            label: 'Account',
+            items: [
+                { key: 'support',  label: 'Support',     href: '/support',  icon: IconHeadset,   badge: supportBadge.value },
+                { key: 'settings', label: 'Settings',    href: '/settings', icon: IconSettings },
+                { key: 'help',     label: 'Help & docs', href: '#',         icon: IconHelpCircle },
+            ],
+        },
+    ];
+});
 
 const visibleCrumbs = computed(() => props.breadcrumbs ?? []);
 const lastCrumbIndex = computed(() => visibleCrumbs.value.length - 1);

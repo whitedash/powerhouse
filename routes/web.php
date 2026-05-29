@@ -61,6 +61,13 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
     Route::post('/tasks/{id}/complete', [InternalTaskController::class, 'complete'])->name('internal.tasks.complete');
     Route::delete('/customers/{id}/archive', [InternalCustomerController::class, 'archive'])->name('internal.customers.archive');
 
+    // Product subscriptions on a customer — enabling a new product creates
+    // a CustomerProduct, suspending removes their access. Both stay open
+    // to staff (alongside super_admin) so account managers can wire up
+    // a new sub without escalating every time.
+    Route::post('/customers/{id}/products', [InternalCustomerController::class, 'enableProduct'])->name('internal.customers.products.enable');
+    Route::post('/customers/{id}/products/{productId}/suspend', [InternalCustomerController::class, 'suspendProduct'])->name('internal.customers.products.suspend');
+
     Route::get('/invoices/new', [InternalInvoiceController::class, 'create'])->name('internal.invoices.create');
     Route::post('/invoices', [InternalInvoiceController::class, 'store'])->name('internal.invoices.store');
     Route::get('/invoices/{id}', [InternalInvoiceController::class, 'show'])->name('internal.invoices.show');
