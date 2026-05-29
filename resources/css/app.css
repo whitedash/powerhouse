@@ -4815,3 +4815,205 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     margin-top: 8px;
     margin-bottom: 24px;
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * ENABLE PRODUCT SLIDE-OVER — plan cards, price rows, status options.
+ * Used by Customers/Show.vue and Provisioning/Index.vue. Replaces the
+ * earlier .ent-opt reuse which couldn't hold name + features + pricing
+ * hint cleanly inside one flex row.
+ * ──────────────────────────────────────────────────────────────────── */
+.enable-plan-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    background: #fff;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+}
+.enable-plan-card:hover,
+.enable-plan-card.selected {
+    border-color: var(--accent);
+    background: var(--warning-bg);
+}
+.epc-radio {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+    transition: border-color .15s;
+}
+.enable-plan-card.selected .epc-radio { border-color: var(--accent); }
+.epc-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+.epc-body { flex: 1; min-width: 0; }
+.epc-name {
+    font: 600 14px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+.epc-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-bottom: 6px;
+}
+.epc-feat {
+    font: 400 12px/1.4 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.epc-feat-more {
+    font: 500 12px/1.4 'Inter', sans-serif;
+    color: var(--accent);
+}
+.epc-no-features {
+    font: 400 12px/1 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    font-style: italic;
+}
+.epc-pricing-hint {
+    font: 500 11px/1 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+}
+
+.enable-step {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-soft);
+}
+.enable-step-label {
+    font: 500 12px/1 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    margin-bottom: 10px;
+}
+.enable-price-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: border-color .15s, background .15s;
+    background: #fff;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+}
+.enable-price-row:hover {
+    border-color: var(--accent);
+    background: var(--warning-bg);
+}
+.enable-price-row.selected {
+    border-color: var(--accent);
+    background: var(--warning-bg);
+    border-left: 3px solid var(--accent);
+}
+.epr-left { display: flex; align-items: center; gap: 10px; }
+.epr-interval {
+    font: 500 13px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+.epr-price {
+    font: 600 15px/1 'Inter', sans-serif;
+    color: var(--accent);
+}
+.epr-label-pill {
+    background: var(--warning-bg);
+    color: var(--accent);
+    font: 500 10px/1 'Inter', sans-serif;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(245, 158, 11, .3);
+}
+.epr-right { display: flex; align-items: center; gap: 8px; }
+.epr-default {
+    font: 400 11px/1 'Inter', sans-serif;
+    color: var(--text-tertiary);
+}
+.epr-radio-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+
+/* Status section — replaces the .ent-opt reuse that was clipping the
+ * "Billing starts now" descriptor via the .slug ellipsis rule. */
+.status-opts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 6px;
+}
+.status-opt {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    background: #fff;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+}
+.status-opt:hover,
+.status-opt.selected {
+    border-color: var(--accent);
+    background: var(--warning-bg);
+}
+.so-radio {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+    transition: border-color .15s;
+}
+.status-opt.selected .so-radio { border-color: var(--accent); }
+.so-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+.so-body { flex: 1; min-width: 0; }
+.so-title {
+    font: 600 13px/1.2 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+.so-desc {
+    font: 400 11px/1.3 'Inter', sans-serif;
+    color: var(--text-secondary);
+    margin-top: 3px;
+}
+.trial-date-field {
+    margin-top: 12px;
+    padding: 14px;
+    background: var(--neutral-bg);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-soft);
+}

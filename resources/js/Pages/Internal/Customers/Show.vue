@@ -1455,28 +1455,34 @@ const headerStatusBadge = computed(() => {
 
                                 <div v-if="enableForm.product_id" class="form-section">
                                     <h3>Plan</h3>
-                                    <!-- STEP 1 — pick the plan (tier). Cards show name + features, no price. -->
+                                    <!-- STEP 1 — pick the plan (tier). Cards show name + features + pricing-options hint. -->
                                     <template v-if="(selectedAvailableProduct()?.plans ?? []).length > 0">
                                         <div style="display: flex; flex-direction: column; gap: 8px;">
                                             <button
                                                 v-for="plan in selectedAvailableProduct().plans"
                                                 :key="plan.id"
                                                 type="button"
-                                                class="ent-opt"
+                                                class="enable-plan-card"
                                                 :class="{ selected: enableForm.plan_id === plan.id }"
-                                                style="padding: 12px 14px; align-items: flex-start; flex-direction: column; gap: 6px;"
                                                 @click="selectPlan(plan)"
                                             >
-                                                <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
-                                                    <span style="font: 600 14px/1.2 'Inter', sans-serif;">{{ plan.name }}</span>
-                                                    <span style="margin-left: auto; font: 400 11.5px/1.3 'Inter', sans-serif; color: var(--text-tertiary);">
-                                                        {{ (plan.prices ?? []).length }} pricing option{{ (plan.prices ?? []).length === 1 ? '' : 's' }}
-                                                    </span>
+                                                <div class="epc-radio">
+                                                    <div v-if="enableForm.plan_id === plan.id" class="epc-dot" />
                                                 </div>
-                                                <div v-if="(plan.features ?? []).length" style="font: 400 11.5px/1.4 'Inter', sans-serif; color: var(--text-secondary); text-align: left;">
-                                                    <template v-for="(f, i) in plan.features" :key="i">
-                                                        <span v-if="i > 0"> · </span>✓ {{ f }}
-                                                    </template>
+                                                <div class="epc-body">
+                                                    <div class="epc-name">{{ plan.name }}</div>
+                                                    <div v-if="(plan.features ?? []).length" class="epc-features">
+                                                        <span v-for="(feat, i) in plan.features.slice(0, 3)" :key="i" class="epc-feat">
+                                                            ✓ {{ feat }}
+                                                        </span>
+                                                        <span v-if="plan.features.length > 3" class="epc-feat-more">
+                                                            +{{ plan.features.length - 3 }} more
+                                                        </span>
+                                                    </div>
+                                                    <div v-else class="epc-features epc-no-features">No features listed</div>
+                                                    <div class="epc-pricing-hint">
+                                                        {{ (plan.prices ?? []).length }} pricing option{{ (plan.prices ?? []).length === 1 ? '' : 's' }}
+                                                    </div>
                                                 </div>
                                             </button>
                                         </div>
@@ -1503,22 +1509,25 @@ const headerStatusBadge = computed(() => {
 
                                 <!-- STEP 2 — pick the billing option (price). Auto-selects the default. -->
                                 <div v-if="enableForm.plan_id && (selectedPlan()?.prices ?? []).length > 0" class="form-section">
-                                    <h3>Billing</h3>
-                                    <div style="display: flex; flex-direction: column; gap: 6px;">
-                                        <button
-                                            v-for="price in selectedPlan().prices"
-                                            :key="`pp-${price.id}`"
-                                            type="button"
-                                            style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; text-align: left;"
-                                            :style="enableForm.plan_price_id === price.id ? 'border-left: 2px solid var(--accent); background: var(--warning-bg);' : ''"
-                                            @click="selectPrice(price)"
-                                        >
-                                            <span style="font: 600 13px/1.2 'Inter', sans-serif;">{{ price.interval_label }}</span>
-                                            <span style="font: 600 15px/1.2 'Inter', sans-serif; color: var(--accent);">£{{ Number(price.price).toFixed(2) }}</span>
-                                            <span v-if="price.label" class="badge badge-sm badge-pending">{{ price.label }}</span>
-                                            <span v-if="price.is_default" class="badge badge-sm badge-active" style="margin-left: auto;">Default</span>
-                                        </button>
-                                    </div>
+                                    <div class="enable-step-label">Select billing interval</div>
+                                    <button
+                                        v-for="price in selectedPlan().prices"
+                                        :key="`pp-${price.id}`"
+                                        type="button"
+                                        class="enable-price-row"
+                                        :class="{ selected: enableForm.plan_price_id === price.id }"
+                                        @click="selectPrice(price)"
+                                    >
+                                        <div class="epr-left">
+                                            <span class="epr-interval">{{ price.interval_label }}</span>
+                                            <span class="epr-price">£{{ Number(price.price).toFixed(2) }}</span>
+                                            <span v-if="price.label" class="epr-label-pill">{{ price.label }}</span>
+                                        </div>
+                                        <div class="epr-right">
+                                            <span v-if="price.is_default" class="epr-default">Default</span>
+                                            <div v-if="enableForm.plan_price_id === price.id" class="epr-radio-dot" />
+                                        </div>
+                                    </button>
                                 </div>
 
                                 <div v-if="enableForm.product_id && billing_entities.length" class="form-section">
@@ -1537,38 +1546,47 @@ const headerStatusBadge = computed(() => {
 
                                 <div v-if="enableForm.product_id" class="form-section">
                                     <h3>Status</h3>
-                                    <div class="form-row two">
+                                    <div class="status-opts">
                                         <button
                                             type="button"
-                                            class="ent-opt"
+                                            class="status-opt"
                                             :class="{ selected: enableForm.status === 'active' }"
-                                            style="padding: 10px 14px;"
                                             @click="enableForm.status = 'active'"
                                         >
-                                            <div class="ent-meta">
-                                                <div class="nm">Active</div>
-                                                <div class="slug">Billing starts now</div>
+                                            <div class="so-radio">
+                                                <div v-if="enableForm.status === 'active'" class="so-dot" />
+                                            </div>
+                                            <div class="so-body">
+                                                <div class="so-title">Active</div>
+                                                <div class="so-desc">Billing starts immediately</div>
                                             </div>
                                         </button>
                                         <button
                                             type="button"
-                                            class="ent-opt"
+                                            class="status-opt"
                                             :class="{ selected: enableForm.status === 'trial' }"
-                                            style="padding: 10px 14px;"
                                             @click="enableForm.status = 'trial'"
                                         >
-                                            <div class="ent-meta">
-                                                <div class="nm">Trial</div>
-                                                <div class="slug">Free until end date</div>
+                                            <div class="so-radio">
+                                                <div v-if="enableForm.status === 'trial'" class="so-dot" />
+                                            </div>
+                                            <div class="so-body">
+                                                <div class="so-title">Trial</div>
+                                                <div class="so-desc">Free access until trial end date</div>
                                             </div>
                                         </button>
                                     </div>
-                                    <div v-if="enableForm.status === 'trial'" class="form-row single" style="margin-top: 10px;">
-                                        <div class="form-field">
-                                            <label>Trial ends<span class="req">*</span></label>
-                                            <input v-model="enableForm.trial_ends_at" type="date" required>
-                                            <div v-if="enableForm.errors.trial_ends_at" class="err">{{ enableForm.errors.trial_ends_at }}</div>
-                                        </div>
+                                    <div v-if="enableForm.status === 'trial'" class="trial-date-field">
+                                        <label class="field-label">Trial ends on<span class="req">*</span></label>
+                                        <input
+                                            v-model="enableForm.trial_ends_at"
+                                            type="date"
+                                            class="field-input"
+                                            :min="new Date().toISOString().split('T')[0]"
+                                            required
+                                        >
+                                        <div class="field-help">Customer will be prompted to subscribe when the trial expires.</div>
+                                        <div v-if="enableForm.errors.trial_ends_at" class="err">{{ enableForm.errors.trial_ends_at }}</div>
                                     </div>
                                 </div>
                             </div>
