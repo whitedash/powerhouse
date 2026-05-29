@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\StaffLoginController;
 use App\Http\Controllers\Internal\AnalyticsController as InternalAnalyticsController;
 use App\Http\Controllers\Internal\BillingEntityController as InternalBillingEntityController;
+use App\Http\Controllers\Internal\ContactController as InternalContactController;
 use App\Http\Controllers\Internal\CustomerController as InternalCustomerController;
 use App\Http\Controllers\Internal\DashboardController as InternalDashboardController;
 use App\Http\Controllers\Internal\DomainController as InternalDomainController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\Portal\AccountController as PortalAccountController;
 use App\Http\Controllers\Portal\AuthController as PortalAuthController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
 use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
+use App\Http\Controllers\Portal\PasswordController as PortalPasswordController;
 use App\Http\Controllers\Portal\SubscriptionController as PortalSubscriptionController;
 use App\Http\Controllers\Portal\SupportController as PortalSupportController;
 use App\Http\Controllers\Referrer\AccountController as ReferrerAccountController;
@@ -61,6 +63,14 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::get('/customers/{id}', [InternalCustomerController::class, 'show'])->name('internal.customers.show');
     Route::put('/customers/{id}', [InternalCustomerController::class, 'update'])->name('internal.customers.update');
     Route::post('/customers/{id}/notes', [InternalCustomerController::class, 'storeNote'])->name('internal.customers.notes.store');
+
+    // Contacts — full CRUD per customer, plus a "set primary" toggle.
+    // Endpoint receives customer_id in the body so the controller can
+    // authorise against the parent customer before touching the row.
+    Route::post('/contacts', [InternalContactController::class, 'store'])->name('internal.contacts.store');
+    Route::put('/contacts/{id}', [InternalContactController::class, 'update'])->name('internal.contacts.update');
+    Route::delete('/contacts/{id}', [InternalContactController::class, 'destroy'])->name('internal.contacts.destroy');
+    Route::post('/contacts/{id}/primary', [InternalContactController::class, 'setPrimary'])->name('internal.contacts.primary');
     Route::post('/customers/{id}/tasks', [InternalCustomerController::class, 'storeTask'])->name('internal.customers.tasks.store');
 
     // Global task endpoints — for the dashboard New-task slide-over and
@@ -212,6 +222,13 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
 Route::prefix('portal')->middleware('portal_guest')->group(function () {
     Route::get('/login', [PortalAuthController::class, 'showLogin'])->name('portal.login');
     Route::post('/login', [PortalAuthController::class, 'login'])->name('portal.login.submit');
+
+    // Password reset is part of the guest surface — once logged in,
+    // a portal user changes their password from /portal/account.
+    Route::get('/forgot-password', [PortalPasswordController::class, 'showForgotForm'])->name('portal.forgot-password');
+    Route::post('/forgot-password', [PortalPasswordController::class, 'sendResetLink'])->name('portal.forgot-password.submit');
+    Route::get('/reset-password', [PortalPasswordController::class, 'showResetForm'])->name('portal.reset-password');
+    Route::post('/reset-password', [PortalPasswordController::class, 'resetPassword'])->name('portal.reset-password.submit');
 });
 
 // Authenticated portal area. auth.portal alias maps to EnsurePortalUser —

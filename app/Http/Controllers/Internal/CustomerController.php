@@ -197,7 +197,9 @@ class CustomerController extends Controller
     public function show(int $id): Response
     {
         $customer = Customer::with([
-            'contacts',
+            'contacts' => fn ($q) => $q->orderByDesc('is_primary')
+                ->orderBy('name')
+                ->with('portalUser:id,contact_id,email,last_login_at'),
             'assignedTo:id,name,role,avatar_colour',
             'customerProducts.product',
             'customerProducts.billingEntity:id,name',
@@ -279,8 +281,14 @@ class CustomerController extends Controller
                     'name' => $c->name,
                     'email' => $c->email,
                     'phone' => $c->phone,
+                    'job_title' => $c->job_title,
                     'role' => $c->role,
                     'is_primary' => (bool) $c->is_primary,
+                    'notes' => $c->notes,
+                    'has_portal_access' => $c->portalUser !== null,
+                    'portal_email' => $c->portalUser?->email,
+                    'portal_last_login' => $c->portalUser?->last_login_at?->diffForHumans(),
+                    'portal_user_id' => $c->portalUser?->id,
                 ])->values(),
 
                 'products' => $customer->customerProducts->map(fn ($cp) => [
@@ -715,87 +723,94 @@ class CustomerController extends Controller
     }
 
     /**
-     * Create a PortalUser for this customer so they can sign in at
-     * /portal/login. We pick the primary contact's email + name as
-     * defaults — staff can change the password by re-inviting (which
-     * regenerates) since there's no portal-side reset flow yet.
+     * Issue a PortalUser tied to a specific Contact. The contact must
+     * belong to this customer (we re-scope to be sure) and must have
+     * an email — without one there's nothing to invite. Re-inviting
+     * the same contact rotates the password rather than creating a
+     * second account.
      *
      * The temp password is flashed back to staff once and only once.
      * It's never logged, never returned by show(), and not stored
-     * outside the hashed column. Whoever invited the customer needs
-     * to relay it through a trusted channel.
+     * outside the hashed column.
      */
     public function inviteToPortal(int $id, Request $request): RedirectResponse
     {
-        $customer = Customer::with('primaryContact')->findOrFail($id);
+        $customer = Customer::findOrFail($id);
         Gate::authorize('update', $customer);
 
-        if (! $customer->primaryContact) {
-            return back()->withErrors(['portal' => 'Add a primary contact before inviting to the portal.']);
+        $data = $request->validate([
+            'contact_id' => ['required', 'integer', 'exists:contacts,id'],
+        ]);
+
+        // Re-scope the contact lookup to this customer so a forged
+        // contact_id from another tenant can't be used as a vector.
+        $contact = Contact::where('id', $data['contact_id'])
+            ->where('customer_id', $customer->id)
+            ->firstOrFail();
+
+        if (empty($contact->email)) {
+            return back()->withErrors([
+                'portal' => "{$contact->display_name} has no email on file. Add one before inviting them to the portal.",
+            ]);
         }
 
-        $email = $customer->primaryContact->email;
-        $name = $customer->primaryContact->name ?: $customer->name;
-
-        $existing = PortalUser::where('email', $email)->first();
-        // Email uniqueness is a portal-user-table constraint, not per
-        // customer — so if this email already exists on a *different*
-        // customer, refuse rather than mash two accounts together.
-        if ($existing && $existing->customer_id !== $customer->id) {
+        // Per-contact uniqueness: at most one portal account per contact.
+        if (PortalUser::where('contact_id', $contact->id)->exists()) {
             return back()->withErrors([
-                'portal' => 'That email already has a portal account on a different customer.',
+                'portal' => "{$contact->display_name} already has portal access. Revoke it first to issue new credentials.",
+            ]);
+        }
+
+        // Table-wide uniqueness on email: another contact (possibly on
+        // a different customer) already owns this address.
+        if (PortalUser::where('email', $contact->email)->exists()) {
+            return back()->withErrors([
+                'portal' => 'That email already has a portal account elsewhere. Use a different contact email.',
             ]);
         }
 
         $tempPassword = Str::password(14, symbols: false);
 
-        DB::transaction(function () use ($customer, $email, $name, $tempPassword, $existing, $request) {
-            if ($existing) {
-                // Resending an invite = regenerate password. Treat as
-                // a re-invitation, not a silent password reset.
-                $existing->forceFill([
-                    'name' => $name,
-                    'password' => Hash::make($tempPassword),
-                ])->save();
-                $portalUser = $existing;
-                $action = 'portal.reinvited';
-            } else {
-                $portalUser = PortalUser::create([
-                    'customer_id' => $customer->id,
-                    'name' => $name,
-                    'email' => $email,
-                    'password' => Hash::make($tempPassword),
-                ]);
-                $action = 'portal.invited';
-            }
+        $portalUser = DB::transaction(function () use ($customer, $contact, $tempPassword, $request): PortalUser {
+            $portalUser = PortalUser::create([
+                'customer_id' => $customer->id,
+                'contact_id' => $contact->id,
+                'name' => $contact->display_name,
+                'email' => $contact->email,
+                'password' => Hash::make($tempPassword),
+            ]);
 
             ActivityLog::create([
                 'user_id' => $request->user()?->id,
                 'user_role' => $request->user()?->role,
-                'action' => $action,
+                'action' => 'portal.invited',
                 'entity_type' => Customer::class,
                 'entity_id' => $customer->id,
                 'after' => [
                     'portal_user_id' => $portalUser->id,
+                    'contact_id' => $contact->id,
                     'email' => $portalUser->email,
                 ],
                 'ip_address' => $request->ip(),
                 'user_agent' => substr((string) $request->userAgent(), 0, 500),
             ]);
+
+            return $portalUser;
         });
 
         return back()->with('portal_invite', [
-            'email' => $email,
+            'email' => $portalUser->email,
             'password' => $tempPassword,
-            'message' => "Portal invite ready. Share these credentials with {$name} through a trusted channel.",
+            'message' => "Portal invite ready. Share these credentials with {$contact->display_name} through a trusted channel.",
         ]);
     }
 
     /**
-     * Disables portal access by replacing the password with a random
-     * unguessable string the customer never sees. The PortalUser row
-     * stays so activity history remains intact; staff can re-invite
-     * later to issue fresh credentials.
+     * Disables portal access. The PortalUser row stays so the audit
+     * trail is intact, but its password is replaced with an
+     * unrecoverable random string. If contact_id was set, the link
+     * back to Contact is also broken so the contact can be deleted
+     * cleanly afterwards.
      */
     public function revokePortalAccess(int $id, int $portalUserId, Request $request): RedirectResponse
     {
@@ -807,6 +822,7 @@ class CustomerController extends Controller
 
         $portalUser->forceFill([
             'password' => Hash::make(Str::random(40)),
+            'contact_id' => null,
         ])->save();
 
         ActivityLog::create([
@@ -815,7 +831,10 @@ class CustomerController extends Controller
             'action' => 'portal.access_revoked',
             'entity_type' => Customer::class,
             'entity_id' => $customer->id,
-            'after' => ['portal_user_id' => $portalUser->id],
+            'after' => [
+                'portal_user_id' => $portalUser->id,
+                'email' => $portalUser->email,
+            ],
             'ip_address' => $request->ip(),
             'user_agent' => substr((string) $request->userAgent(), 0, 500),
         ]);

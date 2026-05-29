@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $customer_id
+ * @property int|null $contact_id
  * @property string $name
  * @property string $email
  * @property string $password
@@ -20,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Customer|null $customer
+ * @property-read Contact|null $contact
  */
 class PortalUser extends Authenticatable
 {
@@ -27,6 +29,7 @@ class PortalUser extends Authenticatable
 
     protected $fillable = [
         'customer_id',
+        'contact_id',
         'name',
         'email',
         'password',
@@ -51,5 +54,15 @@ class PortalUser extends Authenticatable
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Optional link back to the specific Contact this portal account
+     * represents. Customer-wide invites (legacy / pre-contacts CRUD)
+     * leave contact_id null; new invites always set it.
+     */
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class);
     }
 }

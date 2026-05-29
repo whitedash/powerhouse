@@ -40,7 +40,6 @@ import {
     IconDots,
     IconAlertTriangle,
     IconKey,
-    IconRefresh,
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -296,17 +295,118 @@ function submitTask() {
     });
 }
 
-/* ─── Portal access ─── */
-const invitingPortal = ref(false);
+/* ─── Contacts CRUD ────────────────────────────────────────────────── */
+const showAddContact = ref(false);
+const showEditContact = ref(false);
+const editingContactId = ref(null);
 
-function invitePortal() {
-    invitingPortal.value = true;
-    router.post(`/customers/${props.customer.id}/invite-portal`, {}, {
+const contactForm = useForm({
+    customer_id: props.customer.id,
+    name: '',
+    job_title: '',
+    email: '',
+    phone: '',
+    role: 'other',
+    is_primary: false,
+    notes: '',
+});
+
+function openAddContact() {
+    contactForm.reset();
+    contactForm.customer_id = props.customer.id;
+    contactForm.role = 'other';
+    contactForm.is_primary = false;
+    editingContactId.value = null;
+    showAddContact.value = true;
+}
+
+function openEditContact(c) {
+    contactForm.reset();
+    contactForm.customer_id = props.customer.id;
+    contactForm.name = c.name ?? '';
+    contactForm.job_title = c.job_title ?? '';
+    contactForm.email = c.email ?? '';
+    contactForm.phone = c.phone ?? '';
+    contactForm.role = c.role ?? 'other';
+    contactForm.is_primary = !! c.is_primary;
+    contactForm.notes = c.notes ?? '';
+    editingContactId.value = c.id;
+    showEditContact.value = true;
+}
+
+function closeContactSlideOver() {
+    showAddContact.value = false;
+    showEditContact.value = false;
+    editingContactId.value = null;
+}
+
+function submitContact() {
+    const onSuccess = () => {
+        closeContactSlideOver();
+        contactForm.reset();
+    };
+
+    if (editingContactId.value) {
+        contactForm.put(`/contacts/${editingContactId.value}`, {
+            preserveScroll: true,
+            onSuccess,
+        });
+    } else {
+        contactForm.post('/contacts', {
+            preserveScroll: true,
+            onSuccess,
+        });
+    }
+}
+
+/* Delete contact (ConfirmModal) */
+const showDeleteContact = ref(false);
+const deleteContactTarget = ref(null);
+const deleteContactProcessing = ref(false);
+
+function askDeleteContact(c) {
+    deleteContactTarget.value = c;
+    showDeleteContact.value = true;
+}
+
+function performDeleteContact() {
+    if (! deleteContactTarget.value) return;
+    deleteContactProcessing.value = true;
+    router.delete(`/contacts/${deleteContactTarget.value.id}`, {
         preserveScroll: true,
         onFinish: () => {
-            invitingPortal.value = false;
+            deleteContactProcessing.value = false;
+            showDeleteContact.value = false;
+            deleteContactTarget.value = null;
         },
     });
+}
+
+function setContactPrimary(c) {
+    router.post(`/contacts/${c.id}/primary`, {}, { preserveScroll: true });
+}
+
+const deleteContactMessage = computed(() =>
+    deleteContactTarget.value
+        ? `'${deleteContactTarget.value.name}' will be removed permanently. This cannot be undone.`
+        : '',
+);
+
+/* ─── Per-contact portal access ────────────────────────────────────── */
+const invitingPortalForContactId = ref(null);
+
+function inviteContact(contact) {
+    invitingPortalForContactId.value = contact.id;
+    router.post(
+        `/customers/${props.customer.id}/invite-portal`,
+        { contact_id: contact.id },
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                invitingPortalForContactId.value = null;
+            },
+        },
+    );
 }
 
 const showRevokePortal = ref(false);
@@ -869,7 +969,7 @@ const headerStatusBadge = computed(() => {
 
                 <!-- RIGHT COLUMN -->
                 <div class="col">
-                    <!-- Contacts -->
+                    <!-- Contacts (with per-contact portal access folded in) -->
                     <section class="card">
                         <header class="card-header">
                             <div class="h-icon"><IconAddressBook :size="16" stroke-width="1.75" /></div>
@@ -878,91 +978,104 @@ const headerStatusBadge = computed(() => {
                                 <div class="sub">{{ customer.contacts.length }} on file</div>
                             </div>
                             <div class="right">
-                                <a href="#" class="ghost-link" @click.prevent>
+                                <button type="button" class="ghost-link" @click="openAddContact">
                                     <IconPlus :size="14" stroke-width="1.75" />
                                     Add contact
-                                </a>
+                                </button>
                             </div>
                         </header>
-                        <div v-if="customer.contacts.length">
-                            <div v-for="c in customer.contacts" :key="c.id" class="contact-row">
-                                <span v-if="c.is_primary" class="contact-primary-pill">Primary</span>
-                                <div class="contact-top">
-                                    <div class="avatar av-navy">{{ userInitials(c.name) }}</div>
-                                    <div>
-                                        <div class="contact-name">{{ c.name }}</div>
-                                        <div class="contact-role">
-                                            {{ ({ owner: 'Owner', manager: 'Manager', accounts: 'Accounts', other: 'Other' })[c.role] }}
-                                            <template v-if="c.is_primary"> · Primary contact</template>
+
+                        <div v-if="customer.contacts.length" style="padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px;">
+                            <article v-for="c in customer.contacts" :key="c.id" class="contact-card">
+                                <header class="contact-card-head">
+                                    <div class="avatar av-navy" style="width: 32px; height: 32px;">{{ userInitials(c.name) }}</div>
+                                    <div class="contact-card-name-block">
+                                        <div class="contact-card-name">
+                                            {{ c.name }}
+                                            <span v-if="c.is_primary" class="badge badge-gold badge-sm" style="margin-left: 6px;">Primary</span>
+                                        </div>
+                                        <div v-if="c.job_title || c.role" class="contact-card-role">
+                                            <template v-if="c.job_title">{{ c.job_title }}</template>
+                                            <template v-else>{{ ({ owner: 'Owner', manager: 'Manager', accounts: 'Accounts', other: 'Other' })[c.role] }}</template>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="contact-fields">
-                                    <div class="contact-field">
-                                        <IconMail :size="16" stroke-width="1.75" />
-                                        <a :href="`mailto:${c.email}`" style="color: inherit; text-decoration: none;">{{ c.email }}</a>
+                                    <Menu as="div" class="dd-menu">
+                                        <MenuButton class="icon-btn" aria-label="Contact actions">
+                                            <IconDots :size="16" stroke-width="1.75" />
+                                        </MenuButton>
+                                        <MenuItems class="dd-popover right-align">
+                                            <MenuItem v-if="! c.is_primary" v-slot="{ active }">
+                                                <button type="button" :class="['dd-option', { active }]" @click="setContactPrimary(c)">Set as primary</button>
+                                            </MenuItem>
+                                            <MenuItem v-slot="{ active }">
+                                                <button type="button" :class="['dd-option', { active }]" @click="openEditContact(c)">Edit contact</button>
+                                            </MenuItem>
+                                            <MenuItem v-if="! c.has_portal_access && c.email" v-slot="{ active }">
+                                                <button type="button" :class="['dd-option', { active }]" @click="inviteContact(c)">Invite to portal</button>
+                                            </MenuItem>
+                                            <MenuItem v-if="c.has_portal_access" v-slot="{ active }">
+                                                <button type="button" :class="['dd-option', { active }]" @click="askRevokePortal({ id: c.portal_user_id, email: c.portal_email, name: c.name })">Revoke portal access</button>
+                                            </MenuItem>
+                                            <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
+                                            <MenuItem v-slot="{ active }">
+                                                <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDeleteContact(c)">Delete contact</button>
+                                            </MenuItem>
+                                        </MenuItems>
+                                    </Menu>
+                                </header>
+
+                                <div class="contact-card-detail">
+                                    <div v-if="c.email" class="contact-card-field">
+                                        <IconMail :size="14" stroke-width="1.75" />
+                                        <a :href="`mailto:${c.email}`">{{ c.email }}</a>
                                         <button type="button" class="copy" :aria-label="`Copy ${c.email}`" @click="copyText(c.email)">
-                                            <IconCopy :size="14" stroke-width="1.75" />
+                                            <IconCopy :size="12" stroke-width="1.75" />
                                         </button>
                                     </div>
-                                    <div v-if="c.phone" class="contact-field">
-                                        <IconPhone :size="16" stroke-width="1.75" />
-                                        <a :href="`tel:${c.phone}`" style="color: inherit; text-decoration: none;">{{ c.phone }}</a>
+                                    <div v-if="c.phone" class="contact-card-field">
+                                        <IconPhone :size="14" stroke-width="1.75" />
+                                        <a :href="`tel:${c.phone}`">{{ c.phone }}</a>
                                         <button type="button" class="copy" :aria-label="`Copy ${c.phone}`" @click="copyText(c.phone)">
-                                            <IconCopy :size="14" stroke-width="1.75" />
+                                            <IconCopy :size="12" stroke-width="1.75" />
                                         </button>
+                                    </div>
+                                    <div v-if="c.notes" class="contact-card-notes">
+                                        <IconNotes :size="14" stroke-width="1.75" />
+                                        <span>{{ c.notes }}</span>
                                     </div>
                                 </div>
-                            </div>
+
+                                <footer class="contact-card-portal">
+                                    <template v-if="c.has_portal_access">
+                                        <span class="badge badge-active badge-sm">Portal access</span>
+                                        <span class="contact-card-portal-meta">
+                                            <template v-if="c.portal_last_login">Last sign-in {{ c.portal_last_login }}</template>
+                                            <template v-else>Never signed in</template>
+                                        </span>
+                                    </template>
+                                    <template v-else-if="c.email">
+                                        <span class="contact-card-portal-empty">No portal access</span>
+                                        <button
+                                            type="button"
+                                            class="ghost-link accent"
+                                            :disabled="invitingPortalForContactId === c.id"
+                                            @click="inviteContact(c)"
+                                        >
+                                            <IconUserPlus :size="12" stroke-width="1.75" />
+                                            {{ invitingPortalForContactId === c.id ? 'Inviting…' : 'Invite to portal' }}
+                                        </button>
+                                    </template>
+                                    <template v-else>
+                                        <span class="contact-card-portal-empty">No email on file — cannot invite to portal</span>
+                                    </template>
+                                </footer>
+                            </article>
                         </div>
                         <div v-else class="tab-empty" style="padding: 32px 18px;">
                             <p>No contacts on file.</p>
-                        </div>
-                    </section>
-
-                    <!-- Portal access -->
-                    <section class="card">
-                        <header class="card-header">
-                            <div class="h-icon"><IconKey :size="16" stroke-width="1.75" /></div>
-                            <div>
-                                <h3>Portal access</h3>
-                                <div class="sub">
-                                    <template v-if="customer.portal_users.length > 0">
-                                        {{ customer.portal_users.length }} active user{{ customer.portal_users.length === 1 ? '' : 's' }}
-                                    </template>
-                                    <template v-else>No portal account yet</template>
-                                </div>
-                            </div>
-                        </header>
-                        <div v-if="customer.portal_users.length > 0" style="padding: 14px 18px; display: flex; flex-direction: column; gap: 10px;">
-                            <div
-                                v-for="pu in customer.portal_users"
-                                :key="pu.id"
-                                style="display: flex; align-items: center; gap: 10px;"
-                            >
-                                <span class="badge badge-active badge-sm">Active</span>
-                                <div style="flex: 1; min-width: 0;">
-                                    <div style="font: 500 13.5px/1.3 'Inter', sans-serif; color: var(--text-primary);">{{ pu.name }}</div>
-                                    <div style="font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary);">
-                                        {{ pu.email }}
-                                        <template v-if="pu.last_login_at"> · Last sign-in {{ pu.last_login_at }}</template>
-                                        <template v-else> · Never signed in</template>
-                                    </div>
-                                </div>
-                                <button type="button" class="ghost-link danger" @click="askRevokePortal(pu)">Revoke</button>
-                            </div>
-                            <button type="button" class="btn btn-secondary" style="margin-top: 4px;" @click="invitePortal">
-                                <IconRefresh :size="14" stroke-width="1.75" />
-                                Resend invite (new password)
-                            </button>
-                        </div>
-                        <div v-else style="padding: 18px;">
-                            <p style="font: 400 13px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin: 0 0 12px;">
-                                Send portal credentials to this customer so they can manage their subscriptions, invoices, and tickets themselves.
-                            </p>
-                            <button type="button" class="btn btn-primary" :disabled="invitingPortal" @click="invitePortal">
-                                <IconUserPlus :size="14" stroke-width="1.75" />
-                                {{ invitingPortal ? 'Inviting…' : 'Invite to portal' }}
+                            <button type="button" class="btn btn-primary" @click="openAddContact" style="margin-top: 8px;">
+                                <IconPlus :size="14" stroke-width="1.75" />
+                                Add first contact
                             </button>
                         </div>
                     </section>
@@ -1785,6 +1898,139 @@ const headerStatusBadge = computed(() => {
             variant="warning"
             :loading="suspendProcessing"
             @confirm="handleSuspend"
+        />
+
+        <!-- Add/Edit contact slide-over -->
+        <TransitionRoot as="template" :show="showAddContact || showEditContact">
+            <Dialog as="div" class="slide-over-dialog" @close="closeContactSlideOver">
+                <TransitionChild
+                    as="template"
+                    enter="transition-opacity ease-out duration-200" enter-from="opacity-0" enter-to="opacity-100"
+                    leave="transition-opacity ease-in duration-150" leave-from="opacity-100" leave-to="opacity-0"
+                >
+                    <div class="slide-over-backdrop" />
+                </TransitionChild>
+                <TransitionChild
+                    as="template"
+                    enter="transform transition ease-out duration-200" enter-from="translate-x-full" enter-to="translate-x-0"
+                    leave="transform transition ease-in duration-150" leave-from="translate-x-0" leave-to="translate-x-full"
+                >
+                    <DialogPanel class="slide-over-panel" style="width: 480px;">
+                        <form class="slide-over-form" @submit.prevent="submitContact">
+                            <header class="slide-over-header">
+                                <h2>{{ showEditContact ? 'Edit contact' : 'Add contact' }}</h2>
+                                <button type="button" class="icon-btn" aria-label="Close" @click="closeContactSlideOver">
+                                    <IconX :size="18" stroke-width="1.75" />
+                                </button>
+                            </header>
+                            <div class="slide-over-body">
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Name<span class="req">*</span></label>
+                                            <input
+                                                v-model="contactForm.name"
+                                                type="text"
+                                                :class="{ 'has-err': contactForm.errors.name }"
+                                                placeholder="Full name"
+                                                required
+                                            >
+                                            <div v-if="contactForm.errors.name" class="err">{{ contactForm.errors.name }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Job title <span style="color: var(--text-tertiary); font-weight: 400;">(optional)</span></label>
+                                            <input
+                                                v-model="contactForm.job_title"
+                                                type="text"
+                                                :class="{ 'has-err': contactForm.errors.job_title }"
+                                                placeholder="e.g. Head Chef, Owner, Manager"
+                                            >
+                                            <div v-if="contactForm.errors.job_title" class="err">{{ contactForm.errors.job_title }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Email <span style="color: var(--text-tertiary); font-weight: 400;">(optional)</span></label>
+                                            <input
+                                                v-model="contactForm.email"
+                                                type="email"
+                                                :class="{ 'has-err': contactForm.errors.email }"
+                                                placeholder="contact@example.com"
+                                            >
+                                            <div v-if="contactForm.errors.email" class="err">{{ contactForm.errors.email }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Phone <span style="color: var(--text-tertiary); font-weight: 400;">(optional)</span></label>
+                                            <input
+                                                v-model="contactForm.phone"
+                                                type="tel"
+                                                :class="{ 'has-err': contactForm.errors.phone }"
+                                                placeholder="+44 7700 900000"
+                                            >
+                                            <div v-if="contactForm.errors.phone" class="err">{{ contactForm.errors.phone }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Role</label>
+                                            <select v-model="contactForm.role">
+                                                <option value="owner">Owner</option>
+                                                <option value="manager">Manager</option>
+                                                <option value="accounts">Accounts</option>
+                                                <option value="other">Other</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Notes <span style="color: var(--text-tertiary); font-weight: 400;">(optional)</span></label>
+                                            <textarea
+                                                v-model="contactForm.notes"
+                                                rows="2"
+                                                :class="{ 'has-err': contactForm.errors.notes }"
+                                                placeholder="Preferred contact times, nicknames, etc."
+                                            />
+                                            <div v-if="contactForm.errors.notes" class="err">{{ contactForm.errors.notes }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-section">
+                                    <h3>Primary contact</h3>
+                                    <div class="status-rows">
+                                        <div class="set-row">
+                                            <div>
+                                                <div class="nm">Set as primary contact</div>
+                                                <div class="sb">Primary contact receives invoices and main communications.</div>
+                                            </div>
+                                            <button type="button" class="toggle" :class="{ on: contactForm.is_primary }" aria-label="Toggle primary" @click="contactForm.is_primary = ! contactForm.is_primary" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <footer class="slide-over-footer">
+                                <button type="button" class="btn btn-secondary" @click="closeContactSlideOver">Cancel</button>
+                                <button type="submit" class="btn btn-primary" :disabled="contactForm.processing">
+                                    {{ contactForm.processing ? 'Saving…' : 'Save contact' }}
+                                </button>
+                            </footer>
+                        </form>
+                    </DialogPanel>
+                </TransitionChild>
+            </Dialog>
+        </TransitionRoot>
+
+        <ConfirmModal
+            v-model:show="showDeleteContact"
+            :title="deleteContactTarget ? `Delete ${deleteContactTarget.name}?` : 'Delete contact?'"
+            :message="deleteContactMessage"
+            confirm-label="Delete contact"
+            variant="danger"
+            :loading="deleteContactProcessing"
+            @confirm="performDeleteContact"
         />
 
         <ConfirmModal

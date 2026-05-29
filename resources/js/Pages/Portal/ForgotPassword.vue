@@ -1,22 +1,20 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { IconAlertCircle, IconLock } from '@tabler/icons-vue';
+import { IconAlertCircle, IconArrowLeft, IconCircleCheck, IconMail } from '@tabler/icons-vue';
 
 const form = useForm({
     email: '',
-    password: '',
-    remember: false,
 });
 
 function submit() {
-    form.post('/portal/login', {
-        onFinish: () => form.reset('password'),
+    form.post('/portal/forgot-password', {
+        preserveScroll: true,
     });
 }
 </script>
 
 <template>
-    <Head title="Sign in · Whitedash" />
+    <Head title="Forgot password · Whitedash" />
     <div class="portal-login">
         <div class="portal-login-card">
             <div class="portal-login-brand">
@@ -25,15 +23,16 @@ function submit() {
                 <div class="portal-login-brand-sub">customer portal</div>
             </div>
 
-            <h1 class="portal-login-title">Sign in to your account</h1>
+            <h1 class="portal-login-title">Forgot your password?</h1>
             <p class="portal-login-subtitle">
-                Manage your subscriptions, invoices, and support tickets.
+                Enter the email tied to your portal account. If it matches, we'll send you a reset link.
             </p>
 
             <div
                 v-if="$page.props.flash?.success"
                 class="portal-login-flash success"
             >
+                <IconCircleCheck :size="16" stroke-width="2" />
                 {{ $page.props.flash.success }}
             </div>
 
@@ -59,34 +58,17 @@ function submit() {
                     >
                 </div>
 
-                <div class="form-field">
-                    <label for="password">Password</label>
-                    <input
-                        id="password"
-                        v-model="form.password"
-                        type="password"
-                        autocomplete="current-password"
-                        required
-                        placeholder="••••••••"
-                    >
-                </div>
-
-                <div class="portal-login-options">
-                    <label class="portal-login-remember">
-                        <input v-model="form.remember" type="checkbox">
-                        <span>Remember me</span>
-                    </label>
-                    <Link href="/portal/forgot-password" class="portal-login-forgot">Forgot password?</Link>
-                </div>
-
                 <button type="submit" class="btn btn-primary btn-block" :disabled="form.processing">
-                    <IconLock :size="14" stroke-width="2" />
-                    {{ form.processing ? 'Signing in…' : 'Sign in' }}
+                    <IconMail :size="14" stroke-width="2" />
+                    {{ form.processing ? 'Sending…' : 'Send reset link' }}
                 </button>
             </form>
 
             <div class="portal-login-footer">
-                Need access? Ask your account manager to invite you.
+                <Link href="/portal/login" class="portal-back-link">
+                    <IconArrowLeft :size="14" stroke-width="1.75" />
+                    Back to sign in
+                </Link>
             </div>
         </div>
 

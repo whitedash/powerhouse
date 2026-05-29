@@ -7,6 +7,7 @@ import {
     IconUser,
 } from '@tabler/icons-vue';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
+import PasswordStrengthMeter from '@/Components/UI/PasswordStrengthMeter.vue';
 
 const props = defineProps({
     portal_user: { type: Object, required: true },
@@ -125,8 +126,9 @@ function submitPassword() {
                     :class="{ 'has-err': passwordForm.errors.password }"
                     required
                 >
-                <div class="form-hint">Minimum 10 characters.</div>
+                <div class="form-hint">Minimum 10 characters with upper case, lower case, a number, and a symbol.</div>
                 <div v-if="passwordForm.errors.password" class="err">{{ passwordForm.errors.password }}</div>
+                <PasswordStrengthMeter :password="passwordForm.password" />
             </div>
 
             <div class="form-field">

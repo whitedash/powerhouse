@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -95,7 +96,15 @@ class AccountController extends Controller
 
         $data = $request->validate([
             'current_password' => ['required', 'string'],
-            'password' => ['required', 'string', 'min:10', 'confirmed'],
+            'password' => [
+                'required',
+                'string',
+                'confirmed',
+                // Match the reset-link rule so a user changing their
+                // password while signed in faces the same strength bar
+                // as one going through forgot-password.
+                Password::min(10)->mixedCase()->numbers()->symbols(),
+            ],
         ]);
 
         if (! Hash::check($data['current_password'], $portalUser->password)) {
