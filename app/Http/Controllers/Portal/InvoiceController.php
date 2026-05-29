@@ -15,9 +15,42 @@ use Inertia\Response;
 
 class InvoiceController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        return Inertia::render('Portal/Invoices');
+        // EnsurePortalUser guarantees the guard is authenticated, so we
+        // can lean on the PortalUser annotation without a runtime guard.
+        /** @var PortalUser $portalUser */
+        $portalUser = Auth::guard('portal')->user();
+
+        $invoices = Invoice::where('customer_id', $portalUser->customer_id)
+            ->with('billingEntity:id,name')
+            ->orderByDesc('issue_date')
+            ->orderByDesc('id')
+            ->paginate(15)
+            ->through(fn (Invoice $inv) => [
+                'id' => $inv->id,
+                'number' => $inv->number,
+                'billing_entity' => $inv->billingEntity?->name,
+                'issue_date' => $inv->issue_date?->format('j M Y'),
+                'due_date' => $inv->due_date?->format('j M Y'),
+                'total' => round((float) $inv->total, 2),
+                'status' => $inv->status,
+                'is_overdue' => $inv->status === 'overdue',
+            ]);
+
+        $summary = [
+            'total_outstanding' => round((float) Invoice::where('customer_id', $portalUser->customer_id)
+                ->whereIn('status', ['sent', 'overdue'])
+                ->sum('total'), 2),
+            'overdue_count' => Invoice::where('customer_id', $portalUser->customer_id)
+                ->where('status', 'overdue')
+                ->count(),
+        ];
+
+        return Inertia::render('Portal/Invoices', [
+            'invoices' => $invoices,
+            'summary' => $summary,
+        ]);
     }
 
     public function downloadPdf(int $id, Request $request): \Symfony\Component\HttpFoundation\Response

@@ -12,6 +12,7 @@ use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerProduct;
 use App\Models\Note;
+use App\Models\PortalUser;
 use App\Models\Product;
 use App\Models\ProductPlan;
 use App\Models\ProductPlanCategory;
@@ -24,6 +25,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -210,6 +213,7 @@ class CustomerController extends Controller
             'groups.customers:id,name',
             'contracts:id,customer_id,title,status,type',
             'supportTickets:id,customer_id,subject,status',
+            'portalUsers:id,customer_id,name,email,last_login_at,created_at',
         ])->findOrFail($id);
 
         Gate::authorize('view', $customer);
@@ -367,6 +371,14 @@ class CustomerController extends Controller
                 ])->values(),
 
                 'contracts_count' => $customer->contracts->count(),
+
+                'portal_users' => $customer->portalUsers->map(fn (PortalUser $pu): array => [
+                    'id' => $pu->id,
+                    'name' => $pu->name,
+                    'email' => $pu->email,
+                    'last_login_at' => $pu->last_login_at?->diffForHumans(),
+                    'created_at' => $pu->created_at?->toIso8601String(),
+                ])->values(),
 
                 'activity' => $activity,
             ],
@@ -700,6 +712,115 @@ class CustomerController extends Controller
         Cache::forget('dash.total_customers');
 
         return back()->with('success', 'Product subscription suspended.');
+    }
+
+    /**
+     * Create a PortalUser for this customer so they can sign in at
+     * /portal/login. We pick the primary contact's email + name as
+     * defaults — staff can change the password by re-inviting (which
+     * regenerates) since there's no portal-side reset flow yet.
+     *
+     * The temp password is flashed back to staff once and only once.
+     * It's never logged, never returned by show(), and not stored
+     * outside the hashed column. Whoever invited the customer needs
+     * to relay it through a trusted channel.
+     */
+    public function inviteToPortal(int $id, Request $request): RedirectResponse
+    {
+        $customer = Customer::with('primaryContact')->findOrFail($id);
+        Gate::authorize('update', $customer);
+
+        if (! $customer->primaryContact) {
+            return back()->withErrors(['portal' => 'Add a primary contact before inviting to the portal.']);
+        }
+
+        $email = $customer->primaryContact->email;
+        $name = $customer->primaryContact->name ?: $customer->name;
+
+        $existing = PortalUser::where('email', $email)->first();
+        // Email uniqueness is a portal-user-table constraint, not per
+        // customer — so if this email already exists on a *different*
+        // customer, refuse rather than mash two accounts together.
+        if ($existing && $existing->customer_id !== $customer->id) {
+            return back()->withErrors([
+                'portal' => 'That email already has a portal account on a different customer.',
+            ]);
+        }
+
+        $tempPassword = Str::password(14, symbols: false);
+
+        DB::transaction(function () use ($customer, $email, $name, $tempPassword, $existing, $request) {
+            if ($existing) {
+                // Resending an invite = regenerate password. Treat as
+                // a re-invitation, not a silent password reset.
+                $existing->forceFill([
+                    'name' => $name,
+                    'password' => Hash::make($tempPassword),
+                ])->save();
+                $portalUser = $existing;
+                $action = 'portal.reinvited';
+            } else {
+                $portalUser = PortalUser::create([
+                    'customer_id' => $customer->id,
+                    'name' => $name,
+                    'email' => $email,
+                    'password' => Hash::make($tempPassword),
+                ]);
+                $action = 'portal.invited';
+            }
+
+            ActivityLog::create([
+                'user_id' => $request->user()?->id,
+                'user_role' => $request->user()?->role,
+                'action' => $action,
+                'entity_type' => Customer::class,
+                'entity_id' => $customer->id,
+                'after' => [
+                    'portal_user_id' => $portalUser->id,
+                    'email' => $portalUser->email,
+                ],
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 500),
+            ]);
+        });
+
+        return back()->with('portal_invite', [
+            'email' => $email,
+            'password' => $tempPassword,
+            'message' => "Portal invite ready. Share these credentials with {$name} through a trusted channel.",
+        ]);
+    }
+
+    /**
+     * Disables portal access by replacing the password with a random
+     * unguessable string the customer never sees. The PortalUser row
+     * stays so activity history remains intact; staff can re-invite
+     * later to issue fresh credentials.
+     */
+    public function revokePortalAccess(int $id, int $portalUserId, Request $request): RedirectResponse
+    {
+        $customer = Customer::findOrFail($id);
+        Gate::authorize('update', $customer);
+
+        $portalUser = PortalUser::where('customer_id', $customer->id)
+            ->findOrFail($portalUserId);
+
+        $portalUser->forceFill([
+            'password' => Hash::make(Str::random(40)),
+        ])->save();
+
+        ActivityLog::create([
+            'user_id' => $request->user()?->id,
+            'user_role' => $request->user()?->role,
+            'action' => 'portal.access_revoked',
+            'entity_type' => Customer::class,
+            'entity_id' => $customer->id,
+            'after' => ['portal_user_id' => $portalUser->id],
+            'ip_address' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 500),
+        ]);
+
+        return back()->with('success', "Portal access revoked for {$portalUser->email}.");
     }
 
     private function logActivity(

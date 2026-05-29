@@ -3,9 +3,11 @@
 namespace App\Http\Middleware;
 
 use App\Models\Invoice;
+use App\Models\PortalUser;
 use App\Models\Product;
 use App\Models\SupportTicket;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 
@@ -31,10 +33,41 @@ class HandleInertiaRequests extends Middleware
                         'avatar_colour' => $request->user()->avatar_colour,
                     ]
                     : null,
+                /*
+                 * Portal session is a separate guard, so $request->user()
+                 * never resolves it. PortalLayout.vue needs the customer
+                 * name for the topnav and the user pill, so we share it
+                 * here whenever the portal guard is checked-in.
+                 */
+                'portal_user' => function (): ?array {
+                    $u = Auth::guard('portal')->user();
+                    if (! $u instanceof PortalUser) {
+                        return null;
+                    }
+                    $u->loadMissing('customer:id,name,city');
+
+                    return [
+                        'id' => $u->id,
+                        'name' => $u->name,
+                        'email' => $u->email,
+                        'customer' => $u->customer ? [
+                            'id' => $u->customer->id,
+                            'name' => $u->customer->name,
+                            'city' => $u->customer->city,
+                        ] : null,
+                    ];
+                },
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
+                /*
+                 * Portal invitation flow flashes a temp password back to staff
+                 * exactly once. The shape lives in CustomerController@inviteToPortal —
+                 * {email, password, message}. Surface it here so Customers/Show.vue
+                 * can pop a one-time modal without polluting the success channel.
+                 */
+                'portal_invite' => fn () => $request->session()->get('portal_invite'),
             ],
             'nav' => fn () => $request->user()
                 ? [

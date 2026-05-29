@@ -1,40 +1,138 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import {
+    Menu,
+    MenuButton,
+    MenuItem,
+    MenuItems,
+} from '@headlessui/vue';
+import {
+    IconBell,
+    IconChevronDown,
+    IconLogout,
+    IconUserCircle,
+} from '@tabler/icons-vue';
 
-const nav = [
-    { name: 'Overview', href: '/account' },
-    { name: 'Products', href: '/account/products' },
-    { name: 'Invoices', href: '/account/invoices' },
-    { name: 'Support', href: '/account/support' },
-    { name: 'Settings', href: '/account/settings' },
-];
+const props = defineProps({
+    title: { type: String, default: '' },
+    activeNav: { type: String, default: '' },
+    counts: { type: Object, default: () => ({}) },
+});
+
+const page = usePage();
+
+const me = computed(() => {
+    const pu = page.props.auth?.portal_user;
+    if (! pu) {
+        return { initials: '?', name: 'Guest', customerName: '', city: '' };
+    }
+    const cname = pu.customer?.name ?? pu.name ?? '';
+    const parts = cname.trim().split(/\s+/);
+    const initials = ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || cname.slice(0, 2).toUpperCase();
+    return {
+        initials: initials || '?',
+        name: pu.name,
+        customerName: cname,
+        city: pu.customer?.city ?? '',
+    };
+});
+
+/*
+ * Tabs surfaced in the topnav. Keys match the activeNav prop so the
+ * active styling stays in sync with the route. Counts come in via
+ * the page-level prop so each page can paint badges based on its
+ * own data (e.g. dashboard knows open ticket count, others may not).
+ */
+const tabs = computed(() => [
+    { key: 'dashboard',     label: 'Overview',      href: '/portal/dashboard' },
+    { key: 'subscriptions', label: 'Subscriptions', href: '/portal/subscriptions', count: props.counts?.subscriptions },
+    { key: 'invoices',      label: 'Invoices',      href: '/portal/invoices',      count: props.counts?.invoices },
+    { key: 'support',       label: 'Support',       href: '/portal/support',       count: props.counts?.support },
+    { key: 'account',       label: 'Account',       href: '/portal/account' },
+]);
+
+function logout() {
+    router.post('/portal/logout');
+}
 </script>
 
 <template>
-    <div class="min-h-screen" style="background: var(--content-bg)">
-        <header
-            class="border-b"
-            style="background: var(--card-bg); border-color: var(--border)"
-        >
-            <div class="mx-auto flex h-14 max-w-[960px] items-center justify-between px-4">
-                <div class="text-sm font-semibold" style="color: var(--text-primary)">
-                    Whitedash Account
-                </div>
-                <nav class="flex gap-4 text-sm">
-                    <Link
-                        v-for="item in nav"
-                        :key="item.name"
-                        :href="item.href"
-                        class="hover:opacity-80"
-                        style="color: var(--text-secondary)"
-                    >
-                        {{ item.name }}
-                    </Link>
-                </nav>
+    <div class="portal">
+        <!-- Topnav: sticky white bar with brand, tabs, bell, user pill -->
+        <nav class="portal-topnav">
+            <Link href="/portal/dashboard" class="portal-brand">
+                <div class="brand-mark">W</div>
+                <div class="portal-brand-name">Whitedash</div>
+                <div class="portal-brand-divider" />
+                <div class="portal-brand-sub">account</div>
+            </Link>
+
+            <div class="portal-tabs">
+                <Link
+                    v-for="tab in tabs"
+                    :key="tab.key"
+                    :href="tab.href"
+                    class="portal-tab"
+                    :class="{ active: activeNav === tab.key }"
+                >
+                    <span>{{ tab.label }}</span>
+                    <span v-if="tab.count" class="portal-tab-count">{{ tab.count }}</span>
+                </Link>
             </div>
-        </header>
-        <main class="mx-auto max-w-[960px] px-4 py-8">
+
+            <div class="portal-nav-right">
+                <button class="portal-bell-btn" aria-label="Notifications">
+                    <IconBell :size="20" stroke-width="1.75" />
+                </button>
+                <div class="portal-brand-divider" />
+
+                <Menu as="div" class="portal-user-menu">
+                    <MenuButton class="portal-user-pill">
+                        <div class="portal-avatar av-teal">{{ me.initials }}</div>
+                        <div class="portal-user-name">{{ me.customerName }}</div>
+                        <IconChevronDown :size="16" stroke-width="1.75" class="portal-user-chev" />
+                    </MenuButton>
+                    <MenuItems class="portal-user-popover">
+                        <Link href="/portal/account" class="portal-user-item">
+                            <IconUserCircle :size="16" stroke-width="1.75" />
+                            <span>Account settings</span>
+                        </Link>
+                        <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
+                        <MenuItem v-slot="{ active }">
+                            <button
+                                type="button"
+                                class="portal-user-item"
+                                :class="{ active }"
+                                @click="logout"
+                            >
+                                <IconLogout :size="16" stroke-width="1.75" />
+                                <span>Sign out</span>
+                            </button>
+                        </MenuItem>
+                    </MenuItems>
+                </Menu>
+            </div>
+        </nav>
+
+        <!-- Page content sits in a max-960 column. Each page styles its own
+             internals — the layout only owns the chrome around it. -->
+        <main class="portal-content">
             <slot />
         </main>
+
+        <footer class="portal-footer">
+            <div class="portal-footer-left">
+                <div class="brand-mark">W</div>
+                Whitedash · account.whitedash.co.uk
+            </div>
+            <div class="portal-footer-mid">
+                <a href="#">Privacy policy</a>
+                <a href="#">Terms</a>
+                <a href="#">Status</a>
+                <a href="#">Help</a>
+            </div>
+            <div class="portal-footer-right">© 2026 Whitedash Holdings Ltd</div>
+        </footer>
     </div>
 </template>

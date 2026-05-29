@@ -39,6 +39,8 @@ import {
     IconArchive,
     IconDots,
     IconAlertTriangle,
+    IconKey,
+    IconRefresh,
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -292,6 +294,45 @@ function submitTask() {
             showAddTask.value = false;
         },
     });
+}
+
+/* ─── Portal access ─── */
+const invitingPortal = ref(false);
+
+function invitePortal() {
+    invitingPortal.value = true;
+    router.post(`/customers/${props.customer.id}/invite-portal`, {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            invitingPortal.value = false;
+        },
+    });
+}
+
+const showRevokePortal = ref(false);
+const revokePortalTarget = ref(null);
+const revokePortalProcessing = ref(false);
+
+function askRevokePortal(portalUser) {
+    revokePortalTarget.value = portalUser;
+    showRevokePortal.value = true;
+}
+
+function performRevokePortal() {
+    if (! revokePortalTarget.value) return;
+    revokePortalProcessing.value = true;
+    router.post(
+        `/customers/${props.customer.id}/portal-users/${revokePortalTarget.value.id}/revoke`,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                revokePortalProcessing.value = false;
+                showRevokePortal.value = false;
+                revokePortalTarget.value = null;
+            },
+        },
+    );
 }
 
 /* ─── Archive ─── */
@@ -876,6 +917,53 @@ const headerStatusBadge = computed(() => {
                         </div>
                         <div v-else class="tab-empty" style="padding: 32px 18px;">
                             <p>No contacts on file.</p>
+                        </div>
+                    </section>
+
+                    <!-- Portal access -->
+                    <section class="card">
+                        <header class="card-header">
+                            <div class="h-icon"><IconKey :size="16" stroke-width="1.75" /></div>
+                            <div>
+                                <h3>Portal access</h3>
+                                <div class="sub">
+                                    <template v-if="customer.portal_users.length > 0">
+                                        {{ customer.portal_users.length }} active user{{ customer.portal_users.length === 1 ? '' : 's' }}
+                                    </template>
+                                    <template v-else>No portal account yet</template>
+                                </div>
+                            </div>
+                        </header>
+                        <div v-if="customer.portal_users.length > 0" style="padding: 14px 18px; display: flex; flex-direction: column; gap: 10px;">
+                            <div
+                                v-for="pu in customer.portal_users"
+                                :key="pu.id"
+                                style="display: flex; align-items: center; gap: 10px;"
+                            >
+                                <span class="badge badge-active badge-sm">Active</span>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font: 500 13.5px/1.3 'Inter', sans-serif; color: var(--text-primary);">{{ pu.name }}</div>
+                                    <div style="font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary);">
+                                        {{ pu.email }}
+                                        <template v-if="pu.last_login_at"> · Last sign-in {{ pu.last_login_at }}</template>
+                                        <template v-else> · Never signed in</template>
+                                    </div>
+                                </div>
+                                <button type="button" class="ghost-link danger" @click="askRevokePortal(pu)">Revoke</button>
+                            </div>
+                            <button type="button" class="btn btn-secondary" style="margin-top: 4px;" @click="invitePortal">
+                                <IconRefresh :size="14" stroke-width="1.75" />
+                                Resend invite (new password)
+                            </button>
+                        </div>
+                        <div v-else style="padding: 18px;">
+                            <p style="font: 400 13px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin: 0 0 12px;">
+                                Send portal credentials to this customer so they can manage their subscriptions, invoices, and tickets themselves.
+                            </p>
+                            <button type="button" class="btn btn-primary" :disabled="invitingPortal" @click="invitePortal">
+                                <IconUserPlus :size="14" stroke-width="1.75" />
+                                {{ invitingPortal ? 'Inviting…' : 'Invite to portal' }}
+                            </button>
                         </div>
                     </section>
 
@@ -1698,6 +1786,74 @@ const headerStatusBadge = computed(() => {
             :loading="suspendProcessing"
             @confirm="handleSuspend"
         />
+
+        <ConfirmModal
+            v-model:show="showRevokePortal"
+            :title="revokePortalTarget ? `Revoke portal access for ${revokePortalTarget.email}?` : 'Revoke portal access?'"
+            message="They will be signed out and unable to sign back in until you re-invite them."
+            confirm-label="Revoke access"
+            variant="danger"
+            :loading="revokePortalProcessing"
+            @confirm="performRevokePortal"
+        />
+
+        <!--
+          Portal invite credential modal. Surfaces the temp password
+          exactly once via the portal_invite flash; the modal closes on
+          dismiss and the credentials are never retrievable again — only
+          a re-invite issues a fresh password.
+        -->
+        <Teleport to="body">
+            <template v-if="$page.props.flash?.portal_invite">
+                <div class="slide-over-backdrop" style="background: rgba(15, 23, 42, .5);" />
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); z-index: 60; width: 460px; max-width: calc(100vw - 32px); padding: 24px; display: flex; flex-direction: column; gap: 14px;"
+                >
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div class="h-icon" style="background: var(--success-bg); color: var(--success);">
+                            <IconKey :size="16" stroke-width="1.75" />
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; font: 600 16px/1.2 'Inter', sans-serif; color: var(--text-primary);">Portal invite ready</h3>
+                            <p style="margin: 2px 0 0; font: 400 12.5px/1.4 'Inter', sans-serif; color: var(--text-secondary);">
+                                Copy these credentials — they will not be shown again.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style="background: var(--neutral-bg); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+                        <div>
+                            <div style="font: 500 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary); margin-bottom: 4px;">
+                                Email
+                            </div>
+                            <code style="font: 500 13.5px/1.3 'JetBrains Mono', monospace; color: var(--text-primary); user-select: all;">{{ $page.props.flash.portal_invite.email }}</code>
+                        </div>
+                        <div>
+                            <div style="font: 500 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary); margin-bottom: 4px;">
+                                Temporary password
+                            </div>
+                            <code style="font: 500 13.5px/1.3 'JetBrains Mono', monospace; color: var(--text-primary); user-select: all;">{{ $page.props.flash.portal_invite.password }}</code>
+                        </div>
+                    </div>
+
+                    <p style="margin: 0; font: 400 12.5px/1.45 'Inter', sans-serif; color: var(--text-secondary);">
+                        {{ $page.props.flash.portal_invite.message }}
+                    </p>
+
+                    <div style="display: flex; justify-content: flex-end;">
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            @click="router.reload({ only: ['flash'], preserveScroll: true, preserveState: false })"
+                        >
+                            Done
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </Teleport>
     </InternalLayout>
 </template>
 

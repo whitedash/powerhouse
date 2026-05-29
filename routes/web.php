@@ -20,10 +20,11 @@ use App\Http\Controllers\Internal\SettingsController as InternalSettingsControll
 use App\Http\Controllers\Internal\SubscriptionController as InternalSubscriptionController;
 use App\Http\Controllers\Internal\SupportController as InternalSupportController;
 use App\Http\Controllers\Internal\TaskController as InternalTaskController;
+use App\Http\Controllers\Portal\AccountController as PortalAccountController;
+use App\Http\Controllers\Portal\AuthController as PortalAuthController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
 use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
-use App\Http\Controllers\Portal\ProductController as PortalProductController;
-use App\Http\Controllers\Portal\SettingsController as PortalSettingsController;
+use App\Http\Controllers\Portal\SubscriptionController as PortalSubscriptionController;
 use App\Http\Controllers\Portal\SupportController as PortalSupportController;
 use App\Http\Controllers\Referrer\CommissionController as ReferrerCommissionController;
 use App\Http\Controllers\Referrer\CustomerController as ReferrerCustomerController;
@@ -67,6 +68,11 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
     Route::post('/tasks', [InternalTaskController::class, 'store'])->name('internal.tasks.store');
     Route::post('/tasks/{id}/complete', [InternalTaskController::class, 'complete'])->name('internal.tasks.complete');
     Route::delete('/customers/{id}/archive', [InternalCustomerController::class, 'archive'])->name('internal.customers.archive');
+
+    // Portal access — issue or rotate portal credentials for a customer.
+    // Temp password flashes back once; staff must relay it manually.
+    Route::post('/customers/{id}/invite-portal', [InternalCustomerController::class, 'inviteToPortal'])->name('internal.customers.invite-portal');
+    Route::post('/customers/{id}/portal-users/{portalUserId}/revoke', [InternalCustomerController::class, 'revokePortalAccess'])->name('internal.customers.revoke-portal');
 
     // Product subscriptions on a customer — enabling a new product creates
     // a CustomerProduct, suspending removes their access. Both stay open
@@ -201,18 +207,43 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
 | Group 2 — Portal (customer)
 |--------------------------------------------------------------------------
 */
-Route::prefix('account')->middleware('portal_auth')->group(function () {
-    Route::get('/', PortalDashboardController::class)->name('portal.dashboard');
-    Route::get('/products', [PortalProductController::class, 'index'])->name('portal.products');
-    Route::get('/invoices', [PortalInvoiceController::class, 'index'])->name('portal.invoices');
-    Route::get('/invoices/{id}/pdf', [PortalInvoiceController::class, 'downloadPdf'])->name('portal.invoices.pdf');
-    Route::get('/invoices/{id}/preview-pdf', [PortalInvoiceController::class, 'previewPdf'])->name('portal.invoices.preview-pdf');
-    Route::get('/support', [PortalSupportController::class, 'index'])->name('portal.support');
-    Route::get('/settings', [PortalSettingsController::class, 'index'])->name('portal.settings');
+// Guest-only portal auth routes. portal_guest sends an already-signed-in
+// portal session straight to the dashboard so login pages aren't re-served.
+Route::prefix('portal')->middleware('portal_guest')->group(function () {
+    Route::get('/login', [PortalAuthController::class, 'showLogin'])->name('portal.login');
+    Route::post('/login', [PortalAuthController::class, 'login'])->name('portal.login.submit');
 });
 
-// Placeholder portal login route so EnsurePortalUser's redirect() resolves.
-Route::get('/account/login', fn () => 'Portal login (placeholder)')->name('portal.login');
+// Authenticated portal area. auth.portal alias maps to EnsurePortalUser —
+// every controller here can rely on Auth::guard('portal')->user() being set.
+Route::prefix('portal')->middleware('auth.portal')->group(function () {
+    Route::post('/logout', [PortalAuthController::class, 'logout'])->name('portal.logout');
+
+    Route::get('/dashboard', PortalDashboardController::class)->name('portal.dashboard');
+
+    Route::get('/subscriptions', [PortalSubscriptionController::class, 'index'])->name('portal.subscriptions.index');
+    Route::post('/subscriptions', [PortalSubscriptionController::class, 'store'])->name('portal.subscriptions.store');
+    Route::post('/subscriptions/{id}/cancel', [PortalSubscriptionController::class, 'cancel'])->name('portal.subscriptions.cancel');
+
+    Route::get('/invoices', [PortalInvoiceController::class, 'index'])->name('portal.invoices.index');
+    Route::get('/invoices/{id}/pdf', [PortalInvoiceController::class, 'downloadPdf'])->name('portal.invoices.pdf');
+    Route::get('/invoices/{id}/preview-pdf', [PortalInvoiceController::class, 'previewPdf'])->name('portal.invoices.preview-pdf');
+
+    Route::get('/support', [PortalSupportController::class, 'index'])->name('portal.support.index');
+    Route::post('/support', [PortalSupportController::class, 'store'])->name('portal.support.store');
+    Route::get('/support/{id}', [PortalSupportController::class, 'show'])->name('portal.support.show');
+    Route::post('/support/{id}/reply', [PortalSupportController::class, 'reply'])->name('portal.support.reply');
+
+    Route::get('/account', [PortalAccountController::class, 'index'])->name('portal.account.index');
+    Route::put('/account', [PortalAccountController::class, 'update'])->name('portal.account.update');
+    Route::put('/account/password', [PortalAccountController::class, 'updatePassword'])->name('portal.account.password');
+});
+
+// Bare alias /portal so account.whitedash.co.uk/ lands somewhere useful
+// without redirect chains. Goes through portal_guest so unauthenticated
+// hits jump straight to /portal/login.
+Route::get('/portal', fn () => redirect()->route('portal.dashboard'))
+    ->middleware('auth.portal');
 
 /*
 |--------------------------------------------------------------------------
