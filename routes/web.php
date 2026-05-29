@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\StaffLoginController;
+use App\Http\Controllers\Internal\AnalyticsController as InternalAnalyticsController;
 use App\Http\Controllers\Internal\BillingEntityController as InternalBillingEntityController;
 use App\Http\Controllers\Internal\CustomerController as InternalCustomerController;
 use App\Http\Controllers\Internal\DashboardController as InternalDashboardController;
@@ -87,6 +88,7 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
     Route::post('/invoices/{id}/pause-reminders', [InternalInvoiceController::class, 'pauseReminders'])->name('internal.invoices.pause-reminders');
     Route::post('/invoices/{id}/resume-reminders', [InternalInvoiceController::class, 'resumeReminders'])->name('internal.invoices.resume-reminders');
     Route::get('/domains', [InternalDomainController::class, 'index'])->name('internal.domains.index');
+    Route::get('/analytics', [InternalAnalyticsController::class, 'index'])->name('internal.analytics.index');
 
     // Product overview pages — one per product, navigated to from
     // the sidebar Products section. Lives outside the settings group

@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property bool $is_active
  * @property bool $is_public
  * @property int $sort_order
+ * @property int $active_count
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read float $mrr_contribution
