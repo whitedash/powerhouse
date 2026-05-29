@@ -28,7 +28,12 @@ class InvoicePolicy
             return false;
         }
 
-        return $invoice === null || $invoice->status === 'draft';
+        // No invoice instance (e.g. checking the ability on the class for
+        // a Create flow) → allowed; staff can always create-then-edit.
+        // Otherwise: draft / sent / overdue are editable so corrections
+        // can land before payment is recorded. Paid and void are locked.
+        return $invoice === null
+            || in_array($invoice->status, ['draft', 'sent', 'overdue'], true);
     }
 
     public function delete(User $user, ?Invoice $invoice = null): bool
