@@ -1455,37 +1455,121 @@ const headerStatusBadge = computed(() => {
 
                                 <div v-if="enableForm.product_id" class="form-section">
                                     <h3>Plan</h3>
-                                    <!-- STEP 1 — pick the plan (tier). Cards show name + features + pricing-options hint. -->
+                                    <!-- STEP 1 — pick the plan (tier). Plans render grouped by category;
+                                         backend keeps a flat .plans array as the source of truth for
+                                         selectedPlan() lookups. -->
                                     <template v-if="(selectedAvailableProduct()?.plans ?? []).length > 0">
                                         <div style="display: flex; flex-direction: column; gap: 8px;">
-                                            <button
-                                                v-for="plan in selectedAvailableProduct().plans"
-                                                :key="plan.id"
-                                                type="button"
-                                                class="enable-plan-card"
-                                                :class="{ selected: enableForm.plan_id === plan.id }"
-                                                @click="selectPlan(plan)"
+                                            <!-- Categorised groups (header + plan cards) -->
+                                            <template
+                                                v-for="category in (selectedAvailableProduct()?.plan_categories ?? [])"
+                                                :key="`cat-${category.id}`"
                                             >
-                                                <div class="epc-radio">
-                                                    <div v-if="enableForm.plan_id === plan.id" class="epc-dot" />
+                                                <div v-if="category.plans.length" class="enable-category-header">
+                                                    {{ category.name }}
                                                 </div>
-                                                <div class="epc-body">
-                                                    <div class="epc-name">{{ plan.name }}</div>
-                                                    <div v-if="plan.category_name" class="epc-category">{{ plan.category_name }}</div>
-                                                    <div v-if="(plan.features ?? []).length" class="epc-features">
-                                                        <span v-for="(feat, i) in plan.features.slice(0, 3)" :key="i" class="epc-feat">
-                                                            ✓ {{ feat }}
-                                                        </span>
-                                                        <span v-if="plan.features.length > 3" class="epc-feat-more">
-                                                            +{{ plan.features.length - 3 }} more
-                                                        </span>
+                                                <button
+                                                    v-for="plan in category.plans"
+                                                    :key="`cp-${plan.id}`"
+                                                    type="button"
+                                                    class="enable-plan-card"
+                                                    :class="{ selected: enableForm.plan_id === plan.id }"
+                                                    @click="selectPlan(plan)"
+                                                >
+                                                    <div class="epc-radio">
+                                                        <div v-if="enableForm.plan_id === plan.id" class="epc-dot" />
                                                     </div>
-                                                    <div v-else class="epc-features epc-no-features">No features listed</div>
-                                                    <div class="epc-pricing-hint">
-                                                        {{ (plan.prices ?? []).length }} pricing option{{ (plan.prices ?? []).length === 1 ? '' : 's' }}
+                                                    <div class="epc-body">
+                                                        <div class="epc-name">{{ plan.name }}</div>
+                                                        <div v-if="plan.category_name" class="epc-category">{{ plan.category_name }}</div>
+                                                        <div v-if="(plan.features ?? []).length" class="epc-features">
+                                                            <span v-for="(feat, i) in plan.features.slice(0, 3)" :key="i" class="epc-feat">
+                                                                ✓ {{ feat }}
+                                                            </span>
+                                                            <span v-if="plan.features.length > 3" class="epc-feat-more">
+                                                                +{{ plan.features.length - 3 }} more
+                                                            </span>
+                                                        </div>
+                                                        <div v-else class="epc-features epc-no-features">No features listed</div>
+                                                        <div class="epc-pricing-hint">
+                                                            {{ (plan.prices ?? []).length }} pricing option{{ (plan.prices ?? []).length === 1 ? '' : 's' }}
+                                                        </div>
                                                     </div>
+                                                </button>
+                                            </template>
+
+                                            <!-- Uncategorised group ("Other" header only when categories preceded it) -->
+                                            <template v-if="(selectedAvailableProduct()?.uncategorised_plans ?? []).length">
+                                                <div
+                                                    v-if="(selectedAvailableProduct()?.plan_categories ?? []).length"
+                                                    class="enable-category-header enable-category-uncategorised"
+                                                >
+                                                    Other
                                                 </div>
-                                            </button>
+                                                <button
+                                                    v-for="plan in selectedAvailableProduct().uncategorised_plans"
+                                                    :key="`up-${plan.id}`"
+                                                    type="button"
+                                                    class="enable-plan-card"
+                                                    :class="{ selected: enableForm.plan_id === plan.id }"
+                                                    @click="selectPlan(plan)"
+                                                >
+                                                    <div class="epc-radio">
+                                                        <div v-if="enableForm.plan_id === plan.id" class="epc-dot" />
+                                                    </div>
+                                                    <div class="epc-body">
+                                                        <div class="epc-name">{{ plan.name }}</div>
+                                                        <div v-if="(plan.features ?? []).length" class="epc-features">
+                                                            <span v-for="(feat, i) in plan.features.slice(0, 3)" :key="i" class="epc-feat">
+                                                                ✓ {{ feat }}
+                                                            </span>
+                                                            <span v-if="plan.features.length > 3" class="epc-feat-more">
+                                                                +{{ plan.features.length - 3 }} more
+                                                            </span>
+                                                        </div>
+                                                        <div v-else class="epc-features epc-no-features">No features listed</div>
+                                                        <div class="epc-pricing-hint">
+                                                            {{ (plan.prices ?? []).length }} pricing option{{ (plan.prices ?? []).length === 1 ? '' : 's' }}
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            </template>
+
+                                            <!-- Defensive fallback: an older payload shape with no
+                                                 plan_categories / uncategorised_plans still renders. -->
+                                            <template
+                                                v-if="!(selectedAvailableProduct()?.plan_categories ?? []).length
+                                                    && !(selectedAvailableProduct()?.uncategorised_plans ?? []).length"
+                                            >
+                                                <button
+                                                    v-for="plan in selectedAvailableProduct().plans"
+                                                    :key="`fp-${plan.id}`"
+                                                    type="button"
+                                                    class="enable-plan-card"
+                                                    :class="{ selected: enableForm.plan_id === plan.id }"
+                                                    @click="selectPlan(plan)"
+                                                >
+                                                    <div class="epc-radio">
+                                                        <div v-if="enableForm.plan_id === plan.id" class="epc-dot" />
+                                                    </div>
+                                                    <div class="epc-body">
+                                                        <div class="epc-name">{{ plan.name }}</div>
+                                                        <div v-if="plan.category_name" class="epc-category">{{ plan.category_name }}</div>
+                                                        <div v-if="(plan.features ?? []).length" class="epc-features">
+                                                            <span v-for="(feat, i) in plan.features.slice(0, 3)" :key="i" class="epc-feat">
+                                                                ✓ {{ feat }}
+                                                            </span>
+                                                            <span v-if="plan.features.length > 3" class="epc-feat-more">
+                                                                +{{ plan.features.length - 3 }} more
+                                                            </span>
+                                                        </div>
+                                                        <div v-else class="epc-features epc-no-features">No features listed</div>
+                                                        <div class="epc-pricing-hint">
+                                                            {{ (plan.prices ?? []).length }} pricing option{{ (plan.prices ?? []).length === 1 ? '' : 's' }}
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            </template>
                                         </div>
                                     </template>
                                     <!-- Fallback: free-text when product has no plans -->

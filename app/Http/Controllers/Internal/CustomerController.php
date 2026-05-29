@@ -14,6 +14,7 @@ use App\Models\CustomerProduct;
 use App\Models\Note;
 use App\Models\Product;
 use App\Models\ProductPlan;
+use App\Models\ProductPlanCategory;
 use App\Models\ProductPlanPrice;
 use App\Models\Referrer;
 use App\Models\Task;
@@ -384,20 +385,23 @@ class CustomerController extends Controller
                 ->whereNotIn('id', $customer->customerProducts
                     ->whereIn('status', ['active', 'trial'])
                     ->pluck('product_id'))
-                ->with(['activePlans.activePrices', 'activePlans.category'])
+                ->with([
+                    'activePlans.activePrices',
+                    'activePlans.category',
+                    'planCategories.activePlans.activePrices',
+                ])
                 ->orderBy('sort_order')
                 ->get(['id', 'slug', 'name', 'icon_colour'])
-                ->map(fn (Product $p): array => [
-                    'id' => $p->id,
-                    'slug' => $p->slug,
-                    'name' => $p->name,
-                    'icon_colour' => $p->icon_colour,
-                    'plans' => $p->activePlans->map(fn (ProductPlan $plan): array => [
+                ->map(function (Product $p): array {
+                    // One mapper for plan + prices so the flat plans
+                    // array, the categorised view, and uncategorised
+                    // group all ship the same shape.
+                    $mapPlan = fn (ProductPlan $plan, ?string $categoryName): array => [
                         'id' => $plan->id,
                         'name' => $plan->name,
                         'description' => $plan->description,
                         'category_id' => $plan->category_id,
-                        'category_name' => $plan->category?->name,
+                        'category_name' => $categoryName,
                         'features' => $plan->features ?? [],
                         'prices' => $plan->activePrices->map(fn (ProductPlanPrice $pp): array => [
                             'id' => $pp->id,
@@ -409,8 +413,37 @@ class CustomerController extends Controller
                             'label' => $pp->label,
                             'is_default' => $pp->is_default,
                         ])->values()->all(),
-                    ])->values()->all(),
-                ])
+                    ];
+
+                    return [
+                        'id' => $p->id,
+                        'slug' => $p->slug,
+                        'name' => $p->name,
+                        'icon_colour' => $p->icon_colour,
+                        // Flat list kept for backward compatibility with
+                        // selectedPlan() / selectedEnablePlan() lookups.
+                        'plans' => $p->activePlans
+                            ->map(fn (ProductPlan $plan): array => $mapPlan($plan, $plan->category?->name))
+                            ->values()
+                            ->all(),
+                        'plan_categories' => $p->planCategories
+                            ->map(fn (ProductPlanCategory $cat): array => [
+                                'id' => $cat->id,
+                                'name' => $cat->name,
+                                'plans' => $cat->activePlans
+                                    ->map(fn (ProductPlan $plan): array => $mapPlan($plan, $cat->name))
+                                    ->values()
+                                    ->all(),
+                            ])
+                            ->values()
+                            ->all(),
+                        'uncategorised_plans' => $p->activePlans
+                            ->whereNull('category_id')
+                            ->map(fn (ProductPlan $plan): array => $mapPlan($plan, null))
+                            ->values()
+                            ->all(),
+                    ];
+                })
                 ->values(),
             'billing_entities' => BillingEntity::where('is_active', true)
                 ->get(['id', 'name']),

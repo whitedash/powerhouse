@@ -5029,3 +5029,20 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     border-radius: var(--radius-md);
     border: 1px solid var(--border-soft);
 }
+
+/* Category headers inside the enable-product slide-over plan picker. */
+.enable-category-header {
+    font: 600 11px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--text-tertiary);
+    padding: 12px 0 6px;
+    border-top: 1px solid var(--border-soft);
+    margin-top: 4px;
+}
+.enable-category-header:first-child {
+    border-top: none;
+    margin-top: 0;
+    padding-top: 4px;
+}
+.enable-category-uncategorised { color: var(--text-tertiary); }

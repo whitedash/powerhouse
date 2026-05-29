@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\CustomerProduct;
 use App\Models\Product;
 use App\Models\ProductPlan;
+use App\Models\ProductPlanCategory;
 use App\Models\ProductPlanPrice;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -83,25 +84,22 @@ class ProvisioningController extends Controller
         $products = Product::query()
             ->where('is_active', true)
             ->orWhere('is_coming_soon', true)
-            ->with(['activePlans.activePrices', 'activePlans.category'])
+            ->with([
+                'activePlans.activePrices',
+                'activePlans.category',
+                'planCategories.activePlans.activePrices',
+            ])
             ->orderBy('sort_order')
             ->get(['id', 'name', 'slug', 'icon_colour', 'is_active', 'is_coming_soon'])
-            ->map(fn (Product $p): array => [
-                'id' => $p->id,
-                'name' => $p->name,
-                'slug' => $p->slug,
-                'icon_colour' => $p->icon_colour,
-                'is_active' => $p->is_active,
-                'is_coming_soon' => $p->is_coming_soon,
-                'active_count' => CustomerProduct::where('product_id', $p->id)
-                    ->where('status', 'active')
-                    ->count(),
-                'plans' => $p->activePlans->map(fn (ProductPlan $plan): array => [
+            ->map(function (Product $p): array {
+                // Shared mapper so flat + categorised + uncategorised
+                // ship the same plan shape.
+                $mapPlan = fn (ProductPlan $plan, ?string $categoryName): array => [
                     'id' => $plan->id,
                     'name' => $plan->name,
                     'description' => $plan->description,
                     'category_id' => $plan->category_id,
-                    'category_name' => $plan->category?->name,
+                    'category_name' => $categoryName,
                     'features' => $plan->features ?? [],
                     'prices' => $plan->activePrices->map(fn (ProductPlanPrice $pp): array => [
                         'id' => $pp->id,
@@ -113,8 +111,40 @@ class ProvisioningController extends Controller
                         'label' => $pp->label,
                         'is_default' => $pp->is_default,
                     ])->values()->all(),
-                ])->values()->all(),
-            ])
+                ];
+
+                return [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'slug' => $p->slug,
+                    'icon_colour' => $p->icon_colour,
+                    'is_active' => $p->is_active,
+                    'is_coming_soon' => $p->is_coming_soon,
+                    'active_count' => CustomerProduct::where('product_id', $p->id)
+                        ->where('status', 'active')
+                        ->count(),
+                    'plans' => $p->activePlans
+                        ->map(fn (ProductPlan $plan): array => $mapPlan($plan, $plan->category?->name))
+                        ->values()
+                        ->all(),
+                    'plan_categories' => $p->planCategories
+                        ->map(fn (ProductPlanCategory $cat): array => [
+                            'id' => $cat->id,
+                            'name' => $cat->name,
+                            'plans' => $cat->activePlans
+                                ->map(fn (ProductPlan $plan): array => $mapPlan($plan, $cat->name))
+                                ->values()
+                                ->all(),
+                        ])
+                        ->values()
+                        ->all(),
+                    'uncategorised_plans' => $p->activePlans
+                        ->whereNull('category_id')
+                        ->map(fn (ProductPlan $plan): array => $mapPlan($plan, null))
+                        ->values()
+                        ->all(),
+                ];
+            })
             ->values()
             ->all();
 
