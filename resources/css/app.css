@@ -3470,3 +3470,83 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
 }
 .nav-item.nav-sub:hover { color: #fff; }
 .nav-item.nav-sub svg { width: 16px; height: 16px; }
+
+/* ─── Settings · Products page (extends .billing-entities namespace) ─── */
+.billing-entities .colour-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.billing-entities .colour-swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform .12s, border-color .12s;
+    padding: 0;
+}
+.billing-entities .colour-swatch:hover { transform: scale(1.08); }
+.billing-entities .colour-swatch.active {
+    border-color: var(--text-primary);
+    box-shadow: 0 0 0 2px #fff inset;
+}
+.billing-entities .colour-hex {
+    width: 100px;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+.billing-entities .status-rows {
+    background: var(--neutral-bg);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+}
+.billing-entities .status-rows .set-row {
+    border-bottom: 1px solid var(--border-soft);
+    padding: 10px 0;
+}
+.billing-entities .status-rows .set-row:first-child { padding-top: 4px; }
+.billing-entities .status-rows .set-row:last-child {
+    border-bottom: 0;
+    padding-bottom: 4px;
+}
+.billing-entities .status-rows .set-row > div { flex: 1; min-width: 0; }
+.billing-entities .status-rows .set-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.billing-entities .stats-card {
+    background: var(--neutral-bg);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.billing-entities .stats-card .stats-row {
+    display: flex;
+    justify-content: space-between;
+    font: 400 13px/1.4 'Inter', sans-serif;
+}
+.billing-entities .stats-card .stats-row .k { color: var(--text-secondary); }
+.billing-entities .stats-card .stats-row .v {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.billing-entities .stats-card .stats-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    font: 500 12.5px/1 'Inter', sans-serif;
+    color: var(--accent);
+    text-decoration: none;
+    padding: 6px 0 0;
+    border-top: 1px solid var(--border-soft);
+}
+.billing-entities .stats-card .stats-link:hover { color: #E08C09; }

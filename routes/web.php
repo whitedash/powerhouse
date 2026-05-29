@@ -7,6 +7,7 @@ use App\Http\Controllers\Internal\DashboardController as InternalDashboardContro
 use App\Http\Controllers\Internal\DomainController as InternalDomainController;
 use App\Http\Controllers\Internal\InvoiceController as InternalInvoiceController;
 use App\Http\Controllers\Internal\MaavelusStatementController as InternalMaavelusStatementController;
+use App\Http\Controllers\Internal\ProductController as InternalProductController;
 use App\Http\Controllers\Internal\ProvisioningController as InternalProvisioningController;
 use App\Http\Controllers\Internal\ReferrerController as InternalReferrerController;
 use App\Http\Controllers\Internal\SettingsController as InternalSettingsController;
@@ -85,6 +86,12 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
             ->name('billing-entities.logo.delete');
         Route::delete('/billing-entities/{id}', [InternalBillingEntityController::class, 'destroy'])
             ->name('billing-entities.destroy');
+
+        Route::get('/products', [InternalProductController::class, 'index'])->name('products.index');
+        Route::post('/products', [InternalProductController::class, 'store'])->name('products.store');
+        Route::put('/products/{id}', [InternalProductController::class, 'update'])->name('products.update');
+        Route::post('/products/{id}/toggle', [InternalProductController::class, 'toggleActive'])->name('products.toggle');
+        Route::post('/products/reorder', [InternalProductController::class, 'updateOrder'])->name('products.reorder');
     });
 
     // Maavelus monthly revenue statements — internal-only, super_admin
