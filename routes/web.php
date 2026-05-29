@@ -8,6 +8,7 @@ use App\Http\Controllers\Internal\DomainController as InternalDomainController;
 use App\Http\Controllers\Internal\InvoiceController as InternalInvoiceController;
 use App\Http\Controllers\Internal\MaavelusStatementController as InternalMaavelusStatementController;
 use App\Http\Controllers\Internal\ProductController as InternalProductController;
+use App\Http\Controllers\Internal\ProductPlanController as InternalProductPlanController;
 use App\Http\Controllers\Internal\ProvisioningController as InternalProvisioningController;
 use App\Http\Controllers\Internal\ReferrerController as InternalReferrerController;
 use App\Http\Controllers\Internal\SettingsController as InternalSettingsController;
@@ -141,6 +142,11 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
         Route::put('/products/{id}', [InternalProductController::class, 'update'])->name('products.update');
         Route::post('/products/{id}/toggle', [InternalProductController::class, 'toggleActive'])->name('products.toggle');
         Route::post('/products/reorder', [InternalProductController::class, 'updateOrder'])->name('products.reorder');
+
+        Route::post('/plans', [InternalProductPlanController::class, 'store'])->name('plans.store');
+        Route::put('/plans/{id}', [InternalProductPlanController::class, 'update'])->name('plans.update');
+        Route::delete('/plans/{id}', [InternalProductPlanController::class, 'destroy'])->name('plans.destroy');
+        Route::post('/plans/{id}/toggle', [InternalProductPlanController::class, 'toggleActive'])->name('plans.toggle');
     });
 
     // Maavelus monthly revenue statements — internal-only, super_admin

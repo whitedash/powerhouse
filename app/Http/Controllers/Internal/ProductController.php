@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\CustomerProduct;
 use App\Models\Product;
+use App\Models\ProductPlan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -25,6 +27,7 @@ class ProductController extends Controller
                 'customerProducts as active_customers' => fn ($q) => $q->where('status', 'active'),
                 'customerProducts as total_customers',
             ])
+            ->with(['plans' => fn ($q) => $q->orderBy('sort_order')])
             ->get()
             ->map(fn (Product $p) => [
                 'id' => $p->id,
@@ -37,6 +40,23 @@ class ProductController extends Controller
                 'sort_order' => $p->sort_order,
                 'active_customers' => (int) ($p->active_customers ?? 0),
                 'total_customers' => (int) ($p->total_customers ?? 0),
+                'plans' => $p->plans->map(fn (ProductPlan $plan): array => [
+                    'id' => $plan->id,
+                    'name' => $plan->name,
+                    'description' => $plan->description,
+                    'price_monthly' => (float) $plan->price_monthly,
+                    'price_annual' => $plan->price_annual !== null ? (float) $plan->price_annual : null,
+                    'savings_percent' => $plan->savings_percent,
+                    'features' => $plan->features ?? [],
+                    'stripe_price_id_monthly' => $plan->stripe_price_id_monthly,
+                    'stripe_price_id_annual' => $plan->stripe_price_id_annual,
+                    'is_active' => $plan->is_active,
+                    'is_public' => $plan->is_public,
+                    'sort_order' => $plan->sort_order,
+                    'active_customers' => CustomerProduct::where('plan_id', $plan->id)
+                        ->whereIn('status', ['active', 'trial'])
+                        ->count(),
+                ])->values()->all(),
             ])
             ->all();
 

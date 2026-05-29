@@ -8,6 +8,12 @@ import {
     TransitionRoot,
 } from '@headlessui/vue';
 import {
+    Menu,
+    MenuButton,
+    MenuItem,
+    MenuItems,
+} from '@headlessui/vue';
+import {
     IconPlus,
     IconDeviceFloppy,
     IconX,
@@ -16,6 +22,10 @@ import {
     IconLock,
     IconUsers,
     IconArrowRight,
+    IconTag,
+    IconDots,
+    IconTrash,
+    IconBrandStripe,
 } from '@tabler/icons-vue';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -140,6 +150,124 @@ watch(() => createForm.name, (n) => {
 });
 
 const slugLocked = computed(() => (selectedProduct.value?.active_customers ?? 0) > 0);
+
+/* ─── Plans ─── */
+const PLAN_DEFAULTS = {
+    name: '',
+    description: '',
+    price_monthly: 0,
+    price_annual: null,
+    features: [],
+    stripe_price_id_monthly: '',
+    stripe_price_id_annual: '',
+    is_active: true,
+    is_public: true,
+    sort_order: 0,
+};
+
+const showPlanModal = ref(false);
+const planMode = ref('create'); // 'create' | 'edit'
+const editingPlanId = ref(null);
+const planForm = useForm({ ...PLAN_DEFAULTS, product_id: null });
+const newFeature = ref('');
+
+function openCreatePlan() {
+    if (! selectedProduct.value) return;
+    planMode.value = 'create';
+    editingPlanId.value = null;
+    planForm.defaults({ ...PLAN_DEFAULTS, product_id: selectedProduct.value.id });
+    planForm.reset();
+    planForm.product_id = selectedProduct.value.id;
+    planForm.clearErrors();
+    newFeature.value = '';
+    showPlanModal.value = true;
+}
+
+function openEditPlan(plan) {
+    planMode.value = 'edit';
+    editingPlanId.value = plan.id;
+    planForm.defaults({
+        ...PLAN_DEFAULTS,
+        product_id: selectedProduct.value.id,
+        name: plan.name ?? '',
+        description: plan.description ?? '',
+        price_monthly: Number(plan.price_monthly ?? 0),
+        price_annual: plan.price_annual !== null ? Number(plan.price_annual) : null,
+        features: Array.isArray(plan.features) ? [...plan.features] : [],
+        stripe_price_id_monthly: plan.stripe_price_id_monthly ?? '',
+        stripe_price_id_annual: plan.stripe_price_id_annual ?? '',
+        is_active: !! plan.is_active,
+        is_public: !! plan.is_public,
+        sort_order: Number(plan.sort_order ?? 0),
+    });
+    planForm.reset();
+    planForm.clearErrors();
+    newFeature.value = '';
+    showPlanModal.value = true;
+}
+
+function addFeature() {
+    const f = newFeature.value.trim();
+    if (! f || planForm.features.length >= 10) return;
+    planForm.features = [...planForm.features, f];
+    newFeature.value = '';
+}
+function removeFeature(idx) {
+    planForm.features = planForm.features.filter((_, i) => i !== idx);
+}
+
+function submitPlan() {
+    const onSuccess = () => { showPlanModal.value = false; };
+    if (planMode.value === 'create') {
+        planForm.post('/settings/plans', { preserveScroll: true, onSuccess });
+    } else {
+        planForm.put(`/settings/plans/${editingPlanId.value}`, { preserveScroll: true, onSuccess });
+    }
+}
+
+const previewSavingsPct = computed(() => {
+    const m = Number(planForm.price_monthly) || 0;
+    const a = Number(planForm.price_annual) || 0;
+    if (! a || m <= 0) return null;
+    const equiv = m * 12;
+    if (equiv <= 0) return null;
+    return Math.round((1 - a / equiv) * 100);
+});
+
+function togglePlanActive(plan) {
+    router.post(`/settings/plans/${plan.id}/toggle`, {}, { preserveScroll: true });
+}
+
+const showDeletePlanModal = ref(false);
+const deletePlanTarget = ref(null);
+const deletePlanProcessing = ref(false);
+function askDeletePlan(plan) {
+    deletePlanTarget.value = plan;
+    showDeletePlanModal.value = true;
+}
+function handleDeletePlan() {
+    if (! deletePlanTarget.value) return;
+    deletePlanProcessing.value = true;
+    router.delete(`/settings/plans/${deletePlanTarget.value.id}`, {
+        preserveScroll: true,
+        onFinish: () => {
+            deletePlanProcessing.value = false;
+            showDeletePlanModal.value = false;
+            deletePlanTarget.value = null;
+        },
+    });
+}
+const deletePlanMessage = computed(() => {
+    if (! deletePlanTarget.value) return '';
+    return `Delete plan '${deletePlanTarget.value.name}'? This can't be undone.`;
+});
+
+function gbp(n) {
+    return '£' + Number(n || 0).toFixed(2);
+}
+function gbpRound(n) {
+    return '£' + Math.round(Number(n || 0));
+}
 </script>
 
 <template>
@@ -411,6 +539,100 @@ const slugLocked = computed(() => (selectedProduct.value?.active_customers ?? 0)
                             {{ selectedProduct.is_active ? 'Deactivate' : 'Activate' }}
                         </button>
                     </div>
+
+                    <!-- ═══ Plans section ═══ -->
+                    <div style="margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border);">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+                            <h3 style="margin: 0; font: 600 16px/1.2 'Inter', sans-serif;">Pricing plans</h3>
+                            <span class="badge badge-inactive badge-sm">{{ selectedProduct.plans?.length || 0 }} plans</span>
+                            <button
+                                type="button"
+                                class="btn btn-ghost btn-sm"
+                                style="margin-left: auto; color: var(--accent);"
+                                @click="openCreatePlan"
+                            >
+                                <IconPlus :size="14" stroke-width="1.75" />
+                                Add plan
+                            </button>
+                        </div>
+
+                        <div v-if="! selectedProduct.plans?.length" style="border: 1.5px dashed var(--border); border-radius: var(--radius-md); padding: 28px 16px; text-align: center;">
+                            <IconTag :size="24" stroke-width="1.5" style="color: var(--text-tertiary); margin-bottom: 8px;" />
+                            <div style="font: 600 14px/1.3 'Inter', sans-serif;">No plans yet</div>
+                            <div style="font: 400 13px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 4px;">
+                                Add your first pricing plan to start enrolling customers.
+                            </div>
+                            <button type="button" class="btn btn-ghost btn-sm" style="margin-top: 12px; color: var(--accent);" @click="openCreatePlan">
+                                <IconPlus :size="14" stroke-width="1.75" />
+                                Add plan
+                            </button>
+                        </div>
+
+                        <div v-else style="display: flex; flex-direction: column; gap: 10px;">
+                            <div
+                                v-for="plan in selectedProduct.plans"
+                                :key="plan.id"
+                                style="background: #fff; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 18px; position: relative;"
+                                :style="! plan.is_active ? 'opacity: .6;' : ''"
+                            >
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div style="font: 600 15px/1.2 'Inter', sans-serif;">{{ plan.name }}</div>
+                                    <div style="font: 600 15px/1.2 'Inter', sans-serif; color: var(--accent);">{{ gbp(plan.price_monthly) }}<span style="font-weight: 400; color: var(--text-secondary); font-size: 13px;">/mo</span></div>
+                                    <div style="margin-left: auto; display: flex; align-items: center; gap: 6px;">
+                                        <span class="badge badge-sm" :class="plan.is_active ? 'badge-active' : 'badge-inactive'">
+                                            {{ plan.is_active ? 'Active' : 'Inactive' }}
+                                        </span>
+                                        <span class="badge badge-sm" :class="plan.is_public ? 'badge-info' : 'badge-inactive'">
+                                            {{ plan.is_public ? 'Public' : 'Private' }}
+                                        </span>
+                                        <Menu as="div" class="dd-menu">
+                                            <MenuButton class="icon-btn" aria-label="Plan actions">
+                                                <IconDots :size="16" stroke-width="1.75" />
+                                            </MenuButton>
+                                            <MenuItems class="dd-popover right-align">
+                                                <MenuItem v-slot="{ active }">
+                                                    <button type="button" :class="['dd-option', { active }]" @click="openEditPlan(plan)">Edit plan</button>
+                                                </MenuItem>
+                                                <MenuItem v-slot="{ active }">
+                                                    <button type="button" :class="['dd-option', { active }]" @click="togglePlanActive(plan)">
+                                                        {{ plan.is_active ? 'Deactivate' : 'Activate' }}
+                                                    </button>
+                                                </MenuItem>
+                                                <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
+                                                <MenuItem v-slot="{ active }">
+                                                    <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDeletePlan(plan)">
+                                                        Delete plan
+                                                    </button>
+                                                </MenuItem>
+                                            </MenuItems>
+                                        </Menu>
+                                    </div>
+                                </div>
+
+                                <div v-if="plan.price_annual" style="font: 400 13px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 4px;">
+                                    {{ gbp(plan.price_annual) }}/yr<span v-if="plan.savings_percent !== null"> · {{ plan.savings_percent }}% off</span>
+                                </div>
+                                <div v-if="plan.description" style="font: 400 13px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin-top: 6px;">
+                                    {{ plan.description }}
+                                </div>
+                                <div v-if="plan.features.length" style="font: 400 12px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin-top: 8px;">
+                                    <template v-for="(f, i) in plan.features" :key="i">
+                                        <span v-if="i > 0"> · </span>
+                                        ✓ {{ f }}
+                                    </template>
+                                </div>
+                                <div v-if="plan.stripe_price_id_monthly || plan.stripe_price_id_annual" style="display: flex; align-items: center; gap: 6px; margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-tertiary);">
+                                    <IconBrandStripe :size="14" stroke-width="1.75" style="color: var(--info);" />
+                                    <span v-if="plan.stripe_price_id_monthly">Monthly: {{ plan.stripe_price_id_monthly }}</span>
+                                    <span v-if="plan.stripe_price_id_monthly && plan.stripe_price_id_annual"> · </span>
+                                    <span v-if="plan.stripe_price_id_annual">Annual: {{ plan.stripe_price_id_annual }}</span>
+                                </div>
+                                <div style="font: 400 11px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 8px;">
+                                    {{ plan.active_customers }} active subscription{{ plan.active_customers === 1 ? '' : 's' }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </form>
             </section>
 
@@ -564,6 +786,165 @@ const slugLocked = computed(() => (selectedProduct.value?.active_customers ?? 0)
             confirm-label="Discard and switch"
             variant="warning"
             @confirm="handleSwitchConfirm"
+        />
+
+        <!-- Add / Edit plan slide-over -->
+        <TransitionRoot as="template" :show="showPlanModal">
+            <Dialog as="div" class="slide-over-dialog" @close="showPlanModal = false">
+                <TransitionChild
+                    as="template"
+                    enter="transition-opacity ease-out duration-200"
+                    enter-from="opacity-0"
+                    enter-to="opacity-100"
+                    leave="transition-opacity ease-in duration-150"
+                    leave-from="opacity-100"
+                    leave-to="opacity-0"
+                >
+                    <div class="slide-over-backdrop" />
+                </TransitionChild>
+                <TransitionChild
+                    as="template"
+                    enter="transform transition ease-out duration-200"
+                    enter-from="translate-x-full"
+                    enter-to="translate-x-0"
+                    leave="transform transition ease-in duration-150"
+                    leave-from="translate-x-0"
+                    leave-to="translate-x-full"
+                >
+                    <DialogPanel class="slide-over-panel" style="width: 520px;">
+                        <form class="slide-over-form" @submit.prevent="submitPlan">
+                            <header class="slide-over-header">
+                                <h2>{{ planMode === 'create' ? 'Add plan' : 'Edit plan' }}</h2>
+                                <button type="button" class="icon-btn" aria-label="Close" @click="showPlanModal = false">
+                                    <IconX :size="18" stroke-width="1.75" />
+                                </button>
+                            </header>
+
+                            <div class="slide-over-body">
+                                <div class="form-section">
+                                    <h3>Basic info</h3>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Plan name<span class="req">*</span></label>
+                                            <input v-model="planForm.name" type="text" :class="{ 'has-err': planForm.errors.name }" placeholder="e.g. Pro, Basic, Enterprise" required>
+                                            <div v-if="planForm.errors.name" class="err">{{ planForm.errors.name }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Description</label>
+                                            <textarea v-model="planForm.description" rows="2" placeholder="What's included in this plan" />
+                                            <div v-if="planForm.errors.description" class="err">{{ planForm.errors.description }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-section">
+                                    <h3>Pricing</h3>
+                                    <div class="form-row two">
+                                        <div class="form-field">
+                                            <label>Monthly price (£)<span class="req">*</span></label>
+                                            <input v-model.number="planForm.price_monthly" type="number" min="0" step="0.01" required>
+                                            <div v-if="planForm.errors.price_monthly" class="err">{{ planForm.errors.price_monthly }}</div>
+                                        </div>
+                                        <div class="form-field">
+                                            <label>Annual price (£)</label>
+                                            <input v-model.number="planForm.price_annual" type="number" min="0" step="0.01">
+                                            <div class="field-help">Full annual amount. Leave blank to offer monthly only.</div>
+                                            <div v-if="planForm.errors.price_annual" class="err">{{ planForm.errors.price_annual }}</div>
+                                        </div>
+                                    </div>
+                                    <div v-if="previewSavingsPct !== null && previewSavingsPct > 0" style="margin-top: 8px; padding: 8px 12px; background: var(--success-bg); border: 1px solid #A7F3D0; border-radius: var(--radius-sm); color: #047857; font: 500 13px/1.3 'Inter', sans-serif;">
+                                        Annual saves {{ previewSavingsPct }}% vs monthly billing.
+                                    </div>
+                                </div>
+
+                                <div class="form-section">
+                                    <h3>Features <span style="color: var(--text-tertiary); font-weight: 400; font-size: 12px;">— shown on pricing page</span></h3>
+                                    <div v-for="(f, i) in planForm.features" :key="i" style="display: flex; gap: 8px; margin-bottom: 6px;">
+                                        <input :value="f" type="text" maxlength="200" style="flex: 1;" @input="planForm.features[i] = $event.target.value">
+                                        <button type="button" class="icon-btn" aria-label="Remove feature" @click="removeFeature(i)">
+                                            <IconX :size="16" stroke-width="1.75" />
+                                        </button>
+                                    </div>
+                                    <div v-if="planForm.features.length < 10" style="display: flex; gap: 8px;">
+                                        <input
+                                            v-model="newFeature"
+                                            type="text"
+                                            maxlength="200"
+                                            placeholder="e.g. Unlimited orders"
+                                            style="flex: 1;"
+                                            @keydown.enter.prevent="addFeature"
+                                        >
+                                        <button type="button" class="btn btn-ghost btn-sm" style="color: var(--accent);" @click="addFeature">
+                                            <IconPlus :size="14" stroke-width="1.75" />
+                                            Add
+                                        </button>
+                                    </div>
+                                    <div v-if="planForm.features.length >= 10" class="field-help">Maximum of 10 features.</div>
+                                </div>
+
+                                <div class="form-section">
+                                    <h3>Stripe Price IDs <span style="color: var(--text-tertiary); font-weight: 400; font-size: 12px;">— optional</span></h3>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Monthly Price ID</label>
+                                            <input v-model="planForm.stripe_price_id_monthly" type="text" placeholder="price_1Nxxx..." style="font-family: 'JetBrains Mono', monospace;">
+                                            <div v-if="planForm.errors.stripe_price_id_monthly" class="err">{{ planForm.errors.stripe_price_id_monthly }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Annual Price ID</label>
+                                            <input v-model="planForm.stripe_price_id_annual" type="text" placeholder="price_1Nxxx..." style="font-family: 'JetBrains Mono', monospace;">
+                                            <div class="field-help">Copy from Stripe Dashboard → Products → Prices. Used for checkout and webhook matching.</div>
+                                            <div v-if="planForm.errors.stripe_price_id_annual" class="err">{{ planForm.errors.stripe_price_id_annual }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-section">
+                                    <h3>Visibility</h3>
+                                    <div class="status-rows">
+                                        <div class="set-row">
+                                            <div>
+                                                <div class="nm">Active</div>
+                                                <div class="sb">Show in the new-subscription plan picker.</div>
+                                            </div>
+                                            <button type="button" class="toggle" :class="{ on: planForm.is_active }" aria-label="Toggle active" @click="planForm.is_active = ! planForm.is_active" />
+                                        </div>
+                                        <div class="set-row">
+                                            <div>
+                                                <div class="nm">Public</div>
+                                                <div class="sb">Expose on the public pricing API.</div>
+                                            </div>
+                                            <button type="button" class="toggle" :class="{ on: planForm.is_public }" aria-label="Toggle public" @click="planForm.is_public = ! planForm.is_public" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <footer class="slide-over-footer">
+                                <button type="button" class="btn btn-secondary" @click="showPlanModal = false">Cancel</button>
+                                <button type="submit" class="btn btn-primary" :disabled="planForm.processing">
+                                    <IconDeviceFloppy :size="15" stroke-width="1.75" />
+                                    {{ planForm.processing ? 'Saving…' : 'Save plan' }}
+                                </button>
+                            </footer>
+                        </form>
+                    </DialogPanel>
+                </TransitionChild>
+            </Dialog>
+        </TransitionRoot>
+
+        <ConfirmModal
+            v-model:show="showDeletePlanModal"
+            :title="deletePlanTarget ? `Delete plan '${deletePlanTarget.name}'?` : 'Delete plan?'"
+            :message="deletePlanMessage"
+            confirm-label="Delete plan"
+            variant="danger"
+            :loading="deletePlanProcessing"
+            @confirm="handleDeletePlan"
         />
     </SettingsLayout>
 </template>

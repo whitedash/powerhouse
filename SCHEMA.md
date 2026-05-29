@@ -40,8 +40,23 @@ id, slug VARCHAR(50) UNIQUE, name, description,
 icon_colour, is_active BOOLEAN, is_coming_soon BOOLEAN,
 sort_order INT, created_at, updated_at
 
+## product_plans
+id, product_id FK CASCADE,
+name VARCHAR(100), description TEXT nullable,
+price_monthly DECIMAL(10,2) DEFAULT 0,
+price_annual DECIMAL(10,2) nullable,
+features JSON nullable,
+stripe_price_id_monthly VARCHAR(100) nullable,
+stripe_price_id_annual VARCHAR(100) nullable,
+is_active BOOLEAN DEFAULT true,
+is_public BOOLEAN DEFAULT true,
+sort_order INT DEFAULT 0,
+created_at, updated_at
+INDEXES: (product_id, is_active, sort_order)
+
 ## customer_products
 id, customer_id FK, product_id FK,
+plan_id FK product_plans nullable ON DELETE SET NULL,
 billing_entity_id FK nullable,
 stripe_subscription_id VARCHAR(100) nullable,
 stripe_price_id VARCHAR(100) nullable,

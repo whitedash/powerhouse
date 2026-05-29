@@ -21,6 +21,8 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, CustomerProduct> $customerProducts
  * @property-read Collection<int, CommissionRule> $commissionRules
  * @property-read Collection<int, OnboardingSequence> $onboardingSequences
+ * @property-read Collection<int, ProductPlan> $plans
+ * @property-read Collection<int, ProductPlan> $activePlans
  */
 class Product extends Model
 {
@@ -56,5 +58,17 @@ class Product extends Model
     public function onboardingSequences(): HasMany
     {
         return $this->hasMany(OnboardingSequence::class);
+    }
+
+    public function plans(): HasMany
+    {
+        return $this->hasMany(ProductPlan::class)->orderBy('sort_order');
+    }
+
+    public function activePlans(): HasMany
+    {
+        return $this->hasMany(ProductPlan::class)
+            ->where('is_active', true)
+            ->orderBy('sort_order');
     }
 }

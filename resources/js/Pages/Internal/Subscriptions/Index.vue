@@ -44,6 +44,7 @@ const props = defineProps({
     subscriptions: { type: Object, required: true },
     analytics: { type: Object, required: true },
     products: { type: Array, default: () => [] },
+    product_plans: { type: Object, default: () => ({}) },
     billing_entities: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
     intervals: { type: Array, default: () => [] },
@@ -169,6 +170,7 @@ function dismissStripeBanner() {
 const showEdit = ref(false);
 const editingSub = ref(null);
 const editForm = useForm({
+    plan_id: null,
     plan: '',
     price_monthly: 0,
     billing_interval: 'monthly',
@@ -183,9 +185,21 @@ const editForm = useForm({
 
 const showDiscountSection = ref(false);
 const showStripeSection = ref(false);
+const showPlanPicker = ref(false);
+const showPriceOverride = ref(false);
+
+function plansForCurrentProduct() {
+    const sub = editingSub.value;
+    if (! sub) return [];
+    // product.id isn't on the subscription row payload; we look up by
+    // slug → id via the products prop.
+    const productMatch = props.products.find((p) => p.slug === sub.product.slug);
+    return productMatch ? (props.product_plans[productMatch.id] ?? []) : [];
+}
 
 function openEdit(sub) {
     editingSub.value = sub;
+    editForm.plan_id = sub.plan_id ?? null;
     editForm.plan = sub.plan ?? '';
     editForm.price_monthly = sub.price_monthly ?? 0;
     editForm.billing_interval = sub.billing_interval ?? 'monthly';
@@ -199,7 +213,18 @@ function openEdit(sub) {
     editForm.clearErrors();
     showDiscountSection.value = !! sub.discount_pct;
     showStripeSection.value = !! (sub.stripe_subscription_id || sub.stripe_price_id);
+    showPlanPicker.value = ! sub.plan_id;
+    showPriceOverride.value = false;
     showEdit.value = true;
+}
+
+function selectEditPlan(plan) {
+    editForm.plan_id = plan.id;
+    editForm.plan = plan.name;
+    editForm.price_monthly = editForm.billing_interval === 'annual' && plan.price_annual !== null
+        ? plan.price_annual
+        : plan.price_monthly;
+    showPlanPicker.value = false;
 }
 
 function submitEdit() {
@@ -645,19 +670,69 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                                 </div>
 
                                 <div class="form-section">
-                                    <div class="form-row two">
-                                        <div class="form-field">
-                                            <label>Plan</label>
-                                            <input v-model="editForm.plan" type="text" placeholder="e.g. Pro, Basic">
-                                            <div v-if="editForm.errors.plan" class="err">{{ editForm.errors.plan }}</div>
+                                    <h3>Plan</h3>
+                                    <!-- Current plan summary (read-only) when one is set and the picker isn't open -->
+                                    <template v-if="editForm.plan_id && ! showPlanPicker">
+                                        <div style="padding: 10px 14px; background: var(--neutral-bg); border-radius: var(--radius-md); display: flex; align-items: center; gap: 12px;">
+                                            <div style="font: 600 13px/1.2 'Inter', sans-serif;">{{ editForm.plan || '—' }}</div>
+                                            <div style="font: 600 13px/1.2 'Inter', sans-serif; color: var(--accent); margin-left: auto;">{{ gbp(editForm.price_monthly) }}{{ priceSuffix(editForm.billing_interval) }}</div>
+                                            <button type="button" class="collapsible-trigger" style="padding: 0;" @click="showPlanPicker = true">Change plan</button>
                                         </div>
-                                        <div class="form-field">
-                                            <label>Price (£)</label>
-                                            <input v-model.number="editForm.price_monthly" type="number" min="0" step="0.01">
-                                            <div class="field-help">Annual subscriptions show the full annual amount, not the monthly equivalent.</div>
-                                            <div v-if="editForm.errors.price_monthly" class="err">{{ editForm.errors.price_monthly }}</div>
+                                    </template>
+                                    <!-- Plan picker (radio cards) -->
+                                    <template v-else>
+                                        <div v-if="plansForCurrentProduct().length === 0" style="padding: 10px 14px; background: var(--neutral-bg); border-radius: var(--radius-md); color: var(--text-secondary); font: 400 13px/1.5 'Inter', sans-serif;">
+                                            No plans defined for this product yet. Use the custom price override below.
                                         </div>
-                                    </div>
+                                        <div v-else style="display: flex; flex-direction: column; gap: 8px;">
+                                            <button
+                                                v-for="plan in plansForCurrentProduct()"
+                                                :key="plan.id"
+                                                type="button"
+                                                class="ent-opt"
+                                                :class="{ selected: editForm.plan_id === plan.id }"
+                                                style="padding: 10px 14px; align-items: flex-start; flex-direction: column; gap: 3px;"
+                                                @click="selectEditPlan(plan)"
+                                            >
+                                                <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
+                                                    <span style="font: 600 13px/1.2 'Inter', sans-serif;">{{ plan.name }}</span>
+                                                    <span style="margin-left: auto; font: 600 13px/1.2 'Inter', sans-serif; color: var(--accent);">{{ gbp(plan.price_monthly) }}/mo</span>
+                                                </div>
+                                                <span v-if="plan.price_annual !== null" style="font: 400 11px/1.3 'Inter', sans-serif; color: var(--text-secondary);">
+                                                    or {{ gbp(plan.price_annual) }}/yr
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <!-- Custom price override (collapsible) -->
+                                <div class="form-section">
+                                    <button
+                                        v-if="! showPriceOverride"
+                                        type="button"
+                                        class="collapsible-trigger"
+                                        @click="showPriceOverride = true"
+                                    >
+                                        <IconPlus :size="14" stroke-width="2" />
+                                        Custom price override
+                                    </button>
+                                    <template v-else>
+                                        <h3>Custom price override</h3>
+                                        <div class="form-row two">
+                                            <div class="form-field">
+                                                <label>Plan label</label>
+                                                <input v-model="editForm.plan" type="text" placeholder="e.g. Pro (custom)">
+                                                <div v-if="editForm.errors.plan" class="err">{{ editForm.errors.plan }}</div>
+                                            </div>
+                                            <div class="form-field">
+                                                <label>Price (£)</label>
+                                                <input v-model.number="editForm.price_monthly" type="number" min="0" step="0.01">
+                                                <div class="field-help">Overrides the plan price. Annual subscriptions show the full annual amount.</div>
+                                                <div v-if="editForm.errors.price_monthly" class="err">{{ editForm.errors.price_monthly }}</div>
+                                            </div>
+                                        </div>
+                                    </template>
                                 </div>
 
                                 <div class="form-section">

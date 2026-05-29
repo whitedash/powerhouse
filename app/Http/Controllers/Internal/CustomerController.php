@@ -13,6 +13,7 @@ use App\Models\Customer;
 use App\Models\CustomerProduct;
 use App\Models\Note;
 use App\Models\Product;
+use App\Models\ProductPlan;
 use App\Models\Referrer;
 use App\Models\Task;
 use App\Models\User;
@@ -366,13 +367,30 @@ class CustomerController extends Controller
                 ->get(['id', 'slug', 'name', 'icon_colour', 'is_coming_soon']),
             // Active products this customer does NOT already have on an
             // active/trial subscription — the Enable Product slide-over
-            // should not surface a product that's already running.
+            // should not surface a product that's already running. Each
+            // product carries its activePlans so the slide-over can
+            // render a plan picker and auto-fill price.
             'available_products' => Product::where('is_active', true)
                 ->whereNotIn('id', $customer->customerProducts
                     ->whereIn('status', ['active', 'trial'])
                     ->pluck('product_id'))
+                ->with('activePlans')
                 ->orderBy('sort_order')
-                ->get(['id', 'slug', 'name', 'icon_colour']),
+                ->get(['id', 'slug', 'name', 'icon_colour'])
+                ->map(fn (Product $p): array => [
+                    'id' => $p->id,
+                    'slug' => $p->slug,
+                    'name' => $p->name,
+                    'icon_colour' => $p->icon_colour,
+                    'plans' => $p->activePlans->map(fn (ProductPlan $plan): array => [
+                        'id' => $plan->id,
+                        'name' => $plan->name,
+                        'description' => $plan->description,
+                        'price_monthly' => (float) $plan->price_monthly,
+                        'price_annual' => $plan->price_annual !== null ? (float) $plan->price_annual : null,
+                    ])->values()->all(),
+                ])
+                ->values(),
             'billing_entities' => BillingEntity::where('is_active', true)
                 ->get(['id', 'name']),
             'pipeline_stages' => self::PIPELINE_STAGES,
@@ -514,6 +532,8 @@ class CustomerController extends Controller
 
         $data = $request->validate([
             'product_id' => ['required', 'integer', 'exists:products,id'],
+            'plan_id' => ['nullable', 'integer', 'exists:product_plans,id'],
+            'billing_interval' => ['nullable', 'in:monthly,annual'],
             'billing_entity_id' => ['nullable', 'integer', 'exists:billing_entities,id'],
             'plan' => ['nullable', 'string', 'max:100'],
             'price_monthly' => ['nullable', 'numeric', 'min:0'],
@@ -533,13 +553,26 @@ class CustomerController extends Controller
             return back()->with('error', 'This product is already enabled for this customer.');
         }
 
-        DB::transaction(function () use ($customer, $data, $request) {
+        // If a plan was chosen, the plan's pricing wins so a stale
+        // form-state can't override the canonical plan price. Staff
+        // can still pass plan='' with no plan_id for a custom case.
+        $plan = ! empty($data['plan_id']) ? ProductPlan::find($data['plan_id']) : null;
+        $interval = $data['billing_interval'] ?? 'monthly';
+
+        $planName = $plan ? $plan->name : ($data['plan'] ?? null);
+        $price = $plan
+            ? (float) ($interval === 'annual' && $plan->price_annual !== null ? $plan->price_annual : $plan->price_monthly)
+            : ($data['price_monthly'] ?? null);
+
+        DB::transaction(function () use ($customer, $data, $request, $plan, $planName, $price, $interval) {
             CustomerProduct::create([
                 'customer_id' => $customer->id,
                 'product_id' => $data['product_id'],
+                'plan_id' => $plan?->id,
                 'billing_entity_id' => $data['billing_entity_id'] ?? null,
-                'plan' => $data['plan'] ?? null,
-                'price_monthly' => $data['price_monthly'] ?? null,
+                'plan' => $planName,
+                'price_monthly' => $price,
+                'billing_interval' => $interval === 'annual' ? 'annual' : 'monthly',
                 'status' => $data['status'],
                 'trial_ends_at' => $data['trial_ends_at'] ?? null,
                 'started_at' => now(),
@@ -547,8 +580,10 @@ class CustomerController extends Controller
 
             $this->logActivity($request, 'product.enabled', $customer, after: [
                 'product_id' => $data['product_id'],
+                'plan_id' => $plan?->id,
                 'status' => $data['status'],
-                'price_monthly' => $data['price_monthly'] ?? null,
+                'price_monthly' => $price,
+                'billing_interval' => $interval,
             ]);
         });
 

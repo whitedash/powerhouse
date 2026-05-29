@@ -321,6 +321,8 @@ function gotoInvoice() {
 const showEnableProduct = ref(false);
 const enableForm = useForm({
     product_id: null,
+    plan_id: null,
+    billing_interval: 'monthly',
     billing_entity_id: null,
     plan: '',
     price_monthly: null,
@@ -332,11 +334,38 @@ function openEnableProduct() {
     enableForm.reset();
     enableForm.clearErrors();
     enableForm.billing_entity_id = props.billing_entities[0]?.id ?? null;
+    enableForm.billing_interval = 'monthly';
     showEnableProduct.value = true;
+}
+
+function selectedAvailableProduct() {
+    return props.available_products.find((p) => p.id === enableForm.product_id) ?? null;
 }
 
 function selectProduct(productId) {
     enableForm.product_id = productId;
+    enableForm.plan_id = null;
+    enableForm.plan = '';
+    enableForm.price_monthly = null;
+    enableForm.billing_interval = 'monthly';
+}
+
+function selectPlan(plan) {
+    enableForm.plan_id = plan.id;
+    enableForm.plan = plan.name;
+    enableForm.price_monthly = plan.price_monthly;
+    enableForm.billing_interval = 'monthly';
+}
+
+function setEnableInterval(interval) {
+    const sel = selectedAvailableProduct();
+    const plan = sel?.plans?.find((p) => p.id === enableForm.plan_id);
+    enableForm.billing_interval = interval;
+    if (plan) {
+        enableForm.price_monthly = interval === 'annual' && plan.price_annual !== null
+            ? plan.price_annual
+            : plan.price_monthly;
+    }
 }
 
 function submitEnableProduct() {
@@ -1409,19 +1438,55 @@ const headerStatusBadge = computed(() => {
                                 </div>
 
                                 <div v-if="enableForm.product_id" class="form-section">
-                                    <h3>Plan &amp; pricing</h3>
-                                    <div class="form-row two">
-                                        <div class="form-field">
-                                            <label>Plan</label>
-                                            <input v-model="enableForm.plan" type="text" placeholder="e.g. Pro, Basic, Enterprise">
-                                            <div v-if="enableForm.errors.plan" class="err">{{ enableForm.errors.plan }}</div>
+                                    <h3>Plan</h3>
+                                    <!-- Plan radio cards when the product has defined plans -->
+                                    <template v-if="(selectedAvailableProduct()?.plans ?? []).length > 0">
+                                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                                            <button
+                                                v-for="plan in selectedAvailableProduct().plans"
+                                                :key="plan.id"
+                                                type="button"
+                                                class="ent-opt"
+                                                :class="{ selected: enableForm.plan_id === plan.id }"
+                                                style="padding: 12px 14px; align-items: flex-start; flex-direction: column; gap: 4px;"
+                                                @click="selectPlan(plan)"
+                                            >
+                                                <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
+                                                    <span style="font: 600 14px/1.2 'Inter', sans-serif;">{{ plan.name }}</span>
+                                                    <span style="margin-left: auto; font: 600 14px/1.2 'Inter', sans-serif; color: var(--accent);">£{{ Number(plan.price_monthly).toFixed(2) }}/mo</span>
+                                                </div>
+                                                <span v-if="plan.price_annual" style="font: 400 11.5px/1.3 'Inter', sans-serif; color: var(--text-secondary);">
+                                                    or £{{ Number(plan.price_annual).toFixed(2) }}/yr
+                                                </span>
+                                                <span v-if="plan.description" style="font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary);">{{ plan.description }}</span>
+                                            </button>
                                         </div>
-                                        <div class="form-field">
-                                            <label>Monthly price (£)</label>
-                                            <input v-model.number="enableForm.price_monthly" type="number" min="0" step="0.01" placeholder="29.00">
-                                            <div v-if="enableForm.errors.price_monthly" class="err">{{ enableForm.errors.price_monthly }}</div>
+                                        <div v-if="enableForm.plan_id && selectedAvailableProduct().plans.find((p) => p.id === enableForm.plan_id)?.price_annual" style="margin-top: 10px;">
+                                            <label class="field-label">Billing interval</label>
+                                            <div class="type-toggle">
+                                                <button type="button" class="type-opt" :class="{ active: enableForm.billing_interval === 'monthly' }" @click="setEnableInterval('monthly')">Monthly</button>
+                                                <button type="button" class="type-opt" :class="{ active: enableForm.billing_interval === 'annual' }" @click="setEnableInterval('annual')">Annual</button>
+                                            </div>
                                         </div>
-                                    </div>
+                                    </template>
+                                    <!-- Fallback: free-text plan + price when the product has no plans defined -->
+                                    <template v-else>
+                                        <div class="form-row two">
+                                            <div class="form-field">
+                                                <label>Plan</label>
+                                                <input v-model="enableForm.plan" type="text" placeholder="e.g. Pro, Basic, Enterprise">
+                                                <div v-if="enableForm.errors.plan" class="err">{{ enableForm.errors.plan }}</div>
+                                            </div>
+                                            <div class="form-field">
+                                                <label>Monthly price (£)</label>
+                                                <input v-model.number="enableForm.price_monthly" type="number" min="0" step="0.01" placeholder="29.00">
+                                                <div v-if="enableForm.errors.price_monthly" class="err">{{ enableForm.errors.price_monthly }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="field-help" style="margin-top: 8px;">
+                                            No plans defined for this product yet. Add plans in Settings → Products for a better experience.
+                                        </div>
+                                    </template>
                                 </div>
 
                                 <div v-if="enableForm.product_id && billing_entities.length" class="form-section">

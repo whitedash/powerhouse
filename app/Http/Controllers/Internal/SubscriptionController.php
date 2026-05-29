@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\BillingEntity;
 use App\Models\CustomerProduct;
 use App\Models\Product;
+use App\Models\ProductPlan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -32,6 +33,7 @@ class SubscriptionController extends Controller
             ->with([
                 'customer:id,name,city',
                 'product:id,name,slug,icon_colour',
+                'productPlan:id,name,price_monthly,price_annual',
                 'billingEntity:id,name',
             ])
             ->whereIn('status', self::STATUSES)
@@ -55,6 +57,9 @@ class SubscriptionController extends Controller
                     'icon_colour' => $cp->product?->icon_colour,
                 ],
                 'plan' => $cp->plan,
+                'plan_id' => $cp->plan_id,
+                'plan_name' => $cp->productPlan ? $cp->productPlan->name : $cp->plan,
+                'has_annual' => $cp->productPlan?->price_annual !== null,
                 'price_monthly' => (float) ($cp->price_monthly ?? 0),
                 'effective_price' => $cp->effective_price,
                 'billing_interval' => $cp->billing_interval,
@@ -73,6 +78,20 @@ class SubscriptionController extends Controller
                 'mrr_contribution' => $cp->mrr_contribution,
             ]);
 
+        // Plans grouped by product_id so the subscription edit
+        // slide-over can render a plan picker without an extra
+        // round-trip per row.
+        $productPlans = ProductPlan::where('is_active', true)
+            ->orderBy('sort_order')
+            ->get(['id', 'product_id', 'name', 'price_monthly', 'price_annual'])
+            ->groupBy('product_id')
+            ->map(fn ($plans) => $plans->map(fn (ProductPlan $p): array => [
+                'id' => $p->id,
+                'name' => $p->name,
+                'price_monthly' => (float) $p->price_monthly,
+                'price_annual' => $p->price_annual !== null ? (float) $p->price_annual : null,
+            ])->values()->all());
+
         return Inertia::render('Internal/Subscriptions/Index', [
             'subscriptions' => $subscriptions,
             'analytics' => $this->buildAnalytics(),
@@ -80,6 +99,7 @@ class SubscriptionController extends Controller
                 ->orderBy('sort_order')
                 ->get(['id', 'name', 'slug', 'icon_colour'])
                 ->all(),
+            'product_plans' => $productPlans,
             'billing_entities' => BillingEntity::where('is_active', true)
                 ->get(['id', 'name'])
                 ->all(),
@@ -100,6 +120,7 @@ class SubscriptionController extends Controller
         Gate::authorize('update', $cp->customer);
 
         $data = $request->validate([
+            'plan_id' => ['nullable', 'integer', 'exists:product_plans,id'],
             'plan' => ['nullable', 'string', 'max:100'],
             'price_monthly' => ['nullable', 'numeric', 'min:0'],
             'billing_interval' => ['required', 'in:monthly,annual,one_off'],

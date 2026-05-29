@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $customer_id
  * @property int $product_id
+ * @property int|null $plan_id
  * @property int|null $billing_entity_id
  * @property string|null $stripe_subscription_id
  * @property string|null $stripe_price_id
@@ -35,6 +36,7 @@ use Illuminate\Support\Carbon;
  * @property-read float $arr_contribution
  * @property-read Customer|null $customer
  * @property-read Product|null $product
+ * @property-read ProductPlan|null $productPlan
  * @property-read BillingEntity|null $billingEntity
  */
 class CustomerProduct extends Model
@@ -42,6 +44,7 @@ class CustomerProduct extends Model
     protected $fillable = [
         'customer_id',
         'product_id',
+        'plan_id',
         'billing_entity_id',
         'stripe_subscription_id',
         'stripe_price_id',
@@ -89,6 +92,11 @@ class CustomerProduct extends Model
     public function billingEntity(): BelongsTo
     {
         return $this->belongsTo(BillingEntity::class);
+    }
+
+    public function productPlan(): BelongsTo
+    {
+        return $this->belongsTo(ProductPlan::class, 'plan_id');
     }
 
     /**
