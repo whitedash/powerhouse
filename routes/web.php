@@ -11,6 +11,7 @@ use App\Http\Controllers\Internal\ProductController as InternalProductController
 use App\Http\Controllers\Internal\ProvisioningController as InternalProvisioningController;
 use App\Http\Controllers\Internal\ReferrerController as InternalReferrerController;
 use App\Http\Controllers\Internal\SettingsController as InternalSettingsController;
+use App\Http\Controllers\Internal\SubscriptionController as InternalSubscriptionController;
 use App\Http\Controllers\Internal\SupportController as InternalSupportController;
 use App\Http\Controllers\Internal\TaskController as InternalTaskController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
@@ -85,6 +86,10 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
     Route::get('/support', [InternalSupportController::class, 'index'])->name('internal.support.index');
     Route::get('/provisioning', [InternalProvisioningController::class, 'index'])->name('internal.provisioning.index');
     Route::post('/provisioning/toggle', [InternalProvisioningController::class, 'toggle'])->name('internal.provisioning.toggle');
+
+    Route::get('/subscriptions', [InternalSubscriptionController::class, 'index'])->name('internal.subscriptions.index');
+    Route::put('/subscriptions/{id}', [InternalSubscriptionController::class, 'update'])->name('internal.subscriptions.update');
+    Route::post('/subscriptions/{id}/cancel', [InternalSubscriptionController::class, 'cancel'])->name('internal.subscriptions.cancel');
     Route::get('/settings', [InternalSettingsController::class, 'index'])->name('internal.settings.index');
 
     // Settings sub-pages that mutate global config (billing entities, etc.)

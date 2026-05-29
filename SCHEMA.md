@@ -43,12 +43,21 @@ sort_order INT, created_at, updated_at
 ## customer_products
 id, customer_id FK, product_id FK,
 billing_entity_id FK nullable,
+stripe_subscription_id VARCHAR(100) nullable,
+stripe_price_id VARCHAR(100) nullable,
 plan VARCHAR(100) nullable, price_monthly DECIMAL(10,2) nullable,
+billing_interval ENUM(monthly|annual|one_off) DEFAULT 'monthly',
 status ENUM(active|trial|suspended|cancelled),
-trial_ends_at nullable, started_at nullable, cancelled_at nullable,
+trial_ends_at nullable, started_at nullable,
+next_billing_date DATE nullable,
+discount_pct DECIMAL(5,2) nullable,
+discount_expires_at DATE nullable,
+cancels_at DATE nullable,
+cancelled_at nullable,
 oauth_client_id BIGINT nullable,
 wp_user_id BIGINT nullable,
 config JSON nullable, created_at, updated_at
+INDEXES: (customer_id, product_id), status, billing_interval, next_billing_date
 
 ## billing_entities
 id, name, legal_name, company_number, vat_number,

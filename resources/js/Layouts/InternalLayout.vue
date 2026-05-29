@@ -128,7 +128,7 @@ const sections = computed(() => {
                 { key: 'overview',      label: 'Overview',      href: '/',           icon: IconLayoutDashboard },
                 { key: 'customers',     label: 'Customers',     href: '/customers',  icon: IconUsers },
                 { key: 'invoices',      label: 'Invoices',      href: '/invoices',   icon: IconReceipt,    badge: invoicesBadge.value },
-                { key: 'subscriptions', label: 'Subscriptions', href: '#',           icon: IconCreditCard },
+                { key: 'subscriptions', label: 'Subscriptions', href: '/subscriptions', icon: IconCreditCard },
                 { key: 'analytics',     label: 'Analytics',     href: '#',           icon: IconChartLine },
                 { key: 'referrers',     label: 'Referrers',     href: '/referrers',  icon: IconUsersGroup },
                 { key: 'provisioning',  label: 'Provisioning',  href: '/provisioning', icon: IconLayoutGrid },

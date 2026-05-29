@@ -86,8 +86,9 @@ function onConfirm() {
                             <DialogTitle class="confirm-modal-title">{{ title }}</DialogTitle>
                         </header>
 
-                        <div v-if="message" class="confirm-modal-body">
-                            <p class="confirm-modal-message">{{ message }}</p>
+                        <div v-if="message || $slots.default" class="confirm-modal-body">
+                            <p v-if="message" class="confirm-modal-message">{{ message }}</p>
+                            <slot />
                         </div>
 
                         <footer class="confirm-modal-footer">

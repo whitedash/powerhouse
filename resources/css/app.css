@@ -4013,3 +4013,326 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
 .provisioning .qe-select:hover { background: #fff; border-color: #CBD5E1; }
 .provisioning .qe-select.placeholder { color: var(--text-tertiary); }
 .provisioning .qe-btn { height: 40px; }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * SUBSCRIPTIONS — list page with MRR/ARR analytics + edit slide-over
+ * Scoped to .subscriptions; reuses kpi-row pattern from .dashboard
+ * but lifted so it doesn't depend on .dashboard wrapping.
+ * ──────────────────────────────────────────────────────────────────── */
+.subscriptions .greet { display: flex; align-items: center; justify-content: space-between; }
+.subscriptions .greet h1 { margin: 0; font: 700 24px/1.2 'Inter', sans-serif; letter-spacing: -.015em; }
+.subscriptions .greet .sub { font: 400 13px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 4px; }
+
+/* Stripe info banner (dismissible) */
+.subscriptions .stripe-banner {
+    margin-top: 14px;
+    background: var(--info-bg);
+    border: 1px solid rgba(59, 130, 246, .2);
+    border-radius: var(--radius-lg);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.subscriptions .stripe-banner .ic { color: var(--info); flex-shrink: 0; }
+.subscriptions .stripe-banner .text { flex: 1; font: 400 13px/1.5 'Inter', sans-serif; color: var(--text-secondary); }
+.subscriptions .stripe-banner .text strong { color: var(--text-primary); font-weight: 600; }
+.subscriptions .stripe-banner .more {
+    font: 600 13px/1 'Inter', sans-serif;
+    color: var(--accent);
+    text-decoration: none;
+    white-space: nowrap;
+}
+.subscriptions .stripe-banner .close {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    color: var(--text-tertiary);
+    display: grid;
+    place-items: center;
+    transition: background .12s, color .12s;
+}
+.subscriptions .stripe-banner .close:hover { background: rgba(59, 130, 246, .12); color: var(--info); }
+
+/* KPI row (lifted from .dashboard so it doesn't need that wrapper) */
+.subscriptions .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-top: 16px;
+}
+.subscriptions .kpi {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px 14px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 134px;
+    position: relative;
+}
+.subscriptions .kpi-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.subscriptions .kpi-icon {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-md);
+    display: grid;
+    place-items: center;
+}
+.subscriptions .kpi-icon.gold  { background: rgba(245, 158, 11, .12); color: #B45309; }
+.subscriptions .kpi-icon.teal  { background: rgba(13, 148, 136, .12); color: #0F766E; }
+.subscriptions .kpi-icon.amber { background: rgba(245, 158, 11, .12); color: #B45309; }
+.subscriptions .kpi-icon.blue  { background: rgba(59, 130, 246, .12); color: #1D4ED8; }
+.subscriptions .kpi-icon.red   { background: rgba(239, 68, 68, .12); color: #B91C1C; }
+.subscriptions .kpi-icon.neutral { background: var(--neutral-bg); color: var(--text-secondary); }
+.subscriptions .kpi-icon svg { width: 18px; height: 18px; }
+.subscriptions .kpi-value {
+    font: 700 28px/1.1 'Inter', sans-serif;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+}
+.subscriptions .kpi-label {
+    font: 500 11px/1.2 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+.subscriptions .kpi-mid { display: flex; flex-direction: column; gap: 4px; }
+.subscriptions .kpi-foot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: auto;
+    font: 500 12px/1.3 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.subscriptions .kpi-foot.up   { color: #047857; }
+.subscriptions .kpi-foot.warn { color: #B45309; }
+.subscriptions .kpi-foot.down { color: #B91C1C; }
+
+/* Per-product MRR strip */
+.subscriptions .sub-product-strip {
+    margin-top: 14px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+.subscriptions .sub-product-strip .sp-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+.subscriptions .sub-product-strip .sp-icon {
+    width: 20px; height: 20px;
+    border-radius: var(--radius-sm);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font: 700 10.5px/1 'Inter', sans-serif;
+    flex-shrink: 0;
+}
+.subscriptions .sub-product-strip .sp-name { font: 500 13px/1.2 'Inter', sans-serif; }
+.subscriptions .sub-product-strip .sp-mrr {
+    font: 600 14px/1.2 'Inter', sans-serif;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+}
+.subscriptions .sub-product-strip .sp-count {
+    font: 400 12px/1.2 'Inter', sans-serif;
+    color: var(--text-tertiary);
+}
+.subscriptions .sub-product-strip .sp-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--border-soft);
+}
+
+/* Filter bar */
+.subscriptions .filter-bar {
+    margin-top: 14px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.subscriptions .filter-bar .field-search { width: 260px; flex-shrink: 0; }
+.subscriptions .filter-bar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+/* Table customer cell */
+.subscriptions .cell-cust { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.subscriptions .cell-cust .avatar { width: 30px; height: 30px; font-size: 11px; }
+.subscriptions .cust-name { font: 500 13px/1.3 'Inter', sans-serif; color: var(--text-primary); }
+.subscriptions .cust-loc { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 2px; }
+
+/* Product cell */
+.subscriptions .cell-prod { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.subscriptions .cell-prod .pi {
+    width: 22px; height: 22px;
+    border-radius: var(--radius-sm);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font: 700 11px/1 'Inter', sans-serif;
+    flex-shrink: 0;
+}
+.subscriptions .cell-prod .pn { font: 500 13px/1.3 'Inter', sans-serif; }
+
+/* Plan + Stripe chip */
+.subscriptions .plan-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.subscriptions .plan-cell .pl { font: 400 13px/1.3 'Inter', sans-serif; }
+.subscriptions .plan-cell .pl.muted { color: var(--text-tertiary); }
+.subscriptions .stripe-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--info-bg);
+    color: var(--info);
+    font: 600 10.5px/1.3 'Inter', sans-serif;
+    border: 1px solid #BFDBFE;
+    width: max-content;
+}
+
+/* Price cell */
+.subscriptions .price-cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.subscriptions .price-cell .price-main {
+    font: 600 14px/1.2 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+}
+.subscriptions .price-cell .price-original {
+    color: var(--text-tertiary);
+    text-decoration: line-through;
+    font: 400 12px/1.2 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+}
+.subscriptions .price-cell .price-effective {
+    color: var(--success);
+    font: 600 14px/1.2 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+}
+.subscriptions .discount-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--success-bg);
+    color: #047857;
+    border: 1px solid #A7F3D0;
+    font: 600 10.5px/1.4 'Inter', sans-serif;
+    width: max-content;
+}
+
+/* Status cell */
+.subscriptions .status-cell { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.subscriptions .status-cell .warn-pill-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--warning-bg);
+    color: #B45309;
+    font: 500 10.5px/1.3 'Inter', sans-serif;
+    border: 1px solid #FDE68A;
+}
+.subscriptions .status-cell .warn-pill-inline svg { width: 11px; height: 11px; }
+
+/* Next-billing cell */
+.subscriptions .next-bill { font: 500 13px/1.2 'Inter', sans-serif; color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.subscriptions .next-bill.overdue { color: var(--danger); font-weight: 600; }
+.subscriptions .next-bill.soon { color: #B45309; }
+.subscriptions .next-bill.muted { color: var(--text-tertiary); }
+
+/* Empty state */
+.subscriptions .empty-state {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+.subscriptions .empty-state svg { color: var(--text-tertiary); margin-bottom: 12px; }
+.subscriptions .empty-state h3 { font: 600 15px/1.3 'Inter', sans-serif; color: var(--text-primary); margin: 0 0 6px; }
+.subscriptions .empty-state p { font: 400 13px/1.5 'Inter', sans-serif; margin: 0; }
+
+/* Edit slide-over — context summary, discount/Stripe collapsibles, live preview */
+.subscriptions .sub-context {
+    padding: 12px 14px;
+    background: var(--neutral-bg);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.subscriptions .sub-context .avatar { width: 32px; height: 32px; font-size: 11px; }
+.subscriptions .sub-context .sub-context-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.subscriptions .sub-context .nm { font: 600 13px/1.3 'Inter', sans-serif; }
+.subscriptions .sub-context .sb { font: 400 11.5px/1.3 'Inter', sans-serif; color: var(--text-secondary); }
+
+.subscriptions .collapsible-trigger {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: 0;
+    padding: 8px 0;
+    color: var(--accent);
+    font: 500 13px/1 'Inter', sans-serif;
+    cursor: pointer;
+}
+.subscriptions .collapsible-trigger:hover { text-decoration: underline; }
+.subscriptions .collapsible-trigger.danger { color: var(--danger); }
+
+.subscriptions .sub-preview {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: var(--success-bg);
+    border: 1px solid #A7F3D0;
+    border-radius: var(--radius-sm);
+    font: 500 13px/1.4 'Inter', sans-serif;
+    color: #047857;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Cancel modal — radio options */
+.subscriptions .cancel-options { display: flex; flex-direction: column; gap: 10px; margin: 12px 0 4px; }
+.subscriptions .cancel-options label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color .12s, background .12s;
+}
+.subscriptions .cancel-options label:hover { border-color: #CBD5E1; }
+.subscriptions .cancel-options label.selected { border-color: var(--accent); background: rgba(245, 158, 11, .05); }
+.subscriptions .cancel-options input[type="radio"] { margin-top: 2px; }
+.subscriptions .cancel-options .opt-meta { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.subscriptions .cancel-options .opt-meta .nm { font: 600 13px/1.3 'Inter', sans-serif; }
+.subscriptions .cancel-options .opt-meta .sb { font: 400 11.5px/1.3 'Inter', sans-serif; color: var(--text-secondary); }
+.subscriptions .cancel-options input[type="date"] {
+    margin-top: 6px;
+    width: 100%;
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0 10px;
+    font: 400 13px/1 'Inter', sans-serif;
+}
