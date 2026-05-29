@@ -5377,3 +5377,223 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     color: var(--text-primary);
     flex: 1;
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * SUPPORT — list page (.support-list) + ticket page (.support-show)
+ * ──────────────────────────────────────────────────────────────────── */
+
+/* List */
+.support-list .summary-strip { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.support-list .filter-bar {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.support-list .filter-bar .field-search { width: 280px; flex-shrink: 0; }
+
+/* Ticket cell — subject + meta + priority dot */
+.support-list .ticket-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: inherit;
+    text-decoration: none;
+}
+.support-list .ticket-cell:hover .ticket-subject { color: var(--accent); }
+.support-list .ticket-subject {
+    font: 600 13.5px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+    transition: color .12s;
+}
+.support-list .ticket-meta {
+    font: 400 11.5px/1.3 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+}
+.support-list .ticket-id { font: 600 11px/1 'JetBrains Mono', monospace; }
+.support-list .pri-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.support-list .pri-dot.red   { background: var(--danger); box-shadow: 0 0 0 2px rgba(239, 68, 68, .18); }
+.support-list .pri-dot.amber { background: var(--warning); }
+.support-list .pri-dot.blue  { background: var(--info); }
+.support-list .pri-dot.grey  { background: var(--text-tertiary); }
+
+/* SLA cell variants */
+.support-list .sla-cell,
+.support-show .sla-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font: 500 12px/1.3 'Inter', sans-serif;
+}
+.support-list .sla-cell.normal,
+.support-show .sla-cell.normal { color: var(--text-secondary); }
+.support-list .sla-cell.urgent,
+.support-show .sla-cell.urgent { color: #B45309; font-weight: 600; }
+.support-list .sla-cell.breached,
+.support-show .sla-cell.breached { color: var(--danger); font-weight: 600; }
+.support-list .sla-cell.muted,
+.support-show .sla-cell.muted { color: var(--text-tertiary); }
+/* Pulsing dot next to "{n}h left" when ≤ 4h until breach. */
+.support-list .sla-pulse {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--warning);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, .55);
+    animation: sla-pulse 1.6s infinite;
+}
+@keyframes sla-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(245, 158, 11, .55); }
+    70%  { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+.support-list .assigned-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font: 500 12.5px/1 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.support-list .avatar-xs {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font: 600 10px/1 'Inter', sans-serif;
+    flex-shrink: 0;
+}
+.support-list .avatar-xs { font-size: 10px; }
+
+/* Show page */
+.support-show .support-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 65fr) minmax(0, 35fr);
+    gap: 16px;
+    align-items: start;
+}
+.support-show .support-conversation,
+.support-show .support-sidebar { min-width: 0; }
+.support-show .support-conversation {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.support-show .conversation-header {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border-soft);
+}
+.support-show .messages-thread {
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-height: 520px;
+    overflow-y: auto;
+}
+.support-show .msg-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+}
+.support-show .msg-block.msg-staff { align-items: flex-end; }
+.support-show .msg-head-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    max-width: 100%;
+}
+.support-show .msg-bubble {
+    max-width: 540px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    border-bottom-left-radius: 4px;
+    background: var(--neutral-bg);
+    color: var(--text-primary);
+    font: 400 13.5px/1.6 'Inter', sans-serif;
+    margin-left: 41px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.support-show .msg-bubble-staff {
+    background: var(--warning-bg);
+    border-bottom-left-radius: var(--radius-md);
+    border-bottom-right-radius: 4px;
+    margin-left: 0;
+    margin-right: 0;
+}
+/* Reply box pinned at the bottom of the conversation column */
+.support-show .reply-box {
+    padding: 14px 18px;
+    border-top: 1px solid var(--border-soft);
+    background: var(--neutral-bg);
+}
+.support-show .reply-box textarea {
+    width: 100%;
+    min-height: 90px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font: 400 13.5px/1.5 'Inter', sans-serif;
+    background: #fff;
+    resize: vertical;
+    color: var(--text-primary);
+}
+.support-show .reply-box textarea.has-err { border-color: var(--danger); }
+.support-show .reply-foot {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+/* Sidebar cards (slim) */
+.support-show .card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+.support-show .card-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-soft);
+}
+.support-show .card-header h3 {
+    margin: 0;
+    font: 600 13px/1.2 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+.support-show .ticket-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.support-show .ticket-meta-label {
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--text-tertiary);
+}
+.support-show .ticket-meta-value {
+    font: 500 12.5px/1.3 'Inter', sans-serif;
+    color: var(--text-secondary);
+}

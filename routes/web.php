@@ -93,6 +93,10 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
     // because it's read-only for staff (no super_admin gate).
     Route::get('/products/{slug}', [InternalProductOverviewController::class, 'show'])->name('internal.products.show');
     Route::get('/support', [InternalSupportController::class, 'index'])->name('internal.support.index');
+    Route::post('/support', [InternalSupportController::class, 'store'])->name('internal.support.store');
+    Route::get('/support/{id}', [InternalSupportController::class, 'show'])->name('internal.support.show');
+    Route::post('/support/{id}/reply', [InternalSupportController::class, 'reply'])->name('internal.support.reply');
+    Route::post('/support/{id}/status', [InternalSupportController::class, 'updateStatus'])->name('internal.support.status');
     Route::get('/provisioning', [InternalProvisioningController::class, 'index'])->name('internal.provisioning.index');
     Route::post('/provisioning/toggle', [InternalProvisioningController::class, 'toggle'])->name('internal.provisioning.toggle');
 
