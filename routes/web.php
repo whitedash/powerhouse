@@ -74,6 +74,32 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
     // sensitive editors. Nested middleware extends — not replaces — the
     // outer auth + role:super_admin,staff guard.
     Route::middleware('role:super_admin')->prefix('settings')->name('internal.settings.')->group(function () {
+        // Team
+        Route::get('/team', [InternalSettingsController::class, 'team'])->name('team');
+        Route::post('/team/invite', [InternalSettingsController::class, 'teamInvite'])->name('team.invite');
+        Route::put('/team/{id}/role', [InternalSettingsController::class, 'teamUpdateRole'])->name('team.role');
+        Route::delete('/team/{id}', [InternalSettingsController::class, 'teamRemove'])->name('team.remove');
+
+        // Security
+        Route::get('/security', [InternalSettingsController::class, 'security'])->name('security');
+        Route::post('/security/password', [InternalSettingsController::class, 'securityChangePassword'])->name('security.password');
+        Route::post('/security/sessions/clear', [InternalSettingsController::class, 'securityClearSessions'])->name('security.sessions.clear');
+
+        // Notifications
+        Route::get('/notifications', [InternalSettingsController::class, 'notifications'])->name('notifications');
+        Route::post('/notifications', [InternalSettingsController::class, 'notificationsUpdate'])->name('notifications.update');
+
+        // Integrations
+        Route::get('/integrations', [InternalSettingsController::class, 'integrations'])->name('integrations');
+        Route::get('/integrations/{name}/test', [InternalSettingsController::class, 'integrationTest'])->name('integrations.test');
+
+        // Audit log
+        Route::get('/audit-log', [InternalSettingsController::class, 'auditLog'])->name('audit-log');
+
+        // Danger zone
+        Route::get('/danger', [InternalSettingsController::class, 'danger'])->name('danger');
+        Route::post('/danger/reset-notifications', [InternalSettingsController::class, 'dangerResetNotifications'])->name('danger.reset-notifications');
+
         Route::get('/billing-entities', [InternalBillingEntityController::class, 'index'])
             ->name('billing-entities.index');
         Route::post('/billing-entities', [InternalBillingEntityController::class, 'store'])

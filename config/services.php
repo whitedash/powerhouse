@@ -35,4 +35,18 @@ return [
         ],
     ],
 
+    'cloudflare' => [
+        'token' => env('CLOUDFLARE_API_TOKEN'),
+    ],
+
+    'postmark_token' => env('POSTMARK_TOKEN'),
+
+    'stripe' => [
+        'secret' => env('STRIPE_SECRET'),
+    ],
+
+    'quickbooks' => [
+        'client_id' => env('QBO_CLIENT_ID'),
+    ],
+
 ];

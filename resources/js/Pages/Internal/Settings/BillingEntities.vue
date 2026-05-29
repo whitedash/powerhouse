@@ -18,18 +18,13 @@ import {
     IconCheck,
     IconTrash,
 } from '@tabler/icons-vue';
-import InternalLayout from '@/Layouts/InternalLayout.vue';
+import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 
 const props = defineProps({
     entities: { type: Array, required: true },
     selected_id: { type: Number, default: null },
 });
-
-const breadcrumbs = [
-    { label: 'Settings', href: '/settings' },
-    { label: 'Billing entities' },
-];
 
 /* ─── Selection ─── */
 const selectedId = ref(props.selected_id ?? props.entities[0]?.id ?? null);
@@ -227,7 +222,7 @@ const qboConnected = computed(() => !!selectedEntity.value?.qbo_realm_id);
 <template>
     <Head title="Billing entities" />
 
-    <InternalLayout title="Billing entities" :breadcrumbs="breadcrumbs" active-nav="settings">
+    <SettingsLayout title="Billing entities" active-section="billing-entities">
         <template #topbar-actions>
             <button type="button" class="btn btn-primary" @click="openCreate">
                 <IconPlus :size="15" stroke-width="1.75" />
@@ -789,5 +784,5 @@ const qboConnected = computed(() => !!selectedEntity.value?.qbo_realm_id);
             variant="warning"
             @confirm="handleRemoveLogo"
         />
-    </InternalLayout>
+    </SettingsLayout>
 </template>

@@ -17,17 +17,12 @@ import {
     IconUsers,
     IconArrowRight,
 } from '@tabler/icons-vue';
-import InternalLayout from '@/Layouts/InternalLayout.vue';
+import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 
 const props = defineProps({
     products: { type: Array, default: () => [] },
 });
-
-const breadcrumbs = [
-    { label: 'Settings', href: '/settings' },
-    { label: 'Products' },
-];
 
 /* ─── Colour palette presets ─── */
 const PRESETS = [
@@ -150,7 +145,7 @@ const slugLocked = computed(() => (selectedProduct.value?.active_customers ?? 0)
 <template>
     <Head title="Products" />
 
-    <InternalLayout title="Products" :breadcrumbs="breadcrumbs" active-nav="settings">
+    <SettingsLayout title="Products" active-section="products">
         <template #topbar-actions>
             <button type="button" class="btn btn-primary" @click="openCreate">
                 <IconPlus :size="15" stroke-width="1.75" />
@@ -570,5 +565,5 @@ const slugLocked = computed(() => (selectedProduct.value?.active_customers ?? 0)
             variant="warning"
             @confirm="handleSwitchConfirm"
         />
-    </InternalLayout>
+    </SettingsLayout>
 </template>
