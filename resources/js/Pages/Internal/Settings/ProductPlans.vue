@@ -537,7 +537,7 @@ function back() {
                                         <span class="price-amount">{{ gbp(price.price) }}</span>
                                         <span v-if="price.label" class="price-label-pill">{{ price.label }}</span>
                                         <span v-if="price.is_default" style="font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-tertiary);">Default</span>
-                                        <span class="price-subs">{{ price.active_customers }} sub{{ price.active_customers === 1 ? '' : 's' }}</span>
+                                        <span v-if="price.active_customers > 0" class="price-subs">{{ price.active_customers }} {{ price.active_customers === 1 ? 'subscriber' : 'subscribers' }}</span>
                                         <button type="button" class="icon-btn" aria-label="Edit price" @click="openEditPrice(plan, price)">
                                             <IconPencil :size="13" stroke-width="1.75" />
                                         </button>
@@ -637,7 +637,7 @@ function back() {
                                         <span class="price-amount">{{ gbp(price.price) }}</span>
                                         <span v-if="price.label" class="price-label-pill">{{ price.label }}</span>
                                         <span v-if="price.is_default" style="font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-tertiary);">Default</span>
-                                        <span class="price-subs">{{ price.active_customers }} sub{{ price.active_customers === 1 ? '' : 's' }}</span>
+                                        <span v-if="price.active_customers > 0" class="price-subs">{{ price.active_customers }} {{ price.active_customers === 1 ? 'subscriber' : 'subscribers' }}</span>
                                         <button type="button" class="icon-btn" aria-label="Edit price" @click="openEditPrice(plan, price)">
                                             <IconPencil :size="13" stroke-width="1.75" />
                                         </button>
