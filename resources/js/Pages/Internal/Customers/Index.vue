@@ -706,36 +706,6 @@ function submit() {
 </template>
 
 <style scoped>
-.dd-menu { position: relative; }
-.dd-popover {
-    position: absolute;
-    z-index: 30;
-    margin-top: 6px;
-    min-width: 180px;
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md);
-    padding: 4px;
-    outline: 0;
-}
-.dd-popover.right-align { right: 0; }
-.dd-option {
-    width: 100%;
-    display: block;
-    text-align: left;
-    padding: 7px 10px;
-    border-radius: 6px;
-    background: transparent;
-    border: 0;
-    cursor: pointer;
-    color: var(--text-primary);
-    font: 400 13px/1.3 'Inter', sans-serif;
-    text-decoration: none;
-}
-.dd-option.active,
-.dd-option:hover { background: var(--neutral-bg); color: var(--accent); }
-
 .slide-over {
     position: fixed;
     inset: 0;
