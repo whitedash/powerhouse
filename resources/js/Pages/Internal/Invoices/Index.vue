@@ -206,6 +206,39 @@ function navigateToLink(url) {
 function goNew() {
     router.visit('/invoices/new');
 }
+
+/* ─── Per-row action menu handlers ───
+   The menu items were unwired placeholder buttons; this is the
+   targeted fix. window.confirm() is intentionally temporary —
+   the global ConfirmModal sprint will replace it. */
+function rowSendReminder(id) {
+    router.post(`/invoices/${id}/send`, {}, {
+        preserveScroll: true,
+        onError: (errors) => {
+            // eslint-disable-next-line no-console
+            console.error('Send reminder failed:', errors);
+        },
+    });
+}
+function rowMarkPaid(id) {
+    // Anchor jumps the detail page to the record-payment card.
+    router.visit(`/invoices/${id}#record-payment`);
+}
+function rowDownloadPdf(id) {
+    // Preview endpoint emits inline disposition, opens in a new tab.
+    window.open(`/invoices/${id}/preview-pdf`, '_blank', 'noopener');
+}
+function voidInvoice(invoiceId, invoiceNumber) {
+    if (!confirm(`Void invoice ${invoiceNumber}? This cannot be undone.`)) return;
+    router.post(`/invoices/${invoiceId}/void`, {}, {
+        preserveScroll: true,
+        preserveState: false,
+        onError: (errors) => {
+            // eslint-disable-next-line no-console
+            console.error('Void failed:', errors);
+        },
+    });
+}
 </script>
 
 <template>
@@ -518,17 +551,34 @@ function goNew() {
                                             <Link :href="`/invoices/${inv.id}`" :class="['dd-option', { active }]">View invoice</Link>
                                         </MenuItem>
                                         <MenuItem v-slot="{ active }">
-                                            <button type="button" :class="['dd-option', { active }]">Send reminder</button>
+                                            <button
+                                                type="button"
+                                                :class="['dd-option', { active }]"
+                                                @click="rowSendReminder(inv.id)"
+                                            >Send reminder</button>
                                         </MenuItem>
                                         <MenuItem v-slot="{ active }">
-                                            <button type="button" :class="['dd-option', { active }]">Mark as paid</button>
+                                            <button
+                                                type="button"
+                                                :class="['dd-option', { active }]"
+                                                @click="rowMarkPaid(inv.id)"
+                                            >Mark as paid</button>
                                         </MenuItem>
                                         <MenuItem v-slot="{ active }">
-                                            <button type="button" :class="['dd-option', { active }]">Download PDF</button>
+                                            <button
+                                                type="button"
+                                                :class="['dd-option', { active }]"
+                                                @click="rowDownloadPdf(inv.id)"
+                                            >Download PDF</button>
                                         </MenuItem>
                                         <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
                                         <MenuItem v-slot="{ active }">
-                                            <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);">Void invoice</button>
+                                            <button
+                                                type="button"
+                                                :class="['dd-option', { active }]"
+                                                style="color: var(--danger);"
+                                                @click="voidInvoice(inv.id, inv.number)"
+                                            >Void invoice</button>
                                         </MenuItem>
                                     </MenuItems>
                                 </Menu>
