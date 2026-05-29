@@ -310,6 +310,20 @@ function gotoInvoice() {
     router.visit(`/invoices/new?customer_id=${props.customer.id}`);
 }
 
+/* ─── Task completion (optimistic dim before refresh) ─── */
+const completingTaskId = ref(null);
+
+function completeTask(taskId) {
+    if (completingTaskId.value === taskId) return;
+    completingTaskId.value = taskId;
+    router.post(`/tasks/${taskId}/complete`, {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            completingTaskId.value = null;
+        },
+    });
+}
+
 function copyText(value) {
     if (!value) return;
     if (navigator?.clipboard?.writeText) {
@@ -767,8 +781,19 @@ const headerStatusBadge = computed(() => {
                             </form>
                         </div>
                         <div v-if="customer.tasks.length">
-                            <div v-for="t in customer.tasks" :key="t.id" class="task-row">
-                                <span class="cb" />
+                            <div
+                                v-for="t in customer.tasks"
+                                :key="t.id"
+                                class="task-row"
+                                :class="{ completing: completingTaskId === t.id }"
+                            >
+                                <button
+                                    type="button"
+                                    class="cb"
+                                    :aria-label="`Complete task: ${t.title}`"
+                                    :disabled="completingTaskId === t.id"
+                                    @click="completeTask(t.id)"
+                                />
                                 <div>
                                     <div class="task-text">{{ t.title }}</div>
                                 </div>

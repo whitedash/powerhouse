@@ -1,6 +1,12 @@
 <script setup>
-import { computed } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import {
+    Dialog,
+    DialogPanel,
+    TransitionChild,
+    TransitionRoot,
+} from '@headlessui/vue';
 import {
     IconUsers,
     IconCurrencyPound,
@@ -31,6 +37,8 @@ import {
     IconMessage2,
     IconFilePlus,
     IconSend,
+    IconX,
+    IconSearch,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 
@@ -47,6 +55,8 @@ const props = defineProps({
     referrers: { type: Array, default: () => [] },
     total_pending_commissions: { type: Number, default: 0 },
     platform_health: { type: Array, default: () => [] },
+    customers: { type: Array, default: () => [] },
+    assignable_users: { type: Array, default: () => [] },
 });
 
 const breadcrumbs = [{ label: 'Overview' }];
@@ -154,6 +164,76 @@ function exportReport() {
 }
 function goNewCustomer() {
     router.visit('/customers');
+}
+
+/* ─── New-task slide-over ─── */
+const showNewTask = ref(false);
+const customerSearch = ref('');
+const todayIso = new Date().toISOString().slice(0, 10);
+
+const me = computed(() => {
+    // The InternalLayout shares the auth user via $page.props; fall back
+    // to the first assignable user so the select is never empty.
+    const u = props.assignable_users.find((u) => u.role === 'super_admin') ?? props.assignable_users[0];
+
+    return u?.id ?? null;
+});
+
+const taskForm = useForm({
+    title: '',
+    due_date: '',
+    customer_id: null,
+    assigned_to: null,
+});
+
+function openNewTask() {
+    taskForm.reset();
+    taskForm.clearErrors();
+    taskForm.assigned_to = me.value;
+    customerSearch.value = '';
+    showNewTask.value = true;
+}
+
+function submitNewTask() {
+    taskForm.post('/tasks', {
+        preserveScroll: true,
+        onSuccess: () => {
+            showNewTask.value = false;
+        },
+    });
+}
+
+const filteredCustomers = computed(() => {
+    const q = customerSearch.value.trim().toLowerCase();
+    if (! q) return props.customers.slice(0, 8);
+
+    return props.customers
+        .filter((c) => c.name.toLowerCase().includes(q))
+        .slice(0, 8);
+});
+
+function pickCustomer(c) {
+    taskForm.customer_id = c.id;
+    customerSearch.value = c.name;
+}
+
+function clearCustomer() {
+    taskForm.customer_id = null;
+    customerSearch.value = '';
+}
+
+/* ─── Complete a task (optimistic dim then refresh) ─── */
+const completingId = ref(null);
+
+function completeTask(taskId) {
+    if (completingId.value === taskId) return;
+    completingId.value = taskId;
+    router.post(`/tasks/${taskId}/complete`, {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            completingId.value = null;
+        },
+    });
 }
 </script>
 
@@ -421,14 +501,25 @@ function goNewCustomer() {
                                 <div class="sub">{{ tasks.length }} open<template v-if="tasksDueToday"> · {{ tasksDueToday }} due today</template></div>
                             </div>
                             <div class="right">
-                                <button type="button" class="btn btn-ghost btn-sm">
+                                <button type="button" class="btn btn-ghost btn-sm" @click="openNewTask">
                                     <IconPlus :size="14" stroke-width="1.75" />New task
                                 </button>
                             </div>
                         </div>
                         <div v-if="tasks.length" class="tasks">
-                            <div v-for="t in tasks" :key="t.id" class="task-row">
-                                <span class="cb" />
+                            <div
+                                v-for="t in tasks"
+                                :key="t.id"
+                                class="task-row"
+                                :class="{ completing: completingId === t.id }"
+                            >
+                                <button
+                                    type="button"
+                                    class="cb"
+                                    :aria-label="`Complete task: ${t.title}`"
+                                    :disabled="completingId === t.id"
+                                    @click="completeTask(t.id)"
+                                />
                                 <div>
                                     <div class="task-text">{{ t.title }}</div>
                                     <div v-if="t.customer" class="task-meta">
@@ -583,5 +674,126 @@ function goNewCustomer() {
                 <div>Data refreshed <strong>just now</strong> · auto-syncs every 5 min</div>
             </div>
         </div>
+
+        <!-- ═══ New-task slide-over ═══ -->
+        <TransitionRoot as="template" :show="showNewTask">
+            <Dialog as="div" class="slide-over-dialog" @close="showNewTask = false">
+                <TransitionChild
+                    as="template"
+                    enter="transition-opacity ease-out duration-200"
+                    enter-from="opacity-0"
+                    enter-to="opacity-100"
+                    leave="transition-opacity ease-in duration-150"
+                    leave-from="opacity-100"
+                    leave-to="opacity-0"
+                >
+                    <div class="slide-over-backdrop" />
+                </TransitionChild>
+                <TransitionChild
+                    as="template"
+                    enter="transform transition ease-out duration-200"
+                    enter-from="translate-x-full"
+                    enter-to="translate-x-0"
+                    leave="transform transition ease-in duration-150"
+                    leave-from="translate-x-0"
+                    leave-to="translate-x-full"
+                >
+                    <DialogPanel class="slide-over-panel">
+                        <form class="slide-over-form" @submit.prevent="submitNewTask">
+                            <header class="slide-over-header">
+                                <h2>New task</h2>
+                                <button type="button" class="icon-btn" aria-label="Close" @click="showNewTask = false">
+                                    <IconX :size="18" stroke-width="1.75" />
+                                </button>
+                            </header>
+
+                            <div class="slide-over-body">
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label for="task_title">Task<span class="req">*</span></label>
+                                            <input
+                                                id="task_title"
+                                                v-model="taskForm.title"
+                                                type="text"
+                                                placeholder="What needs to be done?"
+                                                maxlength="500"
+                                                :class="{ 'has-err': taskForm.errors.title }"
+                                                required
+                                            >
+                                            <div v-if="taskForm.errors.title" class="err">{{ taskForm.errors.title }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Customer (optional)</label>
+                                            <div v-if="taskForm.customer_id" class="cust-row selected" style="cursor: default;">
+                                                <div class="meta">
+                                                    <div class="nm">{{ customerSearch }}</div>
+                                                </div>
+                                                <button type="button" class="clear" aria-label="Clear customer" @click="clearCustomer">
+                                                    <IconX :size="14" stroke-width="1.75" />
+                                                </button>
+                                            </div>
+                                            <template v-else>
+                                                <div class="cust-search">
+                                                    <IconSearch :size="16" stroke-width="1.75" />
+                                                    <input v-model="customerSearch" type="search" placeholder="Link to a customer…">
+                                                </div>
+                                                <div v-if="filteredCustomers.length" class="cust-list" style="margin-top: 6px; max-height: 200px; overflow-y: auto;">
+                                                    <button
+                                                        v-for="c in filteredCustomers"
+                                                        :key="c.id"
+                                                        type="button"
+                                                        class="cust-row"
+                                                        @click="pickCustomer(c)"
+                                                    >
+                                                        <div class="meta">
+                                                            <div class="nm">{{ c.name }}</div>
+                                                        </div>
+                                                    </button>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-field">
+                                            <label for="task_due">Due date (optional)</label>
+                                            <input
+                                                id="task_due"
+                                                v-model="taskForm.due_date"
+                                                type="date"
+                                                :min="todayIso"
+                                                :class="{ 'has-err': taskForm.errors.due_date }"
+                                            >
+                                            <div v-if="taskForm.errors.due_date" class="err">{{ taskForm.errors.due_date }}</div>
+                                        </div>
+                                        <div class="form-field">
+                                            <label for="task_assigned">Assign to<span class="req">*</span></label>
+                                            <select
+                                                id="task_assigned"
+                                                v-model="taskForm.assigned_to"
+                                                :class="{ 'has-err': taskForm.errors.assigned_to }"
+                                            >
+                                                <option v-for="u in assignable_users" :key="u.id" :value="u.id">{{ u.name }}</option>
+                                            </select>
+                                            <div v-if="taskForm.errors.assigned_to" class="err">{{ taskForm.errors.assigned_to }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <footer class="slide-over-footer">
+                                <button type="button" class="btn btn-secondary" @click="showNewTask = false">Cancel</button>
+                                <button type="submit" class="btn btn-primary" :disabled="taskForm.processing">
+                                    <IconPlus :size="15" stroke-width="1.75" />
+                                    {{ taskForm.processing ? 'Creating…' : 'Create task' }}
+                                </button>
+                            </footer>
+                        </form>
+                    </DialogPanel>
+                </TransitionChild>
+            </Dialog>
+        </TransitionRoot>
     </InternalLayout>
 </template>

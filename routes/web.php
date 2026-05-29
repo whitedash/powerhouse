@@ -10,6 +10,7 @@ use App\Http\Controllers\Internal\ProvisioningController as InternalProvisioning
 use App\Http\Controllers\Internal\ReferrerController as InternalReferrerController;
 use App\Http\Controllers\Internal\SettingsController as InternalSettingsController;
 use App\Http\Controllers\Internal\SupportController as InternalSupportController;
+use App\Http\Controllers\Internal\TaskController as InternalTaskController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
 use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
 use App\Http\Controllers\Portal\ProductController as PortalProductController;
@@ -41,6 +42,11 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
     Route::put('/customers/{id}', [InternalCustomerController::class, 'update'])->name('internal.customers.update');
     Route::post('/customers/{id}/notes', [InternalCustomerController::class, 'storeNote'])->name('internal.customers.notes.store');
     Route::post('/customers/{id}/tasks', [InternalCustomerController::class, 'storeTask'])->name('internal.customers.tasks.store');
+
+    // Global task endpoints — for the dashboard New-task slide-over and
+    // checkbox-completion on every list that surfaces tasks.
+    Route::post('/tasks', [InternalTaskController::class, 'store'])->name('internal.tasks.store');
+    Route::post('/tasks/{id}/complete', [InternalTaskController::class, 'complete'])->name('internal.tasks.complete');
     Route::delete('/customers/{id}/archive', [InternalCustomerController::class, 'archive'])->name('internal.customers.archive');
 
     Route::get('/invoices/new', [InternalInvoiceController::class, 'create'])->name('internal.invoices.create');

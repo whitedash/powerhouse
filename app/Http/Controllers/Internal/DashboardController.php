@@ -13,6 +13,7 @@ use App\Models\Product;
 use App\Models\Referrer;
 use App\Models\SupportTicket;
 use App\Models\Task;
+use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -30,6 +31,8 @@ class DashboardController extends Controller
         'customer.archived' => 'Customer archived',
         'customer.note_added' => 'Note added',
         'customer.task_added' => 'Task added',
+        'task.created' => 'Task created',
+        'task.completed' => 'Task completed',
         'invoice.created' => 'Invoice created',
         'invoice.updated' => 'Invoice updated',
         'invoice.sent' => 'Invoice sent',
@@ -76,6 +79,17 @@ class DashboardController extends Controller
             'total_pending_commissions' => (float) CommissionLedger::where('status', 'pending')
                 ->sum('commission_amount'),
             'platform_health' => $this->buildPlatformHealth(),
+            // Slim payloads for the New-task slide-over (linkable customer
+            // + assignable user select). Active customers only; archived
+            // wouldn't be sensible to attach a new task to.
+            'customers' => Customer::whereNull('archived_at')
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->all(),
+            'assignable_users' => User::whereIn('role', ['super_admin', 'staff'])
+                ->orderBy('name')
+                ->get(['id', 'name', 'role', 'avatar_colour'])
+                ->all(),
         ]);
     }
 

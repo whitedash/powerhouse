@@ -2987,9 +2987,20 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     border: 1.5px solid #CBD5E1;
     border-radius: var(--radius-sm);
     background: #fff;
-    cursor: default;
+    cursor: pointer;
     flex-shrink: 0;
     appearance: none;
+    padding: 0;
+    transition: border-color .12s, background .12s;
+}
+.dashboard .cb:hover { border-color: var(--accent); }
+.dashboard .cb:disabled { cursor: progress; opacity: .6; }
+
+/* Optimistic dim while complete request is in flight */
+.dashboard .task-row.completing { opacity: .4; transition: opacity .3s ease; }
+.dashboard .task-row.completing .cb {
+    background: var(--accent);
+    border-color: var(--accent);
 }
 .dashboard .task-text { font: 400 13px/1.4 'Inter', sans-serif; }
 .dashboard .task-meta {
@@ -3412,4 +3423,41 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
 .inv-reminders .reminders-toggle .ghost-link {
     font: 500 12px/1.4 'Inter', sans-serif;
     padding: 4px 8px;
+}
+
+/* ─── Customer detail · task rows (mirrors dashboard pattern) ─── */
+.cust-detail .task-row {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 18px;
+    border-bottom: 1px solid var(--border-soft);
+}
+.cust-detail .task-row:last-child { border-bottom: 0; }
+.cust-detail .task-row:hover { background: #FBFCFE; }
+.cust-detail .cb {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid #CBD5E1;
+    border-radius: var(--radius-sm);
+    background: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+    appearance: none;
+    padding: 0;
+    transition: border-color .12s, background .12s;
+}
+.cust-detail .cb:hover { border-color: var(--accent); }
+.cust-detail .cb:disabled { cursor: progress; opacity: .6; }
+.cust-detail .task-text { font: 400 13px/1.4 'Inter', sans-serif; }
+.cust-detail .task-row .due {
+    font: 500 11.5px/1 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.cust-detail .task-row.completing { opacity: .4; transition: opacity .3s ease; }
+.cust-detail .task-row.completing .cb {
+    background: var(--accent);
+    border-color: var(--accent);
 }
