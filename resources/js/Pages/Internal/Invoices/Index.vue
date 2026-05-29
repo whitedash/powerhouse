@@ -547,23 +547,28 @@ function voidInvoice(invoiceId, invoiceNumber) {
                                         <IconDots :size="18" stroke-width="1.75" />
                                     </MenuButton>
                                     <MenuItems class="dd-popover right-align">
+                                        <!-- Always available -->
                                         <MenuItem v-slot="{ active }">
                                             <Link :href="`/invoices/${inv.id}`" :class="['dd-option', { active }]">View invoice</Link>
                                         </MenuItem>
-                                        <MenuItem v-slot="{ active }">
+
+                                        <!-- Outstanding invoices only -->
+                                        <MenuItem v-if="['sent', 'overdue'].includes(inv.status)" v-slot="{ active }">
                                             <button
                                                 type="button"
                                                 :class="['dd-option', { active }]"
                                                 @click="rowSendReminder(inv.id)"
                                             >Send reminder</button>
                                         </MenuItem>
-                                        <MenuItem v-slot="{ active }">
+                                        <MenuItem v-if="['sent', 'overdue'].includes(inv.status)" v-slot="{ active }">
                                             <button
                                                 type="button"
                                                 :class="['dd-option', { active }]"
                                                 @click="rowMarkPaid(inv.id)"
                                             >Mark as paid</button>
                                         </MenuItem>
+
+                                        <!-- Always available -->
                                         <MenuItem v-slot="{ active }">
                                             <button
                                                 type="button"
@@ -571,8 +576,13 @@ function voidInvoice(invoiceId, invoiceNumber) {
                                                 @click="rowDownloadPdf(inv.id)"
                                             >Download PDF</button>
                                         </MenuItem>
-                                        <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
-                                        <MenuItem v-slot="{ active }">
+
+                                        <!-- Divider + Void: only for non-final invoices -->
+                                        <div
+                                            v-if="['draft', 'sent', 'overdue'].includes(inv.status)"
+                                            style="height: 1px; background: var(--border-soft); margin: 4px 0;"
+                                        />
+                                        <MenuItem v-if="['draft', 'sent', 'overdue'].includes(inv.status)" v-slot="{ active }">
                                             <button
                                                 type="button"
                                                 :class="['dd-option', { active }]"

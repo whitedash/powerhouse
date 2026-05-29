@@ -12,12 +12,13 @@ import {
     IconCirclePlus,
     IconInfoCircle,
     IconX,
-    IconLock,
     IconEye,
     IconUser,
     IconBuilding,
     IconAdjustments,
     IconAlertCircle,
+    IconRotateClockwise,
+    IconBriefcase,
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
@@ -291,19 +292,17 @@ function discard() {
                     <IconDeviceFloppy :size="15" stroke-width="1.75" />
                     {{ form.processing && !form.send_after_create ? 'Saving…' : 'Save changes' }}
                 </button>
-                <span v-if="canSendFromEdit" class="has-tip">
-                    <button
-                        type="button"
-                        class="btn btn-primary"
-                        :class="{ disabled: !isValid }"
-                        :disabled="!isValid || form.processing"
-                        @click="submitSend"
-                    >
-                        <IconSend :size="15" stroke-width="1.75" />
-                        {{ form.processing && form.send_after_create ? 'Sending…' : 'Save & send' }}
-                    </button>
-                    <span v-if="!isValid" class="tip">Complete all required fields to send</span>
-                </span>
+                <button
+                    v-if="canSendFromEdit"
+                    type="button"
+                    class="btn btn-primary"
+                    :class="{ disabled: !isValid }"
+                    :disabled="!isValid || form.processing"
+                    @click="submitSend"
+                >
+                    <IconSend :size="15" stroke-width="1.75" />
+                    {{ form.processing && form.send_after_create ? 'Sending…' : 'Save & send' }}
+                </button>
             </template>
             <template v-else>
                 <button type="button" class="btn btn-ghost danger" @click="discard">
@@ -314,19 +313,16 @@ function discard() {
                     <IconDeviceFloppy :size="15" stroke-width="1.75" />
                     {{ form.processing && !form.send_after_create ? 'Saving…' : 'Save as draft' }}
                 </button>
-                <span class="has-tip">
-                    <button
-                        type="button"
-                        class="btn btn-primary"
-                        :class="{ disabled: !isValid }"
-                        :disabled="!isValid || form.processing"
-                        @click="submitSend"
-                    >
-                        <IconSend :size="15" stroke-width="1.75" />
-                        {{ form.processing && form.send_after_create ? 'Sending…' : 'Send invoice' }}
-                    </button>
-                    <span v-if="!isValid" class="tip">Complete all required fields to send</span>
-                </span>
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    :class="{ disabled: !isValid }"
+                    :disabled="!isValid || form.processing"
+                    @click="submitSend"
+                >
+                    <IconSend :size="15" stroke-width="1.75" />
+                    {{ form.processing && form.send_after_create ? 'Sending…' : 'Send invoice' }}
+                </button>
             </template>
         </template>
 
@@ -658,6 +654,25 @@ function discard() {
                             <div class="h-title">Settings</div>
                         </header>
                         <div class="cfg-body">
+                            <div class="type-toggle">
+                                <button
+                                    type="button"
+                                    :class="['type-opt', { active: form.type === 'subscription' }]"
+                                    @click="form.type = 'subscription'"
+                                >
+                                    <IconRotateClockwise :size="15" stroke-width="1.75" />
+                                    Subscription
+                                </button>
+                                <button
+                                    type="button"
+                                    :class="['type-opt', { active: form.type === 'service' }]"
+                                    @click="form.type = 'service'"
+                                >
+                                    <IconBriefcase :size="15" stroke-width="1.75" />
+                                    Service
+                                </button>
+                            </div>
+
                             <div class="set-row">
                                 <div>
                                     <div class="nm">Send email to customer</div>
@@ -704,11 +719,6 @@ function discard() {
                                 <template v-if="isEdit">{{ form.processing && form.send_after_create ? 'Sending…' : 'Save & send' }}</template>
                                 <template v-else>{{ form.processing && form.send_after_create ? 'Sending…' : 'Send invoice' }}</template>
                             </button>
-                            <div v-if="!isValid && (!isEdit || canSendFromEdit)" class="send-hint">
-                                <IconLock :size="13" stroke-width="1.75" />
-                                Complete all required fields
-                            </div>
-
                             <div v-if="!isEdit || canSendFromEdit" class="send-divider" />
 
                             <button

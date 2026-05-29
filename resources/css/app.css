@@ -3179,3 +3179,34 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
 
 /* Greeting empty-state secondary line variant */
 .dashboard .greet h1 { font-size: 28px; letter-spacing: -.02em; }
+
+/* ─── New-invoice type toggle (Subscription / Service) ─── */
+.type-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+.type-opt {
+    padding: 9px 12px;
+    font: 500 13px/1 'Inter', sans-serif;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: #fff;
+    color: var(--text-secondary);
+    transition: background .15s, color .15s;
+}
+.type-opt svg { width: 15px; height: 15px; }
+.type-opt.active {
+    background: var(--bg-navy);
+    color: #fff;
+}
+.type-opt:not(.active):hover {
+    background: var(--neutral-bg);
+}
