@@ -88,18 +88,14 @@
 <meta charset="UTF-8">
 <title>Invoice {{ $invoice->number }} — {{ $entity?->name }}</title>
 <style>
-  /* Page margins are CSS-only in dompdf — the Options class has no
-     setMarginTop()/etc. methods, so set_option('margin_top', …) calls
-     silently no-op. The @page rule below is the single source of truth
-     for the printable area. Per-side declarations are used instead of
-     the shorthand because some dompdf versions parse only the per-side
-     form correctly when other @page properties (like size) are also set. */
+  /* Page margins live on the .page wrapper as padding rather than the
+     @page rule. dompdf 2.x parses @page margins inconsistently across
+     viewers — relying on wrapper padding renders the same white space
+     in every viewer because it becomes part of the page content, not
+     a rendering hint. @page keeps size: A4 only. */
   @page {
     size: A4 portrait;
-    margin-top: 15mm;
-    margin-right: 15mm;
-    margin-bottom: 15mm;
-    margin-left: 15mm;
+    margin: 0;
   }
   * {
     margin: 0;
@@ -115,6 +111,7 @@
   }
   .page {
     background: #FFFFFF;
+    padding: 15mm 15mm 15mm 15mm;
   }
 
   .no-break {
