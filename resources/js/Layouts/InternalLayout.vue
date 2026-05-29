@@ -14,6 +14,7 @@ import {
     IconCreditCard,
     IconChartLine,
     IconToolsKitchen2,
+    IconFileInvoice,
     IconClipboardList,
     IconBuildingStore,
     IconMessage2,
@@ -89,6 +90,7 @@ const sections = computed(() => [
         label: 'Products',
         items: [
             { key: 'maavelus',      label: 'Maavelus',      href: '#', icon: IconToolsKitchen2 },
+            { key: 'maavelus-statements', label: 'Statements', href: '/maavelus/statements', icon: IconFileInvoice, sub: true },
             { key: 'myorderpad',    label: 'MyOrderPad',    href: '#', icon: IconClipboardList },
             { key: 'whitedash_b2b', label: 'Whitedash B2B', href: '#', icon: IconBuildingStore },
             { key: 'smscube',       label: 'SMScube',       href: '#', icon: IconMessage2 },
@@ -130,9 +132,9 @@ function logout() {
                     :key="item.key"
                     :href="item.href"
                     class="nav-item"
-                    :class="{ active: activeNav === item.key }"
+                    :class="{ active: activeNav === item.key, 'nav-sub': item.sub }"
                 >
-                    <component :is="item.icon" :size="18" stroke-width="1.75" />
+                    <component :is="item.icon" :size="item.sub ? 16 : 18" stroke-width="1.75" />
                     <span>{{ item.label }}</span>
                     <span
                         v-if="item.badge"

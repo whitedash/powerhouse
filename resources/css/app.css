@@ -3461,3 +3461,12 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     background: var(--accent);
     border-color: var(--accent);
 }
+
+/* ─── Sidebar sub-item (nested under a parent nav-item) ─── */
+.nav-item.nav-sub {
+    padding-left: 28px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, .55);
+}
+.nav-item.nav-sub:hover { color: #fff; }
+.nav-item.nav-sub svg { width: 16px; height: 16px; }

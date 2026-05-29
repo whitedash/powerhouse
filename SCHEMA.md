@@ -88,6 +88,23 @@ note VARCHAR(500) nullable, quantity DECIMAL(10,3),
 unit_price DECIMAL(10,2), amount DECIMAL(10,2),
 sort_order INT DEFAULT 0, created_at, updated_at
 
+## maavelus_statements
+id, period_start DATE UNIQUE, period_end DATE,
+total_fees DECIMAL(10,2) DEFAULT 0,
+total_orders INT UNSIGNED nullable,
+status ENUM(draft|confirmed) DEFAULT draft,
+notes TEXT nullable, pdf_path VARCHAR(500) nullable,
+data_source ENUM(manual|api) DEFAULT manual,
+commissions_generated BOOLEAN DEFAULT FALSE,
+confirmed_by BIGINT FK users nullable,
+confirmed_at nullable,
+created_by BIGINT FK users, created_at, updated_at
+
+## maavelus_statement_lines
+id, statement_id FK maavelus_statements ON DELETE CASCADE,
+customer_id FK customers, total_fees DECIMAL(10,2),
+order_count INT UNSIGNED nullable, created_at, updated_at
+
 ## referrers
 id, user_id FK users,
 payment_details JSON nullable,

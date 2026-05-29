@@ -6,6 +6,7 @@ use App\Http\Controllers\Internal\CustomerController as InternalCustomerControll
 use App\Http\Controllers\Internal\DashboardController as InternalDashboardController;
 use App\Http\Controllers\Internal\DomainController as InternalDomainController;
 use App\Http\Controllers\Internal\InvoiceController as InternalInvoiceController;
+use App\Http\Controllers\Internal\MaavelusStatementController as InternalMaavelusStatementController;
 use App\Http\Controllers\Internal\ProvisioningController as InternalProvisioningController;
 use App\Http\Controllers\Internal\ReferrerController as InternalReferrerController;
 use App\Http\Controllers\Internal\SettingsController as InternalSettingsController;
@@ -84,6 +85,18 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
             ->name('billing-entities.logo.delete');
         Route::delete('/billing-entities/{id}', [InternalBillingEntityController::class, 'destroy'])
             ->name('billing-entities.destroy');
+    });
+
+    // Maavelus monthly revenue statements — internal-only, super_admin
+    // gated. Each statement is an internal record of platform fees +
+    // auto-generated referral commissions, not a customer-facing invoice.
+    Route::middleware('role:super_admin')->prefix('maavelus/statements')->name('internal.maavelus-statements.')->group(function () {
+        Route::get('/', [InternalMaavelusStatementController::class, 'index'])->name('index');
+        Route::post('/', [InternalMaavelusStatementController::class, 'store'])->name('store');
+        Route::get('/{id}', [InternalMaavelusStatementController::class, 'show'])->name('show');
+        Route::post('/{id}/confirm', [InternalMaavelusStatementController::class, 'confirm'])->name('confirm');
+        Route::get('/{id}/download', [InternalMaavelusStatementController::class, 'download'])->name('download');
+        Route::delete('/{id}', [InternalMaavelusStatementController::class, 'destroy'])->name('destroy');
     });
 });
 
