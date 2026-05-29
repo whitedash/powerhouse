@@ -4865,6 +4865,18 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     color: var(--text-primary);
     margin-bottom: 6px;
 }
+.epc-category {
+    display: inline-block;
+    font: 500 10px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--accent);
+    background: var(--warning-bg);
+    border: 1px solid rgba(245, 158, 11, .25);
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-bottom: 6px;
+}
 .epc-features {
     display: flex;
     flex-wrap: wrap;

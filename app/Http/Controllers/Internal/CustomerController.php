@@ -384,7 +384,7 @@ class CustomerController extends Controller
                 ->whereNotIn('id', $customer->customerProducts
                     ->whereIn('status', ['active', 'trial'])
                     ->pluck('product_id'))
-                ->with(['activePlans.activePrices'])
+                ->with(['activePlans.activePrices', 'activePlans.category'])
                 ->orderBy('sort_order')
                 ->get(['id', 'slug', 'name', 'icon_colour'])
                 ->map(fn (Product $p): array => [
@@ -397,6 +397,7 @@ class CustomerController extends Controller
                         'name' => $plan->name,
                         'description' => $plan->description,
                         'category_id' => $plan->category_id,
+                        'category_name' => $plan->category?->name,
                         'features' => $plan->features ?? [],
                         'prices' => $plan->activePrices->map(fn (ProductPlanPrice $pp): array => [
                             'id' => $pp->id,

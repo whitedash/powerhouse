@@ -1471,6 +1471,7 @@ const headerStatusBadge = computed(() => {
                                                 </div>
                                                 <div class="epc-body">
                                                     <div class="epc-name">{{ plan.name }}</div>
+                                                    <div v-if="plan.category_name" class="epc-category">{{ plan.category_name }}</div>
                                                     <div v-if="(plan.features ?? []).length" class="epc-features">
                                                         <span v-for="(feat, i) in plan.features.slice(0, 3)" :key="i" class="epc-feat">
                                                             ✓ {{ feat }}

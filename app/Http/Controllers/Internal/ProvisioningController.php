@@ -83,7 +83,7 @@ class ProvisioningController extends Controller
         $products = Product::query()
             ->where('is_active', true)
             ->orWhere('is_coming_soon', true)
-            ->with('activePlans.activePrices')
+            ->with(['activePlans.activePrices', 'activePlans.category'])
             ->orderBy('sort_order')
             ->get(['id', 'name', 'slug', 'icon_colour', 'is_active', 'is_coming_soon'])
             ->map(fn (Product $p): array => [
@@ -101,6 +101,7 @@ class ProvisioningController extends Controller
                     'name' => $plan->name,
                     'description' => $plan->description,
                     'category_id' => $plan->category_id,
+                    'category_name' => $plan->category?->name,
                     'features' => $plan->features ?? [],
                     'prices' => $plan->activePrices->map(fn (ProductPlanPrice $pp): array => [
                         'id' => $pp->id,
