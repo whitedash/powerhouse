@@ -7,39 +7,37 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property int $product_id
+ * @property int|null $category_id
  * @property string $name
  * @property string|null $description
- * @property string $price
- * @property int $interval_count
- * @property string $interval_unit
- * @property string|null $stripe_price_id
  * @property array<int, string>|null $features
  * @property bool $is_active
  * @property bool $is_public
  * @property int $sort_order
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read string $interval_label
  * @property-read float $mrr_contribution
- * @property-read float $arr_contribution
+ * @property-read ProductPlanPrice|null $default_price
  * @property-read Product|null $product
+ * @property-read ProductPlanCategory|null $category
  * @property-read Collection<int, CustomerProduct> $customerProducts
+ * @property-read Collection<int, ProductPlanPrice> $prices
+ * @property-read Collection<int, ProductPlanPrice> $activePrices
+ * @property-read ProductPlanPrice|null $defaultPrice
  */
 class ProductPlan extends Model
 {
     protected $fillable = [
         'product_id',
+        'category_id',
         'name',
         'description',
-        'price',
-        'interval_count',
-        'interval_unit',
-        'stripe_price_id',
         'features',
         'is_active',
         'is_public',
@@ -49,8 +47,6 @@ class ProductPlan extends Model
     protected function casts(): array
     {
         return [
-            'price' => 'decimal:2',
-            'interval_count' => 'integer',
             'features' => 'array',
             'is_active' => 'boolean',
             'is_public' => 'boolean',
@@ -63,79 +59,43 @@ class ProductPlan extends Model
         return $this->belongsTo(Product::class);
     }
 
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(ProductPlanCategory::class, 'category_id');
+    }
+
     public function customerProducts(): HasMany
     {
         return $this->hasMany(CustomerProduct::class, 'plan_id');
     }
 
-    /**
-     * Human-readable interval, used by every UI surface so they all
-     * agree on the wording. (1, month) → "Monthly"; (3, month) →
-     * "Every 3 months"; (1, year) → "Yearly"; one_time → "One-time".
-     */
-    protected function intervalLabel(): Attribute
+    public function prices(): HasMany
     {
-        return Attribute::get(function (): string {
-            if ($this->interval_unit === 'one_time') {
-                return 'One-time';
-            }
+        return $this->hasMany(ProductPlanPrice::class, 'plan_id')->orderBy('sort_order');
+    }
 
-            $unit = $this->interval_unit;
-            $count = $this->interval_count;
+    public function activePrices(): HasMany
+    {
+        return $this->hasMany(ProductPlanPrice::class, 'plan_id')
+            ->where('is_active', true)
+            ->orderBy('sort_order');
+    }
 
-            if ($count === 1) {
-                return match ($unit) {
-                    'day' => 'Daily',
-                    'week' => 'Weekly',
-                    'month' => 'Monthly',
-                    'year' => 'Yearly',
-                    default => ucfirst($unit),
-                };
-            }
-
-            $plural = match ($unit) {
-                'day' => 'days',
-                'week' => 'weeks',
-                'month' => 'months',
-                'year' => 'years',
-                default => $unit,
-            };
-
-            return "Every {$count} {$plural}";
-        });
+    public function defaultPrice(): HasOne
+    {
+        return $this->hasOne(ProductPlanPrice::class, 'plan_id')->where('is_default', true);
     }
 
     /**
-     * Normalises the plan's price into a monthly contribution. Used by
-     * MRR/ARR aggregations. one_time → 0 (one-offs don't recur);
-     * monthly subs divide by their interval_count so a "every 3 months
-     * £75" plan reports £25/mo MRR; annual subs divide by 12.
+     * Plan-level MRR is the contribution of its default price. Callers
+     * that want the full price spread should walk activePrices
+     * themselves. Returns 0 if no default has been chosen — keeps the
+     * aggregates safe while the operator is mid-edit.
      */
     protected function mrrContribution(): Attribute
     {
-        return Attribute::get(function (): float {
-            $price = (float) $this->price;
-            $count = max(1, (int) $this->interval_count);
-
-            return match ($this->interval_unit) {
-                'one_time' => 0.0,
-                // 365 / 12 ≈ 30.42, the avg month length in days.
-                'day' => round($price * (365 / 12) / $count, 2),
-                // 52 weeks / 12 months ≈ 4.33.
-                'week' => round($price * (52 / 12) / $count, 2),
-                'month' => round($price / $count, 2),
-                'year' => round($price / ($count * 12), 2),
-                default => 0.0,
-            };
-        });
-    }
-
-    /**
-     * ARR is just MRR × 12, derived for consistency. Reporting helpers
-     * read this rather than re-deriving it.
-     */
-    protected function arrContribution(): Attribute
-    {
-        return Attribute::get(fn (): float => round($this->mrr_contribution * 12, 2));
+        return Attribute::get(fn (): float => $this->defaultPrice
+            ? $this->defaultPrice->mrr_contribution
+            : 0.0);
     }
 }

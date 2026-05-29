@@ -40,13 +40,18 @@ id, slug VARCHAR(50) UNIQUE, name, description,
 icon_colour, is_active BOOLEAN, is_coming_soon BOOLEAN,
 sort_order INT, created_at, updated_at
 
-## product_plans
+## product_plan_categories
 id, product_id FK CASCADE,
 name VARCHAR(100), description TEXT nullable,
-price DECIMAL(10,2) DEFAULT 0,
-interval_count TINYINT UNSIGNED DEFAULT 1,
-interval_unit ENUM(day|week|month|year|one_time) DEFAULT 'month',
-stripe_price_id VARCHAR(100) nullable,
+sort_order INT DEFAULT 0,
+is_public BOOLEAN DEFAULT true,
+created_at, updated_at
+INDEXES: UNIQUE(product_id, name), (product_id, sort_order)
+
+## product_plans
+id, product_id FK CASCADE,
+category_id FK product_plan_categories nullable ON DELETE SET NULL,
+name VARCHAR(100), description TEXT nullable,
 features JSON nullable,
 is_active BOOLEAN DEFAULT true,
 is_public BOOLEAN DEFAULT true,
@@ -54,9 +59,23 @@ sort_order INT DEFAULT 0,
 created_at, updated_at
 INDEXES: (product_id, is_active, sort_order)
 
+## product_plan_prices
+id, plan_id FK product_plans CASCADE,
+price DECIMAL(10,2) DEFAULT 0,
+interval_count TINYINT UNSIGNED DEFAULT 1,
+interval_unit ENUM(day|week|month|year|one_time) DEFAULT 'month',
+stripe_price_id VARCHAR(100) nullable,
+label VARCHAR(100) nullable,
+is_default BOOLEAN DEFAULT false,
+is_active BOOLEAN DEFAULT true,
+sort_order INT DEFAULT 0,
+created_at, updated_at
+INDEXES: (plan_id, is_active, sort_order)
+
 ## customer_products
 id, customer_id FK, product_id FK,
 plan_id FK product_plans nullable ON DELETE SET NULL,
+plan_price_id FK product_plan_prices nullable ON DELETE SET NULL,
 billing_entity_id FK nullable,
 stripe_subscription_id VARCHAR(100) nullable,
 stripe_price_id VARCHAR(100) nullable,

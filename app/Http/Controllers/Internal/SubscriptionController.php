@@ -8,6 +8,7 @@ use App\Models\BillingEntity;
 use App\Models\CustomerProduct;
 use App\Models\Product;
 use App\Models\ProductPlan;
+use App\Models\ProductPlanPrice;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -33,7 +34,8 @@ class SubscriptionController extends Controller
             ->with([
                 'customer:id,name,city',
                 'product:id,name,slug,icon_colour',
-                'productPlan:id,name,price,interval_count,interval_unit',
+                'productPlan:id,name',
+                'planPrice:id,plan_id,price,interval_count,interval_unit,label,is_default',
                 'billingEntity:id,name',
             ])
             ->whereIn('status', self::STATUSES)
@@ -58,6 +60,7 @@ class SubscriptionController extends Controller
                 ],
                 'plan' => $cp->plan,
                 'plan_id' => $cp->plan_id,
+                'plan_price_id' => $cp->plan_price_id,
                 'plan_name' => $cp->productPlan ? $cp->productPlan->name : $cp->plan,
                 'price_monthly' => (float) ($cp->price_monthly ?? 0),
                 'effective_price' => $cp->effective_price,
@@ -83,16 +86,23 @@ class SubscriptionController extends Controller
         // slide-over can render a plan picker without an extra
         // round-trip per row.
         $productPlans = ProductPlan::where('is_active', true)
+            ->with('activePrices')
             ->orderBy('sort_order')
-            ->get(['id', 'product_id', 'name', 'price', 'interval_count', 'interval_unit'])
+            ->get(['id', 'product_id', 'name'])
             ->groupBy('product_id')
             ->map(fn ($plans) => $plans->map(fn (ProductPlan $p): array => [
                 'id' => $p->id,
                 'name' => $p->name,
-                'price' => (float) $p->price,
-                'interval_count' => $p->interval_count,
-                'interval_unit' => $p->interval_unit,
-                'interval_label' => $p->interval_label,
+                'prices' => $p->activePrices->map(fn (ProductPlanPrice $pp): array => [
+                    'id' => $pp->id,
+                    'price' => (float) $pp->price,
+                    'interval_count' => $pp->interval_count,
+                    'interval_unit' => $pp->interval_unit,
+                    'interval_label' => $pp->interval_label,
+                    'display_label' => $pp->display_label,
+                    'label' => $pp->label,
+                    'is_default' => $pp->is_default,
+                ])->values()->all(),
             ])->values()->all());
 
         return Inertia::render('Internal/Subscriptions/Index', [
@@ -124,6 +134,7 @@ class SubscriptionController extends Controller
 
         $data = $request->validate([
             'plan_id' => ['nullable', 'integer', 'exists:product_plans,id'],
+            'plan_price_id' => ['nullable', 'integer', 'exists:product_plan_prices,id'],
             'plan' => ['nullable', 'string', 'max:100'],
             'price_monthly' => ['nullable', 'numeric', 'min:0'],
             'interval_count' => ['required', 'integer', 'min:1', 'max:365'],

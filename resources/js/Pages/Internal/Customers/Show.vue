@@ -322,6 +322,7 @@ const showEnableProduct = ref(false);
 const enableForm = useForm({
     product_id: null,
     plan_id: null,
+    plan_price_id: null,
     interval_count: 1,
     interval_unit: 'month',
     billing_entity_id: null,
@@ -344,9 +345,14 @@ function selectedAvailableProduct() {
     return props.available_products.find((p) => p.id === enableForm.product_id) ?? null;
 }
 
+function selectedPlan() {
+    return selectedAvailableProduct()?.plans?.find((p) => p.id === enableForm.plan_id) ?? null;
+}
+
 function selectProduct(productId) {
     enableForm.product_id = productId;
     enableForm.plan_id = null;
+    enableForm.plan_price_id = null;
     enableForm.plan = '';
     enableForm.price_monthly = null;
     enableForm.interval_count = 1;
@@ -354,13 +360,28 @@ function selectProduct(productId) {
 }
 
 function selectPlan(plan) {
-    // A plan IS one specific (price, interval). Pick the plan, fields
-    // follow — no separate Monthly/Annual toggle needed.
+    // Step 1 of the two-step picker — pick the plan (tier). The
+    // default price (or the first one) auto-selects so a customer is
+    // ready to submit even with one click.
     enableForm.plan_id = plan.id;
     enableForm.plan = plan.name;
-    enableForm.price_monthly = plan.price;
-    enableForm.interval_count = plan.interval_count;
-    enableForm.interval_unit = plan.interval_unit;
+    const def = (plan.prices ?? []).find((p) => p.is_default) ?? plan.prices?.[0];
+    if (def) {
+        selectPrice(def);
+    } else {
+        enableForm.plan_price_id = null;
+        enableForm.price_monthly = null;
+        enableForm.interval_count = 1;
+        enableForm.interval_unit = 'month';
+    }
+}
+
+function selectPrice(price) {
+    // Step 2 — pick the billing option (price). Plan stays put.
+    enableForm.plan_price_id = price.id;
+    enableForm.price_monthly = price.price;
+    enableForm.interval_count = price.interval_count;
+    enableForm.interval_unit = price.interval_unit;
 }
 
 function submitEnableProduct() {
@@ -1434,7 +1455,7 @@ const headerStatusBadge = computed(() => {
 
                                 <div v-if="enableForm.product_id" class="form-section">
                                     <h3>Plan</h3>
-                                    <!-- Plan radio cards when the product has defined plans -->
+                                    <!-- STEP 1 — pick the plan (tier). Cards show name + features, no price. -->
                                     <template v-if="(selectedAvailableProduct()?.plans ?? []).length > 0">
                                         <div style="display: flex; flex-direction: column; gap: 8px;">
                                             <button
@@ -1443,18 +1464,24 @@ const headerStatusBadge = computed(() => {
                                                 type="button"
                                                 class="ent-opt"
                                                 :class="{ selected: enableForm.plan_id === plan.id }"
-                                                style="padding: 12px 14px; align-items: flex-start; flex-direction: column; gap: 4px;"
+                                                style="padding: 12px 14px; align-items: flex-start; flex-direction: column; gap: 6px;"
                                                 @click="selectPlan(plan)"
                                             >
                                                 <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
                                                     <span style="font: 600 14px/1.2 'Inter', sans-serif;">{{ plan.name }}</span>
-                                                    <span style="margin-left: auto; font: 600 14px/1.2 'Inter', sans-serif; color: var(--accent);">£{{ Number(plan.price).toFixed(2) }} · {{ plan.interval_label }}</span>
+                                                    <span style="margin-left: auto; font: 400 11.5px/1.3 'Inter', sans-serif; color: var(--text-tertiary);">
+                                                        {{ (plan.prices ?? []).length }} pricing option{{ (plan.prices ?? []).length === 1 ? '' : 's' }}
+                                                    </span>
                                                 </div>
-                                                <span v-if="plan.description" style="font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary);">{{ plan.description }}</span>
+                                                <div v-if="(plan.features ?? []).length" style="font: 400 11.5px/1.4 'Inter', sans-serif; color: var(--text-secondary); text-align: left;">
+                                                    <template v-for="(f, i) in plan.features" :key="i">
+                                                        <span v-if="i > 0"> · </span>✓ {{ f }}
+                                                    </template>
+                                                </div>
                                             </button>
                                         </div>
                                     </template>
-                                    <!-- Fallback: free-text plan + price when the product has no plans defined -->
+                                    <!-- Fallback: free-text when product has no plans -->
                                     <template v-else>
                                         <div class="form-row two">
                                             <div class="form-field">
@@ -1472,6 +1499,26 @@ const headerStatusBadge = computed(() => {
                                             No plans defined for this product yet. Add plans in Settings → Products for a better experience.
                                         </div>
                                     </template>
+                                </div>
+
+                                <!-- STEP 2 — pick the billing option (price). Auto-selects the default. -->
+                                <div v-if="enableForm.plan_id && (selectedPlan()?.prices ?? []).length > 0" class="form-section">
+                                    <h3>Billing</h3>
+                                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                                        <button
+                                            v-for="price in selectedPlan().prices"
+                                            :key="`pp-${price.id}`"
+                                            type="button"
+                                            style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; text-align: left;"
+                                            :style="enableForm.plan_price_id === price.id ? 'border-left: 2px solid var(--accent); background: var(--warning-bg);' : ''"
+                                            @click="selectPrice(price)"
+                                        >
+                                            <span style="font: 600 13px/1.2 'Inter', sans-serif;">{{ price.interval_label }}</span>
+                                            <span style="font: 600 15px/1.2 'Inter', sans-serif; color: var(--accent);">£{{ Number(price.price).toFixed(2) }}</span>
+                                            <span v-if="price.label" class="badge badge-sm badge-pending">{{ price.label }}</span>
+                                            <span v-if="price.is_default" class="badge badge-sm badge-active" style="margin-left: auto;">Default</span>
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div v-if="enableForm.product_id && billing_entities.length" class="form-section">

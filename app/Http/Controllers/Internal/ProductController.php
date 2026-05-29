@@ -7,6 +7,8 @@ use App\Models\ActivityLog;
 use App\Models\CustomerProduct;
 use App\Models\Product;
 use App\Models\ProductPlan;
+use App\Models\ProductPlanCategory;
+use App\Models\ProductPlanPrice;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -27,9 +29,12 @@ class ProductController extends Controller
                 'customerProducts as active_customers' => fn ($q) => $q->where('status', 'active'),
                 'customerProducts as total_customers',
             ])
-            ->with(['plans' => fn ($q) => $q->orderBy('sort_order')])
+            ->with([
+                'planCategories',
+                'plans' => fn ($q) => $q->with(['activePrices'])->orderBy('sort_order'),
+            ])
             ->get()
-            ->map(fn (Product $p) => [
+            ->map(fn (Product $p): array => [
                 'id' => $p->id,
                 'name' => $p->name,
                 'slug' => $p->slug,
@@ -40,23 +45,42 @@ class ProductController extends Controller
                 'sort_order' => $p->sort_order,
                 'active_customers' => (int) ($p->active_customers ?? 0),
                 'total_customers' => (int) ($p->total_customers ?? 0),
+                'plan_categories' => $p->planCategories->map(fn (ProductPlanCategory $c): array => [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'description' => $c->description,
+                    'sort_order' => $c->sort_order,
+                    'is_public' => $c->is_public,
+                ])->values()->all(),
                 'plans' => $p->plans->map(fn (ProductPlan $plan): array => [
                     'id' => $plan->id,
                     'name' => $plan->name,
                     'description' => $plan->description,
-                    'price' => (float) $plan->price,
-                    'interval_count' => $plan->interval_count,
-                    'interval_unit' => $plan->interval_unit,
-                    'interval_label' => $plan->interval_label,
-                    'mrr_contribution' => $plan->mrr_contribution,
+                    'category_id' => $plan->category_id,
                     'features' => $plan->features ?? [],
-                    'stripe_price_id' => $plan->stripe_price_id,
                     'is_active' => $plan->is_active,
                     'is_public' => $plan->is_public,
                     'sort_order' => $plan->sort_order,
                     'active_customers' => CustomerProduct::where('plan_id', $plan->id)
                         ->whereIn('status', ['active', 'trial'])
                         ->count(),
+                    'prices' => $plan->activePrices->map(fn (ProductPlanPrice $pp): array => [
+                        'id' => $pp->id,
+                        'price' => (float) $pp->price,
+                        'interval_count' => $pp->interval_count,
+                        'interval_unit' => $pp->interval_unit,
+                        'interval_label' => $pp->interval_label,
+                        'display_label' => $pp->display_label,
+                        'stripe_price_id' => $pp->stripe_price_id,
+                        'label' => $pp->label,
+                        'is_default' => $pp->is_default,
+                        'is_active' => $pp->is_active,
+                        'sort_order' => $pp->sort_order,
+                        'mrr_contribution' => $pp->mrr_contribution,
+                        'active_customers' => CustomerProduct::where('plan_price_id', $pp->id)
+                            ->whereIn('status', ['active', 'trial'])
+                            ->count(),
+                    ])->values()->all(),
                 ])->values()->all(),
             ])
             ->all();

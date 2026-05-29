@@ -14,6 +14,7 @@ use App\Models\CustomerProduct;
 use App\Models\Note;
 use App\Models\Product;
 use App\Models\ProductPlan;
+use App\Models\ProductPlanPrice;
 use App\Models\Referrer;
 use App\Models\Task;
 use App\Models\User;
@@ -383,7 +384,7 @@ class CustomerController extends Controller
                 ->whereNotIn('id', $customer->customerProducts
                     ->whereIn('status', ['active', 'trial'])
                     ->pluck('product_id'))
-                ->with('activePlans')
+                ->with(['activePlans.activePrices'])
                 ->orderBy('sort_order')
                 ->get(['id', 'slug', 'name', 'icon_colour'])
                 ->map(fn (Product $p): array => [
@@ -395,10 +396,18 @@ class CustomerController extends Controller
                         'id' => $plan->id,
                         'name' => $plan->name,
                         'description' => $plan->description,
-                        'price' => (float) $plan->price,
-                        'interval_count' => $plan->interval_count,
-                        'interval_unit' => $plan->interval_unit,
-                        'interval_label' => $plan->interval_label,
+                        'category_id' => $plan->category_id,
+                        'features' => $plan->features ?? [],
+                        'prices' => $plan->activePrices->map(fn (ProductPlanPrice $pp): array => [
+                            'id' => $pp->id,
+                            'price' => (float) $pp->price,
+                            'interval_count' => $pp->interval_count,
+                            'interval_unit' => $pp->interval_unit,
+                            'interval_label' => $pp->interval_label,
+                            'display_label' => $pp->display_label,
+                            'label' => $pp->label,
+                            'is_default' => $pp->is_default,
+                        ])->values()->all(),
                     ])->values()->all(),
                 ])
                 ->values(),
@@ -544,6 +553,7 @@ class CustomerController extends Controller
         $data = $request->validate([
             'product_id' => ['required', 'integer', 'exists:products,id'],
             'plan_id' => ['nullable', 'integer', 'exists:product_plans,id'],
+            'plan_price_id' => ['nullable', 'integer', 'exists:product_plan_prices,id'],
             'interval_count' => ['nullable', 'integer', 'min:1', 'max:365'],
             'interval_unit' => ['nullable', 'in:day,week,month,year,one_time'],
             'billing_entity_id' => ['nullable', 'integer', 'exists:billing_entities,id'],
@@ -565,23 +575,35 @@ class CustomerController extends Controller
             return back()->with('error', 'This product is already enabled for this customer.');
         }
 
-        // When a plan is chosen, its price + interval are canonical —
-        // a stale form-state can't override them. Staff can still pass
-        // plan='' with no plan_id for a custom case, and the interval
-        // fields fall back to the request payload (or sensible
-        // monthly defaults).
-        $plan = ! empty($data['plan_id']) ? ProductPlan::find($data['plan_id']) : null;
+        // Resolution order:
+        //   1. plan_price_id wins for price + interval (canonical).
+        //   2. plan_id wins for plan name.
+        //   3. Free-text fallback for custom one-off arrangements.
+        // The plan price ID also tells us the plan it belongs to, so
+        // a payload that only includes plan_price_id still gets the
+        // plan_id derived for the FK on customer_products.
+        $planPrice = ! empty($data['plan_price_id']) ? ProductPlanPrice::find($data['plan_price_id']) : null;
+        $plan = ! empty($data['plan_id'])
+            ? ProductPlan::find($data['plan_id'])
+            : ($planPrice ? ProductPlan::find($planPrice->plan_id) : null);
 
         $planName = $plan ? $plan->name : ($data['plan'] ?? null);
-        $price = $plan ? (float) $plan->price : ($data['price_monthly'] ?? null);
-        $intervalCount = $plan ? $plan->interval_count : (int) ($data['interval_count'] ?? 1);
-        $intervalUnit = $plan ? $plan->interval_unit : ($data['interval_unit'] ?? 'month');
+        $price = $planPrice
+            ? (float) $planPrice->price
+            : ($data['price_monthly'] ?? null);
+        $intervalCount = $planPrice
+            ? $planPrice->interval_count
+            : (int) ($data['interval_count'] ?? 1);
+        $intervalUnit = $planPrice
+            ? $planPrice->interval_unit
+            : ($data['interval_unit'] ?? 'month');
 
-        DB::transaction(function () use ($customer, $data, $request, $plan, $planName, $price, $intervalCount, $intervalUnit) {
+        DB::transaction(function () use ($customer, $data, $request, $plan, $planPrice, $planName, $price, $intervalCount, $intervalUnit) {
             CustomerProduct::create([
                 'customer_id' => $customer->id,
                 'product_id' => $data['product_id'],
                 'plan_id' => $plan?->id,
+                'plan_price_id' => $planPrice?->id,
                 'billing_entity_id' => $data['billing_entity_id'] ?? null,
                 'plan' => $planName,
                 'price_monthly' => $price,
@@ -595,6 +617,7 @@ class CustomerController extends Controller
             $this->logActivity($request, 'product.enabled', $customer, after: [
                 'product_id' => $data['product_id'],
                 'plan_id' => $plan?->id,
+                'plan_price_id' => $planPrice?->id,
                 'status' => $data['status'],
                 'price' => $price,
                 'interval_count' => $intervalCount,

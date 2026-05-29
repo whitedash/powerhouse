@@ -23,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, OnboardingSequence> $onboardingSequences
  * @property-read Collection<int, ProductPlan> $plans
  * @property-read Collection<int, ProductPlan> $activePlans
+ * @property-read Collection<int, ProductPlanCategory> $planCategories
  */
 class Product extends Model
 {
@@ -70,5 +71,10 @@ class Product extends Model
         return $this->hasMany(ProductPlan::class)
             ->where('is_active', true)
             ->orderBy('sort_order');
+    }
+
+    public function planCategories(): HasMany
+    {
+        return $this->hasMany(ProductPlanCategory::class)->orderBy('sort_order');
     }
 }

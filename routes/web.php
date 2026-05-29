@@ -8,7 +8,9 @@ use App\Http\Controllers\Internal\DomainController as InternalDomainController;
 use App\Http\Controllers\Internal\InvoiceController as InternalInvoiceController;
 use App\Http\Controllers\Internal\MaavelusStatementController as InternalMaavelusStatementController;
 use App\Http\Controllers\Internal\ProductController as InternalProductController;
+use App\Http\Controllers\Internal\ProductPlanCategoryController as InternalProductPlanCategoryController;
 use App\Http\Controllers\Internal\ProductPlanController as InternalProductPlanController;
+use App\Http\Controllers\Internal\ProductPlanPriceController as InternalProductPlanPriceController;
 use App\Http\Controllers\Internal\ProvisioningController as InternalProvisioningController;
 use App\Http\Controllers\Internal\ReferrerController as InternalReferrerController;
 use App\Http\Controllers\Internal\SettingsController as InternalSettingsController;
@@ -147,6 +149,14 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
         Route::put('/plans/{id}', [InternalProductPlanController::class, 'update'])->name('plans.update');
         Route::delete('/plans/{id}', [InternalProductPlanController::class, 'destroy'])->name('plans.destroy');
         Route::post('/plans/{id}/toggle', [InternalProductPlanController::class, 'toggleActive'])->name('plans.toggle');
+
+        Route::post('/plan-categories', [InternalProductPlanCategoryController::class, 'store'])->name('plan-categories.store');
+        Route::put('/plan-categories/{id}', [InternalProductPlanCategoryController::class, 'update'])->name('plan-categories.update');
+        Route::delete('/plan-categories/{id}', [InternalProductPlanCategoryController::class, 'destroy'])->name('plan-categories.destroy');
+
+        Route::post('/plan-prices', [InternalProductPlanPriceController::class, 'store'])->name('plan-prices.store');
+        Route::put('/plan-prices/{id}', [InternalProductPlanPriceController::class, 'update'])->name('plan-prices.update');
+        Route::delete('/plan-prices/{id}', [InternalProductPlanPriceController::class, 'destroy'])->name('plan-prices.destroy');
     });
 
     // Maavelus monthly revenue statements — internal-only, super_admin

@@ -153,18 +153,23 @@ watch(() => createForm.name, (n) => {
 
 const slugLocked = computed(() => (selectedProduct.value?.active_customers ?? 0) > 0);
 
-/* ─── Plans ─── */
+/* ─── Plans ─── *
+ * The plan form drops the old price/interval/stripe fields and gains
+ * category_id + an optional initial_* block. The backend uses
+ * initial_* to seed the plan's first ProductPlanPrice; on edit the
+ * controller drops them and pricing is managed through the dedicated
+ * price slide-over instead. */
 const PLAN_DEFAULTS = {
     name: '',
     description: '',
-    price: 0,
-    interval_count: 1,
-    interval_unit: 'month',
-    stripe_price_id: '',
+    category_id: null,
     features: [],
     is_active: true,
     is_public: true,
     sort_order: 0,
+    initial_price: null,
+    initial_interval_count: 1,
+    initial_interval_unit: 'month',
 };
 
 const showPlanModal = ref(false);
@@ -173,15 +178,17 @@ const editingPlanId = ref(null);
 const planForm = useForm({ ...PLAN_DEFAULTS, product_id: null });
 const newFeature = ref('');
 
-function openCreatePlan() {
+function openCreatePlan(categoryId = null) {
     if (! selectedProduct.value) return;
     planMode.value = 'create';
     editingPlanId.value = null;
-    planForm.defaults({ ...PLAN_DEFAULTS, product_id: selectedProduct.value.id });
+    planForm.defaults({ ...PLAN_DEFAULTS, product_id: selectedProduct.value.id, category_id: categoryId });
     planForm.reset();
     planForm.product_id = selectedProduct.value.id;
+    planForm.category_id = categoryId;
     planForm.clearErrors();
     newFeature.value = '';
+    showInitialPriceSection.value = false;
     showPlanModal.value = true;
 }
 
@@ -193,10 +200,7 @@ function openEditPlan(plan) {
         product_id: selectedProduct.value.id,
         name: plan.name ?? '',
         description: plan.description ?? '',
-        price: Number(plan.price ?? 0),
-        interval_count: Number(plan.interval_count ?? 1),
-        interval_unit: plan.interval_unit ?? 'month',
-        stripe_price_id: plan.stripe_price_id ?? '',
+        category_id: plan.category_id ?? null,
         features: Array.isArray(plan.features) ? [...plan.features] : [],
         is_active: !! plan.is_active,
         is_public: !! plan.is_public,
@@ -205,6 +209,7 @@ function openEditPlan(plan) {
     planForm.reset();
     planForm.clearErrors();
     newFeature.value = '';
+    showInitialPriceSection.value = false;
     showPlanModal.value = true;
 }
 
@@ -269,20 +274,187 @@ function submitPlan() {
     }
 }
 
-/* IntervalPicker uses { count, unit }; the form stores them as
- * interval_count + interval_unit so it can post directly. Map both
- * directions here so the picker stays a clean v-model. */
-const planInterval = computed({
-    get: () => ({ count: planForm.interval_count, unit: planForm.interval_unit }),
+const showInitialPriceSection = ref(false);
+
+/* The plan slide-over's optional "first price" block uses IntervalPicker
+ * against initial_interval_* — the form posts them directly. */
+const initialInterval = computed({
+    get: () => ({ count: planForm.initial_interval_count, unit: planForm.initial_interval_unit }),
     set: (v) => {
-        planForm.interval_count = v.count;
-        planForm.interval_unit = v.unit;
+        planForm.initial_interval_count = v.count;
+        planForm.initial_interval_unit = v.unit;
     },
 });
 
 function togglePlanActive(plan) {
     router.post(`/settings/plans/${plan.id}/toggle`, {}, { preserveScroll: true });
 }
+
+/* ─── Categories ─── */
+const showCategoryModal = ref(false);
+const categoryMode = ref('create');
+const editingCategoryId = ref(null);
+const categoryForm = useForm({
+    product_id: null,
+    name: '',
+    description: '',
+    sort_order: 0,
+    is_public: true,
+});
+
+function openCreateCategory() {
+    if (! selectedProduct.value) return;
+    categoryMode.value = 'create';
+    editingCategoryId.value = null;
+    categoryForm.defaults({
+        product_id: selectedProduct.value.id, name: '', description: '', sort_order: 0, is_public: true,
+    });
+    categoryForm.reset();
+    categoryForm.clearErrors();
+    showCategoryModal.value = true;
+}
+function openEditCategory(cat) {
+    categoryMode.value = 'edit';
+    editingCategoryId.value = cat.id;
+    categoryForm.defaults({
+        product_id: selectedProduct.value.id,
+        name: cat.name ?? '',
+        description: cat.description ?? '',
+        sort_order: Number(cat.sort_order ?? 0),
+        is_public: !! cat.is_public,
+    });
+    categoryForm.reset();
+    categoryForm.clearErrors();
+    showCategoryModal.value = true;
+}
+function submitCategory() {
+    const onSuccess = () => { showCategoryModal.value = false; };
+    if (categoryMode.value === 'create') {
+        categoryForm.post('/settings/plan-categories', { preserveScroll: true, onSuccess });
+    } else {
+        categoryForm.put(`/settings/plan-categories/${editingCategoryId.value}`, { preserveScroll: true, onSuccess });
+    }
+}
+
+const showDeleteCategoryModal = ref(false);
+const deleteCategoryTarget = ref(null);
+const deleteCategoryProcessing = ref(false);
+function askDeleteCategory(cat) {
+    deleteCategoryTarget.value = cat;
+    showDeleteCategoryModal.value = true;
+}
+function handleDeleteCategory() {
+    if (! deleteCategoryTarget.value) return;
+    deleteCategoryProcessing.value = true;
+    router.delete(`/settings/plan-categories/${deleteCategoryTarget.value.id}`, {
+        preserveScroll: true,
+        onFinish: () => {
+            deleteCategoryProcessing.value = false;
+            showDeleteCategoryModal.value = false;
+            deleteCategoryTarget.value = null;
+        },
+    });
+}
+const deleteCategoryMessage = computed(() => deleteCategoryTarget.value
+    ? `Delete '${deleteCategoryTarget.value.name}'? Plans currently in this category will become uncategorised.`
+    : '');
+
+/* ─── Prices ─── */
+const PRICE_DEFAULTS = {
+    plan_id: null,
+    price: 0,
+    interval_count: 1,
+    interval_unit: 'month',
+    stripe_price_id: '',
+    label: '',
+    is_default: false,
+    is_active: true,
+    sort_order: 0,
+};
+
+const showPriceModal = ref(false);
+const priceMode = ref('create');
+const editingPriceId = ref(null);
+const priceContextPlan = ref(null);
+const priceForm = useForm({ ...PRICE_DEFAULTS });
+
+function openCreatePrice(plan) {
+    priceMode.value = 'create';
+    editingPriceId.value = null;
+    priceContextPlan.value = plan;
+    priceForm.defaults({ ...PRICE_DEFAULTS, plan_id: plan.id });
+    priceForm.reset();
+    priceForm.plan_id = plan.id;
+    priceForm.clearErrors();
+    showPriceModal.value = true;
+}
+function openEditPrice(plan, price) {
+    priceMode.value = 'edit';
+    editingPriceId.value = price.id;
+    priceContextPlan.value = plan;
+    priceForm.defaults({
+        ...PRICE_DEFAULTS,
+        plan_id: plan.id,
+        price: Number(price.price ?? 0),
+        interval_count: Number(price.interval_count ?? 1),
+        interval_unit: price.interval_unit ?? 'month',
+        stripe_price_id: price.stripe_price_id ?? '',
+        label: price.label ?? '',
+        is_default: !! price.is_default,
+        is_active: !! price.is_active,
+        sort_order: Number(price.sort_order ?? 0),
+    });
+    priceForm.reset();
+    priceForm.clearErrors();
+    showPriceModal.value = true;
+}
+function submitPrice() {
+    const onSuccess = () => { showPriceModal.value = false; };
+    if (priceMode.value === 'create') {
+        priceForm.post('/settings/plan-prices', { preserveScroll: true, onSuccess });
+    } else {
+        priceForm.put(`/settings/plan-prices/${editingPriceId.value}`, { preserveScroll: true, onSuccess });
+    }
+}
+
+const priceInterval = computed({
+    get: () => ({ count: priceForm.interval_count, unit: priceForm.interval_unit }),
+    set: (v) => {
+        priceForm.interval_count = v.count;
+        priceForm.interval_unit = v.unit;
+    },
+});
+
+const showDeletePriceModal = ref(false);
+const deletePriceTarget = ref(null);
+const deletePriceProcessing = ref(false);
+function askDeletePrice(price) {
+    deletePriceTarget.value = price;
+    showDeletePriceModal.value = true;
+}
+function handleDeletePrice() {
+    if (! deletePriceTarget.value) return;
+    deletePriceProcessing.value = true;
+    router.delete(`/settings/plan-prices/${deletePriceTarget.value.id}`, {
+        preserveScroll: true,
+        onFinish: () => {
+            deletePriceProcessing.value = false;
+            showDeletePriceModal.value = false;
+            deletePriceTarget.value = null;
+        },
+    });
+}
+
+/* ─── Grouped plans for the right panel ─── */
+const categorisedPlans = computed(() => {
+    const out = (selectedProduct.value?.plan_categories ?? []).map((c) => ({
+        ...c,
+        plans: (selectedProduct.value?.plans ?? []).filter((p) => p.category_id === c.id),
+    }));
+    const uncategorised = (selectedProduct.value?.plans ?? []).filter((p) => ! p.category_id);
+
+    return { categories: out, uncategorised };
+});
 
 const showDeletePlanModal = ref(false);
 const deletePlanTarget = ref(null);
@@ -586,7 +758,57 @@ function gbpRound(n) {
                         </button>
                     </div>
 
-                    <!-- ═══ Plans section ═══ -->
+                    <!-- ═══ Plan categories ═══ -->
+                    <div style="margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border);">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+                            <h3 style="margin: 0; font: 600 16px/1.2 'Inter', sans-serif;">Plan categories</h3>
+                            <span class="badge badge-inactive badge-sm">{{ selectedProduct.plan_categories?.length || 0 }} categories</span>
+                            <button
+                                type="button"
+                                class="btn btn-ghost btn-sm"
+                                style="margin-left: auto; color: var(--accent);"
+                                @click="openCreateCategory"
+                            >
+                                <IconPlus :size="14" stroke-width="1.75" />
+                                Add category
+                            </button>
+                        </div>
+                        <div v-if="(selectedProduct.plan_categories?.length ?? 0) === 0" style="border: 1.5px dashed var(--border); border-radius: var(--radius-md); padding: 16px; text-align: center; font: 400 13px/1.4 'Inter', sans-serif; color: var(--text-secondary);">
+                            No categories yet. Plans will appear ungrouped.
+                        </div>
+                        <div v-else style="display: flex; flex-direction: column; gap: 8px;">
+                            <div
+                                v-for="cat in selectedProduct.plan_categories"
+                                :key="`cat-${cat.id}`"
+                                style="display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-md);"
+                            >
+                                <div>
+                                    <div style="font: 600 14px/1.2 'Inter', sans-serif;">{{ cat.name }}</div>
+                                    <div v-if="cat.description" style="font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px;">{{ cat.description }}</div>
+                                </div>
+                                <span class="badge badge-inactive badge-sm" style="margin-left: auto;">
+                                    {{ (selectedProduct.plans ?? []).filter((p) => p.category_id === cat.id).length }} plans
+                                </span>
+                                <span class="badge badge-sm" :class="cat.is_public ? 'badge-info' : 'badge-inactive'">{{ cat.is_public ? 'Public' : 'Private' }}</span>
+                                <Menu as="div" class="dd-menu">
+                                    <MenuButton class="icon-btn" aria-label="Category actions">
+                                        <IconDots :size="16" stroke-width="1.75" />
+                                    </MenuButton>
+                                    <MenuItems class="dd-popover right-align">
+                                        <MenuItem v-slot="{ active }">
+                                            <button type="button" :class="['dd-option', { active }]" @click="openEditCategory(cat)">Edit category</button>
+                                        </MenuItem>
+                                        <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
+                                        <MenuItem v-slot="{ active }">
+                                            <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDeleteCategory(cat)">Delete category</button>
+                                        </MenuItem>
+                                    </MenuItems>
+                                </Menu>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ═══ Plans section, grouped by category ═══ -->
                     <div style="margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border);">
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
                             <h3 style="margin: 0; font: 600 16px/1.2 'Inter', sans-serif;">Pricing plans</h3>
@@ -595,87 +817,203 @@ function gbpRound(n) {
                                 type="button"
                                 class="btn btn-ghost btn-sm"
                                 style="margin-left: auto; color: var(--accent);"
-                                @click="openCreatePlan"
+                                @click="openCreatePlan(null)"
                             >
                                 <IconPlus :size="14" stroke-width="1.75" />
                                 Add plan
                             </button>
                         </div>
 
-                        <div v-if="! selectedProduct.plans?.length" style="border: 1.5px dashed var(--border); border-radius: var(--radius-md); padding: 28px 16px; text-align: center;">
+                        <div v-if="(selectedProduct.plans?.length ?? 0) === 0" style="border: 1.5px dashed var(--border); border-radius: var(--radius-md); padding: 28px 16px; text-align: center;">
                             <IconTag :size="24" stroke-width="1.5" style="color: var(--text-tertiary); margin-bottom: 8px;" />
                             <div style="font: 600 14px/1.3 'Inter', sans-serif;">No plans yet</div>
                             <div style="font: 400 13px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 4px;">
-                                Add your first pricing plan to start enrolling customers.
+                                Add your first plan to start enrolling customers.
                             </div>
-                            <button type="button" class="btn btn-ghost btn-sm" style="margin-top: 12px; color: var(--accent);" @click="openCreatePlan">
+                            <button type="button" class="btn btn-ghost btn-sm" style="margin-top: 12px; color: var(--accent);" @click="openCreatePlan(null)">
                                 <IconPlus :size="14" stroke-width="1.75" />
                                 Add plan
                             </button>
                         </div>
 
-                        <div v-else style="display: flex; flex-direction: column; gap: 10px;">
-                            <div
-                                v-for="plan in selectedProduct.plans"
-                                :key="plan.id"
-                                style="background: #fff; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 18px; position: relative;"
-                                :style="! plan.is_active ? 'opacity: .6;' : ''"
-                            >
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <div style="font: 600 15px/1.2 'Inter', sans-serif;">{{ plan.name }}</div>
-                                    <div style="font: 600 15px/1.2 'Inter', sans-serif; color: var(--accent);">
-                                        {{ gbp(plan.price) }}
-                                        <span style="font-weight: 400; color: var(--text-secondary); font-size: 13px;">· {{ plan.interval_label }}</span>
-                                    </div>
-                                    <div style="margin-left: auto; display: flex; align-items: center; gap: 6px;">
-                                        <span class="badge badge-sm" :class="plan.is_active ? 'badge-active' : 'badge-inactive'">
-                                            {{ plan.is_active ? 'Active' : 'Inactive' }}
-                                        </span>
-                                        <span class="badge badge-sm" :class="plan.is_public ? 'badge-info' : 'badge-inactive'">
-                                            {{ plan.is_public ? 'Public' : 'Private' }}
-                                        </span>
-                                        <Menu as="div" class="dd-menu">
-                                            <MenuButton class="icon-btn" aria-label="Plan actions">
-                                                <IconDots :size="16" stroke-width="1.75" />
-                                            </MenuButton>
-                                            <MenuItems class="dd-popover right-align">
-                                                <MenuItem v-slot="{ active }">
-                                                    <button type="button" :class="['dd-option', { active }]" @click="openEditPlan(plan)">Edit plan</button>
-                                                </MenuItem>
-                                                <MenuItem v-slot="{ active }">
-                                                    <button type="button" :class="['dd-option', { active }]" @click="togglePlanActive(plan)">
-                                                        {{ plan.is_active ? 'Deactivate' : 'Activate' }}
-                                                    </button>
-                                                </MenuItem>
-                                                <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
-                                                <MenuItem v-slot="{ active }">
-                                                    <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDeletePlan(plan)">
-                                                        Delete plan
-                                                    </button>
-                                                </MenuItem>
-                                            </MenuItems>
-                                        </Menu>
-                                    </div>
-                                </div>
+                        <!-- Categorised groups -->
+                        <div v-for="group in categorisedPlans.categories" :key="`grp-${group.id}`" style="margin-bottom: 18px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding-left: 10px; border-left: 2px solid var(--accent);">
+                                <span style="font: 600 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary);">
+                                    {{ group.name }}
+                                </span>
+                                <button type="button" class="btn btn-ghost btn-sm" style="margin-left: auto; color: var(--accent);" @click="openCreatePlan(group.id)">
+                                    <IconPlus :size="13" stroke-width="1.75" />
+                                    Add plan to {{ group.name }}
+                                </button>
+                            </div>
+                            <div v-if="group.plans.length === 0" style="padding: 12px 14px; background: var(--neutral-bg); border-radius: var(--radius-md); color: var(--text-secondary); font: 400 12px/1.4 'Inter', sans-serif;">
+                                No plans in this category yet.
+                            </div>
+                            <div v-else style="display: flex; flex-direction: column; gap: 10px;">
+                                <component :is="'div'" v-for="plan in group.plans" :key="plan.id">
+                                    <!-- Plan card body -->
+                                    <div style="background: #fff; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 18px;" :style="! plan.is_active ? 'opacity: .6;' : ''">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <div style="font: 600 15px/1.2 'Inter', sans-serif;">{{ plan.name }}</div>
+                                            <span class="badge badge-inactive badge-sm">{{ plan.features.length }} features</span>
+                                            <div style="margin-left: auto; display: flex; align-items: center; gap: 6px;">
+                                                <span class="badge badge-sm" :class="plan.is_active ? 'badge-active' : 'badge-inactive'">{{ plan.is_active ? 'Active' : 'Inactive' }}</span>
+                                                <span class="badge badge-sm" :class="plan.is_public ? 'badge-info' : 'badge-inactive'">{{ plan.is_public ? 'Public' : 'Private' }}</span>
+                                                <Menu as="div" class="dd-menu">
+                                                    <MenuButton class="icon-btn" aria-label="Plan actions">
+                                                        <IconDots :size="16" stroke-width="1.75" />
+                                                    </MenuButton>
+                                                    <MenuItems class="dd-popover right-align">
+                                                        <MenuItem v-slot="{ active }">
+                                                            <button type="button" :class="['dd-option', { active }]" @click="openEditPlan(plan)">Edit plan</button>
+                                                        </MenuItem>
+                                                        <MenuItem v-slot="{ active }">
+                                                            <button type="button" :class="['dd-option', { active }]" @click="openCreatePrice(plan)">Add price</button>
+                                                        </MenuItem>
+                                                        <MenuItem v-slot="{ active }">
+                                                            <button type="button" :class="['dd-option', { active }]" @click="togglePlanActive(plan)">{{ plan.is_active ? 'Deactivate' : 'Activate' }}</button>
+                                                        </MenuItem>
+                                                        <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
+                                                        <MenuItem v-slot="{ active }">
+                                                            <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDeletePlan(plan)">Delete plan</button>
+                                                        </MenuItem>
+                                                    </MenuItems>
+                                                </Menu>
+                                            </div>
+                                        </div>
+                                        <div v-if="plan.description" style="font: 400 13px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin-top: 6px;">{{ plan.description }}</div>
+                                        <div v-if="plan.features.length" style="font: 400 12px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin-top: 8px;">
+                                            <template v-for="(f, i) in plan.features" :key="i"><span v-if="i > 0"> · </span>✓ {{ f }}</template>
+                                        </div>
 
-                                <div style="font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 4px;">
-                                    £{{ Number(plan.mrr_contribution).toFixed(2) }}/mo MRR equivalent
-                                </div>
-                                <div v-if="plan.description" style="font: 400 13px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin-top: 6px;">
-                                    {{ plan.description }}
-                                </div>
-                                <div v-if="plan.features.length" style="font: 400 12px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin-top: 8px;">
-                                    <template v-for="(f, i) in plan.features" :key="i">
-                                        <span v-if="i > 0"> · </span>
-                                        ✓ {{ f }}
-                                    </template>
-                                </div>
-                                <div v-if="plan.stripe_price_id" style="display: flex; align-items: center; gap: 6px; margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-tertiary);">
-                                    <IconBrandStripe :size="14" stroke-width="1.75" style="color: var(--info);" />
-                                    <span>{{ plan.stripe_price_id }}</span>
-                                </div>
-                                <div style="font: 400 11px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 8px;">
-                                    {{ plan.active_customers }} active subscription{{ plan.active_customers === 1 ? '' : 's' }}
+                                        <!-- Pricing options subsection -->
+                                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-soft);">
+                                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                                <span style="font: 500 10px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary);">Pricing options</span>
+                                                <button type="button" class="btn btn-ghost btn-sm" style="margin-left: auto; color: var(--accent);" @click="openCreatePrice(plan)">
+                                                    <IconPlus :size="13" stroke-width="1.75" />
+                                                    Add price
+                                                </button>
+                                            </div>
+                                            <div v-if="(plan.prices ?? []).length === 0" style="font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-tertiary); font-style: italic;">
+                                                No pricing set · add a price to enable subscriptions
+                                            </div>
+                                            <div v-else style="display: flex; flex-direction: column; gap: 6px;">
+                                                <div v-for="price in plan.prices" :key="`pp-${price.id}`" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border-soft); border-radius: var(--radius-sm);">
+                                                    <span class="badge badge-sm badge-inactive">{{ price.interval_label }}</span>
+                                                    <span style="font: 600 14px/1.2 'Inter', sans-serif; color: var(--accent);">{{ gbp(price.price) }}</span>
+                                                    <span v-if="price.stripe_price_id" style="display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; background: var(--info-bg); color: var(--info); border-radius: 4px; font: 600 10px/1.3 'JetBrains Mono', monospace;">
+                                                        <IconBrandStripe :size="10" stroke-width="2" />
+                                                        Stripe
+                                                    </span>
+                                                    <span v-if="price.is_default" class="badge badge-sm badge-active">Default</span>
+                                                    <span v-if="price.label" class="badge badge-sm badge-pending">{{ price.label }}</span>
+                                                    <span style="margin-left: auto; font: 400 11px/1.3 'Inter', sans-serif; color: var(--text-tertiary);">
+                                                        {{ price.active_customers }} sub{{ price.active_customers === 1 ? '' : 's' }}
+                                                    </span>
+                                                    <Menu as="div" class="dd-menu">
+                                                        <MenuButton class="icon-btn" aria-label="Price actions">
+                                                            <IconDots :size="14" stroke-width="1.75" />
+                                                        </MenuButton>
+                                                        <MenuItems class="dd-popover right-align">
+                                                            <MenuItem v-slot="{ active }">
+                                                                <button type="button" :class="['dd-option', { active }]" @click="openEditPrice(plan, price)">Edit price</button>
+                                                            </MenuItem>
+                                                            <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
+                                                            <MenuItem v-slot="{ active }">
+                                                                <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDeletePrice(price)">Delete price</button>
+                                                            </MenuItem>
+                                                        </MenuItems>
+                                                    </Menu>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </component>
+                            </div>
+                        </div>
+
+                        <!-- Uncategorised group -->
+                        <div v-if="categorisedPlans.uncategorised.length > 0" style="margin-top: 18px;">
+                            <div style="font: 600 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary); margin-bottom: 10px; padding-left: 10px; border-left: 2px solid var(--text-tertiary);">
+                                Uncategorised
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 10px;">
+                                <div v-for="plan in categorisedPlans.uncategorised" :key="plan.id" style="background: #fff; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 18px;" :style="! plan.is_active ? 'opacity: .6;' : ''">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <div style="font: 600 15px/1.2 'Inter', sans-serif;">{{ plan.name }}</div>
+                                        <span class="badge badge-inactive badge-sm">{{ plan.features.length }} features</span>
+                                        <div style="margin-left: auto; display: flex; align-items: center; gap: 6px;">
+                                            <span class="badge badge-sm" :class="plan.is_active ? 'badge-active' : 'badge-inactive'">{{ plan.is_active ? 'Active' : 'Inactive' }}</span>
+                                            <span class="badge badge-sm" :class="plan.is_public ? 'badge-info' : 'badge-inactive'">{{ plan.is_public ? 'Public' : 'Private' }}</span>
+                                            <Menu as="div" class="dd-menu">
+                                                <MenuButton class="icon-btn" aria-label="Plan actions">
+                                                    <IconDots :size="16" stroke-width="1.75" />
+                                                </MenuButton>
+                                                <MenuItems class="dd-popover right-align">
+                                                    <MenuItem v-slot="{ active }">
+                                                        <button type="button" :class="['dd-option', { active }]" @click="openEditPlan(plan)">Edit plan</button>
+                                                    </MenuItem>
+                                                    <MenuItem v-slot="{ active }">
+                                                        <button type="button" :class="['dd-option', { active }]" @click="openCreatePrice(plan)">Add price</button>
+                                                    </MenuItem>
+                                                    <MenuItem v-slot="{ active }">
+                                                        <button type="button" :class="['dd-option', { active }]" @click="togglePlanActive(plan)">{{ plan.is_active ? 'Deactivate' : 'Activate' }}</button>
+                                                    </MenuItem>
+                                                    <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
+                                                    <MenuItem v-slot="{ active }">
+                                                        <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDeletePlan(plan)">Delete plan</button>
+                                                    </MenuItem>
+                                                </MenuItems>
+                                            </Menu>
+                                        </div>
+                                    </div>
+                                    <div v-if="plan.description" style="font: 400 13px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin-top: 6px;">{{ plan.description }}</div>
+                                    <div v-if="plan.features.length" style="font: 400 12px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin-top: 8px;">
+                                        <template v-for="(f, i) in plan.features" :key="i"><span v-if="i > 0"> · </span>✓ {{ f }}</template>
+                                    </div>
+                                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-soft);">
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                            <span style="font: 500 10px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary);">Pricing options</span>
+                                            <button type="button" class="btn btn-ghost btn-sm" style="margin-left: auto; color: var(--accent);" @click="openCreatePrice(plan)">
+                                                <IconPlus :size="13" stroke-width="1.75" />
+                                                Add price
+                                            </button>
+                                        </div>
+                                        <div v-if="(plan.prices ?? []).length === 0" style="font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-tertiary); font-style: italic;">
+                                            No pricing set · add a price to enable subscriptions
+                                        </div>
+                                        <div v-else style="display: flex; flex-direction: column; gap: 6px;">
+                                            <div v-for="price in plan.prices" :key="`pp-${price.id}`" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border-soft); border-radius: var(--radius-sm);">
+                                                <span class="badge badge-sm badge-inactive">{{ price.interval_label }}</span>
+                                                <span style="font: 600 14px/1.2 'Inter', sans-serif; color: var(--accent);">{{ gbp(price.price) }}</span>
+                                                <span v-if="price.stripe_price_id" style="display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; background: var(--info-bg); color: var(--info); border-radius: 4px; font: 600 10px/1.3 'JetBrains Mono', monospace;">
+                                                    <IconBrandStripe :size="10" stroke-width="2" />
+                                                    Stripe
+                                                </span>
+                                                <span v-if="price.is_default" class="badge badge-sm badge-active">Default</span>
+                                                <span v-if="price.label" class="badge badge-sm badge-pending">{{ price.label }}</span>
+                                                <span style="margin-left: auto; font: 400 11px/1.3 'Inter', sans-serif; color: var(--text-tertiary);">
+                                                    {{ price.active_customers }} sub{{ price.active_customers === 1 ? '' : 's' }}
+                                                </span>
+                                                <Menu as="div" class="dd-menu">
+                                                    <MenuButton class="icon-btn" aria-label="Price actions">
+                                                        <IconDots :size="14" stroke-width="1.75" />
+                                                    </MenuButton>
+                                                    <MenuItems class="dd-popover right-align">
+                                                        <MenuItem v-slot="{ active }">
+                                                            <button type="button" :class="['dd-option', { active }]" @click="openEditPrice(plan, price)">Edit price</button>
+                                                        </MenuItem>
+                                                        <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
+                                                        <MenuItem v-slot="{ active }">
+                                                            <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDeletePrice(price)">Delete price</button>
+                                                        </MenuItem>
+                                                    </MenuItems>
+                                                </Menu>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -887,22 +1225,42 @@ function gbpRound(n) {
                                 </div>
 
                                 <div class="form-section">
-                                    <h3>Pricing</h3>
+                                    <h3>Category</h3>
                                     <div class="form-row single">
                                         <div class="form-field">
-                                            <label>Price (£)<span class="req">*</span></label>
-                                            <input v-model.number="planForm.price" type="number" min="0" step="0.01" required>
-                                            <div v-if="planForm.errors.price" class="err">{{ planForm.errors.price }}</div>
+                                            <label>Group this plan under</label>
+                                            <select v-model="planForm.category_id">
+                                                <option :value="null">— Uncategorised —</option>
+                                                <option v-for="c in (selectedProduct?.plan_categories ?? [])" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                            </select>
+                                            <div v-if="planForm.errors.category_id" class="err">{{ planForm.errors.category_id }}</div>
                                         </div>
                                     </div>
-                                    <div class="form-row single" style="margin-top: 12px;">
-                                        <div class="form-field">
-                                            <label>Billing interval<span class="req">*</span></label>
-                                            <IntervalPicker v-model="planInterval" />
-                                            <div v-if="planForm.errors.interval_count" class="err">{{ planForm.errors.interval_count }}</div>
-                                            <div v-if="planForm.errors.interval_unit" class="err">{{ planForm.errors.interval_unit }}</div>
+                                </div>
+
+                                <!-- Initial price (create-only convenience block) -->
+                                <div v-if="planMode === 'create'" class="form-section">
+                                    <button v-if="! showInitialPriceSection" type="button" class="collapsible-trigger" @click="showInitialPriceSection = true">
+                                        <IconPlus :size="14" stroke-width="2" />
+                                        Add first pricing option
+                                    </button>
+                                    <template v-else>
+                                        <h3>First pricing option <span style="color: var(--text-tertiary); font-weight: 400; font-size: 12px;">— optional</span></h3>
+                                        <div class="form-row single">
+                                            <div class="form-field">
+                                                <label>Price (£)</label>
+                                                <input v-model.number="planForm.initial_price" type="number" min="0" step="0.01">
+                                                <div v-if="planForm.errors.initial_price" class="err">{{ planForm.errors.initial_price }}</div>
+                                            </div>
                                         </div>
-                                    </div>
+                                        <div class="form-row single" style="margin-top: 12px;">
+                                            <div class="form-field">
+                                                <label>Billing interval</label>
+                                                <IntervalPicker v-model="initialInterval" />
+                                                <div class="field-help">You can add more pricing options after creating the plan.</div>
+                                            </div>
+                                        </div>
+                                    </template>
                                 </div>
 
                                 <div class="form-section">
@@ -958,18 +1316,6 @@ function gbpRound(n) {
                                 </div>
 
                                 <div class="form-section">
-                                    <h3>Stripe Price ID <span style="color: var(--text-tertiary); font-weight: 400; font-size: 12px;">— optional</span></h3>
-                                    <div class="form-row single">
-                                        <div class="form-field">
-                                            <label>Price ID</label>
-                                            <input v-model="planForm.stripe_price_id" type="text" placeholder="price_1Nxxx..." style="font-family: 'JetBrains Mono', monospace;">
-                                            <div class="field-help">Copy from Stripe Dashboard → Products → Prices. Used for checkout and webhook matching.</div>
-                                            <div v-if="planForm.errors.stripe_price_id" class="err">{{ planForm.errors.stripe_price_id }}</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="form-section">
                                     <h3>Visibility</h3>
                                     <div class="status-rows">
                                         <div class="set-row">
@@ -1011,6 +1357,205 @@ function gbpRound(n) {
             variant="danger"
             :loading="deletePlanProcessing"
             @confirm="handleDeletePlan"
+        />
+
+        <!-- Add / Edit category slide-over -->
+        <TransitionRoot as="template" :show="showCategoryModal">
+            <Dialog as="div" class="slide-over-dialog" @close="showCategoryModal = false">
+                <TransitionChild
+                    as="template"
+                    enter="transition-opacity ease-out duration-200"
+                    enter-from="opacity-0"
+                    enter-to="opacity-100"
+                    leave="transition-opacity ease-in duration-150"
+                    leave-from="opacity-100"
+                    leave-to="opacity-0"
+                >
+                    <div class="slide-over-backdrop" />
+                </TransitionChild>
+                <TransitionChild
+                    as="template"
+                    enter="transform transition ease-out duration-200"
+                    enter-from="translate-x-full"
+                    enter-to="translate-x-0"
+                    leave="transform transition ease-in duration-150"
+                    leave-from="translate-x-0"
+                    leave-to="translate-x-full"
+                >
+                    <DialogPanel class="slide-over-panel" style="width: 400px;">
+                        <form class="slide-over-form" @submit.prevent="submitCategory">
+                            <header class="slide-over-header">
+                                <h2>{{ categoryMode === 'create' ? 'Add category' : 'Edit category' }}</h2>
+                                <button type="button" class="icon-btn" aria-label="Close" @click="showCategoryModal = false">
+                                    <IconX :size="18" stroke-width="1.75" />
+                                </button>
+                            </header>
+                            <div class="slide-over-body">
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Name<span class="req">*</span></label>
+                                            <input v-model="categoryForm.name" type="text" :class="{ 'has-err': categoryForm.errors.name }" placeholder="e.g. Hosting, Branding" required>
+                                            <div v-if="categoryForm.errors.name" class="err">{{ categoryForm.errors.name }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Description <span style="color: var(--text-tertiary); font-weight: 400;">(optional)</span></label>
+                                            <textarea v-model="categoryForm.description" rows="2" placeholder="Shown above this group on the pricing page" />
+                                            <div v-if="categoryForm.errors.description" class="err">{{ categoryForm.errors.description }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-section">
+                                    <h3>Visibility</h3>
+                                    <div class="status-rows">
+                                        <div class="set-row">
+                                            <div>
+                                                <div class="nm">Public</div>
+                                                <div class="sb">Show on the public pricing page.</div>
+                                            </div>
+                                            <button type="button" class="toggle" :class="{ on: categoryForm.is_public }" aria-label="Toggle public" @click="categoryForm.is_public = ! categoryForm.is_public" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <footer class="slide-over-footer">
+                                <button type="button" class="btn btn-secondary" @click="showCategoryModal = false">Cancel</button>
+                                <button type="submit" class="btn btn-primary" :disabled="categoryForm.processing">
+                                    <IconDeviceFloppy :size="15" stroke-width="1.75" />
+                                    {{ categoryForm.processing ? 'Saving…' : 'Save category' }}
+                                </button>
+                            </footer>
+                        </form>
+                    </DialogPanel>
+                </TransitionChild>
+            </Dialog>
+        </TransitionRoot>
+
+        <ConfirmModal
+            v-model:show="showDeleteCategoryModal"
+            :title="deleteCategoryTarget ? `Delete '${deleteCategoryTarget.name}'?` : 'Delete category?'"
+            :message="deleteCategoryMessage"
+            confirm-label="Delete category"
+            variant="danger"
+            :loading="deleteCategoryProcessing"
+            @confirm="handleDeleteCategory"
+        />
+
+        <!-- Add / Edit price slide-over -->
+        <TransitionRoot as="template" :show="showPriceModal">
+            <Dialog as="div" class="slide-over-dialog" @close="showPriceModal = false">
+                <TransitionChild
+                    as="template"
+                    enter="transition-opacity ease-out duration-200"
+                    enter-from="opacity-0"
+                    enter-to="opacity-100"
+                    leave="transition-opacity ease-in duration-150"
+                    leave-from="opacity-100"
+                    leave-to="opacity-0"
+                >
+                    <div class="slide-over-backdrop" />
+                </TransitionChild>
+                <TransitionChild
+                    as="template"
+                    enter="transform transition ease-out duration-200"
+                    enter-from="translate-x-full"
+                    enter-to="translate-x-0"
+                    leave="transform transition ease-in duration-150"
+                    leave-from="translate-x-0"
+                    leave-to="translate-x-full"
+                >
+                    <DialogPanel class="slide-over-panel" style="width: 440px;">
+                        <form class="slide-over-form" @submit.prevent="submitPrice">
+                            <header class="slide-over-header">
+                                <h2>{{ priceMode === 'create' ? 'Add pricing option' : 'Edit price' }}</h2>
+                                <button type="button" class="icon-btn" aria-label="Close" @click="showPriceModal = false">
+                                    <IconX :size="18" stroke-width="1.75" />
+                                </button>
+                            </header>
+                            <div class="slide-over-body">
+                                <div v-if="priceContextPlan" style="padding: 10px 14px; background: var(--neutral-bg); border-radius: var(--radius-md); display: flex; align-items: center; gap: 10px;">
+                                    <span class="badge badge-inactive badge-sm">{{ priceContextPlan.name }}</span>
+                                    <span style="font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary); margin-left: auto;">on {{ selectedProduct?.name }}</span>
+                                </div>
+                                <div class="form-section">
+                                    <h3>Price &amp; interval</h3>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Price (£)<span class="req">*</span></label>
+                                            <input v-model.number="priceForm.price" type="number" min="0" step="0.01" required>
+                                            <div v-if="priceForm.errors.price" class="err">{{ priceForm.errors.price }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single" style="margin-top: 12px;">
+                                        <div class="form-field">
+                                            <label>Billing interval<span class="req">*</span></label>
+                                            <IntervalPicker v-model="priceInterval" />
+                                            <div v-if="priceForm.errors.interval_count" class="err">{{ priceForm.errors.interval_count }}</div>
+                                            <div v-if="priceForm.errors.interval_unit" class="err">{{ priceForm.errors.interval_unit }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-section">
+                                    <h3>Marketing</h3>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Stripe Price ID <span style="color: var(--text-tertiary); font-weight: 400;">(optional)</span></label>
+                                            <input v-model="priceForm.stripe_price_id" type="text" placeholder="price_1Nxxx..." style="font-family: 'JetBrains Mono', monospace;">
+                                            <div v-if="priceForm.errors.stripe_price_id" class="err">{{ priceForm.errors.stripe_price_id }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Label <span style="color: var(--text-tertiary); font-weight: 400;">(optional)</span></label>
+                                            <input v-model="priceForm.label" type="text" placeholder="e.g. Best value, Most popular" maxlength="100">
+                                            <div class="field-help">Shown as a badge on this price option.</div>
+                                            <div v-if="priceForm.errors.label" class="err">{{ priceForm.errors.label }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-section">
+                                    <h3>Visibility</h3>
+                                    <div class="status-rows">
+                                        <div class="set-row">
+                                            <div>
+                                                <div class="nm">Default</div>
+                                                <div class="sb">Used when enabling this plan without picking a price.</div>
+                                            </div>
+                                            <button type="button" class="toggle" :class="{ on: priceForm.is_default }" aria-label="Toggle default" @click="priceForm.is_default = ! priceForm.is_default" />
+                                        </div>
+                                        <div class="set-row">
+                                            <div>
+                                                <div class="nm">Active</div>
+                                                <div class="sb">Show in the new-subscription price picker.</div>
+                                            </div>
+                                            <button type="button" class="toggle" :class="{ on: priceForm.is_active }" aria-label="Toggle active" @click="priceForm.is_active = ! priceForm.is_active" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <footer class="slide-over-footer">
+                                <button type="button" class="btn btn-secondary" @click="showPriceModal = false">Cancel</button>
+                                <button type="submit" class="btn btn-primary" :disabled="priceForm.processing">
+                                    <IconDeviceFloppy :size="15" stroke-width="1.75" />
+                                    {{ priceForm.processing ? 'Saving…' : 'Save price' }}
+                                </button>
+                            </footer>
+                        </form>
+                    </DialogPanel>
+                </TransitionChild>
+            </Dialog>
+        </TransitionRoot>
+
+        <ConfirmModal
+            v-model:show="showDeletePriceModal"
+            title="Delete pricing option?"
+            message="This can't be undone. Subscriptions on this price won't be reassigned automatically."
+            confirm-label="Delete price"
+            variant="danger"
+            :loading="deletePriceProcessing"
+            @confirm="handleDeletePrice"
         />
     </SettingsLayout>
 </template>

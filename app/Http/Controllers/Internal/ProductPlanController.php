@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\CustomerProduct;
 use App\Models\ProductPlan;
+use App\Models\ProductPlanPrice;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,13 +18,32 @@ class ProductPlanController extends Controller
         $data = $this->validatePayload($request, isUpdate: false);
 
         $plan = DB::transaction(function () use ($data, $request) {
-            $plan = ProductPlan::create($data);
+            // The validation rules split plan-level fields from
+            // initial_* pricing fields. Strip the latter before
+            // building the ProductPlan, then use them to seed the
+            // first ProductPlanPrice in the same transaction.
+            $planData = collect($data)
+                ->except(['initial_price', 'initial_interval_count', 'initial_interval_unit'])
+                ->all();
+
+            $plan = ProductPlan::create($planData);
+
+            if (isset($data['initial_price'])) {
+                ProductPlanPrice::create([
+                    'plan_id' => $plan->id,
+                    'price' => $data['initial_price'],
+                    'interval_count' => $data['initial_interval_count'] ?? 1,
+                    'interval_unit' => $data['initial_interval_unit'] ?? 'month',
+                    'is_default' => true,
+                    'is_active' => true,
+                    'sort_order' => 0,
+                ]);
+            }
 
             $this->logActivity($request, 'product_plan.created', $plan->product_id, after: [
                 'plan_id' => $plan->id,
                 'name' => $plan->name,
-                'price' => $plan->price,
-                'interval' => $plan->interval_label,
+                'category_id' => $plan->category_id,
             ]);
 
             return $plan;
@@ -44,18 +64,21 @@ class ProductPlanController extends Controller
         DB::transaction(function () use ($plan, $data, $request) {
             $before = [
                 'name' => $plan->name,
-                'price' => $plan->price,
-                'interval_count' => $plan->interval_count,
-                'interval_unit' => $plan->interval_unit,
+                'category_id' => $plan->category_id,
             ];
 
-            $plan->update($data);
+            // Update only plan-level fields; initial_* never apply on
+            // edit — pricing is managed via ProductPlanPriceController.
+            $planData = collect($data)
+                ->except(['initial_price', 'initial_interval_count', 'initial_interval_unit'])
+                ->all();
+
+            $plan->update($planData);
 
             $this->logActivity($request, 'product_plan.updated', $plan->product_id, $before, [
                 'plan_id' => $plan->id,
                 'name' => $plan->name,
-                'price' => $plan->price,
-                'interval' => $plan->interval_label,
+                'category_id' => $plan->category_id,
             ]);
         });
 
@@ -125,15 +148,18 @@ class ProductPlanController extends Controller
         $rules = [
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:500'],
-            'price' => ['required', 'numeric', 'min:0'],
-            'interval_count' => ['required', 'integer', 'min:1', 'max:365'],
-            'interval_unit' => ['required', 'in:day,week,month,year,one_time'],
-            'stripe_price_id' => ['nullable', 'string', 'max:100'],
+            'category_id' => ['nullable', 'integer', 'exists:product_plan_categories,id'],
             'features' => ['nullable', 'array', 'max:10'],
             'features.*' => ['string', 'max:200'],
             'is_active' => ['boolean'],
             'is_public' => ['boolean'],
             'sort_order' => ['integer'],
+            // initial_* fields are only honoured on create; the
+            // controller drops them on update. Lets staff create a
+            // plan and its first price in a single submit.
+            'initial_price' => ['nullable', 'numeric', 'min:0'],
+            'initial_interval_count' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'initial_interval_unit' => ['nullable', 'in:day,week,month,year,one_time'],
         ];
 
         if (! $isUpdate) {

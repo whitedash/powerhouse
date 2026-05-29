@@ -140,6 +140,7 @@ const enableForm = useForm({
     customer_id: null,
     product_id: null,
     plan_id: null,
+    plan_price_id: null,
     plan: '',
     price_monthly: null,
     interval_count: 1,
@@ -169,11 +170,30 @@ function openEnable(customer, product) {
 }
 
 function selectEnablePlan(plan) {
+    // Step 1: pick the plan tier. Auto-select default price so the
+    // operator can ship the most common path in two clicks.
     enableForm.plan_id = plan.id;
     enableForm.plan = plan.name;
-    enableForm.price_monthly = plan.price;
-    enableForm.interval_count = plan.interval_count;
-    enableForm.interval_unit = plan.interval_unit;
+    const def = (plan.prices ?? []).find((p) => p.is_default) ?? plan.prices?.[0];
+    if (def) {
+        selectEnablePrice(def);
+    } else {
+        enableForm.plan_price_id = null;
+        enableForm.price_monthly = null;
+        enableForm.interval_count = 1;
+        enableForm.interval_unit = 'month';
+    }
+}
+
+function selectEnablePrice(price) {
+    enableForm.plan_price_id = price.id;
+    enableForm.price_monthly = price.price;
+    enableForm.interval_count = price.interval_count;
+    enableForm.interval_unit = price.interval_unit;
+}
+
+function selectedEnablePlan() {
+    return (enableContextProduct.value?.plans ?? []).find((p) => p.id === enableForm.plan_id) ?? null;
 }
 
 function submitEnable() {
@@ -622,7 +642,7 @@ const nextUrl = computed(() => props.customers.next_page_url);
 
                                 <div class="form-section">
                                     <h3>Plan</h3>
-                                    <!-- Plan radio cards when the product has plans defined -->
+                                    <!-- STEP 1 — plan radio cards (no price; just name + features) -->
                                     <template v-if="(enableContextProduct?.plans ?? []).length > 0">
                                         <div style="display: flex; flex-direction: column; gap: 8px;">
                                             <button
@@ -631,14 +651,18 @@ const nextUrl = computed(() => props.customers.next_page_url);
                                                 type="button"
                                                 class="ent-opt"
                                                 :class="{ selected: enableForm.plan_id === plan.id }"
-                                                style="padding: 12px 14px; align-items: flex-start; flex-direction: column; gap: 4px;"
+                                                style="padding: 12px 14px; align-items: flex-start; flex-direction: column; gap: 6px;"
                                                 @click="selectEnablePlan(plan)"
                                             >
                                                 <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
                                                     <span style="font: 600 14px/1.2 'Inter', sans-serif;">{{ plan.name }}</span>
-                                                    <span style="margin-left: auto; font: 600 14px/1.2 'Inter', sans-serif; color: var(--accent);">£{{ Number(plan.price).toFixed(2) }} · {{ plan.interval_label }}</span>
+                                                    <span style="margin-left: auto; font: 400 11.5px/1.3 'Inter', sans-serif; color: var(--text-tertiary);">
+                                                        {{ (plan.prices ?? []).length }} pricing option{{ (plan.prices ?? []).length === 1 ? '' : 's' }}
+                                                    </span>
                                                 </div>
-                                                <span v-if="plan.description" style="font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary);">{{ plan.description }}</span>
+                                                <div v-if="(plan.features ?? []).length" style="font: 400 11.5px/1.4 'Inter', sans-serif; color: var(--text-secondary); text-align: left;">
+                                                    <template v-for="(f, i) in plan.features" :key="i"><span v-if="i > 0"> · </span>✓ {{ f }}</template>
+                                                </div>
                                             </button>
                                         </div>
                                     </template>
@@ -660,6 +684,26 @@ const nextUrl = computed(() => props.customers.next_page_url);
                                             No plans defined for this product yet. Add plans in Settings → Products for a better experience.
                                         </div>
                                     </template>
+                                </div>
+
+                                <!-- STEP 2 — pick a price, auto-selects default -->
+                                <div v-if="enableForm.plan_id && (selectedEnablePlan()?.prices ?? []).length > 0" class="form-section">
+                                    <h3>Billing</h3>
+                                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                                        <button
+                                            v-for="price in selectedEnablePlan().prices"
+                                            :key="`pp-${price.id}`"
+                                            type="button"
+                                            style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; text-align: left;"
+                                            :style="enableForm.plan_price_id === price.id ? 'border-left: 2px solid var(--accent); background: var(--warning-bg);' : ''"
+                                            @click="selectEnablePrice(price)"
+                                        >
+                                            <span style="font: 600 13px/1.2 'Inter', sans-serif;">{{ price.interval_label }}</span>
+                                            <span style="font: 600 15px/1.2 'Inter', sans-serif; color: var(--accent);">£{{ Number(price.price).toFixed(2) }}</span>
+                                            <span v-if="price.label" class="badge badge-sm badge-pending">{{ price.label }}</span>
+                                            <span v-if="price.is_default" class="badge badge-sm badge-active" style="margin-left: auto;">Default</span>
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div v-if="billing_entities.length" class="form-section">

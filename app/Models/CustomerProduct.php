@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
  * @property int $customer_id
  * @property int $product_id
  * @property int|null $plan_id
+ * @property int|null $plan_price_id
  * @property int|null $billing_entity_id
  * @property string|null $stripe_subscription_id
  * @property string|null $stripe_price_id
@@ -39,6 +40,7 @@ use Illuminate\Support\Carbon;
  * @property-read Customer|null $customer
  * @property-read Product|null $product
  * @property-read ProductPlan|null $productPlan
+ * @property-read ProductPlanPrice|null $planPrice
  * @property-read BillingEntity|null $billingEntity
  */
 class CustomerProduct extends Model
@@ -47,6 +49,7 @@ class CustomerProduct extends Model
         'customer_id',
         'product_id',
         'plan_id',
+        'plan_price_id',
         'billing_entity_id',
         'stripe_subscription_id',
         'stripe_price_id',
@@ -103,6 +106,11 @@ class CustomerProduct extends Model
         return $this->belongsTo(ProductPlan::class, 'plan_id');
     }
 
+    public function planPrice(): BelongsTo
+    {
+        return $this->belongsTo(ProductPlanPrice::class, 'plan_price_id');
+    }
+
     /**
      * Price after the active discount, if any. A discount is "active"
      * when discount_pct is set AND either no expiry was given or the
@@ -130,15 +138,19 @@ class CustomerProduct extends Model
     }
 
     /**
-     * Normalise the effective price into a monthly contribution based
-     * on (interval_count, interval_unit). The discount-adjusted
-     * effective_price IS the price for one billing period — we divide
-     * by the period length to amortise. Mirrors ProductPlan's math so
-     * the two never drift.
+     * Normalise the effective price into a monthly contribution. When
+     * a plan_price_id is set, the canonical math lives on that price
+     * row; we just call its accessor. Subscriptions without a linked
+     * price (legacy / manual) fall back to the local interval columns
+     * so historical rows keep reporting sensible MRR.
      */
     protected function mrrContribution(): Attribute
     {
         return Attribute::get(function (): float {
+            if ($this->plan_price_id && $this->planPrice) {
+                return $this->planPrice->mrr_contribution;
+            }
+
             $effective = $this->effective_price;
             $count = max(1, (int) ($this->interval_count ?? 1));
             $unit = $this->interval_unit ?? 'month';
