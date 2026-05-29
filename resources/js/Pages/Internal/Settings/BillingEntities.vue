@@ -19,6 +19,7 @@ import {
     IconTrash,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
+import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 
 const props = defineProps({
     entities: { type: Array, required: true },
@@ -94,15 +95,35 @@ watch(selectedEntity, (next) => {
     form.clearErrors();
 });
 
+/* ─── Switch entity (guarded by ConfirmModal when dirty) ─── */
+const showSwitchModal = ref(false);
+const pendingSwitchId = ref(null);
+
 function selectEntity(id) {
     if (id === selectedId.value) return;
-    if (form.isDirty && !confirm('Discard unsaved changes?')) return;
+    if (form.isDirty) {
+        pendingSwitchId.value = id;
+        showSwitchModal.value = true;
+
+        return;
+    }
+    performSwitch(id);
+}
+
+function performSwitch(id) {
     selectedId.value = id;
     router.get(
         '/settings/billing-entities',
         { entity: id },
         { preserveState: true, preserveScroll: true, replace: true, only: [] },
     );
+}
+
+function handleSwitchConfirm() {
+    const id = pendingSwitchId.value;
+    showSwitchModal.value = false;
+    pendingSwitchId.value = null;
+    if (id !== null) performSwitch(id);
 }
 
 function saveDetail() {
@@ -117,12 +138,24 @@ function discardChanges() {
     form.clearErrors();
 }
 
+/* ─── Delete entity (via ConfirmModal) ─── */
+const showDeleteModal = ref(false);
+const deleteProcessing = ref(false);
+
 function deleteEntity() {
     if (!selectedEntity.value) return;
-    const name = selectedEntity.value.name;
-    if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
+    showDeleteModal.value = true;
+}
+
+function handleDelete() {
+    if (!selectedEntity.value) return;
+    deleteProcessing.value = true;
     router.delete(`/settings/billing-entities/${selectedEntity.value.id}`, {
         preserveScroll: true,
+        onFinish: () => {
+            deleteProcessing.value = false;
+            showDeleteModal.value = false;
+        },
     });
 }
 
@@ -653,5 +686,24 @@ const qboConnected = computed(() => !!selectedEntity.value?.qbo_realm_id);
                 </TransitionChild>
             </Dialog>
         </TransitionRoot>
+
+        <ConfirmModal
+            v-model:show="showSwitchModal"
+            title="Discard unsaved changes?"
+            message="You have unsaved changes on the current entity. Switching will discard them."
+            confirm-label="Discard and switch"
+            variant="warning"
+            @confirm="handleSwitchConfirm"
+        />
+
+        <ConfirmModal
+            v-model:show="showDeleteModal"
+            :title="selectedEntity ? `Delete ${selectedEntity.name}?` : 'Delete entity?'"
+            message="This billing entity will be permanently deleted. This action cannot be undone."
+            confirm-label="Delete entity"
+            variant="danger"
+            :loading="deleteProcessing"
+            @confirm="handleDelete"
+        />
     </InternalLayout>
 </template>

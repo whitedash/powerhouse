@@ -22,6 +22,7 @@ import {
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
+import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 
 const props = defineProps({
     customers: { type: Array, default: () => [] },
@@ -266,14 +267,19 @@ function submitSend() {
     }
 }
 
+const showDiscardModal = ref(false);
+
 function discard() {
+    showDiscardModal.value = true;
+}
+
+function handleDiscard() {
+    showDiscardModal.value = false;
     if (isEdit.value) {
-        if (!confirm('Discard your changes? Unsaved edits will be lost.')) return;
         router.visit(`/invoices/${props.invoice.id}`);
 
         return;
     }
-    if (!confirm('Discard this draft? Unsaved changes will be lost.')) return;
     router.visit('/invoices');
 }
 </script>
@@ -759,5 +765,16 @@ function discard() {
                 </aside>
             </div>
         </div>
+
+        <ConfirmModal
+            v-model:show="showDiscardModal"
+            :title="isEdit ? 'Discard changes?' : 'Discard invoice?'"
+            :message="isEdit
+                ? 'All unsaved changes will be lost.'
+                : 'All unsaved changes will be lost and you will be returned to the invoices list.'"
+            confirm-label="Discard"
+            variant="warning"
+            @confirm="handleDiscard"
+        />
     </InternalLayout>
 </template>

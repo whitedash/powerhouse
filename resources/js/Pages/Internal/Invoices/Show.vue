@@ -22,6 +22,7 @@ import {
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
+import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 
 dayjs.extend(relativeTime);
 
@@ -178,14 +179,22 @@ function sendInvoice() {
     router.post(`/invoices/${inv.value.id}/send`, {}, { preserveScroll: true });
 }
 
+const showVoidModal = ref(false);
+const voidProcessing = ref(false);
+
 function voidInvoice() {
-    if (!confirm(`Are you sure you want to void invoice ${inv.value.number}? This cannot be undone.`)) return;
+    showVoidModal.value = true;
+}
+
+function handleVoid() {
+    voidProcessing.value = true;
     router.post(`/invoices/${inv.value.id}/void`, {}, {
         preserveScroll: true,
+        onFinish: () => {
+            voidProcessing.value = false;
+            showVoidModal.value = false;
+        },
         onError: (errors) => {
-            // Inertia turns 403/422/500 into errors here. Without this
-            // handler the failure was silent — the user saw the confirm
-            // dialog clear and no obvious feedback.
             // eslint-disable-next-line no-console
             console.error('Void failed:', errors);
         },
@@ -683,5 +692,15 @@ const icons = {
                 </div>
             </div>
         </div>
+
+        <ConfirmModal
+            v-model:show="showVoidModal"
+            :title="`Void ${invoice.number}?`"
+            message="This invoice will be permanently voided. The customer will no longer be able to pay it and it cannot be undone."
+            confirm-label="Void invoice"
+            variant="danger"
+            :loading="voidProcessing"
+            @confirm="handleVoid"
+        />
     </InternalLayout>
 </template>

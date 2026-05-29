@@ -35,6 +35,7 @@ import {
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
+import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 
 const props = defineProps({
     invoices: { type: Object, required: true },
@@ -207,10 +208,7 @@ function goNew() {
     router.visit('/invoices/new');
 }
 
-/* ─── Per-row action menu handlers ───
-   The menu items were unwired placeholder buttons; this is the
-   targeted fix. window.confirm() is intentionally temporary —
-   the global ConfirmModal sprint will replace it. */
+/* ─── Per-row action menu handlers ─── */
 function rowSendReminder(id) {
     router.post(`/invoices/${id}/send`, {}, {
         preserveScroll: true,
@@ -228,11 +226,27 @@ function rowDownloadPdf(id) {
     // Preview endpoint emits inline disposition, opens in a new tab.
     window.open(`/invoices/${id}/preview-pdf`, '_blank', 'noopener');
 }
+
+/* ─── Void via ConfirmModal ─── */
+const showVoidModal = ref(false);
+const voidProcessing = ref(false);
+const voidTarget = ref({ id: null, number: '' });
+
 function voidInvoice(invoiceId, invoiceNumber) {
-    if (!confirm(`Void invoice ${invoiceNumber}? This cannot be undone.`)) return;
-    router.post(`/invoices/${invoiceId}/void`, {}, {
+    voidTarget.value = { id: invoiceId, number: invoiceNumber };
+    showVoidModal.value = true;
+}
+
+function handleVoid() {
+    if (!voidTarget.value.id) return;
+    voidProcessing.value = true;
+    router.post(`/invoices/${voidTarget.value.id}/void`, {}, {
         preserveScroll: true,
         preserveState: false,
+        onFinish: () => {
+            voidProcessing.value = false;
+            showVoidModal.value = false;
+        },
         onError: (errors) => {
             // eslint-disable-next-line no-console
             console.error('Void failed:', errors);
@@ -672,6 +686,16 @@ function voidInvoice(invoiceId, invoiceNumber) {
                 <div>Sorted by <strong>{{ SORT_LABELS[filters.sort] }}</strong></div>
             </div>
         </div>
+
+        <ConfirmModal
+            v-model:show="showVoidModal"
+            :title="`Void ${voidTarget.number}?`"
+            message="This invoice will be permanently voided. The customer will no longer be able to pay it and it cannot be undone."
+            confirm-label="Void invoice"
+            variant="danger"
+            :loading="voidProcessing"
+            @confirm="handleVoid"
+        />
     </InternalLayout>
 </template>
 

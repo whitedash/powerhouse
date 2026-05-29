@@ -37,6 +37,7 @@ import {
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
+import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 
 dayjs.extend(relativeTime);
 
@@ -287,9 +288,22 @@ function submitTask() {
 }
 
 /* ─── Archive ─── */
+const showArchiveModal = ref(false);
+const archiveProcessing = ref(false);
+
 function archive() {
-    if (! confirm('Archive this customer? You can restore them from the archive view.')) return;
-    router.delete(`/customers/${props.customer.id}/archive`);
+    showArchiveModal.value = true;
+}
+
+function handleArchive() {
+    archiveProcessing.value = true;
+    router.delete(`/customers/${props.customer.id}/archive`, {
+        preserveScroll: true,
+        onFinish: () => {
+            archiveProcessing.value = false;
+            showArchiveModal.value = false;
+        },
+    });
 }
 
 function gotoInvoice() {
@@ -1189,6 +1203,16 @@ const headerStatusBadge = computed(() => {
                 </TransitionChild>
             </Dialog>
         </TransitionRoot>
+
+        <ConfirmModal
+            v-model:show="showArchiveModal"
+            :title="`Archive ${customer.name}?`"
+            message="This customer will be archived and hidden from active lists. Their invoices and history will be preserved."
+            confirm-label="Archive customer"
+            variant="warning"
+            :loading="archiveProcessing"
+            @confirm="handleArchive"
+        />
     </InternalLayout>
 </template>
 

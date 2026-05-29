@@ -43,6 +43,11 @@ for every layout, component, and interaction pattern.
   `WebhookIdempotencyService`, (3) excluding the route from CSRF.
 - **Never** accept a URL from user input without `App\Rules\NotInternalUrl`
   in the validation chain. This is what stops SSRF.
+- **Never** use `window.confirm()`, `window.alert()`, or
+  `window.prompt()`. ALL confirmation dialogs must use the
+  `ConfirmModal` Vue component at
+  `resources/js/Components/UI/ConfirmModal.vue` (v-model:show,
+  variant=danger|warning|primary, emits @confirm).
 
 ## Key files
 - SCHEMA.md — complete database schema (source of truth)
