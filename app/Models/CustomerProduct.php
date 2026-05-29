@@ -139,15 +139,26 @@ class CustomerProduct extends Model
 
     /**
      * Normalise the effective price into a monthly contribution. When
-     * a plan_price_id is set, the canonical math lives on that price
-     * row; we just call its accessor. Subscriptions without a linked
-     * price (legacy / manual) fall back to the local interval columns
-     * so historical rows keep reporting sensible MRR.
+     * a plan_price_id is set AND the planPrice relation was eager-loaded
+     * by the caller, the canonical math lives on that price row; we
+     * just call its accessor. Subscriptions without a linked price
+     * (legacy / manual) — OR queries that didn't eager-load planPrice —
+     * fall back to the local interval columns so historical rows still
+     * report sensible MRR.
+     *
+     * The relationLoaded() guard is deliberate: Model::preventLazyLoading()
+     * is on in non-production, so an accidental lazy fetch from inside
+     * an accessor would throw and crash every dashboard / analytics
+     * page that aggregates a CustomerProduct collection. The fallback
+     * keeps the math close-enough-correct without the lazy load.
      */
     protected function mrrContribution(): Attribute
     {
         return Attribute::get(function (): float {
-            if ($this->plan_price_id && $this->planPrice) {
+            if ($this->plan_price_id
+                && $this->relationLoaded('planPrice')
+                && $this->planPrice
+            ) {
                 return $this->planPrice->mrr_contribution;
             }
 

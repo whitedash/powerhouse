@@ -68,6 +68,7 @@ class ProductOverviewController extends Controller
         // SubscriptionController / DashboardController pattern.
         $activeSubs = CustomerProduct::where('product_id', $product->id)
             ->where('status', 'active')
+            ->with('planPrice')
             ->get();
 
         return [
@@ -111,6 +112,7 @@ class ProductOverviewController extends Controller
             ->map(function (ProductPlan $plan): array {
                 $activeForPlan = CustomerProduct::where('plan_id', $plan->id)
                     ->where('status', 'active')
+                    ->with('planPrice')
                     ->get();
 
                 return [

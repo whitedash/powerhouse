@@ -74,6 +74,10 @@ class CustomerController extends Controller
             ->with([
                 'primaryContact:id,customer_id,name,email',
                 'customerProducts.product:id,slug,name,icon_colour',
+                // planPrice eager-load is required for mrr_contribution
+                // under Model::preventLazyLoading() — the accessor falls
+                // back to a manual calc when planPrice is missing.
+                'customerProducts.planPrice',
                 'referral.referrer.user:id,name,role',
             ]);
 
@@ -205,6 +209,8 @@ class CustomerController extends Controller
             'assignedTo:id,name,role,avatar_colour',
             'customerProducts.product',
             'customerProducts.billingEntity:id,name',
+            // planPrice eager-load — see note in index().
+            'customerProducts.planPrice',
             'referral.referrer.user:id,name,role,avatar_colour',
             'notes' => fn ($q) => $q->with('createdBy:id,name,role,avatar_colour')
                 ->orderByDesc('created_at')

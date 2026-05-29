@@ -90,13 +90,18 @@ class ProductPlan extends Model
     /**
      * Plan-level MRR is the contribution of its default price. Callers
      * that want the full price spread should walk activePrices
-     * themselves. Returns 0 if no default has been chosen — keeps the
-     * aggregates safe while the operator is mid-edit.
+     * themselves. Returns 0 if no default has been chosen — or if the
+     * caller forgot to eager-load defaultPrice — so aggregations stay
+     * safe under Model::preventLazyLoading().
      */
     protected function mrrContribution(): Attribute
     {
-        return Attribute::get(fn (): float => $this->defaultPrice
-            ? $this->defaultPrice->mrr_contribution
-            : 0.0);
+        return Attribute::get(function (): float {
+            if (! $this->relationLoaded('defaultPrice') || ! $this->defaultPrice) {
+                return 0.0;
+            }
+
+            return $this->defaultPrice->mrr_contribution;
+        });
     }
 }

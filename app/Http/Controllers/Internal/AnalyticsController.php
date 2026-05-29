@@ -49,7 +49,11 @@ class AnalyticsController extends Controller
      */
     private function buildHeadline(): array
     {
-        $activeSubs = CustomerProduct::where('status', 'active')->get();
+        // planPrice eager-loaded so mrr_contribution can use the
+        // canonical price-row math under Model::preventLazyLoading.
+        $activeSubs = CustomerProduct::where('status', 'active')
+            ->with('planPrice')
+            ->get();
 
         return [
             'total_mrr' => round($activeSubs->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution), 2),
@@ -90,6 +94,7 @@ class AnalyticsController extends Controller
                                     ->where('cancelled_at', '>', $monthEnd);
                             });
                     })
+                    ->with('planPrice')
                     ->get();
 
                 return [
@@ -123,6 +128,7 @@ class AnalyticsController extends Controller
             ->map(function (Product $p): array {
                 $active = CustomerProduct::where('product_id', $p->id)
                     ->where('status', 'active')
+                    ->with('planPrice')
                     ->get();
 
                 return [
@@ -224,6 +230,7 @@ class AnalyticsController extends Controller
                 'mrr' => round(
                     CustomerProduct::where('plan_id', $p->id)
                         ->where('status', 'active')
+                        ->with('planPrice')
                         ->get()
                         ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution),
                     2,
@@ -269,6 +276,7 @@ class AnalyticsController extends Controller
         }
 
         $mrr = CustomerProduct::where('status', 'active')
+            ->with('planPrice')
             ->get()
             ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution);
 

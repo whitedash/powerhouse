@@ -233,7 +233,12 @@ class SubscriptionController extends Controller
         // (discount + interval) lives on the model. The 'active' set
         // is small enough that the round-trip is fine; if it ever
         // gets large, we can collapse this into a derived column.
-        $activeSubs = CustomerProduct::where('status', 'active')->get();
+        // planPrice eager-loaded for mrr_contribution under strict mode.
+        // $forProduct downstream is a Collection filter on the same set,
+        // so the eager-load propagates without an extra query.
+        $activeSubs = CustomerProduct::where('status', 'active')
+            ->with('planPrice')
+            ->get();
         $mrr = round($activeSubs->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution), 2);
         $arr = round($mrr * 12, 2);
 

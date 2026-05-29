@@ -155,6 +155,7 @@ class ProductController extends Controller
             // the active customer_products and sum via the accessor.
             'mrr' => (float) CustomerProduct::where('plan_id', $plan->id)
                 ->where('status', 'active')
+                ->with('planPrice')
                 ->get()
                 ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution),
             'prices' => $plan->activePrices->map(fn (ProductPlanPrice $pp): array => [

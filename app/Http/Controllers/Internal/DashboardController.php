@@ -117,6 +117,7 @@ class DashboardController extends Controller
                 'dash.mrr',
                 120,
                 fn () => (float) CustomerProduct::where('status', 'active')
+                    ->with('planPrice')
                     ->get()
                     ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution),
             ),
@@ -155,7 +156,11 @@ class DashboardController extends Controller
                     'is_active' => $p->is_active,
                     'is_coming_soon' => $p->is_coming_soon,
                     'customer_count' => $p->is_coming_soon ? 0 : (clone $activeQuery)->count(),
+                    // planPrice eager-loaded so mrr_contribution can use
+                    // the canonical price-row math under
+                    // Model::preventLazyLoading().
                     'mrr' => $p->is_coming_soon ? 0.0 : (float) (clone $activeQuery)
+                        ->with('planPrice')
                         ->get()
                         ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution),
                 ];
