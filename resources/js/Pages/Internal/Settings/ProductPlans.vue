@@ -534,16 +534,20 @@ function back() {
                                 <div v-else>
                                     <div v-for="price in plan.prices" :key="`pp-${price.id}`" class="price-row">
                                         <span class="badge badge-sm" :class="intervalBadgeClass(price)">{{ price.interval_label }}</span>
-                                        <span class="price-amount">{{ gbp(price.price) }}</span>
-                                        <span v-if="price.label" class="price-label-pill">{{ price.label }}</span>
-                                        <span v-if="price.is_default" style="font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-tertiary);">Default</span>
-                                        <span v-if="price.active_customers > 0" class="price-subs">{{ price.active_customers }} {{ price.active_customers === 1 ? 'subscriber' : 'subscribers' }}</span>
-                                        <button type="button" class="icon-btn" aria-label="Edit price" @click="openEditPrice(plan, price)">
-                                            <IconPencil :size="13" stroke-width="1.75" />
-                                        </button>
-                                        <button type="button" class="icon-btn" style="color: var(--danger);" aria-label="Delete price" @click="askDeletePrice(price)">
-                                            <IconTrash :size="13" stroke-width="1.75" />
-                                        </button>
+                                        <span class="price-mid">
+                                            <span class="price-amount">{{ gbp(price.price) }}</span>
+                                            <span v-if="price.label" class="price-label-pill">{{ price.label }}</span>
+                                            <span v-if="price.is_default" style="font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-tertiary);">Default</span>
+                                            <span v-if="price.active_customers > 0" class="price-subs">{{ price.active_customers }} {{ price.active_customers === 1 ? 'subscriber' : 'subscribers' }}</span>
+                                        </span>
+                                        <span class="price-actions">
+                                            <button type="button" class="icon-btn" aria-label="Edit price" @click="openEditPrice(plan, price)">
+                                                <IconPencil :size="13" stroke-width="1.75" />
+                                            </button>
+                                            <button type="button" class="icon-btn" style="color: var(--danger);" aria-label="Delete price" @click="askDeletePrice(price)">
+                                                <IconTrash :size="13" stroke-width="1.75" />
+                                            </button>
+                                        </span>
                                     </div>
                                 </div>
                                 <button type="button" style="margin-top: 6px; background: none; border: 0; padding: 0; color: var(--accent); font: 500 12px/1.2 'Inter', sans-serif; cursor: pointer; display: flex; align-items: center; gap: 4px;" @click="openCreatePrice(plan)">
@@ -634,16 +638,20 @@ function back() {
                                 <div v-else>
                                     <div v-for="price in plan.prices" :key="`pp-u-${price.id}`" class="price-row">
                                         <span class="badge badge-sm" :class="intervalBadgeClass(price)">{{ price.interval_label }}</span>
-                                        <span class="price-amount">{{ gbp(price.price) }}</span>
-                                        <span v-if="price.label" class="price-label-pill">{{ price.label }}</span>
-                                        <span v-if="price.is_default" style="font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-tertiary);">Default</span>
-                                        <span v-if="price.active_customers > 0" class="price-subs">{{ price.active_customers }} {{ price.active_customers === 1 ? 'subscriber' : 'subscribers' }}</span>
-                                        <button type="button" class="icon-btn" aria-label="Edit price" @click="openEditPrice(plan, price)">
-                                            <IconPencil :size="13" stroke-width="1.75" />
-                                        </button>
-                                        <button type="button" class="icon-btn" style="color: var(--danger);" aria-label="Delete price" @click="askDeletePrice(price)">
-                                            <IconTrash :size="13" stroke-width="1.75" />
-                                        </button>
+                                        <span class="price-mid">
+                                            <span class="price-amount">{{ gbp(price.price) }}</span>
+                                            <span v-if="price.label" class="price-label-pill">{{ price.label }}</span>
+                                            <span v-if="price.is_default" style="font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-tertiary);">Default</span>
+                                            <span v-if="price.active_customers > 0" class="price-subs">{{ price.active_customers }} {{ price.active_customers === 1 ? 'subscriber' : 'subscribers' }}</span>
+                                        </span>
+                                        <span class="price-actions">
+                                            <button type="button" class="icon-btn" aria-label="Edit price" @click="openEditPrice(plan, price)">
+                                                <IconPencil :size="13" stroke-width="1.75" />
+                                            </button>
+                                            <button type="button" class="icon-btn" style="color: var(--danger);" aria-label="Delete price" @click="askDeletePrice(price)">
+                                                <IconTrash :size="13" stroke-width="1.75" />
+                                            </button>
+                                        </span>
                                     </div>
                                 </div>
                                 <button type="button" style="margin-top: 6px; background: none; border: 0; padding: 0; color: var(--accent); font: 500 12px/1.2 'Inter', sans-serif; cursor: pointer; display: flex; align-items: center; gap: 4px;" @click="openCreatePrice(plan)">

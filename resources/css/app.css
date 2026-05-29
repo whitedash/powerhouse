@@ -4697,13 +4697,34 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
 
 /* Price rows inside a plan card */
 .price-row {
-    display: flex;
+    display: grid;
+    /* 130px fits the longest interval label ("Every 12 months") so
+     * the middle column (and therefore the price amount) starts at
+     * the same x-position on every row. */
+    grid-template-columns: 130px 1fr auto;
     align-items: center;
     gap: 8px;
     padding: 6px 0;
     border-bottom: 1px solid var(--border-soft);
 }
 .price-row:last-child { border-bottom: none; }
+/* Badge sits at its natural width on the left of its track instead of
+ * stretching to fill the 130px cell. */
+.price-row > .badge { justify-self: start; }
+/* Middle column wrapper: groups amount + label pill + Default text +
+ * subs count so they share the single 1fr track. */
+.price-row .price-mid {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+/* Right column wrapper: edit/delete icon buttons. */
+.price-row .price-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
 .price-amount {
     font: 600 14px/1 'Inter', sans-serif;
     color: var(--text-primary);
@@ -4717,7 +4738,6 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     border: 1px solid #FDE68A;
 }
 .price-subs {
-    margin-left: auto;
     font: 400 11px/1 'Inter', sans-serif;
     color: var(--text-tertiary);
 }
