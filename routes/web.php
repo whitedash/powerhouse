@@ -6,6 +6,7 @@ use App\Http\Controllers\Internal\BillingEntityController as InternalBillingEnti
 use App\Http\Controllers\Internal\CustomerController as InternalCustomerController;
 use App\Http\Controllers\Internal\DashboardController as InternalDashboardController;
 use App\Http\Controllers\Internal\DomainController as InternalDomainController;
+use App\Http\Controllers\Internal\HelpController as InternalHelpController;
 use App\Http\Controllers\Internal\InvoiceController as InternalInvoiceController;
 use App\Http\Controllers\Internal\MaavelusStatementController as InternalMaavelusStatementController;
 use App\Http\Controllers\Internal\ProductController as InternalProductController;
@@ -99,6 +100,16 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
     Route::get('/support/{id}', [InternalSupportController::class, 'show'])->name('internal.support.show');
     Route::post('/support/{id}/reply', [InternalSupportController::class, 'reply'])->name('internal.support.reply');
     Route::post('/support/{id}/status', [InternalSupportController::class, 'updateStatus'])->name('internal.support.status');
+
+    // Help & docs — staff editor + viewer for the support_knowledge_base
+    // articles. The customer portal has its own help routes (TBD) that
+    // filter on is_public=true.
+    Route::get('/help', [InternalHelpController::class, 'index'])->name('internal.help.index');
+    Route::post('/help', [InternalHelpController::class, 'store'])->name('internal.help.store');
+    Route::get('/help/{slug}', [InternalHelpController::class, 'show'])->name('internal.help.show');
+    Route::put('/help/{id}', [InternalHelpController::class, 'update'])->name('internal.help.update');
+    Route::delete('/help/{id}', [InternalHelpController::class, 'destroy'])->name('internal.help.destroy');
+
     Route::get('/provisioning', [InternalProvisioningController::class, 'index'])->name('internal.provisioning.index');
     Route::post('/provisioning/toggle', [InternalProvisioningController::class, 'toggle'])->name('internal.provisioning.toggle');
 

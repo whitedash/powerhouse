@@ -140,7 +140,7 @@ const sections = computed(() => {
             items: [
                 { key: 'support',  label: 'Support',     href: '/support',  icon: IconHeadset,   badge: supportBadge.value },
                 { key: 'settings', label: 'Settings',    href: '/settings', icon: IconSettings },
-                { key: 'help',     label: 'Help & docs', href: '#',         icon: IconHelpCircle },
+                { key: 'help',     label: 'Help & docs', href: '/help',     icon: IconHelpCircle },
             ],
         },
     ];

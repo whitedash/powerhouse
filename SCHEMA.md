@@ -221,10 +221,15 @@ ai_model VARCHAR(100) nullable,
 created_at, updated_at
 
 ## support_knowledge_base
-id, product_id FK nullable, title VARCHAR(255),
-body TEXT, status ENUM(draft|published),
-created_by FK users, published_at nullable,
-created_at, updated_at
+id, title VARCHAR(255), slug VARCHAR(255) UNIQUE,
+content LONGTEXT (markdown), category VARCHAR(100),
+is_public BOOLEAN DEFAULT true,
+is_published BOOLEAN DEFAULT true,
+sort_order INT DEFAULT 0, views INT DEFAULT 0,
+author_id FK users, created_at, updated_at
+-- Reworked for Help & docs. is_public gates customer-portal
+-- visibility; is_published gates everywhere. Soft-delete via
+-- is_published=false.
 
 ## notes
 id, customer_id FK, created_by FK users,

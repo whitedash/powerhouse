@@ -5944,3 +5944,343 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     margin-top: 2px;
     font-variant-numeric: tabular-nums;
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * HELP & DOCS — /help (Index.vue) + /help/{slug} (Show.vue)
+ * Scoped under .help / .help-show. Reuses the .plans-sidebar shape
+ * for the category rail but with its own class names so the two
+ * pages can drift independently if needed.
+ * ──────────────────────────────────────────────────────────────────── */
+
+.help .help-layout {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+.help .help-sidebar {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 2px;
+    position: sticky;
+    top: 16px;
+}
+.help .help-sidebar-header {
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .12em;
+    color: var(--text-tertiary);
+    padding: 6px 8px 10px;
+}
+.help .help-filter-item {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font: 500 13px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+    text-align: left;
+    transition: background .12s, color .12s;
+}
+.help .help-filter-item:hover {
+    background: var(--neutral-bg);
+}
+.help .help-filter-item.active {
+    background: var(--accent-bg, rgba(245, 158, 11, .12));
+    color: var(--accent);
+}
+.help .help-filter-count {
+    font: 500 11.5px/1 'JetBrains Mono', monospace;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+}
+.help .help-filter-item.active .help-filter-count { color: var(--accent); }
+
+.help .help-main { min-width: 0; display: flex; flex-direction: column; gap: 24px; }
+
+.help .help-group { display: flex; flex-direction: column; gap: 12px; }
+.help .help-group-header {
+    display: flex; align-items: center; gap: 10px;
+    padding-bottom: 4px;
+}
+.help .help-group-bar {
+    width: 3px; height: 16px; border-radius: 2px;
+    background: var(--accent);
+}
+.help .help-group-header h3 {
+    margin: 0;
+    font: 600 14px/1.2 'Inter', sans-serif;
+    color: var(--text-primary);
+    letter-spacing: -.005em;
+}
+.help .help-group-count {
+    font: 500 11px/1 'JetBrains Mono', monospace;
+    color: var(--text-tertiary);
+    background: var(--neutral-bg);
+    border-radius: 999px;
+    padding: 2px 8px;
+}
+
+.help .help-cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.help .help-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 8px;
+    transition: border-color .12s, box-shadow .12s;
+}
+.help .help-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-md);
+}
+.help .help-card-top {
+    display: flex; align-items: center; justify-content: space-between;
+}
+.help .help-card-title {
+    font: 600 16px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+    text-decoration: none;
+    letter-spacing: -.005em;
+}
+.help .help-card-title:hover { color: var(--accent); }
+.help .help-card-excerpt {
+    margin: 0;
+    font: 400 13px/1.5 'Inter', sans-serif;
+    color: var(--text-secondary);
+    /* clamp to two lines */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.help .help-card-footer {
+    display: flex; align-items: center; gap: 6px;
+    padding-top: 4px;
+    border-top: 1px solid var(--border-soft);
+    margin-top: auto;
+    flex-wrap: wrap;
+}
+.help .help-meta-item {
+    display: inline-flex; align-items: center; gap: 4px;
+    font: 500 11.5px/1.3 'Inter', sans-serif;
+    color: var(--text-tertiary);
+}
+.help .help-meta-sep { color: var(--text-tertiary); font-size: 11px; }
+.help .help-meta-spacer { flex: 1; }
+
+.help .help-empty {
+    background: var(--card-bg);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+    padding: 56px 24px;
+    text-align: center;
+    color: var(--text-tertiary);
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.help .help-empty svg { color: var(--text-tertiary); }
+.help .help-empty-title {
+    font: 600 16px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+    margin-top: 4px;
+}
+.help .help-empty-sub {
+    font: 400 13px/1.5 'Inter', sans-serif;
+    max-width: 360px;
+    margin: 0 auto 12px;
+}
+
+/* Editor slide-over — bigger inputs for a content editor */
+.help-title-input {
+    font: 500 20px/1.3 'Inter', sans-serif !important;
+    letter-spacing: -.005em;
+}
+.help-content-input {
+    font: 400 13.5px/1.6 'JetBrains Mono', monospace !important;
+    min-height: 320px;
+    resize: vertical;
+}
+
+/* ───────────────────── SHOW PAGE ───────────────────── */
+
+.help-show .help-show-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.help-show .help-article {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 32px 40px;
+}
+.help-show .help-article-header { display: flex; flex-direction: column; gap: 10px; }
+.help-show .help-article-badges {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.help-show .help-article-title {
+    margin: 4px 0 0;
+    font: 700 26px/1.25 'Inter', sans-serif;
+    color: var(--text-primary);
+    letter-spacing: -.015em;
+}
+.help-show .help-article-meta {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    font: 500 12.5px/1.3 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.help-show .help-article-meta .dot { color: var(--text-tertiary); }
+.help-show .help-article-meta-views { display: inline-flex; align-items: center; gap: 4px; }
+
+.help-show .help-article-divider {
+    height: 1px;
+    background: var(--border-soft);
+    margin: 20px 0 24px;
+}
+
+/* Rendered markdown output. league/commonmark drops standard HTML
+ * tags inside .help-article-content so we style by tag, not class.
+ * Numbers chosen to read at-rest on a desktop — no reset needed. */
+.help-article-content {
+    font: 400 15px/1.7 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+.help-article-content h1,
+.help-article-content h2,
+.help-article-content h3,
+.help-article-content h4 {
+    color: var(--text-primary);
+    letter-spacing: -.01em;
+    margin: 28px 0 10px;
+    line-height: 1.3;
+}
+.help-article-content h1 { font: 700 22px/1.3 'Inter', sans-serif; }
+.help-article-content h2 { font: 600 18px/1.3 'Inter', sans-serif; }
+.help-article-content h3 { font: 600 16px/1.3 'Inter', sans-serif; }
+.help-article-content h4 { font: 600 14px/1.3 'Inter', sans-serif; }
+.help-article-content p  { margin: 0 0 14px; }
+.help-article-content a  { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.help-article-content ul,
+.help-article-content ol { padding-left: 22px; margin: 0 0 14px; }
+.help-article-content li { margin-bottom: 4px; }
+.help-article-content blockquote {
+    border-left: 3px solid var(--accent);
+    padding: 4px 14px;
+    margin: 0 0 14px;
+    color: var(--text-secondary);
+    background: var(--neutral-bg);
+    border-radius: 4px;
+}
+.help-article-content code {
+    font: 500 13px/1.5 'JetBrains Mono', monospace;
+    background: var(--neutral-bg);
+    border: 1px solid var(--border-soft);
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: var(--text-primary);
+}
+.help-article-content pre {
+    background: #0F172A;
+    color: #E2E8F0;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+    margin: 0 0 16px;
+}
+.help-article-content pre code {
+    background: transparent;
+    border: 0;
+    color: inherit;
+    padding: 0;
+    font: 400 12.5px/1.6 'JetBrains Mono', monospace;
+}
+.help-article-content hr {
+    border: 0;
+    border-top: 1px solid var(--border-soft);
+    margin: 20px 0;
+}
+.help-article-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 16px;
+}
+.help-article-content th,
+.help-article-content td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-soft);
+    font-size: 13.5px;
+}
+.help-article-content th { font-weight: 600; background: var(--neutral-bg); }
+
+/* Sidebar */
+.help-show .help-show-sidebar {
+    display: flex; flex-direction: column; gap: 16px;
+    position: sticky;
+    top: 16px;
+}
+.help-show .help-info-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 10px;
+}
+.help-show .help-info-card-title {
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .12em;
+    color: var(--text-tertiary);
+    margin-bottom: 2px;
+}
+.help-show .help-info-row {
+    display: flex; align-items: center; justify-content: space-between;
+    font: 500 13px/1.3 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.help-show .help-info-label { color: var(--text-tertiary); }
+.help-show .help-info-value { color: var(--text-primary); }
+
+.help-show .help-related-row {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font: 500 13px/1.4 'Inter', sans-serif;
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: background .12s, color .12s;
+}
+.help-show .help-related-row:hover {
+    background: var(--neutral-bg);
+    color: var(--accent);
+}
+.help-show .help-related-empty {
+    display: flex; align-items: center; gap: 8px;
+    font: 400 12.5px/1.4 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    font-style: italic;
+}
+
+.help-show .help-back-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    font: 500 13px/1.3 'Inter', sans-serif;
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 6px 8px;
+}
+.help-show .help-back-link:hover { color: var(--accent); }
