@@ -13,6 +13,7 @@ import {
     IconReceipt,
     IconCreditCard,
     IconChartLine,
+    IconUsersGroup,
     IconToolsKitchen2,
     IconFileInvoice,
     IconClipboardList,
@@ -84,6 +85,7 @@ const sections = computed(() => [
             { key: 'invoices',      label: 'Invoices',      href: '/invoices',   icon: IconReceipt,    badge: invoicesBadge.value },
             { key: 'subscriptions', label: 'Subscriptions', href: '#',           icon: IconCreditCard },
             { key: 'analytics',     label: 'Analytics',     href: '#',           icon: IconChartLine },
+            { key: 'referrers',     label: 'Referrers',     href: '/referrers',  icon: IconUsersGroup },
         ],
     },
     {

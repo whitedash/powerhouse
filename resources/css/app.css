@@ -3724,3 +3724,172 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     color: var(--text-secondary);
     margin-top: 2px;
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * REFERRERS — design/Referrers.html
+ * Scoped to .referrers so they can't bleed into other tables.
+ * ──────────────────────────────────────────────────────────────────── */
+.referrers .greet { display: flex; align-items: center; justify-content: space-between; }
+.referrers .greet h1 { margin: 0; font: 700 24px/1.2 'Inter', sans-serif; letter-spacing: -.015em; }
+.referrers .greet .sub { font: 400 13px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 4px; }
+
+.referrers .sec-head { display: flex; align-items: center; margin: 24px 0 14px; }
+.referrers .sec-head .title { font: 600 18px/1.2 'Inter', sans-serif; letter-spacing: -.01em; }
+.referrers .sec-head .sub { font: 400 14px/1.2 'Inter', sans-serif; color: var(--text-secondary); margin-left: 10px; }
+.referrers .sec-head .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.referrers .badge-count {
+    display: inline-flex; align-items: center;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--neutral-bg);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    font: 600 11.5px/1.4 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Product chip — "Maavelus", "MyOrderPad", etc. */
+.referrers .prod-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 2px 8px 2px 4px;
+    border-radius: 999px;
+    font: 600 11px/1.3 'Inter', sans-serif;
+    letter-spacing: -.005em;
+    white-space: nowrap;
+}
+.referrers .prod-chip .mark {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font: 700 9.5px/1 'Inter', sans-serif;
+    color: #fff;
+    flex-shrink: 0;
+}
+.referrers .prod-chip.maa { background: rgba(13,148,136,.1); color: #0F766E; }
+.referrers .prod-chip.maa .mark { background: var(--teal); }
+.referrers .prod-chip.opd { background: rgba(59,130,246,.1); color: #1D4ED8; }
+.referrers .prod-chip.opd .mark { background: var(--info); }
+.referrers .prod-chip.b2b { background: rgba(124,58,237,.1); color: #6D28D9; }
+.referrers .prod-chip.b2b .mark { background: var(--purple); }
+.referrers .prod-chip.sms { background: rgba(16,185,129,.1); color: #047857; }
+.referrers .prod-chip.sms .mark { background: var(--success); }
+.referrers .prod-chip.neutral { background: var(--neutral-bg); color: var(--text-secondary); }
+.referrers .prod-chip.neutral .mark { background: var(--text-tertiary); }
+
+/* Referrer cell */
+.referrers .cell-referrer { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.referrers .cell-referrer .avatar { width: 36px; height: 36px; font-size: 12px; }
+.referrers .ref-meta { min-width: 0; flex: 1; }
+.referrers .ref-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.referrers .ref-name { font: 600 14px/1.3 'Inter', sans-serif; letter-spacing: -.005em; color: var(--text-primary); }
+.referrers .ref-email { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 3px; }
+.referrers .ref-since { font: 400 11px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 2px; }
+
+/* Big number cell */
+.referrers .big-num { font: 700 18px/1 'Inter', sans-serif; color: var(--text-primary); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.referrers .big-num-sub { font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 3px; }
+
+/* Commission model cell */
+.referrers .cm-stack { display: flex; flex-direction: column; gap: 10px; justify-content: center; min-height: 60px; }
+.referrers .cm-row { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
+.referrers .cm-row .copy { font: 400 11.5px/1.4 'Inter', sans-serif; color: var(--text-secondary); white-space: nowrap; }
+.referrers .cm-stack .empty { font: 400 11.5px/1.4 'Inter', sans-serif; color: var(--text-tertiary); font-style: italic; }
+
+/* Top referrer pin */
+.referrers .ref-pin {
+    display: inline-grid; place-items: center;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: rgba(245,158,11,.14);
+    color: var(--accent);
+    border: 1px solid #FDE68A;
+    flex-shrink: 0;
+}
+
+/* Money cells */
+.referrers .money { font: 600 15px/1.2 'Inter', sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -.005em; }
+.referrers .money.success { color: var(--success); }
+.referrers .money.warning { color: var(--warning); }
+.referrers .money.primary { color: var(--text-primary); font-weight: 600; font-size: 14px; }
+.referrers .money-sub { font: 400 11px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 3px; }
+
+/* Stat-stack (status + sub) */
+.referrers .stat-stack { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.referrers .stat-sub { font: 400 11px/1.2 'Inter', sans-serif; color: var(--text-tertiary); padding-left: 2px; }
+
+/* Icon circle (ledger description) */
+.referrers .ic-circle {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+}
+.referrers .ic-circle.warn    { background: var(--warning-bg); color: var(--warning); }
+.referrers .ic-circle.info    { background: var(--info-bg);    color: var(--info); }
+.referrers .ic-circle.success { background: var(--success-bg); color: var(--success); }
+.referrers .ic-circle.neutral { background: var(--neutral-bg); color: var(--text-secondary); }
+
+/* Ledger description cell */
+.referrers .cell-desc { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.referrers .desc-meta { min-width: 0; flex: 1; }
+.referrers .desc-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.referrers .desc-title { font: 500 13px/1.3 'Inter', sans-serif; letter-spacing: -.005em; color: var(--text-primary); }
+.referrers .desc-sub { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary); margin-top: 3px; }
+
+/* Compact row (referrer/customer cell in ledger) */
+.referrers .compact-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.referrers .compact-row .avatar { width: 24px; height: 24px; font-size: 9.5px; }
+.referrers .compact-row .nm { font: 500 13px/1.3 'Inter', sans-serif; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.referrers .compact-row .nm.tertiary { color: var(--text-secondary); font-weight: 400; }
+
+/* Date cell */
+.referrers .date-c { font: 500 13px/1.2 'Inter', sans-serif; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.referrers .date-c.today { color: var(--text-primary); font-weight: 600; }
+
+/* Pending payout banner */
+.referrers .payout-banner {
+    margin-top: 16px;
+    background: var(--warning-bg);
+    border: 1px solid rgba(245,158,11,.3);
+    border-radius: var(--radius-lg);
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: var(--shadow-sm);
+}
+.referrers .payout-banner .ic {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: rgba(245,158,11,.18);
+    color: var(--warning);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+}
+.referrers .payout-banner .text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.referrers .payout-banner .text .hd { font: 600 15px/1.2 'Inter', sans-serif; color: var(--text-primary); letter-spacing: -.005em; }
+.referrers .payout-banner .text .sb { font: 400 13px/1.3 'Inter', sans-serif; color: var(--text-secondary); }
+.referrers .payout-banner .text .sb strong { color: var(--text-primary); font-weight: 600; }
+.referrers .payout-banner .right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+/* Temp password flash card */
+.referrers .temp-pw-card {
+    margin-bottom: 14px;
+    padding: 14px 16px;
+    background: var(--info-bg);
+    border: 1px solid #BFDBFE;
+    border-radius: var(--radius-md);
+    color: #1E40AF;
+}
+.referrers .temp-pw-card .hd { font: 600 13px/1.4 'Inter', sans-serif; margin-bottom: 6px; }
+.referrers .temp-pw-card .pw-row { display: flex; align-items: center; gap: 10px; }
+.referrers .temp-pw-card code {
+    flex: 1;
+    font: 600 14px/1.4 'JetBrains Mono', monospace;
+    background: #fff;
+    color: var(--text-primary);
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #DBEAFE;
+    user-select: all;
+}
+.referrers .temp-pw-card .sb { font: 400 11.5px/1.4 'Inter', sans-serif; margin-top: 8px; color: #1E3A8A; }

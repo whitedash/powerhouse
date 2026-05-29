@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
  * @property int $user_id
  * @property array<string, mixed>|null $payment_details
  * @property bool $is_active
+ * @property int $customer_count
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read User|null $user

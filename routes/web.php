@@ -39,6 +39,16 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
         Route::get('/referrers', [InternalReferrerController::class, 'index'])->name('internal.referrers.index');
     });
 
+    // Mutations live outside the throttle group — bulk approvals can
+    // genuinely fire several requests close together and they're behind
+    // super_admin anyway.
+    Route::middleware('role:super_admin')->prefix('referrers')->name('internal.referrers.')->group(function () {
+        Route::post('/', [InternalReferrerController::class, 'store'])->name('store');
+        Route::post('/approve-all', [InternalReferrerController::class, 'approveAll'])->name('approve-all');
+        Route::post('/{id}/approve', [InternalReferrerController::class, 'approveCommission'])->name('approve');
+        Route::post('/{id}/mark-paid', [InternalReferrerController::class, 'markPaid'])->name('mark-paid');
+    });
+
     Route::post('/customers', [InternalCustomerController::class, 'store'])->name('internal.customers.store');
     Route::get('/customers/{id}', [InternalCustomerController::class, 'show'])->name('internal.customers.show');
     Route::put('/customers/{id}', [InternalCustomerController::class, 'update'])->name('internal.customers.update');

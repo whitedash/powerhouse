@@ -4,7 +4,34 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $referrer_id
+ * @property int $customer_id
+ * @property int|null $invoice_id
+ * @property int $rule_id
+ * @property int $product_id
+ * @property string $trigger_type
+ * @property string $status
+ * @property string $gross_amount
+ * @property string $commission_amount
+ * @property Carbon|null $period_start
+ * @property Carbon|null $period_end
+ * @property int|null $approved_by
+ * @property Carbon|null $approved_at
+ * @property Carbon|null $paid_at
+ * @property string|null $voided_reason
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Referrer|null $referrer
+ * @property-read Customer|null $customer
+ * @property-read Invoice|null $invoice
+ * @property-read CommissionRule|null $rule
+ * @property-read Product|null $product
+ * @property-read User|null $approvedBy
+ */
 class CommissionLedger extends Model
 {
     protected $table = 'commission_ledger';
