@@ -12,6 +12,7 @@ import {
     IconChevronDown,
     IconLogout,
     IconUserCircle,
+    IconEye,
 } from '@tabler/icons-vue';
 
 defineProps({
@@ -55,6 +56,13 @@ function logout() {
 
 <template>
     <div class="portal referrer">
+        <!-- Preview banner — staff impersonating this referrer -->
+        <div v-if="page.props.referrer_preview_mode" class="preview-banner">
+            <IconEye :size="16" stroke-width="2" />
+            <span>Previewing as <strong>{{ me.name }}</strong></span>
+            <span class="preview-banner-hint">Close this tab to exit preview mode</span>
+        </div>
+
         <nav class="portal-topnav">
             <Link href="/referrer/dashboard" class="portal-brand">
                 <div class="brand-mark">W</div>

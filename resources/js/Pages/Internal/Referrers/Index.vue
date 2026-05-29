@@ -33,6 +33,8 @@ import {
     IconArrowDown,
     IconArrowRight,
     IconChevronDown,
+    IconEye,
+    IconKey,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -170,6 +172,105 @@ function approveForReferrer(referrer) {
     router.post('/referrers/approve-all', { referrer_id: referrer.id }, { preserveScroll: true });
 }
 
+/* ─── Edit referrer slide-over ─── */
+const showEditReferrer = ref(false);
+const editingReferrerId = ref(null);
+const editReferrerForm = useForm({
+    name: '',
+    email: '',
+    commission_note: '',
+    is_active: true,
+});
+
+function openEditReferrer(r) {
+    editingReferrerId.value = r.id;
+    editReferrerForm.reset();
+    editReferrerForm.clearErrors();
+    editReferrerForm.name = r.name ?? '';
+    editReferrerForm.email = r.email ?? '';
+    editReferrerForm.commission_note = '';
+    editReferrerForm.is_active = r.is_active ?? true;
+    showEditReferrer.value = true;
+}
+
+function submitEditReferrer() {
+    if (! editingReferrerId.value) return;
+    editReferrerForm.put(`/referrers/${editingReferrerId.value}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showEditReferrer.value = false;
+            editingReferrerId.value = null;
+        },
+    });
+}
+
+/* ─── Preview referrer portal (impersonation) ───
+ *
+ * We use fetch instead of router.post here because the impersonation
+ * endpoint returns JSON (a URL), not an Inertia redirect — router.post
+ * would try to follow the response as a page nav. The CSRF token is
+ * pulled from the meta tag the blade root layout writes.
+ */
+async function openReferrerPreview(id) {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+    try {
+        const res = await fetch(`/impersonate/referrer/${id}`, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (! res.ok) {
+            window.alert(data?.error ?? `Preview failed (HTTP ${res.status}).`);
+
+            return;
+        }
+        if (data?.url) {
+            window.open(data.url, '_blank', 'noopener');
+        }
+    } catch (e) {
+        window.alert('Could not open preview.');
+    }
+}
+
+/* ─── Reset password (ConfirmModal → credentials flash) ─── */
+const showResetPasswordModal = ref(false);
+const resetPasswordTarget = ref(null);
+const resetPasswordProcessing = ref(false);
+
+function askResetPassword(r) {
+    resetPasswordTarget.value = r;
+    showResetPasswordModal.value = true;
+}
+
+function performResetPassword() {
+    if (! resetPasswordTarget.value) return;
+    resetPasswordProcessing.value = true;
+    router.post(
+        `/referrers/${resetPasswordTarget.value.id}/reset-password`,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                resetPasswordProcessing.value = false;
+                showResetPasswordModal.value = false;
+                resetPasswordTarget.value = null;
+            },
+        },
+    );
+}
+
+const resetPasswordMessage = computed(() =>
+    resetPasswordTarget.value
+        ? `A new temporary password will be generated for ${resetPasswordTarget.value.name}. Share it securely — it won't be shown again.`
+        : '',
+);
+
 /* ─── Approve-all confirm ─── */
 const showApproveAllModal = ref(false);
 const approveAllProcessing = ref(false);
@@ -191,6 +292,13 @@ function handleApproveAll() {
 const approveAllMessage = computed(() => {
     return `This will approve all ${props.pending_count} pending commission ${props.pending_count === 1 ? 'entry' : 'entries'} totalling ${gbp(props.pending_total)}. Each referrer will need to be paid separately.`;
 });
+
+// Login URL shown in the credentials card. Resolved at render time
+// from window.location so the URL matches whichever host the operator
+// is currently viewing (works for both powerhouse.test and prod).
+const loginUrl = typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.host}/login`
+    : '/login';
 
 const subhead = computed(() => {
     const r = props.referrers.length;
@@ -234,15 +342,30 @@ const page = usePage();
                 <IconAlertCircle :size="16" stroke-width="2" />{{ page.props.flash.error }}
             </div>
             <div v-if="page.props.flash?.temp_password" class="temp-pw-card" style="margin-top: 14px;">
-                <div class="hd">Referrer added successfully. Share this temporary password securely — it will not be shown again:</div>
-                <div class="pw-row">
-                    <code>{{ page.props.flash.temp_password }}</code>
-                    <button type="button" class="btn btn-secondary btn-sm" @click="copyTempPassword">
+                <div class="hd">
+                    <IconKey :size="14" stroke-width="2" style="vertical-align: -2px;" />
+                    Credentials for <strong>{{ page.props.flash.temp_password_name || 'referrer' }}</strong>
+                    — share securely, they won't be shown again.
+                </div>
+                <div class="pw-row" style="flex-wrap: wrap;">
+                    <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+                        <div style="font: 500 11px/1 'Inter', sans-serif; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .08em;">Login URL</div>
+                        <code style="font: 500 13px/1.3 'JetBrains Mono', monospace;">{{ loginUrl }}</code>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+                        <div style="font: 500 11px/1 'Inter', sans-serif; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .08em;">Email</div>
+                        <code style="font: 500 13px/1.3 'JetBrains Mono', monospace;">{{ page.props.flash.temp_password_email || '—' }}</code>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+                        <div style="font: 500 11px/1 'Inter', sans-serif; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .08em;">Temporary password</div>
+                        <code style="font: 500 13px/1.3 'JetBrains Mono', monospace;">{{ page.props.flash.temp_password }}</code>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" style="align-self: flex-end;" @click="copyTempPassword">
                         <IconCopy :size="13" stroke-width="1.75" />
-                        {{ copyState === 'copied' ? 'Copied' : 'Copy' }}
+                        {{ copyState === 'copied' ? 'Copied' : 'Copy password' }}
                     </button>
                 </div>
-                <div class="sb">The referrer must change it on first login at /partners.</div>
+                <div class="sb">Referrers sign in at the main Powerhouse login and are auto-redirected to their partner portal.</div>
             </div>
 
             <!-- Summary strip -->
@@ -372,8 +495,8 @@ const page = usePage();
                                     </MenuButton>
                                     <MenuItems class="dd-popover right-align">
                                         <MenuItem v-slot="{ active }">
-                                            <button type="button" :class="['dd-option', { active }]" disabled style="opacity: .55; cursor: not-allowed;">
-                                                View referrer portal
+                                            <button type="button" :class="['dd-option', { active }]" @click="openReferrerPreview(r.id)">
+                                                Preview referrer portal
                                             </button>
                                         </MenuItem>
                                         <MenuItem v-if="r.pending_payout > 0" v-slot="{ active }">
@@ -382,14 +505,13 @@ const page = usePage();
                                             </button>
                                         </MenuItem>
                                         <MenuItem v-slot="{ active }">
-                                            <button type="button" :class="['dd-option', { active }]" disabled style="opacity: .55; cursor: not-allowed;">
+                                            <button type="button" :class="['dd-option', { active }]" @click="openEditReferrer(r)">
                                                 Edit referrer
                                             </button>
                                         </MenuItem>
-                                        <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
                                         <MenuItem v-slot="{ active }">
-                                            <button type="button" :class="['dd-option', { active }]" disabled style="opacity: .55; color: var(--danger); cursor: not-allowed;">
-                                                Deactivate
+                                            <button type="button" :class="['dd-option', { active }]" @click="askResetPassword(r)">
+                                                Reset password
                                             </button>
                                         </MenuItem>
                                     </MenuItems>
@@ -682,5 +804,87 @@ const page = usePage();
             :loading="approveAllProcessing"
             @confirm="handleApproveAll"
         />
+
+        <ConfirmModal
+            v-model:show="showResetPasswordModal"
+            :title="resetPasswordTarget ? `Reset password for ${resetPasswordTarget.name}?` : 'Reset password?'"
+            :message="resetPasswordMessage"
+            confirm-label="Reset password"
+            variant="primary"
+            :loading="resetPasswordProcessing"
+            @confirm="performResetPassword"
+        />
+
+        <!-- Edit referrer slide-over -->
+        <TransitionRoot as="template" :show="showEditReferrer">
+            <Dialog as="div" class="slide-over-dialog" @close="showEditReferrer = false">
+                <TransitionChild
+                    as="template"
+                    enter="transition-opacity ease-out duration-200" enter-from="opacity-0" enter-to="opacity-100"
+                    leave="transition-opacity ease-in duration-150" leave-from="opacity-100" leave-to="opacity-0"
+                >
+                    <div class="slide-over-backdrop" />
+                </TransitionChild>
+                <TransitionChild
+                    as="template"
+                    enter="transform transition ease-out duration-200" enter-from="translate-x-full" enter-to="translate-x-0"
+                    leave="transform transition ease-in duration-150" leave-from="translate-x-0" leave-to="translate-x-full"
+                >
+                    <DialogPanel class="slide-over-panel" style="width: 480px;">
+                        <form class="slide-over-form" @submit.prevent="submitEditReferrer">
+                            <header class="slide-over-header">
+                                <h2>Edit referrer</h2>
+                                <button type="button" class="icon-btn" aria-label="Close" @click="showEditReferrer = false">
+                                    <IconX :size="18" stroke-width="1.75" />
+                                </button>
+                            </header>
+                            <div class="slide-over-body">
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Full name<span class="req">*</span></label>
+                                            <input v-model="editReferrerForm.name" type="text" :class="{ 'has-err': editReferrerForm.errors.name }" required>
+                                            <div v-if="editReferrerForm.errors.name" class="err">{{ editReferrerForm.errors.name }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Email address<span class="req">*</span></label>
+                                            <input v-model="editReferrerForm.email" type="email" :class="{ 'has-err': editReferrerForm.errors.email }" required>
+                                            <div v-if="editReferrerForm.errors.email" class="err">{{ editReferrerForm.errors.email }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Commission note <span style="color: var(--text-tertiary); font-weight: 400;">(internal)</span></label>
+                                            <textarea v-model="editReferrerForm.commission_note" rows="3" placeholder="e.g. updated to 7% MRR following our August renegotiation." />
+                                            <div v-if="editReferrerForm.errors.commission_note" class="err">{{ editReferrerForm.errors.commission_note }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-section">
+                                    <h3>Status</h3>
+                                    <div class="status-rows">
+                                        <div class="set-row">
+                                            <div>
+                                                <div class="nm">Active</div>
+                                                <div class="sb">Inactive referrers stay on the books but can't sign in.</div>
+                                            </div>
+                                            <button type="button" class="toggle" :class="{ on: editReferrerForm.is_active }" aria-label="Toggle active" @click="editReferrerForm.is_active = ! editReferrerForm.is_active" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <footer class="slide-over-footer">
+                                <button type="button" class="btn btn-secondary" @click="showEditReferrer = false">Cancel</button>
+                                <button type="submit" class="btn btn-primary" :disabled="editReferrerForm.processing">
+                                    {{ editReferrerForm.processing ? 'Saving…' : 'Save changes' }}
+                                </button>
+                            </footer>
+                        </form>
+                    </DialogPanel>
+                </TransitionChild>
+            </Dialog>
+        </TransitionRoot>
     </InternalLayout>
 </template>

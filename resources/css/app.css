@@ -7779,3 +7779,56 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     justify-content: center;
 }
 .act-list-main { min-width: 0; }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * IMPERSONATION — preview banner shown on the portal + referrer layouts
+ * when a super_admin used the /impersonate/portal or /impersonate/referrer
+ * endpoint to view the surface as the target user. Sits above the topnav
+ * so it's never missed.
+ * ──────────────────────────────────────────────────────────────────── */
+.preview-banner {
+    background: var(--bg-navy);
+    color: #fff;
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font: 500 13px/1.2 'Inter', sans-serif;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, .15);
+}
+.preview-banner svg { color: var(--accent); flex-shrink: 0; }
+.preview-banner strong { font-weight: 600; }
+.preview-banner-hint {
+    margin-left: auto;
+    font: 400 12px/1.2 'Inter', sans-serif;
+    opacity: .7;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * REFERRERS — table card head layout fix
+ *
+ * Root cause: the template uses .table-card-head with title + badge-count
+ * + .right children expecting a flex row, but no CSS rule existed for the
+ * class. Items stacked vertically because the parent had no display.
+ * ──────────────────────────────────────────────────────────────────── */
+.referrers .table-card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-soft);
+}
+.referrers .table-card-head .title {
+    font: 600 14px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    letter-spacing: -.005em;
+}
+.referrers .table-card-head .right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -192,6 +193,85 @@ class ReferrerController extends Controller
         return back()->with([
             'success' => "{$data['name']} added as a referrer.",
             'temp_password' => $tempPassword,
+            'temp_password_name' => $data['name'],
+            'temp_password_email' => $data['email'],
+        ]);
+    }
+
+    /**
+     * Edit a referrer. Touches the linked User (name + email) and the
+     * Referrer row (is_active). commission_note is currently a
+     * write-only field — captured in the audit log so we know the
+     * rationale a super_admin recorded at the time, but not stored
+     * on the model itself (no column for it yet).
+     */
+    public function update(int $id, Request $request): RedirectResponse
+    {
+        $referrer = Referrer::with('user')->findOrFail($id);
+        if (! $referrer->user) {
+            return back()->withErrors(['referrer' => 'This referrer has no linked user account.']);
+        }
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email:rfc', 'max:255', Rule::unique('users', 'email')->ignore($referrer->user->id)],
+            'commission_note' => ['nullable', 'string', 'max:500'],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+
+        $before = [
+            'name' => $referrer->user->name,
+            'email' => $referrer->user->email,
+            'is_active' => $referrer->is_active,
+        ];
+
+        DB::transaction(function () use ($referrer, $data, $request, $before) {
+            $referrer->user->forceFill([
+                'name' => $data['name'],
+                'email' => $data['email'],
+            ])->save();
+
+            $referrer->is_active = $request->boolean('is_active', $referrer->is_active);
+            $referrer->save();
+
+            $this->logActivity($request, 'referrer.updated', 'referrer', $referrer->id, $before, [
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'is_active' => $referrer->is_active,
+                'commission_note' => $data['commission_note'] ?? null,
+            ]);
+        });
+
+        return back()->with('success', "Updated {$data['name']}.");
+    }
+
+    /**
+     * Rotate a referrer's password. Returns the plaintext via flash
+     * exactly once so staff can relay it. Never stored or logged in
+     * plaintext anywhere.
+     */
+    public function resetPassword(int $id, Request $request): RedirectResponse
+    {
+        $referrer = Referrer::with('user')->findOrFail($id);
+        if (! $referrer->user) {
+            return back()->withErrors(['referrer' => 'This referrer has no linked user account.']);
+        }
+
+        $tempPassword = Str::random(16);
+
+        $referrer->user->forceFill([
+            'password' => Hash::make($tempPassword),
+        ])->save();
+
+        $this->logActivity($request, 'referrer.password_reset', 'referrer', $referrer->id, after: [
+            'reset_by_user_id' => $request->user()?->id,
+        ]);
+
+        return back()->with([
+            'success' => "Password reset for {$referrer->user->name}.",
+            'temp_password' => $tempPassword,
+            'temp_password_name' => $referrer->user->name,
+            'temp_password_email' => $referrer->user->email,
         ]);
     }
 

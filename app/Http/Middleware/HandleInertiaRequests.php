@@ -58,6 +58,14 @@ class HandleInertiaRequests extends Middleware
                     ];
                 },
             ],
+            /*
+             * Preview-mode flags surface a banner on the portal +
+             * referrer layouts so the operator never forgets they're
+             * reading as someone else. Booleans only — never expose
+             * the admin's id to the customer-facing surface.
+             */
+            'portal_preview_mode' => fn (): bool => (bool) $request->session()->get('portal_preview_mode', false),
+            'referrer_preview_mode' => fn (): bool => (bool) $request->session()->get('referrer_preview_mode', false),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
@@ -68,6 +76,15 @@ class HandleInertiaRequests extends Middleware
                  * can pop a one-time modal without polluting the success channel.
                  */
                 'portal_invite' => fn () => $request->session()->get('portal_invite'),
+                /*
+                 * Temp-password handoff for the Add-referrer + Reset-password
+                 * flows. Same one-shot semantics as portal_invite — the
+                 * Referrers page shows a credentials card once, then the
+                 * flash clears on the next request.
+                 */
+                'temp_password' => fn () => $request->session()->get('temp_password'),
+                'temp_password_name' => fn () => $request->session()->get('temp_password_name'),
+                'temp_password_email' => fn () => $request->session()->get('temp_password_email'),
             ],
             'nav' => fn () => $request->user()
                 ? [

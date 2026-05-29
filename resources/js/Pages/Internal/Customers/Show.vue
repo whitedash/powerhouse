@@ -40,6 +40,7 @@ import {
     IconDots,
     IconAlertTriangle,
     IconKey,
+    IconEye,
     IconCalendarCheck,
     IconCalendarX,
     IconClock,
@@ -692,6 +693,47 @@ const removeReferralProcessing = ref(false);
 const page = usePage();
 const canRemoveReferral = computed(() => page.props.auth?.user?.role === 'super_admin');
 
+// Preview portal is super_admin-only AND requires at least one contact
+// with portal access — anything else and the impersonation endpoint
+// would return a 422 anyway. Cheap to compute on every render: the
+// contacts array is already in the payload.
+const canPreviewPortal = computed(() =>
+    page.props.auth?.user?.role === 'super_admin'
+    && (props.customer?.contacts ?? []).some((c) => c.has_portal_access),
+);
+
+/*
+ * Use fetch rather than router.post — the impersonation endpoint
+ * returns a JSON {url}, and Inertia's router would try to follow it
+ * as a page navigation. CSRF token comes from the blade meta tag.
+ */
+async function openPortalPreview() {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+    try {
+        const res = await fetch(`/impersonate/portal/${props.customer.id}`, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (! res.ok) {
+            window.alert(data?.error ?? `Preview failed (HTTP ${res.status}).`);
+
+            return;
+        }
+        if (data?.url) {
+            window.open(data.url, '_blank', 'noopener');
+        }
+    } catch (e) {
+        window.alert('Could not open preview.');
+    }
+}
+
 function performRemoveReferral() {
     removeReferralProcessing.value = true;
     router.delete(`/customers/${props.customer.id}/referral`, {
@@ -858,6 +900,16 @@ const headerStatusBadge = computed(() => {
 
     <InternalLayout :title="customer.name" :breadcrumbs="breadcrumbs" active-nav="customers">
         <template #topbar-actions>
+            <button
+                v-if="canPreviewPortal"
+                type="button"
+                class="btn btn-secondary"
+                title="Open the customer portal as this customer in a new tab"
+                @click="openPortalPreview"
+            >
+                <IconEye :size="15" stroke-width="1.75" />
+                Preview portal
+            </button>
             <button class="btn btn-secondary" type="button" @click="openEdit">
                 <IconPencil :size="15" stroke-width="1.75" />
                 Edit customer

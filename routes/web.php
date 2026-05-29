@@ -8,6 +8,7 @@ use App\Http\Controllers\Internal\CustomerController as InternalCustomerControll
 use App\Http\Controllers\Internal\DashboardController as InternalDashboardController;
 use App\Http\Controllers\Internal\DomainController as InternalDomainController;
 use App\Http\Controllers\Internal\HelpController as InternalHelpController;
+use App\Http\Controllers\Internal\ImpersonationController as InternalImpersonationController;
 use App\Http\Controllers\Internal\InvoiceController as InternalInvoiceController;
 use App\Http\Controllers\Internal\MaavelusStatementController as InternalMaavelusStatementController;
 use App\Http\Controllers\Internal\ProductController as InternalProductController;
@@ -29,6 +30,7 @@ use App\Http\Controllers\Portal\PasswordController as PortalPasswordController;
 use App\Http\Controllers\Portal\SubscriptionController as PortalSubscriptionController;
 use App\Http\Controllers\Portal\SupportController as PortalSupportController;
 use App\Http\Controllers\Referrer\AccountController as ReferrerAccountController;
+use App\Http\Controllers\Referrer\AuthController as ReferrerAuthController;
 use App\Http\Controllers\Referrer\CommissionController as ReferrerCommissionController;
 use App\Http\Controllers\Referrer\CustomerController as ReferrerCustomerController;
 use App\Http\Controllers\Referrer\DashboardController as ReferrerDashboardController;
@@ -54,9 +56,20 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // super_admin anyway.
     Route::middleware('role:super_admin')->prefix('referrers')->name('internal.referrers.')->group(function () {
         Route::post('/', [InternalReferrerController::class, 'store'])->name('store');
+        Route::put('/{id}', [InternalReferrerController::class, 'update'])->name('update');
+        Route::post('/{id}/reset-password', [InternalReferrerController::class, 'resetPassword'])->name('reset-password');
         Route::post('/approve-all', [InternalReferrerController::class, 'approveAll'])->name('approve-all');
         Route::post('/{id}/approve', [InternalReferrerController::class, 'approveCommission'])->name('approve');
         Route::post('/{id}/mark-paid', [InternalReferrerController::class, 'markPaid'])->name('mark-paid');
+    });
+
+    // Impersonation — mint a short-lived signed-token URL pointing at
+    // the portal or referrer preview endpoint. super_admin only; the
+    // preview endpoints live OUTSIDE the auth group because they're
+    // the ones that establish the session on the other guard.
+    Route::middleware('role:super_admin')->group(function () {
+        Route::post('/impersonate/portal/{customerId}', [InternalImpersonationController::class, 'portalPreview'])->name('internal.impersonate.portal');
+        Route::post('/impersonate/referrer/{referrerId}', [InternalImpersonationController::class, 'referrerPreview'])->name('internal.impersonate.referrer');
     });
 
     Route::post('/customers', [InternalCustomerController::class, 'store'])->name('internal.customers.store');
@@ -242,6 +255,11 @@ Route::prefix('portal')->middleware('portal_guest')->group(function () {
     Route::post('/reset-password', [PortalPasswordController::class, 'resetPassword'])->name('portal.reset-password.submit');
 });
 
+// Preview entrypoint sits outside portal_guest because the staff
+// member who launched the preview might already hold a portal session
+// from an earlier visit — the controller swaps the active user.
+Route::get('/portal/preview', [PortalAuthController::class, 'preview'])->name('portal.preview');
+
 // Authenticated portal area. auth.portal alias maps to EnsurePortalUser —
 // every controller here can rely on Auth::guard('portal')->user() being set.
 Route::prefix('portal')->middleware('auth.portal')->group(function () {
@@ -298,6 +316,11 @@ Route::middleware(['auth', 'role:referrer'])
 // Bare /referrer → dashboard so the URL bar without a path lands somewhere.
 Route::get('/referrer', fn () => redirect()->route('referrer.dashboard'))
     ->middleware(['auth', 'role:referrer']);
+
+// Referrer preview entrypoint — no role middleware because the
+// handler itself establishes the new session before any role check
+// can read it. Token validation provides the access gate.
+Route::get('/referrer/preview', [ReferrerAuthController::class, 'preview'])->name('referrer.preview');
 
 /*
 |--------------------------------------------------------------------------

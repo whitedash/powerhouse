@@ -12,6 +12,7 @@ import {
     IconChevronDown,
     IconLogout,
     IconUserCircle,
+    IconEye,
 } from '@tabler/icons-vue';
 
 const props = defineProps({
@@ -59,6 +60,17 @@ function logout() {
 
 <template>
     <div class="portal">
+        <!--
+          Preview banner: super_admin used /impersonate/portal/{id} to
+          view this account. Shown above the topnav so it's unmissable;
+          closing the tab clears the session naturally.
+        -->
+        <div v-if="page.props.portal_preview_mode" class="preview-banner">
+            <IconEye :size="16" stroke-width="2" />
+            <span>Previewing as <strong>{{ me.name || me.customerName }}</strong></span>
+            <span class="preview-banner-hint">Close this tab to exit preview mode</span>
+        </div>
+
         <!-- Topnav: sticky white bar with brand, tabs, bell, user pill -->
         <nav class="portal-topnav">
             <Link href="/portal/dashboard" class="portal-brand">
