@@ -144,6 +144,7 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
         Route::put('/products/{id}', [InternalProductController::class, 'update'])->name('products.update');
         Route::post('/products/{id}/toggle', [InternalProductController::class, 'toggleActive'])->name('products.toggle');
         Route::post('/products/reorder', [InternalProductController::class, 'updateOrder'])->name('products.reorder');
+        Route::get('/products/{id}/plans', [InternalProductController::class, 'plans'])->name('products.plans');
 
         Route::post('/plans', [InternalProductPlanController::class, 'store'])->name('plans.store');
         Route::put('/plans/{id}', [InternalProductPlanController::class, 'update'])->name('plans.update');

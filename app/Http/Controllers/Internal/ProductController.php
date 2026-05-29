@@ -90,6 +90,91 @@ class ProductController extends Controller
         ]);
     }
 
+    /**
+     * Dedicated plan-builder page per product. Heavier eager-load than
+     * the Settings index because this is the page where staff actually
+     * manage plans + categories + prices end-to-end.
+     */
+    public function plans(int $id): Response
+    {
+        $product = Product::with([
+            'planCategories' => fn ($q) => $q->orderBy('sort_order')
+                ->with(['plans' => fn ($q2) => $q2->orderBy('sort_order')
+                    ->with(['activePrices' => fn ($q3) => $q3->orderBy('sort_order')])]),
+            'plans' => fn ($q) => $q->whereNull('category_id')
+                ->orderBy('sort_order')
+                ->with(['activePrices' => fn ($q2) => $q2->orderBy('sort_order')]),
+        ])->findOrFail($id);
+
+        Gate::authorize('update', $product);
+
+        return Inertia::render('Internal/Settings/ProductPlans', [
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'slug' => $product->slug,
+                'icon_colour' => $product->icon_colour,
+                'is_active' => $product->is_active,
+            ],
+            'categories' => $product->planCategories->map(fn (ProductPlanCategory $cat): array => [
+                'id' => $cat->id,
+                'name' => $cat->name,
+                'description' => $cat->description,
+                'sort_order' => $cat->sort_order,
+                'is_public' => $cat->is_public,
+                'plans' => $cat->plans->map(fn (ProductPlan $p): array => $this->mapPlan($p))
+                    ->values()
+                    ->all(),
+            ])->values()->all(),
+            'uncategorised' => $product->plans
+                ->map(fn (ProductPlan $p): array => $this->mapPlan($p))
+                ->values()
+                ->all(),
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function mapPlan(ProductPlan $plan): array
+    {
+        return [
+            'id' => $plan->id,
+            'name' => $plan->name,
+            'description' => $plan->description,
+            'features' => $plan->features ?? [],
+            'category_id' => $plan->category_id,
+            'is_active' => $plan->is_active,
+            'is_public' => $plan->is_public,
+            'sort_order' => $plan->sort_order,
+            'active_customers' => CustomerProduct::where('plan_id', $plan->id)
+                ->whereIn('status', ['active', 'trial'])
+                ->count(),
+            // mrr_contribution is a model accessor, not a column, so a
+            // raw ->sum('mrr_contribution') would return 0. We hydrate
+            // the active customer_products and sum via the accessor.
+            'mrr' => (float) CustomerProduct::where('plan_id', $plan->id)
+                ->where('status', 'active')
+                ->get()
+                ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution),
+            'prices' => $plan->activePrices->map(fn (ProductPlanPrice $pp): array => [
+                'id' => $pp->id,
+                'price' => (float) $pp->price,
+                'interval_count' => $pp->interval_count,
+                'interval_unit' => $pp->interval_unit,
+                'interval_label' => $pp->interval_label,
+                'display_label' => $pp->display_label,
+                'stripe_price_id' => $pp->stripe_price_id,
+                'label' => $pp->label,
+                'is_default' => $pp->is_default,
+                'is_active' => $pp->is_active,
+                'active_customers' => CustomerProduct::where('plan_price_id', $pp->id)
+                    ->whereIn('status', ['active', 'trial'])
+                    ->count(),
+            ])->values()->all(),
+        ];
+    }
+
     public function store(Request $request): RedirectResponse
     {
         Gate::authorize('create', Product::class);
