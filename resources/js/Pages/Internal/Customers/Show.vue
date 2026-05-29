@@ -1425,40 +1425,59 @@ const headerStatusBadge = computed(() => {
                                 </button>
                             </div>
                         </header>
-                        <div v-if="customer.tasks.filter((t) => t.status !== 'complete').length">
+                        <div v-if="customer.tasks.filter((t) => t.status !== 'complete').length" style="padding: 8px 18px 4px;">
                             <div
                                 v-for="t in customer.tasks.filter((t) => t.status !== 'complete').slice(0, 6)"
                                 :key="t.id"
-                                class="task-row act-list-row"
-                                :class="{ completing: completingActivity?.id === t.id }"
+                                class="act-preview-row"
+                                style="cursor: pointer;"
+                                @click="activeTab = 'activities'"
                             >
-                                <button
-                                    type="button"
-                                    class="cb"
-                                    :aria-label="`Complete: ${t.title}`"
-                                    :disabled="completingActivity?.id === t.id"
-                                    @click="askCompleteActivity(t)"
-                                />
-                                <span class="act-list-type-icon" :style="{ color: t.type_colour }" :title="t.type">
-                                    <component :is="iconByName(t.type_icon)" :size="14" stroke-width="1.75" />
-                                </span>
-                                <div class="act-list-main">
-                                    <div class="task-text">
+                                <!--
+                                  Coloured type chip — keyed off Task::$type_colour
+                                  so the model is the source of truth. The 22 suffix
+                                  is a ~13% alpha tint of the same hex, giving a
+                                  pastel disc the icon sits on top of cleanly.
+                                -->
+                                <div
+                                    class="apr-type"
+                                    :style="{ background: `${t.type_colour}22`, color: t.type_colour }"
+                                >
+                                    <component :is="iconByName(t.type_icon)" :size="14" stroke-width="2" />
+                                </div>
+
+                                <div class="apr-body">
+                                    <div class="apr-meta">
+                                        <span class="apr-type-label" :style="{ color: t.type_colour }">
+                                            {{ activityTypeLabel(t.type) }}
+                                        </span>
+                                        <template v-if="t.due_at">
+                                            <span class="apr-dot">·</span>
+                                            <span class="apr-due" :class="{ 'apr-overdue': t.is_overdue }">
+                                                {{ formatDueAt(t.due_at) }}
+                                            </span>
+                                        </template>
+                                    </div>
+
+                                    <div class="apr-title">
                                         <IconPin v-if="t.is_pinned" :size="11" stroke-width="2" style="color: var(--accent); margin-right: 4px;" />
                                         {{ t.title }}
-                                        <span class="act-priority-dot" :class="t.priority" :title="`Priority: ${t.priority}`" />
                                     </div>
-                                    <div v-if="t.contact_name" class="task-meta">
+
+                                    <div v-if="t.description" class="apr-excerpt">
+                                        {{ t.description.length > 80 ? t.description.slice(0, 80) + '…' : t.description }}
+                                    </div>
+
+                                    <div v-if="t.assigned_to_name" class="apr-assigned">
                                         <IconUser :size="11" stroke-width="1.75" />
-                                        {{ t.contact_name }}
+                                        {{ t.assigned_to_name }}
                                     </div>
                                 </div>
-                                <div v-if="t.due_at" class="due" :class="t.is_overdue ? 'red' : 'muted'" style="font-size: 11px;">
-                                    {{ formatDueAt(t.due_at) }}
-                                </div>
+
+                                <div class="apr-priority" :class="t.priority" :title="`Priority: ${t.priority}`" />
                             </div>
-                            <div v-if="activityCounts.all > 6" style="padding: 8px 18px 12px; text-align: center;">
-                                <button type="button" class="ghost-link" @click="activeTab = 'activities'">
+                            <div v-if="activityCounts.all > 6" style="padding: 8px 0 4px; text-align: center;">
+                                <button type="button" class="ghost-link" @click.stop="activeTab = 'activities'">
                                     View all activities
                                     <IconArrowRight :size="14" stroke-width="1.75" />
                                 </button>
