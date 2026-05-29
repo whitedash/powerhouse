@@ -633,16 +633,38 @@ body {
     box-shadow: var(--shadow-lg);
     z-index: 41;
     display: flex; flex-direction: column;
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+}
+/* The <form> wrapper inside the panel needs the same flex pipeline as
+ * the panel itself; without it the form would size to its content and
+ * push the footer offscreen the moment the body overflows. */
+.slide-over-form {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 .slide-over-header {
+    flex-shrink: 0;
     height: 60px;
     border-bottom: 1px solid var(--border);
     padding: 0 20px;
     display: flex; align-items: center; justify-content: space-between;
 }
 .slide-over-header h2 { margin: 0; font: 600 18px/1.2 'Inter', sans-serif; letter-spacing: -.005em; }
-.slide-over-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+/* min-height: 0 lets the body actually shrink so overflow-y kicks in;
+ * without it Firefox/Safari leave the body at its intrinsic height. */
+.slide-over-body {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 20px;
+    display: flex; flex-direction: column; gap: 20px;
+}
 .slide-over-footer {
+    flex-shrink: 0;
     border-top: 1px solid var(--border);
     padding: 14px 20px;
     display: flex; justify-content: flex-end; gap: 10px;
@@ -4429,4 +4451,56 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     font: 400 12px/1.3 'Inter', sans-serif;
     color: var(--text-tertiary);
     margin-top: 2px;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * FEATURE ROW — drag-to-reorder pattern for the plan slide-over features
+ * list. Pure HTML5 DnD, no new dependencies.
+ * ──────────────────────────────────────────────────────────────────── */
+.feat-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    border-radius: var(--radius-sm);
+    transition: background .1s;
+}
+.feat-handle {
+    color: var(--text-tertiary);
+    cursor: grab;
+    padding: 4px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+}
+.feat-handle svg { width: 16px; height: 16px; }
+.feat-handle:active { cursor: grabbing; }
+.feat-input { flex: 1; min-width: 0; }
+.feat-remove {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .1s, color .1s;
+}
+.feat-remove:hover:not(:disabled) {
+    background: var(--danger-bg);
+    color: var(--danger);
+}
+.feat-remove:disabled {
+    opacity: .3;
+    cursor: not-allowed;
+}
+.feat-dragging { opacity: .4; }
+.feat-drag-over {
+    background: var(--warning-bg);
+    outline: 1.5px dashed var(--accent);
+    outline-offset: -1px;
 }

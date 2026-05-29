@@ -26,6 +26,7 @@ import {
     IconDots,
     IconTrash,
     IconBrandStripe,
+    IconGripVertical,
 } from '@tabler/icons-vue';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -215,6 +216,48 @@ function addFeature() {
 }
 function removeFeature(idx) {
     planForm.features = planForm.features.filter((_, i) => i !== idx);
+}
+
+/* ─── Drag-to-reorder features (HTML5 DnD) ─── */
+const featureDragIndex = ref(null);
+const featureDragOverIndex = ref(null);
+
+function onFeatureDragStart(event, index) {
+    featureDragIndex.value = index;
+    event.dataTransfer.effectAllowed = 'move';
+    // dataTransfer must be set for Firefox to fire the rest of the
+    // drag lifecycle. The payload isn't read — index lives in state.
+    event.dataTransfer.setData('text/plain', String(index));
+    event.target.classList.add('feat-dragging');
+}
+function onFeatureDragOver(event, index) {
+    if (featureDragIndex.value === null || featureDragIndex.value === index) return;
+    featureDragOverIndex.value = index;
+}
+function onFeatureDragLeave() {
+    featureDragOverIndex.value = null;
+}
+function onFeatureDrop(event, dropIndex) {
+    const dragIndex = featureDragIndex.value;
+    if (dragIndex === null || dragIndex === dropIndex) {
+        featureDragIndex.value = null;
+        featureDragOverIndex.value = null;
+
+        return;
+    }
+    const features = [...planForm.features];
+    const [moved] = features.splice(dragIndex, 1);
+    features.splice(dropIndex, 0, moved);
+    planForm.features = features;
+    featureDragIndex.value = null;
+    featureDragOverIndex.value = null;
+}
+function onFeatureDragEnd(event) {
+    // Fires even if the drop was cancelled (e.g. dropped outside any
+    // valid target), so it's the canonical place to reset state.
+    event.target.classList.remove('feat-dragging');
+    featureDragIndex.value = null;
+    featureDragOverIndex.value = null;
 }
 
 function submitPlan() {
@@ -863,11 +906,38 @@ function gbpRound(n) {
                                 </div>
 
                                 <div class="form-section">
-                                    <h3>Features <span style="color: var(--text-tertiary); font-weight: 400; font-size: 12px;">— shown on pricing page</span></h3>
-                                    <div v-for="(f, i) in planForm.features" :key="i" style="display: flex; gap: 8px; margin-bottom: 6px;">
-                                        <input :value="f" type="text" maxlength="200" style="flex: 1;" @input="planForm.features[i] = $event.target.value">
-                                        <button type="button" class="icon-btn" aria-label="Remove feature" @click="removeFeature(i)">
-                                            <IconX :size="16" stroke-width="1.75" />
+                                    <h3>Features <span style="color: var(--text-tertiary); font-weight: 400; font-size: 12px;">— drag to reorder · shown on pricing page</span></h3>
+                                    <div
+                                        v-for="(f, i) in planForm.features"
+                                        :key="'feat-' + i"
+                                        class="feat-row"
+                                        :class="{ 'feat-drag-over': featureDragOverIndex === i }"
+                                        draggable="true"
+                                        @dragstart="onFeatureDragStart($event, i)"
+                                        @dragover.prevent="onFeatureDragOver($event, i)"
+                                        @dragleave="onFeatureDragLeave"
+                                        @drop.prevent="onFeatureDrop($event, i)"
+                                        @dragend="onFeatureDragEnd"
+                                    >
+                                        <div class="feat-handle" title="Drag to reorder">
+                                            <IconGripVertical :size="16" stroke-width="1.75" />
+                                        </div>
+                                        <input
+                                            :value="f"
+                                            type="text"
+                                            class="feat-input"
+                                            maxlength="200"
+                                            placeholder="e.g. Unlimited orders"
+                                            @input="planForm.features[i] = $event.target.value"
+                                        >
+                                        <button
+                                            type="button"
+                                            class="feat-remove"
+                                            :disabled="planForm.features.length === 1"
+                                            title="Remove feature"
+                                            @click="removeFeature(i)"
+                                        >
+                                            <IconX :size="14" stroke-width="1.75" />
                                         </button>
                                     </div>
                                     <div v-if="planForm.features.length < 10" style="display: flex; gap: 8px;">
