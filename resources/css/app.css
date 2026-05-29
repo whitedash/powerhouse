@@ -3893,3 +3893,123 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     user-select: all;
 }
 .referrers .temp-pw-card .sb { font: 400 11.5px/1.4 'Inter', sans-serif; margin-top: 8px; color: #1E3A8A; }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * PROVISIONING — design/Provisioning.html
+ * Toggle disabled/warn-glow are global (cheap, reused elsewhere later);
+ * everything else is scoped to .provisioning.
+ * ──────────────────────────────────────────────────────────────────── */
+
+/* Global toggle variants needed for the provisioning grid */
+.toggle.disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+.toggle.warn-glow { box-shadow: 0 0 0 3px rgba(245, 158, 11, .25); }
+
+/* Page-scoped */
+.provisioning .greet { display: flex; align-items: center; justify-content: space-between; }
+.provisioning .greet h1 { margin: 0; font: 700 24px/1.2 'Inter', sans-serif; letter-spacing: -.015em; }
+.provisioning .greet .sub { font: 400 13px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 4px; }
+
+/* Filter bar */
+.provisioning .filter-bar {
+    margin-top: 16px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 10px;
+}
+.provisioning .filter-bar .field-search { width: 240px; flex-shrink: 0; }
+.provisioning .filter-bar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+/* Table sub-header row (active counts under product names) */
+.provisioning .tbl thead tr.subhead th {
+    background: var(--neutral-bg);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 14px 10px;
+    height: auto;
+    font: 500 10px/1.2 'Inter', sans-serif;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-tertiary);
+}
+.provisioning .tbl thead tr.subhead th .ok { color: var(--success); font-weight: 600; }
+.provisioning .tbl thead tr.subhead th .muted { color: var(--text-tertiary); font-style: italic; }
+
+/* Provisioning cell — toggle + plan/price label below */
+.provisioning .prov-cell { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
+.provisioning .prov-cell .label {
+    font: 400 11px/1.4 'Inter', sans-serif;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+.provisioning .prov-cell .label.muted { color: var(--text-tertiary); }
+.provisioning .prov-cell .label.warn  { color: #B45309; font-weight: 500; }
+.provisioning .prov-cell .label.trial { color: var(--warning); font-weight: 500; }
+.provisioning .prov-cell .toggle-row { display: flex; align-items: center; gap: 8px; }
+
+/* Lead row collapsed cells */
+.provisioning .prov-lead-strip {
+    display: flex; align-items: center;
+    height: 30px;
+    color: var(--text-tertiary);
+    font: 400 12.5px/1 'Inter', sans-serif;
+    font-style: italic;
+    gap: 6px;
+}
+.provisioning .prov-lead-strip svg { width: 14px; height: 14px; }
+
+/* Customer cell tweaks (overrides global .cell-cust avatar size for this grid) */
+.provisioning .cell-cust .avatar { width: 30px; height: 30px; font-size: 11px; }
+.provisioning .cust-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: wrap; }
+.provisioning .cust-name-row .grp { color: var(--text-tertiary); }
+.provisioning .cust-loc { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 2px; }
+
+/* Last-changed cell */
+.provisioning .changed { font: 400 13px/1.2 'Inter', sans-serif; color: var(--text-secondary); white-space: nowrap; }
+.provisioning .changed.muted { color: var(--text-tertiary); }
+.provisioning .changed.today { color: var(--text-primary); font-weight: 600; }
+
+/* Warn pill — red variant for overdue */
+.provisioning .warn-pill.red { background: var(--danger-bg); color: #B91C1C; border-color: #FECACA; }
+
+/* Quick-enable panel */
+.provisioning .qe-panel {
+    margin-top: 16px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: 6fr 4fr;
+    gap: 24px;
+    align-items: center;
+}
+.provisioning .qe-left { display: flex; flex-direction: column; }
+.provisioning .qe-head { display: flex; align-items: center; gap: 9px; }
+.provisioning .qe-head .ic {
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    background: rgba(245, 158, 11, .14);
+    display: grid; place-items: center;
+    color: var(--accent);
+}
+.provisioning .qe-head .title { font: 600 15px/1.2 'Inter', sans-serif; letter-spacing: -.005em; color: var(--text-primary); }
+.provisioning .qe-sub { font: 400 13px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin-top: 8px; }
+.provisioning .qe-right { display: flex; align-items: center; gap: 10px; }
+.provisioning .qe-select {
+    flex: 1;
+    height: 40px;
+    border: 1.5px solid var(--border);
+    background: var(--content-bg);
+    border-radius: var(--radius-md);
+    padding: 0 14px;
+    font: 400 13px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+}
+.provisioning .qe-select:hover { background: #fff; border-color: #CBD5E1; }
+.provisioning .qe-select.placeholder { color: var(--text-tertiary); }
+.provisioning .qe-btn { height: 40px; }

@@ -84,6 +84,7 @@ Route::middleware(['auth', 'role:super_admin,staff'])->group(function () {
     Route::get('/domains', [InternalDomainController::class, 'index'])->name('internal.domains.index');
     Route::get('/support', [InternalSupportController::class, 'index'])->name('internal.support.index');
     Route::get('/provisioning', [InternalProvisioningController::class, 'index'])->name('internal.provisioning.index');
+    Route::post('/provisioning/toggle', [InternalProvisioningController::class, 'toggle'])->name('internal.provisioning.toggle');
     Route::get('/settings', [InternalSettingsController::class, 'index'])->name('internal.settings.index');
 
     // Settings sub-pages that mutate global config (billing entities, etc.)
