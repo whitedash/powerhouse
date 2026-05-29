@@ -179,8 +179,17 @@ function sendInvoice() {
 }
 
 function voidInvoice() {
-    if (!confirm(`Void invoice ${inv.value.number}? This cannot be undone.`)) return;
-    router.post(`/invoices/${inv.value.id}/void`, {}, { preserveScroll: true });
+    if (!confirm(`Are you sure you want to void invoice ${inv.value.number}? This cannot be undone.`)) return;
+    router.post(`/invoices/${inv.value.id}/void`, {}, {
+        preserveScroll: true,
+        onError: (errors) => {
+            // Inertia turns 403/422/500 into errors here. Without this
+            // handler the failure was silent — the user saw the confirm
+            // dialog clear and no obvious feedback.
+            // eslint-disable-next-line no-console
+            console.error('Void failed:', errors);
+        },
+    });
 }
 
 function sendReminder() {
