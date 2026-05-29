@@ -322,7 +322,8 @@ const showEnableProduct = ref(false);
 const enableForm = useForm({
     product_id: null,
     plan_id: null,
-    billing_interval: 'monthly',
+    interval_count: 1,
+    interval_unit: 'month',
     billing_entity_id: null,
     plan: '',
     price_monthly: null,
@@ -334,7 +335,8 @@ function openEnableProduct() {
     enableForm.reset();
     enableForm.clearErrors();
     enableForm.billing_entity_id = props.billing_entities[0]?.id ?? null;
-    enableForm.billing_interval = 'monthly';
+    enableForm.interval_count = 1;
+    enableForm.interval_unit = 'month';
     showEnableProduct.value = true;
 }
 
@@ -347,25 +349,18 @@ function selectProduct(productId) {
     enableForm.plan_id = null;
     enableForm.plan = '';
     enableForm.price_monthly = null;
-    enableForm.billing_interval = 'monthly';
+    enableForm.interval_count = 1;
+    enableForm.interval_unit = 'month';
 }
 
 function selectPlan(plan) {
+    // A plan IS one specific (price, interval). Pick the plan, fields
+    // follow — no separate Monthly/Annual toggle needed.
     enableForm.plan_id = plan.id;
     enableForm.plan = plan.name;
-    enableForm.price_monthly = plan.price_monthly;
-    enableForm.billing_interval = 'monthly';
-}
-
-function setEnableInterval(interval) {
-    const sel = selectedAvailableProduct();
-    const plan = sel?.plans?.find((p) => p.id === enableForm.plan_id);
-    enableForm.billing_interval = interval;
-    if (plan) {
-        enableForm.price_monthly = interval === 'annual' && plan.price_annual !== null
-            ? plan.price_annual
-            : plan.price_monthly;
-    }
+    enableForm.price_monthly = plan.price;
+    enableForm.interval_count = plan.interval_count;
+    enableForm.interval_unit = plan.interval_unit;
 }
 
 function submitEnableProduct() {
@@ -1453,20 +1448,10 @@ const headerStatusBadge = computed(() => {
                                             >
                                                 <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
                                                     <span style="font: 600 14px/1.2 'Inter', sans-serif;">{{ plan.name }}</span>
-                                                    <span style="margin-left: auto; font: 600 14px/1.2 'Inter', sans-serif; color: var(--accent);">£{{ Number(plan.price_monthly).toFixed(2) }}/mo</span>
+                                                    <span style="margin-left: auto; font: 600 14px/1.2 'Inter', sans-serif; color: var(--accent);">£{{ Number(plan.price).toFixed(2) }} · {{ plan.interval_label }}</span>
                                                 </div>
-                                                <span v-if="plan.price_annual" style="font: 400 11.5px/1.3 'Inter', sans-serif; color: var(--text-secondary);">
-                                                    or £{{ Number(plan.price_annual).toFixed(2) }}/yr
-                                                </span>
                                                 <span v-if="plan.description" style="font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary);">{{ plan.description }}</span>
                                             </button>
-                                        </div>
-                                        <div v-if="enableForm.plan_id && selectedAvailableProduct().plans.find((p) => p.id === enableForm.plan_id)?.price_annual" style="margin-top: 10px;">
-                                            <label class="field-label">Billing interval</label>
-                                            <div class="type-toggle">
-                                                <button type="button" class="type-opt" :class="{ active: enableForm.billing_interval === 'monthly' }" @click="setEnableInterval('monthly')">Monthly</button>
-                                                <button type="button" class="type-opt" :class="{ active: enableForm.billing_interval === 'annual' }" @click="setEnableInterval('annual')">Annual</button>
-                                            </div>
                                         </div>
                                     </template>
                                     <!-- Fallback: free-text plan + price when the product has no plans defined -->

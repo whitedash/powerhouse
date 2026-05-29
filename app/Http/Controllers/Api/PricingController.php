@@ -32,13 +32,13 @@ class PricingController extends Controller
                 'id' => $p->id,
                 'name' => $p->name,
                 'description' => $p->description,
-                'price_monthly' => (float) $p->price_monthly,
-                'price_annual' => $p->price_annual !== null ? (float) $p->price_annual : null,
-                'annual_monthly_cost' => $p->annual_monthly_cost,
-                'savings_percent' => $p->savings_percent,
+                'price' => (float) $p->price,
+                'interval_count' => $p->interval_count,
+                'interval_unit' => $p->interval_unit,
+                'interval_label' => $p->interval_label,
+                'mrr_contribution' => $p->mrr_contribution,
                 'features' => $p->features ?? [],
-                'stripe_price_id_monthly' => $p->stripe_price_id_monthly,
-                'stripe_price_id_annual' => $p->stripe_price_id_annual,
+                'stripe_price_id' => $p->stripe_price_id,
             ])
             ->values()
             ->all();

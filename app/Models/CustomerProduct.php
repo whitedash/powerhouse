@@ -17,7 +17,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $stripe_price_id
  * @property string|null $plan
  * @property string|null $price_monthly
- * @property string $billing_interval
+ * @property int $interval_count
+ * @property string $interval_unit
  * @property string $status
  * @property Carbon|null $trial_ends_at
  * @property Carbon|null $started_at
@@ -34,6 +35,7 @@ use Illuminate\Support\Carbon;
  * @property-read float $effective_price
  * @property-read float $mrr_contribution
  * @property-read float $arr_contribution
+ * @property-read string $interval_label
  * @property-read Customer|null $customer
  * @property-read Product|null $product
  * @property-read ProductPlan|null $productPlan
@@ -50,7 +52,8 @@ class CustomerProduct extends Model
         'stripe_price_id',
         'plan',
         'price_monthly',
-        'billing_interval',
+        'interval_count',
+        'interval_unit',
         'status',
         'trial_ends_at',
         'started_at',
@@ -68,6 +71,7 @@ class CustomerProduct extends Model
     {
         return [
             'price_monthly' => 'decimal:2',
+            'interval_count' => 'integer',
             'discount_pct' => 'decimal:2',
             'trial_ends_at' => 'datetime',
             'started_at' => 'datetime',
@@ -126,36 +130,72 @@ class CustomerProduct extends Model
     }
 
     /**
-     * What this subscription contributes to MRR.
-     * Annual subs amortise across 12 months; one-off shows £0.
+     * Normalise the effective price into a monthly contribution based
+     * on (interval_count, interval_unit). The discount-adjusted
+     * effective_price IS the price for one billing period — we divide
+     * by the period length to amortise. Mirrors ProductPlan's math so
+     * the two never drift.
      */
     protected function mrrContribution(): Attribute
     {
         return Attribute::get(function (): float {
             $effective = $this->effective_price;
+            $count = max(1, (int) ($this->interval_count ?? 1));
+            $unit = $this->interval_unit ?? 'month';
 
-            return match ($this->billing_interval) {
-                'annual' => round($effective / 12, 2),
-                'one_off' => 0.0,
-                default => $effective,
+            return match ($unit) {
+                'one_time' => 0.0,
+                'day' => round($effective * (365 / 12) / $count, 2),
+                'week' => round($effective * (52 / 12) / $count, 2),
+                'month' => round($effective / $count, 2),
+                'year' => round($effective / ($count * 12), 2),
+                default => 0.0,
             };
         });
     }
 
     /**
-     * What this subscription contributes to ARR.
-     * Monthly subs annualise; annual is its own price; one-off shows £0.
+     * ARR for this subscription. Derived from MRR so the two figures
+     * can't drift; one-time still resolves to £0.
      */
     protected function arrContribution(): Attribute
     {
-        return Attribute::get(function (): float {
-            $effective = $this->effective_price;
+        return Attribute::get(fn (): float => round($this->mrr_contribution * 12, 2));
+    }
 
-            return match ($this->billing_interval) {
-                'annual' => $effective,
-                'one_off' => 0.0,
-                default => round($effective * 12, 2),
+    /**
+     * Human-readable interval label — same shape as ProductPlan's so
+     * the subscription table can render either field interchangeably.
+     */
+    protected function intervalLabel(): Attribute
+    {
+        return Attribute::get(function (): string {
+            $unit = $this->interval_unit ?? 'month';
+            $count = (int) ($this->interval_count ?? 1);
+
+            if ($unit === 'one_time') {
+                return 'One-time';
+            }
+
+            if ($count === 1) {
+                return match ($unit) {
+                    'day' => 'Daily',
+                    'week' => 'Weekly',
+                    'month' => 'Monthly',
+                    'year' => 'Yearly',
+                    default => ucfirst($unit),
+                };
+            }
+
+            $plural = match ($unit) {
+                'day' => 'days',
+                'week' => 'weeks',
+                'month' => 'months',
+                'year' => 'years',
+                default => $unit,
             };
+
+            return "Every {$count} {$plural}";
         });
     }
 }

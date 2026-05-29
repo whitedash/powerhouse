@@ -104,10 +104,15 @@ class DashboardController extends Controller
                 120,
                 fn () => Customer::whereNull('archived_at')->count(),
             ),
+            // mrr_contribution amortises across interval_count +
+            // interval_unit so a quarterly £75 sub reports £25 here
+            // rather than the full bill amount.
             'mrr' => (float) Cache::remember(
                 'dash.mrr',
                 120,
-                fn () => (float) CustomerProduct::where('status', 'active')->sum('price_monthly'),
+                fn () => (float) CustomerProduct::where('status', 'active')
+                    ->get()
+                    ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution),
             ),
             'pending_invoices_count' => Invoice::whereIn('status', ['sent', 'overdue'])->count(),
             'pending_invoices_amount' => (float) Invoice::whereIn('status', ['sent', 'overdue'])->sum('total'),
@@ -144,7 +149,9 @@ class DashboardController extends Controller
                     'is_active' => $p->is_active,
                     'is_coming_soon' => $p->is_coming_soon,
                     'customer_count' => $p->is_coming_soon ? 0 : (clone $activeQuery)->count(),
-                    'mrr' => $p->is_coming_soon ? 0.0 : (float) (clone $activeQuery)->sum('price_monthly'),
+                    'mrr' => $p->is_coming_soon ? 0.0 : (float) (clone $activeQuery)
+                        ->get()
+                        ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution),
                 ];
             })
             ->all();

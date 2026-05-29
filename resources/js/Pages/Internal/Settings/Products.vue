@@ -29,6 +29,7 @@ import {
 } from '@tabler/icons-vue';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import IntervalPicker from '@/Components/UI/IntervalPicker.vue';
 
 const props = defineProps({
     products: { type: Array, default: () => [] },
@@ -155,11 +156,11 @@ const slugLocked = computed(() => (selectedProduct.value?.active_customers ?? 0)
 const PLAN_DEFAULTS = {
     name: '',
     description: '',
-    price_monthly: 0,
-    price_annual: null,
+    price: 0,
+    interval_count: 1,
+    interval_unit: 'month',
+    stripe_price_id: '',
     features: [],
-    stripe_price_id_monthly: '',
-    stripe_price_id_annual: '',
     is_active: true,
     is_public: true,
     sort_order: 0,
@@ -191,11 +192,11 @@ function openEditPlan(plan) {
         product_id: selectedProduct.value.id,
         name: plan.name ?? '',
         description: plan.description ?? '',
-        price_monthly: Number(plan.price_monthly ?? 0),
-        price_annual: plan.price_annual !== null ? Number(plan.price_annual) : null,
+        price: Number(plan.price ?? 0),
+        interval_count: Number(plan.interval_count ?? 1),
+        interval_unit: plan.interval_unit ?? 'month',
+        stripe_price_id: plan.stripe_price_id ?? '',
         features: Array.isArray(plan.features) ? [...plan.features] : [],
-        stripe_price_id_monthly: plan.stripe_price_id_monthly ?? '',
-        stripe_price_id_annual: plan.stripe_price_id_annual ?? '',
         is_active: !! plan.is_active,
         is_public: !! plan.is_public,
         sort_order: Number(plan.sort_order ?? 0),
@@ -225,13 +226,15 @@ function submitPlan() {
     }
 }
 
-const previewSavingsPct = computed(() => {
-    const m = Number(planForm.price_monthly) || 0;
-    const a = Number(planForm.price_annual) || 0;
-    if (! a || m <= 0) return null;
-    const equiv = m * 12;
-    if (equiv <= 0) return null;
-    return Math.round((1 - a / equiv) * 100);
+/* IntervalPicker uses { count, unit }; the form stores them as
+ * interval_count + interval_unit so it can post directly. Map both
+ * directions here so the picker stays a clean v-model. */
+const planInterval = computed({
+    get: () => ({ count: planForm.interval_count, unit: planForm.interval_unit }),
+    set: (v) => {
+        planForm.interval_count = v.count;
+        planForm.interval_unit = v.unit;
+    },
 });
 
 function togglePlanActive(plan) {
@@ -577,7 +580,10 @@ function gbpRound(n) {
                             >
                                 <div style="display: flex; align-items: center; gap: 10px;">
                                     <div style="font: 600 15px/1.2 'Inter', sans-serif;">{{ plan.name }}</div>
-                                    <div style="font: 600 15px/1.2 'Inter', sans-serif; color: var(--accent);">{{ gbp(plan.price_monthly) }}<span style="font-weight: 400; color: var(--text-secondary); font-size: 13px;">/mo</span></div>
+                                    <div style="font: 600 15px/1.2 'Inter', sans-serif; color: var(--accent);">
+                                        {{ gbp(plan.price) }}
+                                        <span style="font-weight: 400; color: var(--text-secondary); font-size: 13px;">· {{ plan.interval_label }}</span>
+                                    </div>
                                     <div style="margin-left: auto; display: flex; align-items: center; gap: 6px;">
                                         <span class="badge badge-sm" :class="plan.is_active ? 'badge-active' : 'badge-inactive'">
                                             {{ plan.is_active ? 'Active' : 'Inactive' }}
@@ -609,8 +615,8 @@ function gbpRound(n) {
                                     </div>
                                 </div>
 
-                                <div v-if="plan.price_annual" style="font: 400 13px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 4px;">
-                                    {{ gbp(plan.price_annual) }}/yr<span v-if="plan.savings_percent !== null"> · {{ plan.savings_percent }}% off</span>
+                                <div style="font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 4px;">
+                                    £{{ Number(plan.mrr_contribution).toFixed(2) }}/mo MRR equivalent
                                 </div>
                                 <div v-if="plan.description" style="font: 400 13px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin-top: 6px;">
                                     {{ plan.description }}
@@ -621,11 +627,9 @@ function gbpRound(n) {
                                         ✓ {{ f }}
                                     </template>
                                 </div>
-                                <div v-if="plan.stripe_price_id_monthly || plan.stripe_price_id_annual" style="display: flex; align-items: center; gap: 6px; margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-tertiary);">
+                                <div v-if="plan.stripe_price_id" style="display: flex; align-items: center; gap: 6px; margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-tertiary);">
                                     <IconBrandStripe :size="14" stroke-width="1.75" style="color: var(--info);" />
-                                    <span v-if="plan.stripe_price_id_monthly">Monthly: {{ plan.stripe_price_id_monthly }}</span>
-                                    <span v-if="plan.stripe_price_id_monthly && plan.stripe_price_id_annual"> · </span>
-                                    <span v-if="plan.stripe_price_id_annual">Annual: {{ plan.stripe_price_id_annual }}</span>
+                                    <span>{{ plan.stripe_price_id }}</span>
                                 </div>
                                 <div style="font: 400 11px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 8px;">
                                     {{ plan.active_customers }} active subscription{{ plan.active_customers === 1 ? '' : 's' }}
@@ -841,21 +845,20 @@ function gbpRound(n) {
 
                                 <div class="form-section">
                                     <h3>Pricing</h3>
-                                    <div class="form-row two">
+                                    <div class="form-row single">
                                         <div class="form-field">
-                                            <label>Monthly price (£)<span class="req">*</span></label>
-                                            <input v-model.number="planForm.price_monthly" type="number" min="0" step="0.01" required>
-                                            <div v-if="planForm.errors.price_monthly" class="err">{{ planForm.errors.price_monthly }}</div>
-                                        </div>
-                                        <div class="form-field">
-                                            <label>Annual price (£)</label>
-                                            <input v-model.number="planForm.price_annual" type="number" min="0" step="0.01">
-                                            <div class="field-help">Full annual amount. Leave blank to offer monthly only.</div>
-                                            <div v-if="planForm.errors.price_annual" class="err">{{ planForm.errors.price_annual }}</div>
+                                            <label>Price (£)<span class="req">*</span></label>
+                                            <input v-model.number="planForm.price" type="number" min="0" step="0.01" required>
+                                            <div v-if="planForm.errors.price" class="err">{{ planForm.errors.price }}</div>
                                         </div>
                                     </div>
-                                    <div v-if="previewSavingsPct !== null && previewSavingsPct > 0" style="margin-top: 8px; padding: 8px 12px; background: var(--success-bg); border: 1px solid #A7F3D0; border-radius: var(--radius-sm); color: #047857; font: 500 13px/1.3 'Inter', sans-serif;">
-                                        Annual saves {{ previewSavingsPct }}% vs monthly billing.
+                                    <div class="form-row single" style="margin-top: 12px;">
+                                        <div class="form-field">
+                                            <label>Billing interval<span class="req">*</span></label>
+                                            <IntervalPicker v-model="planInterval" />
+                                            <div v-if="planForm.errors.interval_count" class="err">{{ planForm.errors.interval_count }}</div>
+                                            <div v-if="planForm.errors.interval_unit" class="err">{{ planForm.errors.interval_unit }}</div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -885,20 +888,13 @@ function gbpRound(n) {
                                 </div>
 
                                 <div class="form-section">
-                                    <h3>Stripe Price IDs <span style="color: var(--text-tertiary); font-weight: 400; font-size: 12px;">— optional</span></h3>
+                                    <h3>Stripe Price ID <span style="color: var(--text-tertiary); font-weight: 400; font-size: 12px;">— optional</span></h3>
                                     <div class="form-row single">
                                         <div class="form-field">
-                                            <label>Monthly Price ID</label>
-                                            <input v-model="planForm.stripe_price_id_monthly" type="text" placeholder="price_1Nxxx..." style="font-family: 'JetBrains Mono', monospace;">
-                                            <div v-if="planForm.errors.stripe_price_id_monthly" class="err">{{ planForm.errors.stripe_price_id_monthly }}</div>
-                                        </div>
-                                    </div>
-                                    <div class="form-row single">
-                                        <div class="form-field">
-                                            <label>Annual Price ID</label>
-                                            <input v-model="planForm.stripe_price_id_annual" type="text" placeholder="price_1Nxxx..." style="font-family: 'JetBrains Mono', monospace;">
+                                            <label>Price ID</label>
+                                            <input v-model="planForm.stripe_price_id" type="text" placeholder="price_1Nxxx..." style="font-family: 'JetBrains Mono', monospace;">
                                             <div class="field-help">Copy from Stripe Dashboard → Products → Prices. Used for checkout and webhook matching.</div>
-                                            <div v-if="planForm.errors.stripe_price_id_annual" class="err">{{ planForm.errors.stripe_price_id_annual }}</div>
+                                            <div v-if="planForm.errors.stripe_price_id" class="err">{{ planForm.errors.stripe_price_id }}</div>
                                         </div>
                                     </div>
                                 </div>

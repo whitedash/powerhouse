@@ -20,27 +20,27 @@ class SubscriptionController extends Controller
 {
     private const STATUSES = ['active', 'trial', 'suspended'];
 
-    private const INTERVALS = ['monthly', 'annual', 'one_off'];
+    private const INTERVAL_UNITS = ['day', 'week', 'month', 'year', 'one_time'];
 
     public function index(Request $request): Response
     {
         $search = $request->string('search')->toString() ?: null;
         $productSlug = $request->string('product_slug')->toString() ?: null;
         $statusFilter = $request->string('status')->toString() ?: null;
-        $intervalFilter = $request->string('billing_interval')->toString() ?: null;
+        $intervalFilter = $request->string('interval_unit')->toString() ?: null;
 
         $subscriptions = CustomerProduct::query()
             ->with([
                 'customer:id,name,city',
                 'product:id,name,slug,icon_colour',
-                'productPlan:id,name,price_monthly,price_annual',
+                'productPlan:id,name,price,interval_count,interval_unit',
                 'billingEntity:id,name',
             ])
             ->whereIn('status', self::STATUSES)
             ->when($search, fn ($q, $s) => $q->whereHas('customer', fn ($q2) => $q2->where('name', 'like', "%{$s}%")))
             ->when($productSlug, fn ($q, $slug) => $q->whereHas('product', fn ($q2) => $q2->where('slug', $slug)))
             ->when($statusFilter, fn ($q, $st) => $q->where('status', $st))
-            ->when($intervalFilter, fn ($q, $iv) => $q->where('billing_interval', $iv))
+            ->when($intervalFilter, fn ($q, $iv) => $q->where('interval_unit', $iv))
             ->orderByDesc('started_at')
             ->paginate(25)
             ->withQueryString()
@@ -59,10 +59,11 @@ class SubscriptionController extends Controller
                 'plan' => $cp->plan,
                 'plan_id' => $cp->plan_id,
                 'plan_name' => $cp->productPlan ? $cp->productPlan->name : $cp->plan,
-                'has_annual' => $cp->productPlan?->price_annual !== null,
                 'price_monthly' => (float) ($cp->price_monthly ?? 0),
                 'effective_price' => $cp->effective_price,
-                'billing_interval' => $cp->billing_interval,
+                'interval_count' => $cp->interval_count,
+                'interval_unit' => $cp->interval_unit,
+                'interval_label' => $cp->interval_label,
                 'status' => $cp->status,
                 'started_at' => $cp->started_at?->toIso8601String(),
                 'trial_ends_at' => $cp->trial_ends_at?->toIso8601String(),
@@ -83,13 +84,15 @@ class SubscriptionController extends Controller
         // round-trip per row.
         $productPlans = ProductPlan::where('is_active', true)
             ->orderBy('sort_order')
-            ->get(['id', 'product_id', 'name', 'price_monthly', 'price_annual'])
+            ->get(['id', 'product_id', 'name', 'price', 'interval_count', 'interval_unit'])
             ->groupBy('product_id')
             ->map(fn ($plans) => $plans->map(fn (ProductPlan $p): array => [
                 'id' => $p->id,
                 'name' => $p->name,
-                'price_monthly' => (float) $p->price_monthly,
-                'price_annual' => $p->price_annual !== null ? (float) $p->price_annual : null,
+                'price' => (float) $p->price,
+                'interval_count' => $p->interval_count,
+                'interval_unit' => $p->interval_unit,
+                'interval_label' => $p->interval_label,
             ])->values()->all());
 
         return Inertia::render('Internal/Subscriptions/Index', [
@@ -104,12 +107,12 @@ class SubscriptionController extends Controller
                 ->get(['id', 'name'])
                 ->all(),
             'statuses' => self::STATUSES,
-            'intervals' => self::INTERVALS,
+            'interval_units' => self::INTERVAL_UNITS,
             'filters' => [
                 'search' => $search,
                 'product_slug' => $productSlug,
                 'status' => $statusFilter,
-                'billing_interval' => $intervalFilter,
+                'interval_unit' => $intervalFilter,
             ],
         ]);
     }
@@ -123,7 +126,8 @@ class SubscriptionController extends Controller
             'plan_id' => ['nullable', 'integer', 'exists:product_plans,id'],
             'plan' => ['nullable', 'string', 'max:100'],
             'price_monthly' => ['nullable', 'numeric', 'min:0'],
-            'billing_interval' => ['required', 'in:monthly,annual,one_off'],
+            'interval_count' => ['required', 'integer', 'min:1', 'max:365'],
+            'interval_unit' => ['required', 'in:day,week,month,year,one_time'],
             'billing_entity_id' => ['nullable', 'integer', 'exists:billing_entities,id'],
             'next_billing_date' => ['nullable', 'date'],
             'discount_pct' => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -137,7 +141,8 @@ class SubscriptionController extends Controller
             $before = [
                 'plan' => $cp->plan,
                 'price_monthly' => $cp->price_monthly,
-                'billing_interval' => $cp->billing_interval,
+                'interval_count' => $cp->interval_count,
+                'interval_unit' => $cp->interval_unit,
             ];
 
             $cp->update($data);
@@ -146,7 +151,7 @@ class SubscriptionController extends Controller
                 'subscription_id' => $cp->id,
                 'plan' => $cp->plan,
                 'price' => $cp->price_monthly,
-                'interval' => $cp->billing_interval,
+                'interval' => $cp->interval_label,
             ]);
         });
 

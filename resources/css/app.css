@@ -4375,3 +4375,58 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
 .dd-option:disabled,
 .dd-option[disabled] { cursor: not-allowed; }
 .dd-option.current { color: var(--accent); font-weight: 500; }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * INTERVAL PICKER — global, used wherever a billing interval is set
+ * (plan slide-over, subscription edit, enable-product).
+ * ──────────────────────────────────────────────────────────────────── */
+.interval-picker { display: flex; flex-direction: column; gap: 8px; }
+.interval-inputs { display: flex; gap: 8px; align-items: center; }
+.interval-count {
+    width: 72px;
+    height: 36px;
+    text-align: center;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0 8px;
+    font: 500 13px/1 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+    background: #fff;
+    color: var(--text-primary);
+}
+.interval-count:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245, 158, 11, .18); }
+.interval-unit {
+    flex: 1;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: #fff;
+    color: var(--text-primary);
+    font: 500 13px/1 'Inter', sans-serif;
+    cursor: pointer;
+}
+.interval-unit:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245, 158, 11, .18); }
+.interval-presets { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.interval-preset {
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: #fff;
+    color: var(--text-secondary);
+    font: 500 12px/1 'Inter', sans-serif;
+    cursor: pointer;
+    transition: border-color .12s, color .12s, background .12s;
+}
+.interval-preset:hover { border-color: var(--accent); color: var(--accent); }
+.interval-preset.active {
+    background: var(--accent);
+    color: var(--bg-navy);
+    border-color: var(--accent);
+}
+.interval-preview {
+    font: 400 12px/1.3 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+}

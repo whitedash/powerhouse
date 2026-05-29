@@ -8,6 +8,7 @@ use App\Models\BillingEntity;
 use App\Models\Customer;
 use App\Models\CustomerProduct;
 use App\Models\Product;
+use App\Models\ProductPlan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -81,6 +82,7 @@ class ProvisioningController extends Controller
         $products = Product::query()
             ->where('is_active', true)
             ->orWhere('is_coming_soon', true)
+            ->with('activePlans')
             ->orderBy('sort_order')
             ->get(['id', 'name', 'slug', 'icon_colour', 'is_active', 'is_coming_soon'])
             ->map(fn (Product $p): array => [
@@ -93,6 +95,15 @@ class ProvisioningController extends Controller
                 'active_count' => CustomerProduct::where('product_id', $p->id)
                     ->where('status', 'active')
                     ->count(),
+                'plans' => $p->activePlans->map(fn (ProductPlan $plan): array => [
+                    'id' => $plan->id,
+                    'name' => $plan->name,
+                    'description' => $plan->description,
+                    'price' => (float) $plan->price,
+                    'interval_count' => $plan->interval_count,
+                    'interval_unit' => $plan->interval_unit,
+                    'interval_label' => $plan->interval_label,
+                ])->values()->all(),
             ])
             ->values()
             ->all();
@@ -138,8 +149,11 @@ class ProvisioningController extends Controller
             'customer_id' => ['required', 'integer', 'exists:customers,id'],
             'product_id' => ['required', 'integer', 'exists:products,id'],
             'action' => ['required', 'in:enable,suspend'],
+            'plan_id' => ['nullable', 'integer', 'exists:product_plans,id'],
             'price_monthly' => ['nullable', 'numeric', 'min:0'],
             'plan' => ['nullable', 'string', 'max:100'],
+            'interval_count' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'interval_unit' => ['nullable', 'in:day,week,month,year,one_time'],
             'billing_entity_id' => ['nullable', 'integer', 'exists:billing_entities,id'],
             'status' => ['nullable', 'in:active,trial'],
             'trial_ends_at' => ['nullable', 'date', 'required_if:status,trial'],
@@ -168,13 +182,26 @@ class ProvisioningController extends Controller
 
             $status = $data['status'] ?? 'active';
 
-            DB::transaction(function () use ($customer, $data, $status, $request) {
+            // If a plan was chosen the plan price + interval win;
+            // otherwise fall back to the payload (or sensible defaults
+            // so the row is still valid).
+            $plan = ! empty($data['plan_id']) ? ProductPlan::find($data['plan_id']) : null;
+
+            $planName = $plan ? $plan->name : ($data['plan'] ?? null);
+            $price = $plan ? (float) $plan->price : ($data['price_monthly'] ?? 0);
+            $intervalCount = $plan ? $plan->interval_count : (int) ($data['interval_count'] ?? 1);
+            $intervalUnit = $plan ? $plan->interval_unit : ($data['interval_unit'] ?? 'month');
+
+            DB::transaction(function () use ($customer, $data, $status, $request, $plan, $planName, $price, $intervalCount, $intervalUnit) {
                 CustomerProduct::create([
                     'customer_id' => $customer->id,
                     'product_id' => $data['product_id'],
+                    'plan_id' => $plan?->id,
                     'billing_entity_id' => $data['billing_entity_id'] ?? null,
-                    'plan' => $data['plan'] ?? null,
-                    'price_monthly' => $data['price_monthly'] ?? 0,
+                    'plan' => $planName,
+                    'price_monthly' => $price,
+                    'interval_count' => $intervalCount,
+                    'interval_unit' => $intervalUnit,
                     'status' => $status,
                     'trial_ends_at' => $data['trial_ends_at'] ?? null,
                     'started_at' => now(),
@@ -182,8 +209,11 @@ class ProvisioningController extends Controller
 
                 $this->logActivity($request, 'product.enabled', $customer->id, after: [
                     'product_id' => $data['product_id'],
+                    'plan_id' => $plan?->id,
                     'status' => $status,
-                    'price_monthly' => $data['price_monthly'] ?? 0,
+                    'price' => $price,
+                    'interval_count' => $intervalCount,
+                    'interval_unit' => $intervalUnit,
                     'source' => 'provisioning_grid',
                 ]);
             });

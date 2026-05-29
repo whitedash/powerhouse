@@ -39,6 +39,7 @@ import {
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import IntervalPicker from '@/Components/UI/IntervalPicker.vue';
 
 const props = defineProps({
     subscriptions: { type: Object, required: true },
@@ -47,7 +48,7 @@ const props = defineProps({
     product_plans: { type: Object, default: () => ({}) },
     billing_entities: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
-    intervals: { type: Array, default: () => [] },
+    interval_units: { type: Array, default: () => [] },
     filters: { type: Object, default: () => ({}) },
 });
 
@@ -88,12 +89,19 @@ function avatarColour(id) {
     return palette[Number(id) % palette.length];
 }
 
-/* ─── Interval label/badge ─── */
-const INTERVAL_LABELS = { monthly: 'Monthly', annual: 'Annual', one_off: 'One-off' };
-function intervalBadgeClass(iv) {
-    return iv === 'monthly' ? 'badge-info'
-        : iv === 'annual' ? 'badge-gold'
-        : 'badge-inactive';
+/* ─── Interval label/badge ─── *
+ * The backend ships interval_label already. The badge style is driven
+ * by (count, unit) so monthly stays green-ish, quarterly/annual gold,
+ * one-time grey. */
+const UNIT_LABELS = { day: 'Daily', week: 'Weekly', month: 'Monthly', year: 'Yearly', one_time: 'One-time' };
+function intervalBadgeClass(sub) {
+    const unit = sub.interval_unit;
+    const count = sub.interval_count;
+    if (unit === 'one_time') return 'badge-inactive';
+    if (count === 1 && unit === 'month') return 'badge-active';
+    if (unit === 'month' && [3, 6, 12].includes(count)) return 'badge-gold';
+    if (unit === 'year') return 'badge-gold';
+    return 'badge-info';
 }
 const STATUS_LABELS = { active: 'Active', trial: 'Trial', suspended: 'Suspended', cancelled: 'Cancelled' };
 function statusBadgeClass(st) {
@@ -102,9 +110,6 @@ function statusBadgeClass(st) {
         : 'badge-inactive';
 }
 
-function priceSuffix(iv) {
-    return iv === 'annual' ? '/yr' : iv === 'monthly' ? '/mo' : '';
-}
 function discountActive(sub) {
     if (! sub.discount_pct || sub.discount_pct <= 0) return false;
     if (! sub.discount_expires_at) return true;
@@ -122,7 +127,7 @@ function nextBillingClass(sub) {
 const searchInput = ref(props.filters.search ?? '');
 const productFilter = ref(props.filters.product_slug ?? '');
 const statusFilter = ref(props.filters.status ?? '');
-const intervalFilter = ref(props.filters.billing_interval ?? '');
+const intervalFilter = ref(props.filters.interval_unit ?? '');
 
 let searchTimeout = null;
 watch(searchInput, (v) => {
@@ -135,7 +140,7 @@ function applyFilters(patch = {}) {
         search: searchInput.value || null,
         product_slug: productFilter.value || null,
         status: statusFilter.value || null,
-        billing_interval: intervalFilter.value || null,
+        interval_unit: intervalFilter.value || null,
         ...patch,
     };
     router.get('/subscriptions', params, { preserveScroll: true, preserveState: true, replace: true });
@@ -173,7 +178,8 @@ const editForm = useForm({
     plan_id: null,
     plan: '',
     price_monthly: 0,
-    billing_interval: 'monthly',
+    interval_count: 1,
+    interval_unit: 'month',
     billing_entity_id: null,
     next_billing_date: '',
     discount_pct: null,
@@ -202,7 +208,8 @@ function openEdit(sub) {
     editForm.plan_id = sub.plan_id ?? null;
     editForm.plan = sub.plan ?? '';
     editForm.price_monthly = sub.price_monthly ?? 0;
-    editForm.billing_interval = sub.billing_interval ?? 'monthly';
+    editForm.interval_count = sub.interval_count ?? 1;
+    editForm.interval_unit = sub.interval_unit ?? 'month';
     editForm.billing_entity_id = sub.billing_entity?.id ?? null;
     editForm.next_billing_date = sub.next_billing_date ?? '';
     editForm.discount_pct = sub.discount_pct ?? null;
@@ -221,11 +228,20 @@ function openEdit(sub) {
 function selectEditPlan(plan) {
     editForm.plan_id = plan.id;
     editForm.plan = plan.name;
-    editForm.price_monthly = editForm.billing_interval === 'annual' && plan.price_annual !== null
-        ? plan.price_annual
-        : plan.price_monthly;
+    editForm.price_monthly = plan.price;
+    editForm.interval_count = plan.interval_count;
+    editForm.interval_unit = plan.interval_unit;
     showPlanPicker.value = false;
 }
+
+/* IntervalPicker { count, unit } adapter for the override section. */
+const editInterval = computed({
+    get: () => ({ count: editForm.interval_count, unit: editForm.interval_unit }),
+    set: (v) => {
+        editForm.interval_count = v.count;
+        editForm.interval_unit = v.unit;
+    },
+});
 
 function submitEdit() {
     editForm.put(`/subscriptions/${editingSub.value.id}`, {
@@ -440,13 +456,13 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                 <Menu as="div" class="dd-menu">
                     <MenuButton class="dd-btn">
                         <IconArrowsSort :size="14" stroke-width="1.75" />
-                        {{ intervalFilter ? INTERVAL_LABELS[intervalFilter] : 'Billing' }}
+                        {{ intervalFilter ? UNIT_LABELS[intervalFilter] : 'Billing' }}
                         <IconChevronDown :size="14" stroke-width="1.75" class="ch" />
                     </MenuButton>
                     <MenuItems class="dd-popover">
-                        <MenuItem v-for="iv in intervals" :key="iv" v-slot="{ active }">
+                        <MenuItem v-for="iv in interval_units" :key="iv" v-slot="{ active }">
                             <button type="button" :class="['dd-option', { active, current: intervalFilter === iv }]" @click="setInterval(iv)">
-                                {{ INTERVAL_LABELS[iv] }}
+                                {{ UNIT_LABELS[iv] }}
                             </button>
                         </MenuItem>
                     </MenuItems>
@@ -532,21 +548,21 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                             <td>
                                 <div class="price-cell">
                                     <template v-if="discountActive(sub)">
-                                        <span class="price-original">{{ gbp(sub.price_monthly) }}{{ priceSuffix(sub.billing_interval) }}</span>
-                                        <span class="price-effective">{{ gbp(sub.effective_price) }}{{ priceSuffix(sub.billing_interval) }}</span>
+                                        <span class="price-original">{{ gbp(sub.price_monthly) }}</span>
+                                        <span class="price-effective">{{ gbp(sub.effective_price) }}</span>
                                         <span class="discount-badge">-{{ sub.discount_pct }}%</span>
                                     </template>
-                                    <template v-else-if="sub.billing_interval === 'one_off'">
-                                        <span class="price-main">One-off</span>
+                                    <template v-else-if="sub.interval_unit === 'one_time'">
+                                        <span class="price-main">{{ gbp(sub.price_monthly) }}</span>
                                     </template>
                                     <template v-else>
-                                        <span class="price-main">{{ gbp(sub.price_monthly) }}{{ priceSuffix(sub.billing_interval) }}</span>
+                                        <span class="price-main">{{ gbp(sub.price_monthly) }}</span>
                                     </template>
                                 </div>
                             </td>
                             <td>
-                                <span class="badge badge-sm" :class="intervalBadgeClass(sub.billing_interval)">
-                                    {{ INTERVAL_LABELS[sub.billing_interval] }}
+                                <span class="badge badge-sm" :class="intervalBadgeClass(sub)">
+                                    {{ sub.interval_label }}
                                 </span>
                             </td>
                             <td>
@@ -675,7 +691,9 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                                     <template v-if="editForm.plan_id && ! showPlanPicker">
                                         <div style="padding: 10px 14px; background: var(--neutral-bg); border-radius: var(--radius-md); display: flex; align-items: center; gap: 12px;">
                                             <div style="font: 600 13px/1.2 'Inter', sans-serif;">{{ editForm.plan || '—' }}</div>
-                                            <div style="font: 600 13px/1.2 'Inter', sans-serif; color: var(--accent); margin-left: auto;">{{ gbp(editForm.price_monthly) }}{{ priceSuffix(editForm.billing_interval) }}</div>
+                                            <div style="font: 600 13px/1.2 'Inter', sans-serif; color: var(--accent); margin-left: auto;">
+                                                {{ gbp(editForm.price_monthly) }} · {{ editingSub.interval_label }}
+                                            </div>
                                             <button type="button" class="collapsible-trigger" style="padding: 0;" @click="showPlanPicker = true">Change plan</button>
                                         </div>
                                     </template>
@@ -696,17 +714,14 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                                             >
                                                 <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
                                                     <span style="font: 600 13px/1.2 'Inter', sans-serif;">{{ plan.name }}</span>
-                                                    <span style="margin-left: auto; font: 600 13px/1.2 'Inter', sans-serif; color: var(--accent);">{{ gbp(plan.price_monthly) }}/mo</span>
+                                                    <span style="margin-left: auto; font: 600 13px/1.2 'Inter', sans-serif; color: var(--accent);">{{ gbp(plan.price) }} · {{ plan.interval_label }}</span>
                                                 </div>
-                                                <span v-if="plan.price_annual !== null" style="font: 400 11px/1.3 'Inter', sans-serif; color: var(--text-secondary);">
-                                                    or {{ gbp(plan.price_annual) }}/yr
-                                                </span>
                                             </button>
                                         </div>
                                     </template>
                                 </div>
 
-                                <!-- Custom price override (collapsible) -->
+                                <!-- Custom price + interval override (collapsible) -->
                                 <div class="form-section">
                                     <button
                                         v-if="! showPriceOverride"
@@ -715,10 +730,10 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                                         @click="showPriceOverride = true"
                                     >
                                         <IconPlus :size="14" stroke-width="2" />
-                                        Custom price override
+                                        Custom price &amp; interval override
                                     </button>
                                     <template v-else>
-                                        <h3>Custom price override</h3>
+                                        <h3>Custom override</h3>
                                         <div class="form-row two">
                                             <div class="form-field">
                                                 <label>Plan label</label>
@@ -728,35 +743,19 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                                             <div class="form-field">
                                                 <label>Price (£)</label>
                                                 <input v-model.number="editForm.price_monthly" type="number" min="0" step="0.01">
-                                                <div class="field-help">Overrides the plan price. Annual subscriptions show the full annual amount.</div>
+                                                <div class="field-help">Price for one billing period. MRR amortises across the interval.</div>
                                                 <div v-if="editForm.errors.price_monthly" class="err">{{ editForm.errors.price_monthly }}</div>
                                             </div>
                                         </div>
+                                        <div class="form-row single" style="margin-top: 10px;">
+                                            <div class="form-field">
+                                                <label>Billing interval</label>
+                                                <IntervalPicker v-model="editInterval" />
+                                                <div v-if="editForm.errors.interval_count" class="err">{{ editForm.errors.interval_count }}</div>
+                                                <div v-if="editForm.errors.interval_unit" class="err">{{ editForm.errors.interval_unit }}</div>
+                                            </div>
+                                        </div>
                                     </template>
-                                </div>
-
-                                <div class="form-section">
-                                    <h3>Billing interval</h3>
-                                    <div class="type-toggle" style="grid-template-columns: 1fr 1fr 1fr;">
-                                        <button
-                                            type="button"
-                                            class="type-opt"
-                                            :class="{ active: editForm.billing_interval === 'monthly' }"
-                                            @click="editForm.billing_interval = 'monthly'"
-                                        >Monthly</button>
-                                        <button
-                                            type="button"
-                                            class="type-opt"
-                                            :class="{ active: editForm.billing_interval === 'annual' }"
-                                            @click="editForm.billing_interval = 'annual'"
-                                        >Annual</button>
-                                        <button
-                                            type="button"
-                                            class="type-opt"
-                                            :class="{ active: editForm.billing_interval === 'one_off' }"
-                                            @click="editForm.billing_interval = 'one_off'"
-                                        >One-off</button>
-                                    </div>
                                 </div>
 
                                 <div class="form-section">
@@ -803,7 +802,7 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                                             </div>
                                         </div>
                                         <div v-if="previewEffective !== null" class="sub-preview">
-                                            {{ gbp(editForm.price_monthly) }} → {{ gbp(previewEffective) }}{{ priceSuffix(editForm.billing_interval) }}
+                                            {{ gbp(editForm.price_monthly) }} → {{ gbp(previewEffective) }}
                                             ({{ editForm.discount_pct }}% off)
                                         </div>
                                     </template>

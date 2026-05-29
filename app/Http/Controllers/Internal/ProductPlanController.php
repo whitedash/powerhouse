@@ -22,7 +22,8 @@ class ProductPlanController extends Controller
             $this->logActivity($request, 'product_plan.created', $plan->product_id, after: [
                 'plan_id' => $plan->id,
                 'name' => $plan->name,
-                'price_monthly' => $plan->price_monthly,
+                'price' => $plan->price,
+                'interval' => $plan->interval_label,
             ]);
 
             return $plan;
@@ -43,8 +44,9 @@ class ProductPlanController extends Controller
         DB::transaction(function () use ($plan, $data, $request) {
             $before = [
                 'name' => $plan->name,
-                'price_monthly' => $plan->price_monthly,
-                'price_annual' => $plan->price_annual,
+                'price' => $plan->price,
+                'interval_count' => $plan->interval_count,
+                'interval_unit' => $plan->interval_unit,
             ];
 
             $plan->update($data);
@@ -52,8 +54,8 @@ class ProductPlanController extends Controller
             $this->logActivity($request, 'product_plan.updated', $plan->product_id, $before, [
                 'plan_id' => $plan->id,
                 'name' => $plan->name,
-                'price_monthly' => $plan->price_monthly,
-                'price_annual' => $plan->price_annual,
+                'price' => $plan->price,
+                'interval' => $plan->interval_label,
             ]);
         });
 
@@ -123,12 +125,12 @@ class ProductPlanController extends Controller
         $rules = [
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:500'],
-            'price_monthly' => ['required', 'numeric', 'min:0'],
-            'price_annual' => ['nullable', 'numeric', 'min:0'],
+            'price' => ['required', 'numeric', 'min:0'],
+            'interval_count' => ['required', 'integer', 'min:1', 'max:365'],
+            'interval_unit' => ['required', 'in:day,week,month,year,one_time'],
+            'stripe_price_id' => ['nullable', 'string', 'max:100'],
             'features' => ['nullable', 'array', 'max:10'],
             'features.*' => ['string', 'max:200'],
-            'stripe_price_id_monthly' => ['nullable', 'string', 'max:100'],
-            'stripe_price_id_annual' => ['nullable', 'string', 'max:100'],
             'is_active' => ['boolean'],
             'is_public' => ['boolean'],
             'sort_order' => ['integer'],

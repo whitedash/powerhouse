@@ -122,9 +122,13 @@ class CustomerController extends Controller
                 ->values()
                 ->all();
 
+            // mrr_contribution is a model accessor that respects
+            // interval_count + interval_unit, so a quarterly sub at
+            // £75 reports £25/mo instead of inflating MRR with the
+            // full bill.
             $mrr = (float) $customer->customerProducts
                 ->where('status', 'active')
-                ->sum('price_monthly');
+                ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution);
 
             $referrerUser = $customer->referral?->referrer?->user;
 
@@ -214,9 +218,11 @@ class CustomerController extends Controller
             ->whereNotIn('status', ['resolved', 'closed'])
             ->count();
 
+        // Same MRR-respects-interval rule as the list page — sum via
+        // the accessor so a quarterly sub at £75 reports £25/mo.
         $mrr = (float) $customer->customerProducts
             ->where('status', 'active')
-            ->sum('price_monthly');
+            ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution);
 
         $referrerUser = $customer->referral?->referrer?->user;
         $firstGroup = $customer->groups->first();
@@ -281,6 +287,9 @@ class CustomerController extends Controller
                     'status' => $cp->status,
                     'plan' => $cp->plan,
                     'price_monthly' => (float) ($cp->price_monthly ?? 0),
+                    'interval_count' => $cp->interval_count,
+                    'interval_unit' => $cp->interval_unit,
+                    'interval_label' => $cp->interval_label,
                     'trial_ends_at' => $cp->trial_ends_at?->toIso8601String(),
                     'started_at' => $cp->started_at?->toIso8601String(),
                     'cancelled_at' => $cp->cancelled_at?->toIso8601String(),
@@ -386,8 +395,10 @@ class CustomerController extends Controller
                         'id' => $plan->id,
                         'name' => $plan->name,
                         'description' => $plan->description,
-                        'price_monthly' => (float) $plan->price_monthly,
-                        'price_annual' => $plan->price_annual !== null ? (float) $plan->price_annual : null,
+                        'price' => (float) $plan->price,
+                        'interval_count' => $plan->interval_count,
+                        'interval_unit' => $plan->interval_unit,
+                        'interval_label' => $plan->interval_label,
                     ])->values()->all(),
                 ])
                 ->values(),
@@ -533,7 +544,8 @@ class CustomerController extends Controller
         $data = $request->validate([
             'product_id' => ['required', 'integer', 'exists:products,id'],
             'plan_id' => ['nullable', 'integer', 'exists:product_plans,id'],
-            'billing_interval' => ['nullable', 'in:monthly,annual'],
+            'interval_count' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'interval_unit' => ['nullable', 'in:day,week,month,year,one_time'],
             'billing_entity_id' => ['nullable', 'integer', 'exists:billing_entities,id'],
             'plan' => ['nullable', 'string', 'max:100'],
             'price_monthly' => ['nullable', 'numeric', 'min:0'],
@@ -553,18 +565,19 @@ class CustomerController extends Controller
             return back()->with('error', 'This product is already enabled for this customer.');
         }
 
-        // If a plan was chosen, the plan's pricing wins so a stale
-        // form-state can't override the canonical plan price. Staff
-        // can still pass plan='' with no plan_id for a custom case.
+        // When a plan is chosen, its price + interval are canonical —
+        // a stale form-state can't override them. Staff can still pass
+        // plan='' with no plan_id for a custom case, and the interval
+        // fields fall back to the request payload (or sensible
+        // monthly defaults).
         $plan = ! empty($data['plan_id']) ? ProductPlan::find($data['plan_id']) : null;
-        $interval = $data['billing_interval'] ?? 'monthly';
 
         $planName = $plan ? $plan->name : ($data['plan'] ?? null);
-        $price = $plan
-            ? (float) ($interval === 'annual' && $plan->price_annual !== null ? $plan->price_annual : $plan->price_monthly)
-            : ($data['price_monthly'] ?? null);
+        $price = $plan ? (float) $plan->price : ($data['price_monthly'] ?? null);
+        $intervalCount = $plan ? $plan->interval_count : (int) ($data['interval_count'] ?? 1);
+        $intervalUnit = $plan ? $plan->interval_unit : ($data['interval_unit'] ?? 'month');
 
-        DB::transaction(function () use ($customer, $data, $request, $plan, $planName, $price, $interval) {
+        DB::transaction(function () use ($customer, $data, $request, $plan, $planName, $price, $intervalCount, $intervalUnit) {
             CustomerProduct::create([
                 'customer_id' => $customer->id,
                 'product_id' => $data['product_id'],
@@ -572,7 +585,8 @@ class CustomerController extends Controller
                 'billing_entity_id' => $data['billing_entity_id'] ?? null,
                 'plan' => $planName,
                 'price_monthly' => $price,
-                'billing_interval' => $interval === 'annual' ? 'annual' : 'monthly',
+                'interval_count' => $intervalCount,
+                'interval_unit' => $intervalUnit,
                 'status' => $data['status'],
                 'trial_ends_at' => $data['trial_ends_at'] ?? null,
                 'started_at' => now(),
@@ -582,8 +596,9 @@ class CustomerController extends Controller
                 'product_id' => $data['product_id'],
                 'plan_id' => $plan?->id,
                 'status' => $data['status'],
-                'price_monthly' => $price,
-                'billing_interval' => $interval,
+                'price' => $price,
+                'interval_count' => $intervalCount,
+                'interval_unit' => $intervalUnit,
             ]);
         });
 

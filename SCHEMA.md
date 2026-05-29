@@ -43,11 +43,11 @@ sort_order INT, created_at, updated_at
 ## product_plans
 id, product_id FK CASCADE,
 name VARCHAR(100), description TEXT nullable,
-price_monthly DECIMAL(10,2) DEFAULT 0,
-price_annual DECIMAL(10,2) nullable,
+price DECIMAL(10,2) DEFAULT 0,
+interval_count TINYINT UNSIGNED DEFAULT 1,
+interval_unit ENUM(day|week|month|year|one_time) DEFAULT 'month',
+stripe_price_id VARCHAR(100) nullable,
 features JSON nullable,
-stripe_price_id_monthly VARCHAR(100) nullable,
-stripe_price_id_annual VARCHAR(100) nullable,
 is_active BOOLEAN DEFAULT true,
 is_public BOOLEAN DEFAULT true,
 sort_order INT DEFAULT 0,
@@ -61,7 +61,8 @@ billing_entity_id FK nullable,
 stripe_subscription_id VARCHAR(100) nullable,
 stripe_price_id VARCHAR(100) nullable,
 plan VARCHAR(100) nullable, price_monthly DECIMAL(10,2) nullable,
-billing_interval ENUM(monthly|annual|one_off) DEFAULT 'monthly',
+interval_count TINYINT UNSIGNED DEFAULT 1,
+interval_unit ENUM(day|week|month|year|one_time) DEFAULT 'month',
 status ENUM(active|trial|suspended|cancelled),
 trial_ends_at nullable, started_at nullable,
 next_billing_date DATE nullable,
@@ -72,7 +73,7 @@ cancelled_at nullable,
 oauth_client_id BIGINT nullable,
 wp_user_id BIGINT nullable,
 config JSON nullable, created_at, updated_at
-INDEXES: (customer_id, product_id), status, billing_interval, next_billing_date
+INDEXES: (customer_id, product_id), status, next_billing_date
 
 ## billing_entities
 id, name, legal_name, company_number, vat_number,

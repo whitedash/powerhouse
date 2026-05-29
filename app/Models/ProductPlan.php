@@ -14,18 +14,19 @@ use Illuminate\Support\Carbon;
  * @property int $product_id
  * @property string $name
  * @property string|null $description
- * @property string $price_monthly
- * @property string|null $price_annual
+ * @property string $price
+ * @property int $interval_count
+ * @property string $interval_unit
+ * @property string|null $stripe_price_id
  * @property array<int, string>|null $features
- * @property string|null $stripe_price_id_monthly
- * @property string|null $stripe_price_id_annual
  * @property bool $is_active
  * @property bool $is_public
  * @property int $sort_order
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read int|null $savings_percent
- * @property-read float|null $annual_monthly_cost
+ * @property-read string $interval_label
+ * @property-read float $mrr_contribution
+ * @property-read float $arr_contribution
  * @property-read Product|null $product
  * @property-read Collection<int, CustomerProduct> $customerProducts
  */
@@ -35,11 +36,11 @@ class ProductPlan extends Model
         'product_id',
         'name',
         'description',
-        'price_monthly',
-        'price_annual',
+        'price',
+        'interval_count',
+        'interval_unit',
+        'stripe_price_id',
         'features',
-        'stripe_price_id_monthly',
-        'stripe_price_id_annual',
         'is_active',
         'is_public',
         'sort_order',
@@ -48,8 +49,8 @@ class ProductPlan extends Model
     protected function casts(): array
     {
         return [
-            'price_monthly' => 'decimal:2',
-            'price_annual' => 'decimal:2',
+            'price' => 'decimal:2',
+            'interval_count' => 'integer',
             'features' => 'array',
             'is_active' => 'boolean',
             'is_public' => 'boolean',
@@ -68,42 +69,73 @@ class ProductPlan extends Model
     }
 
     /**
-     * Percentage saved by paying annually vs monthly × 12. Null when
-     * there's no annual price (or when monthly is zero, which would
-     * divide by zero and is meaningless anyway).
+     * Human-readable interval, used by every UI surface so they all
+     * agree on the wording. (1, month) → "Monthly"; (3, month) →
+     * "Every 3 months"; (1, year) → "Yearly"; one_time → "One-time".
      */
-    protected function savingsPercent(): Attribute
+    protected function intervalLabel(): Attribute
     {
-        return Attribute::get(function (): ?int {
-            $annual = $this->price_annual !== null ? (float) $this->price_annual : null;
-            $monthly = (float) $this->price_monthly;
-
-            if ($annual === null || $monthly <= 0) {
-                return null;
+        return Attribute::get(function (): string {
+            if ($this->interval_unit === 'one_time') {
+                return 'One-time';
             }
 
-            $monthlyEquivalent = $monthly * 12;
-            if ($monthlyEquivalent <= 0) {
-                return null;
+            $unit = $this->interval_unit;
+            $count = $this->interval_count;
+
+            if ($count === 1) {
+                return match ($unit) {
+                    'day' => 'Daily',
+                    'week' => 'Weekly',
+                    'month' => 'Monthly',
+                    'year' => 'Yearly',
+                    default => ucfirst($unit),
+                };
             }
 
-            return (int) round((1 - $annual / $monthlyEquivalent) * 100);
+            $plural = match ($unit) {
+                'day' => 'days',
+                'week' => 'weeks',
+                'month' => 'months',
+                'year' => 'years',
+                default => $unit,
+            };
+
+            return "Every {$count} {$plural}";
         });
     }
 
     /**
-     * Effective monthly cost when paying annually — used in pricing UI
-     * to show "£24.17/mo billed annually" alongside the full annual
-     * price.
+     * Normalises the plan's price into a monthly contribution. Used by
+     * MRR/ARR aggregations. one_time → 0 (one-offs don't recur);
+     * monthly subs divide by their interval_count so a "every 3 months
+     * £75" plan reports £25/mo MRR; annual subs divide by 12.
      */
-    protected function annualMonthlyCost(): Attribute
+    protected function mrrContribution(): Attribute
     {
-        return Attribute::get(function (): ?float {
-            if ($this->price_annual === null) {
-                return null;
-            }
+        return Attribute::get(function (): float {
+            $price = (float) $this->price;
+            $count = max(1, (int) $this->interval_count);
 
-            return round((float) $this->price_annual / 12, 2);
+            return match ($this->interval_unit) {
+                'one_time' => 0.0,
+                // 365 / 12 ≈ 30.42, the avg month length in days.
+                'day' => round($price * (365 / 12) / $count, 2),
+                // 52 weeks / 12 months ≈ 4.33.
+                'week' => round($price * (52 / 12) / $count, 2),
+                'month' => round($price / $count, 2),
+                'year' => round($price / ($count * 12), 2),
+                default => 0.0,
+            };
         });
+    }
+
+    /**
+     * ARR is just MRR × 12, derived for consistency. Reporting helpers
+     * read this rather than re-deriving it.
+     */
+    protected function arrContribution(): Attribute
+    {
+        return Attribute::get(fn (): float => round($this->mrr_contribution * 12, 2));
     }
 }
