@@ -88,13 +88,18 @@
 <meta charset="UTF-8">
 <title>Invoice {{ $invoice->number }} — {{ $entity?->name }}</title>
 <style>
-  /* dompdf honours @page margin and applies it as the printable area;
-     keep .page free of fixed height so content flows naturally onto
-     one page without an absolute footer and without padding it past
-     the printable surface (which used to trigger a blank page 2). */
+  /* Page margins are CSS-only in dompdf — the Options class has no
+     setMarginTop()/etc. methods, so set_option('margin_top', …) calls
+     silently no-op. The @page rule below is the single source of truth
+     for the printable area. Per-side declarations are used instead of
+     the shorthand because some dompdf versions parse only the per-side
+     form correctly when other @page properties (like size) are also set. */
   @page {
     size: A4 portrait;
-    margin: 18mm;
+    margin-top: 15mm;
+    margin-right: 15mm;
+    margin-bottom: 15mm;
+    margin-left: 15mm;
   }
   * {
     margin: 0;

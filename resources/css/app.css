@@ -1279,17 +1279,25 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
 .due-stack { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 
 /* Row state tints — overdue red, due-today amber, void faded.
- * Higher-specificity than `.tbl tbody tr:hover` so the tint wins. */
+ * Higher-specificity than `.tbl tbody tr:hover` so the tint wins.
+ * The coloured edge sits on the first cell only — applying border-left
+ * (or box-shadow) to every td would stripe it across all columns. */
 .invoices-list .tbl tbody tr.row-overdue td {
     background: var(--danger-bg);
-    box-shadow: inset 3px 0 0 var(--danger);
+}
+.invoices-list .tbl tbody tr.row-overdue td:first-child {
+    border-left: 3px solid var(--danger);
 }
 .invoices-list .tbl tbody tr.row-overdue:hover td { background: #FEF0F0; }
+
 .invoices-list .tbl tbody tr.row-due-today td {
     background: var(--warning-bg);
-    box-shadow: inset 2px 0 0 var(--warning);
+}
+.invoices-list .tbl tbody tr.row-due-today td:first-child {
+    border-left: 2px solid var(--warning);
 }
 .invoices-list .tbl tbody tr.row-due-today:hover td { background: #FFF7E5; }
+
 .invoices-list .tbl tbody tr.row-void td { opacity: .6; }
 
 /* Customer cell sizing differs from Phase 3 — scoped */
@@ -2710,7 +2718,7 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     text-transform: uppercase;
     letter-spacing: .12em;
     color: var(--text-secondary);
-    margin-top: -8px;
+    margin-top: 4px;
 }
 .dashboard .kpi-mid {
     display: flex;
