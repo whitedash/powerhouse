@@ -4,9 +4,11 @@ namespace App\Console\Commands;
 
 use App\Models\ActivityLog;
 use App\Models\Invoice;
+use App\Services\ReminderTemplateService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class SendInvoiceReminders extends Command
 {
@@ -18,8 +20,13 @@ class SendInvoiceReminders extends Command
      * Tier matrix — keyed on `days_overdue` (negative = days until due,
      * positive = days past due). Each tier dictates the next-reminder
      * cadence after firing.
+     *
+     * Exposed as a public constant so the manual-reminder controller
+     * path can resolve the same tier the automated sweep would.
+     *
+     * @var array<string, array{min: int, next_in_days: int|null}>
      */
-    private const TIERS = [
+    public const TIERS = [
         // days_overdue >= 30 → final notice, next nudge in 30 days
         'final_notice' => ['min' => 30, 'next_in_days' => 30],
         'second_reminder' => ['min' => 14, 'next_in_days' => 14],
@@ -28,7 +35,7 @@ class SendInvoiceReminders extends Command
         'due_soon' => ['min' => -3, 'next_in_days' => null], // next = due_date
     ];
 
-    public function handle(): int
+    public function handle(ReminderTemplateService $templates): int
     {
         $now = now();
 
@@ -82,7 +89,17 @@ class SendInvoiceReminders extends Command
             $contact = $invoice->customer->primaryContact;
             $recipient = $contact ? $contact->email : 'unknown';
 
-            DB::transaction(function () use ($invoice, $tier, $daysOverdue, $now, $recipient) {
+            // Resolve and render the template OUTSIDE the transaction
+            // so a missing/inactive template doesn't roll back the
+            // reminder count + next_reminder_at update. The reminder
+            // is still "logged"; the body just falls back to a tier-
+            // shaped placeholder.
+            $template = $templates->getTemplateForTier($tier);
+            $rendered = $template !== null
+                ? $templates->renderTemplate($template, $invoice)
+                : null;
+
+            DB::transaction(function () use ($invoice, $tier, $daysOverdue, $now, $recipient, $rendered) {
                 $invoice->increment('reminder_count');
 
                 $nextAt = self::TIERS[$tier]['next_in_days'] === null
@@ -106,13 +123,23 @@ class SendInvoiceReminders extends Command
                         'reminder_count' => $invoice->reminder_count,
                         'recipient' => $recipient,
                         'method' => 'automated',
+                        // Capture the rendered subject + body preview
+                        // so the audit log lets staff see exactly what
+                        // would be (or was, once email is live) sent.
+                        'subject' => $rendered['subject'] ?? null,
+                        'body_preview' => $rendered !== null
+                            ? Str::limit($rendered['body'], 200)
+                            : null,
+                        'email_ready' => $rendered !== null,
                     ],
                     'ip_address' => null,
                     'user_agent' => 'invoices:send-reminders',
                 ]);
 
-                // TODO: queue Postmark email here once the email sprint runs.
-                // InvoiceReminderMail::dispatch($invoice, $tier);
+                // TODO: dispatch Postmark email here once the email sprint
+                // runs — the rendered subject + body are already on $rendered
+                // for the mailable to consume.
+                // Mail::to($recipient)->send(new InvoiceReminderMail($invoice, $rendered));
             });
 
             $this->info("Reminder sent: {$invoice->number} ({$tier})");
@@ -122,6 +149,17 @@ class SendInvoiceReminders extends Command
         $this->info("Done. {$processed} reminder".($processed === 1 ? '' : 's').' processed.');
 
         return self::SUCCESS;
+    }
+
+    public static function resolveTierFor(int $daysOverdue): ?string
+    {
+        foreach (self::TIERS as $tier => $config) {
+            if ($daysOverdue >= $config['min']) {
+                return $tier;
+            }
+        }
+
+        return null;
     }
 
     private function resolveTier(int $daysOverdue): ?string

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Console\Commands\SendInvoiceReminders;
 use App\Events\PaginatedListAccessed;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreInvoiceRequest;
@@ -12,6 +13,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Product;
 use App\Models\ProductPlan;
+use App\Services\ReminderTemplateService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +22,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -811,9 +814,9 @@ class InvoiceController extends Controller
         return back()->with('success', 'Invoice marked as sent. Email delivery will be added in a future sprint.');
     }
 
-    public function sendReminder(int $id, Request $request): RedirectResponse
+    public function sendReminder(int $id, Request $request, ReminderTemplateService $templates): RedirectResponse
     {
-        $invoice = Invoice::with('customer.primaryContact')->findOrFail($id);
+        $invoice = Invoice::with('customer.primaryContact', 'billingEntity')->findOrFail($id);
         Gate::authorize('sendReminder', $invoice);
 
         // Throttle: one manual reminder per calendar day per invoice.
@@ -826,7 +829,23 @@ class InvoiceController extends Controller
         $contact = $invoice->customer->primaryContact;
         $recipient = $contact ? $contact->email : 'unknown';
 
-        DB::transaction(function () use ($invoice, $request, $recipient) {
+        // Resolve the tier the same way the automated sweep would,
+        // then render the matching template. The manual path uses
+        // the same template system so the customer sees a consistent
+        // tone regardless of how the reminder was fired.
+        $daysOverdue = 0;
+        if ($invoice->due_date) {
+            $today = now()->startOfDay();
+            $due = $invoice->due_date->copy()->startOfDay();
+            $daysOverdue = $due->isPast() ? (int) $today->diffInDays($due) : -((int) $today->diffInDays($due));
+        }
+        $tier = SendInvoiceReminders::resolveTierFor($daysOverdue);
+        $template = $tier !== null ? $templates->getTemplateForTier($tier) : null;
+        $rendered = $template !== null
+            ? $templates->renderTemplate($template, $invoice)
+            : null;
+
+        DB::transaction(function () use ($invoice, $request, $recipient, $tier, $rendered) {
             $invoice->increment('reminder_count');
             $invoice->update([
                 'last_reminder_sent_at' => now(),
@@ -846,10 +865,21 @@ class InvoiceController extends Controller
                 'reminder_count' => $invoice->reminder_count,
                 'recipient' => $recipient,
                 'method' => 'manual',
+                'tier' => $tier,
+                // Render preview is captured so the audit log surface
+                // can show staff exactly what the email layer would
+                // send for this invoice today.
+                'subject' => $rendered['subject'] ?? null,
+                'body_preview' => $rendered !== null
+                    ? Str::limit($rendered['body'], 200)
+                    : null,
+                'email_ready' => $rendered !== null,
             ]);
 
-            // TODO: queue Postmark email here when the email sprint runs.
-            // InvoiceReminderMail::dispatch($invoice, 'manual');
+            // TODO: dispatch Postmark email here when the email sprint
+            // runs — the rendered subject + body are already ready for
+            // the mailable to consume.
+            // Mail::to($recipient)->send(new InvoiceReminderMail($invoice, $rendered));
         });
 
         $name = $invoice->customer->name;

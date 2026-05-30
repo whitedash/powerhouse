@@ -8,10 +8,13 @@ use App\Models\BillingEntity;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Product;
+use App\Models\ReminderTemplate;
 use App\Models\Setting;
 use App\Models\SupportTicket;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\ReminderTemplateService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -315,6 +318,94 @@ class SettingsController extends Controller
         });
 
         return back()->with('success', 'Notification settings updated.');
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────
+     * REMINDER TEMPLATES
+     *
+     * Five tier-keyed email templates rendered by the
+     * ReminderTemplateService when an invoice reminder fires. The
+     * settings page lets the operator edit subject + body and preview
+     * the rendered output against a real invoice.
+     * ─────────────────────────────────────────────────────────────── */
+
+    public function reminderTemplates(): Response
+    {
+        $templates = ReminderTemplate::orderByRaw(
+            "FIELD(tier, 'due_soon','due_today','first_reminder','second_reminder','final_notice')"
+        )->get();
+
+        return Inertia::render('Internal/Settings/ReminderTemplates', [
+            'templates' => $templates->map(fn (ReminderTemplate $t): array => [
+                'id' => $t->id,
+                'name' => $t->name,
+                'tier' => $t->tier,
+                'subject' => $t->subject,
+                'body' => $t->body,
+                'tone' => $t->tone,
+                'is_active' => (bool) $t->is_active,
+                'variables_used' => $t->variables_used ?? [],
+            ])->all(),
+            'available_variables' => ReminderTemplate::AVAILABLE_VARIABLES,
+        ]);
+    }
+
+    public function reminderTemplatesUpdate(int $id, Request $request): RedirectResponse
+    {
+        $template = ReminderTemplate::findOrFail($id);
+
+        $data = $request->validate([
+            'subject' => ['required', 'string', 'max:255'],
+            'body' => ['required', 'string', 'max:20000'],
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        DB::transaction(function () use ($template, $data, $request) {
+            $before = [
+                'subject' => $template->subject,
+                'is_active' => $template->is_active,
+            ];
+            $template->update($data);
+
+            $this->logActivity($request, 'reminder_template.updated', 'reminder_template', $template->id, $before, [
+                'subject' => $template->subject,
+                'is_active' => (bool) $template->is_active,
+            ]);
+        });
+
+        return back()->with('success', 'Template updated.');
+    }
+
+    /**
+     * Render the template against the most recently created invoice so
+     * the operator can see exactly what the email will look like. Falls
+     * back to a synthetic placeholder when no invoice exists yet — a
+     * fresh install shouldn't 404 on preview.
+     */
+    public function reminderTemplatesPreview(int $id, ReminderTemplateService $service): JsonResponse
+    {
+        $template = ReminderTemplate::findOrFail($id);
+
+        $invoice = Invoice::with(['customer.primaryContact', 'billingEntity'])
+            ->orderByDesc('id')
+            ->first();
+
+        if ($invoice === null) {
+            return response()->json([
+                'subject' => $template->subject,
+                'body' => $template->body,
+                'note' => 'No invoices exist yet — placeholders not substituted.',
+            ]);
+        }
+
+        $rendered = $service->renderTemplate($template, $invoice);
+
+        return response()->json([
+            'subject' => $rendered['subject'],
+            'body' => $rendered['body'],
+            'invoice_number' => $invoice->number,
+            'customer_name' => $invoice->customer?->name,
+        ]);
     }
 
     /* ─────────────────────────────────────────────────────────────────────

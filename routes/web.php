@@ -231,6 +231,15 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         // Notifications
         Route::get('/notifications', [InternalSettingsController::class, 'notifications'])->name('notifications');
         Route::post('/notifications', [InternalSettingsController::class, 'notificationsUpdate'])->name('notifications.update');
+        // Reminder templates — edit subject/body per escalation tier
+        // and preview against the most recent invoice.
+        Route::get('/reminder-templates', [InternalSettingsController::class, 'reminderTemplates'])->name('reminder-templates');
+        Route::put('/reminder-templates/{id}', [InternalSettingsController::class, 'reminderTemplatesUpdate'])
+            ->whereNumber('id')
+            ->name('reminder-templates.update');
+        Route::post('/reminder-templates/{id}/preview', [InternalSettingsController::class, 'reminderTemplatesPreview'])
+            ->whereNumber('id')
+            ->name('reminder-templates.preview');
 
         // Integrations
         Route::get('/integrations', [InternalSettingsController::class, 'integrations'])->name('integrations');
