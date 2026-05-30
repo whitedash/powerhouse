@@ -1,9 +1,7 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
 import {
-    IconCircleCheck,
     IconLock,
-    IconAlertCircle,
     IconUser,
     IconCreditCard,
     IconShieldLock,
@@ -55,21 +53,6 @@ function submitPayment() {
 <template>
     <Head title="Account · Whitedash Partners" />
     <ReferrerLayout title="Account" active-nav="account">
-        <div
-            v-if="$page.props.flash?.success"
-            class="portal-flash success"
-        >
-            <IconCircleCheck :size="16" stroke-width="2" />
-            {{ $page.props.flash.success }}
-        </div>
-        <div
-            v-if="$page.props.flash?.error"
-            class="portal-flash error"
-        >
-            <IconAlertCircle :size="16" stroke-width="2" />
-            {{ $page.props.flash.error }}
-        </div>
-
         <div class="portal-section-head">
             <div class="col-l">
                 <h2>Your account</h2>

@@ -71,6 +71,9 @@ const props = defineProps({
     contact_roles: { type: Array, default: () => [] },
     note_types: { type: Array, default: () => [] },
     types: { type: Array, default: () => [] },
+    // Empty when a referral is already attached; otherwise carries
+    // every active referrer for the "Add referral" picker.
+    available_referrers: { type: Array, default: () => [] },
 });
 
 const PIPELINE_LABELS = {
@@ -719,7 +722,27 @@ function performRevokePortal() {
     );
 }
 
-/* ─── Remove referral attribution (super_admin only) ─── */
+/* ─── Add / remove referral attribution (super_admin only) ─── */
+const showAddReferral = ref(false);
+const addReferralForm = useForm({
+    referrer_id: null,
+    attributed_at: '',
+});
+function openAddReferral() {
+    addReferralForm.reset();
+    addReferralForm.clearErrors();
+    showAddReferral.value = true;
+}
+function submitAddReferral() {
+    addReferralForm.post(`/customers/${props.customer.id}/referral`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showAddReferral.value = false;
+            addReferralForm.reset();
+        },
+    });
+}
+
 const showRemoveReferral = ref(false);
 const removeReferralProcessing = ref(false);
 
@@ -1127,15 +1150,6 @@ const contractDeleteMessage = computed(() =>
                     <span v-if="t.count != null" class="count">{{ t.count }}</span>
                 </button>
             </nav>
-
-            <!-- ═══ Flash success banner (post-redirect) ═══ -->
-            <div
-                v-if="$page.props.flash?.success"
-                style="margin: 16px -24px 0; padding: 10px 14px; background: var(--success-bg); color: #047857; border-bottom: 1px solid #A7F3D0; font: 500 13px/1 'Inter', sans-serif;"
-            >
-                <IconCheck :size="16" stroke-width="2" style="vertical-align: middle; margin-right: 6px;" />
-                {{ $page.props.flash.success }}
-            </div>
 
             <!-- ═══ OVERVIEW TAB ═══ -->
             <div v-if="activeTab === 'overview'" class="cust-detail-content" style="margin: 0 -24px -24px;">
@@ -1636,7 +1650,7 @@ const contractDeleteMessage = computed(() =>
                     </section>
 
                     <!-- Referral -->
-                    <section v-if="customer.referrer" class="card">
+                    <section class="card">
                         <header class="card-header">
                             <div class="h-icon"><IconUsersGroup :size="16" stroke-width="1.75" /></div>
                             <div>
@@ -1644,27 +1658,45 @@ const contractDeleteMessage = computed(() =>
                                 <div class="sub">Commission tracking</div>
                             </div>
                         </header>
-                        <div class="ref-block">
-                            <div class="avatar av-amber">{{ userInitials(customer.referrer.name) }}</div>
-                            <div>
-                                <div class="ref-name">{{ customer.referrer.name }}</div>
-                                <div class="ref-sub">Referred {{ formatDate(customer.referrer.attributed_at) }}</div>
+                        <template v-if="customer.referrer">
+                            <div class="ref-block">
+                                <div class="avatar av-amber">{{ userInitials(customer.referrer.name) }}</div>
+                                <div>
+                                    <div class="ref-name">{{ customer.referrer.name }}</div>
+                                    <div class="ref-sub">Referred {{ formatDate(customer.referrer.attributed_at) }}</div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="meta-pair">
-                            <div class="k">Commission model<span class="sub">{{ customer.products[0]?.name || 'No active product' }} hybrid</span></div>
-                        </div>
-                        <div class="note-foot">
-                            <Link href="/referrers" class="ghost-link">View referrer<IconArrowRight :size="14" stroke-width="1.75" /></Link>
+                            <div class="meta-pair">
+                                <div class="k">Commission model<span class="sub">{{ customer.products[0]?.name || 'No active product' }} hybrid</span></div>
+                            </div>
+                            <div class="note-foot">
+                                <Link href="/referrers" class="ghost-link">View referrer<IconArrowRight :size="14" stroke-width="1.75" /></Link>
+                                <button
+                                    v-if="canRemoveReferral"
+                                    type="button"
+                                    class="ghost-link danger"
+                                    style="font-size: 11px; margin-left: auto;"
+                                    @click="showRemoveReferral = true"
+                                >
+                                    Remove referral
+                                </button>
+                            </div>
+                        </template>
+                        <div v-else class="referral-empty">
+                            <IconUsersGroup :size="22" stroke-width="1.5" />
+                            <span class="referral-empty-text">No referral attribution</span>
                             <button
-                                v-if="canRemoveReferral"
+                                v-if="canRemoveReferral && available_referrers.length"
                                 type="button"
-                                class="ghost-link danger"
-                                style="font-size: 11px; margin-left: auto;"
-                                @click="showRemoveReferral = true"
+                                class="ghost-link"
+                                style="font-size: 12px;"
+                                @click="openAddReferral"
                             >
-                                Remove referral
+                                + Add referral
                             </button>
+                            <span v-else-if="canRemoveReferral" class="referral-empty-hint">
+                                Add a referrer in Settings → Referrers first.
+                            </span>
                         </div>
                     </section>
 
@@ -3174,6 +3206,61 @@ const contractDeleteMessage = computed(() =>
                                 <button type="submit" class="btn btn-primary" :disabled="contractForm.processing">
                                     <IconCheck :size="14" stroke-width="2" />
                                     {{ contractForm.processing ? 'Saving…' : (editingContractId ? 'Save changes' : 'Add contract') }}
+                                </button>
+                            </footer>
+                        </form>
+                    </aside>
+                </div>
+            </transition>
+        </Teleport>
+
+        <!-- ═══ ADD REFERRAL SLIDE-OVER (super_admin only) ═══ -->
+        <Teleport to="body">
+            <transition name="slide-over">
+                <div v-if="showAddReferral" class="slide-over">
+                    <div class="slide-over-backdrop" @click="showAddReferral = false" />
+                    <aside class="slide-over-panel" style="width: 400px;" role="dialog" aria-modal="true">
+                        <form class="slide-over-form" @submit.prevent="submitAddReferral">
+                            <header class="slide-over-header">
+                                <h2>Add referral attribution</h2>
+                                <button type="button" class="icon-btn" aria-label="Close" @click="showAddReferral = false">
+                                    <IconX :size="18" stroke-width="1.75" />
+                                </button>
+                            </header>
+                            <div class="slide-over-body">
+                                <div class="form-section">
+                                    <div class="muted-note">
+                                        Attribution drives future commission accrual on this customer. Past commissions are not touched.
+                                    </div>
+                                </div>
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Referred by<span class="req">*</span></label>
+                                            <select v-model="addReferralForm.referrer_id" required :class="{ 'has-err': addReferralForm.errors.referrer_id }">
+                                                <option :value="null" disabled>Select referrer…</option>
+                                                <option v-for="r in available_referrers" :key="r.id" :value="r.id">
+                                                    {{ r.name }}<template v-if="r.email"> ({{ r.email }})</template>
+                                                </option>
+                                            </select>
+                                            <div v-if="addReferralForm.errors.referrer_id" class="err">{{ addReferralForm.errors.referrer_id }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Attribution date <span style="color: var(--text-tertiary); font-weight: 400;">(optional)</span></label>
+                                            <input v-model="addReferralForm.attributed_at" type="date" :class="{ 'has-err': addReferralForm.errors.attributed_at }">
+                                            <div class="field-help">Defaults to today if not specified.</div>
+                                            <div v-if="addReferralForm.errors.attributed_at" class="err">{{ addReferralForm.errors.attributed_at }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <footer class="slide-over-footer">
+                                <button type="button" class="btn btn-secondary" @click="showAddReferral = false">Cancel</button>
+                                <button type="submit" class="btn btn-primary" :disabled="addReferralForm.processing || ! addReferralForm.referrer_id">
+                                    <IconCheck :size="14" stroke-width="2" />
+                                    {{ addReferralForm.processing ? 'Adding…' : 'Add referral' }}
                                 </button>
                             </footer>
                         </form>

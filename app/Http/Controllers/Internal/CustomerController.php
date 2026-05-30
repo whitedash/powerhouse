@@ -342,6 +342,28 @@ class CustomerController extends Controller
                     ]
                     : null,
 
+                // Empty array when a referral is already attached — the
+                // Vue side uses available_referrers.length === 0 + the
+                // existing customer.referrer presence to decide which
+                // sub-state of the Referral card to render. Only super_admin
+                // can act on the list, but exposing it for everyone is
+                // cheap and the policy gate fires server-side anyway.
+                'available_referrers' => $customer->referral
+                    ? []
+                    : Referrer::where('is_active', true)
+                        ->with('user:id,name,email')
+                        ->get()
+                        ->map(fn (Referrer $r): array => [
+                            'id' => $r->id,
+                            // Referrer.user is eager-loaded and the FK
+                            // is NOT NULL — phpstan won't accept the
+                            // nullsafe so we trust the relation here.
+                            'name' => $r->user->name,
+                            'email' => $r->user->email,
+                        ])
+                        ->values()
+                        ->all(),
+
                 'group' => $firstGroup
                     ? [
                         'id' => $firstGroup->id,
@@ -906,6 +928,59 @@ class CustomerController extends Controller
      * row that ever existed. Status='voided' takes them out of the
      * "owed to referrer" sum without destroying audit history.
      */
+    /**
+     * Attach a new referral to a customer. The route is super_admin-only
+     * for the same reason removeReferral is — attribution flips future
+     * commission accrual, so a casual mis-click would silently start
+     * paying somebody. Only one referral per customer, enforced here
+     * rather than via a DB unique because we want a friendly error
+     * message rather than a 500.
+     */
+    public function addReferral(int $id, Request $request): RedirectResponse
+    {
+        $customer = Customer::findOrFail($id);
+        Gate::authorize('update', $customer);
+
+        $user = $request->user();
+        abort_unless($user?->isSuperAdmin(), 403, 'Only a super_admin can attach a referral.');
+
+        if (CustomerReferral::where('customer_id', $customer->id)->exists()) {
+            return back()->with(
+                'error',
+                'This customer already has a referral attribution. Remove it first.',
+            );
+        }
+
+        $data = $request->validate([
+            'referrer_id' => ['required', 'integer', 'exists:referrers,id'],
+            'attributed_at' => ['nullable', 'date', 'before_or_equal:today'],
+        ]);
+
+        DB::transaction(function () use ($customer, $data, $request): void {
+            CustomerReferral::create([
+                'customer_id' => $customer->id,
+                'referrer_id' => $data['referrer_id'],
+                'attributed_at' => $data['attributed_at'] ?? now(),
+            ]);
+
+            ActivityLog::create([
+                'user_id' => $request->user()?->id,
+                'user_role' => $request->user()?->role,
+                'action' => 'customer.referral_added',
+                'entity_type' => 'customer',
+                'entity_id' => $customer->id,
+                'after' => [
+                    'referrer_id' => $data['referrer_id'],
+                    'attributed_at' => $data['attributed_at'] ?? null,
+                ],
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 500),
+            ]);
+        });
+
+        return back()->with('success', 'Referral attribution added.');
+    }
+
     public function removeReferral(int $id, Request $request): RedirectResponse
     {
         $customer = Customer::findOrFail($id);

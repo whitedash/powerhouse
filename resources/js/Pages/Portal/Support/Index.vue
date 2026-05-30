@@ -7,7 +7,6 @@ import {
     IconMessageCircle,
     IconPlus,
     IconX,
-    IconCircleCheck,
     IconAlertCircle,
 } from '@tabler/icons-vue';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
@@ -67,14 +66,6 @@ function submit() {
 <template>
     <Head title="Support · Whitedash" />
     <PortalLayout title="Support" active-nav="support" :counts="counts">
-        <div
-            v-if="$page.props.flash?.success"
-            class="portal-flash success"
-        >
-            <IconCircleCheck :size="16" stroke-width="2" />
-            {{ $page.props.flash.success }}
-        </div>
-
         <div class="portal-section-head">
             <div class="col-l">
                 <h2>Support tickets</h2>

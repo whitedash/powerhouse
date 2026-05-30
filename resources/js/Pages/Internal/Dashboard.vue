@@ -717,15 +717,19 @@ function performComplete() {
                             <div
                                 v-for="t in tasks"
                                 :key="t.id"
-                                class="dash-act-row"
+                                class="dash-act-row clickable"
                                 :class="{ completing: completingId === t.id }"
+                                role="link"
+                                tabindex="0"
+                                @click="router.visit(`/activities/${t.id}`)"
+                                @keydown.enter="router.visit(`/activities/${t.id}`)"
                             >
                                 <button
                                     type="button"
                                     class="cb"
                                     :aria-label="`Complete activity: ${t.title}`"
                                     :disabled="completingId === t.id"
-                                    @click="askComplete(t)"
+                                    @click.stop="askComplete(t)"
                                 />
                                 <span
                                     class="dash-act-type-icon"

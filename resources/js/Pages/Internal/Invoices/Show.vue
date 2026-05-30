@@ -17,7 +17,6 @@ import {
     IconCircleCheckFilled,
     IconFilePlus,
     IconClock,
-    IconAlertCircle,
     IconRefresh,
     IconX,
 } from '@tabler/icons-vue';
@@ -321,22 +320,6 @@ const icons = {
                 Mark as paid
             </button>
         </template>
-
-        <!-- Flash success banner -->
-        <div
-            v-if="$page.props.flash?.success"
-            style="margin-bottom: 12px; padding: 10px 14px; background: var(--success-bg); color: #047857; border: 1px solid #A7F3D0; border-radius: var(--radius-md); font: 500 13px/1.4 'Inter', sans-serif; display: flex; align-items: center; gap: 8px;"
-        >
-            <IconCheck :size="16" stroke-width="2" />
-            {{ $page.props.flash.success }}
-        </div>
-        <div
-            v-if="$page.props.flash?.error"
-            style="margin-bottom: 12px; padding: 10px 14px; background: var(--danger-bg); color: var(--danger); border: 1px solid #FECACA; border-radius: var(--radius-md); font: 500 13px/1.4 'Inter', sans-serif; display: flex; align-items: center; gap: 8px;"
-        >
-            <IconAlertCircle :size="16" stroke-width="2" />
-            {{ $page.props.flash.error }}
-        </div>
 
         <div class="inv-detail">
             <div class="inv-detail-grid">

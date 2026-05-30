@@ -160,16 +160,6 @@ function handleDelete() {
             </button>
         </template>
 
-        <!-- Flash banners -->
-        <div
-            v-if="$page.props.flash?.success"
-            style="margin-bottom: 12px; padding: 10px 14px; background: var(--success-bg); color: #047857; border: 1px solid #A7F3D0; border-radius: var(--radius-md); font: 500 13px/1.4 'Inter', sans-serif;"
-        >{{ $page.props.flash.success }}</div>
-        <div
-            v-if="$page.props.flash?.error"
-            style="margin-bottom: 12px; padding: 10px 14px; background: var(--danger-bg); color: var(--danger); border: 1px solid #FECACA; border-radius: var(--radius-md); font: 500 13px/1.4 'Inter', sans-serif;"
-        >{{ $page.props.flash.error }}</div>
-
         <!-- Summary pills -->
         <div class="stat-pill-row" style="display: flex; gap: 10px; margin-bottom: 18px;">
             <span class="stat-pill">

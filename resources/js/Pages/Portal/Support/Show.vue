@@ -3,7 +3,6 @@ import { computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import {
     IconArrowLeft,
-    IconCircleCheck,
 } from '@tabler/icons-vue';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
 
@@ -35,14 +34,6 @@ const canReply = computed(() => !['closed'].includes(props.ticket.status));
 <template>
     <Head :title="`#TK-${ticket.id} · Support`" />
     <PortalLayout :title="`Ticket #TK-${ticket.id}`" active-nav="support">
-        <div
-            v-if="$page.props.flash?.success"
-            class="portal-flash success"
-        >
-            <IconCircleCheck :size="16" stroke-width="2" />
-            {{ $page.props.flash.success }}
-        </div>
-
         <div class="portal-ticket-back">
             <Link href="/portal/support" class="ghost-link">
                 <IconArrowLeft :size="14" stroke-width="1.75" />

@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { IconAlertCircle, IconArrowLeft, IconCircleCheck, IconMail } from '@tabler/icons-vue';
+import { IconAlertCircle, IconArrowLeft, IconMail } from '@tabler/icons-vue';
 
 const form = useForm({
     email: '',
@@ -27,14 +27,6 @@ function submit() {
             <p class="portal-login-subtitle">
                 Enter the email tied to your portal account. If it matches, we'll send you a reset link.
             </p>
-
-            <div
-                v-if="$page.props.flash?.success"
-                class="portal-login-flash success"
-            >
-                <IconCircleCheck :size="16" stroke-width="2" />
-                {{ $page.props.flash.success }}
-            </div>
 
             <div
                 v-if="form.errors.email"

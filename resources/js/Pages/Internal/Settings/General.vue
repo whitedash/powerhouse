@@ -13,11 +13,6 @@ defineProps({
     <SettingsLayout title="Settings" active-section="general">
         <h1 class="set-title">General</h1>
 
-        <div
-            v-if="$page.props.flash?.success"
-            style="margin-bottom: 14px; padding: 10px 14px; background: var(--success-bg); color: #047857; border: 1px solid #A7F3D0; border-radius: var(--radius-md); font: 500 13px/1.4 'Inter', sans-serif;"
-        >{{ $page.props.flash.success }}</div>
-
         <div class="sec-label">Workspace</div>
         <div class="form-grid-2">
             <div class="field">

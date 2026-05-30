@@ -375,15 +375,14 @@ function handleDiscard() {
         </template>
 
         <div class="new-invoice">
-            <!-- Flash + validation banner -->
+            <!-- Validation errors -->
             <div
-                v-if="$page.props.flash?.error || Object.keys(form.errors).length"
+                v-if="Object.keys(form.errors).length"
                 style="margin-bottom: 12px; padding: 10px 14px; background: var(--danger-bg); color: var(--danger); border: 1px solid #FECACA; border-radius: var(--radius-md); font: 500 13px/1.4 'Inter', sans-serif; display: flex; align-items: flex-start; gap: 8px;"
             >
                 <IconAlertCircle :size="16" stroke-width="2" style="flex-shrink: 0; margin-top: 1px;" />
                 <div>
-                    <div v-if="$page.props.flash?.error">{{ $page.props.flash.error }}</div>
-                    <ul v-if="Object.keys(form.errors).length" style="margin: 0; padding-left: 16px;">
+                    <ul style="margin: 0; padding-left: 16px;">
                         <li v-for="(msg, field) in form.errors" :key="field">{{ msg }}</li>
                     </ul>
                 </div>

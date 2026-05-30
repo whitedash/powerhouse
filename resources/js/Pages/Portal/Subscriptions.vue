@@ -3,7 +3,6 @@ import { computed, ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import {
     IconCalendar,
-    IconCircleCheck,
     IconCreditCard,
     IconPlus,
     IconAlertCircle,
@@ -117,21 +116,6 @@ function submitSubscribe() {
 <template>
     <Head title="Subscriptions · Whitedash" />
     <PortalLayout title="Subscriptions" active-nav="subscriptions" :counts="counts">
-        <div
-            v-if="$page.props.flash?.success"
-            class="portal-flash success"
-        >
-            <IconCircleCheck :size="16" stroke-width="2" />
-            {{ $page.props.flash.success }}
-        </div>
-        <div
-            v-if="$page.props.flash?.error"
-            class="portal-flash error"
-        >
-            <IconAlertCircle :size="16" stroke-width="2" />
-            {{ $page.props.flash.error }}
-        </div>
-
         <div class="portal-section-head">
             <div class="col-l">
                 <h2>Active subscriptions</h2>

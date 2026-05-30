@@ -152,6 +152,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // nothing a regular staff member should be able to trigger on
     // their own.
     Route::middleware('role:super_admin')->group(function () {
+        Route::post('/customers/{id}/referral', [InternalCustomerController::class, 'addReferral'])->name('internal.customers.referral.add');
         Route::delete('/customers/{id}/referral', [InternalCustomerController::class, 'removeReferral'])->name('internal.customers.referral.remove');
     });
 

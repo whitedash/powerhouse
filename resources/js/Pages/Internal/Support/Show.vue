@@ -11,7 +11,6 @@ import {
     IconArrowLeft,
     IconSend,
     IconCheck,
-    IconAlertCircle,
     IconUser,
     IconClock,
     IconAlertTriangle,
@@ -178,20 +177,6 @@ function viewAllTicketsForCustomer() {
         </template>
 
         <div class="support-show">
-            <!-- Flash banners -->
-            <div
-                v-if="page.props.flash?.success"
-                style="margin-bottom: 14px; padding: 10px 14px; background: var(--success-bg); color: #047857; border: 1px solid #A7F3D0; border-radius: var(--radius-md); font: 500 13px/1.4 'Inter', sans-serif; display: flex; align-items: center; gap: 8px;"
-            >
-                <IconCheck :size="16" stroke-width="2" />{{ page.props.flash.success }}
-            </div>
-            <div
-                v-if="page.props.flash?.error"
-                style="margin-bottom: 14px; padding: 10px 14px; background: var(--danger-bg); color: var(--danger); border: 1px solid #FECACA; border-radius: var(--radius-md); font: 500 13px/1.4 'Inter', sans-serif; display: flex; align-items: center; gap: 8px;"
-            >
-                <IconAlertCircle :size="16" stroke-width="2" />{{ page.props.flash.error }}
-            </div>
-
             <div class="support-grid">
                 <!-- LEFT 65% — conversation -->
                 <div class="support-conversation">
