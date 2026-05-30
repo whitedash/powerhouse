@@ -495,6 +495,11 @@ const page = usePage();
                                     </MenuButton>
                                     <MenuItems class="dd-popover right-align">
                                         <MenuItem v-slot="{ active }">
+                                            <Link :href="`/referrers/${r.id}`" :class="['dd-option', { active }]">
+                                                View referrer
+                                            </Link>
+                                        </MenuItem>
+                                        <MenuItem v-slot="{ active }">
                                             <button type="button" :class="['dd-option', { active }]" @click="openReferrerPreview(r.id)">
                                                 Preview referrer portal
                                             </button>

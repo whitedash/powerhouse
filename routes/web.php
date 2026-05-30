@@ -51,6 +51,9 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         Route::get('/customers', [InternalCustomerController::class, 'index'])->name('internal.customers.index');
         Route::get('/invoices', [InternalInvoiceController::class, 'index'])->name('internal.invoices.index');
         Route::get('/referrers', [InternalReferrerController::class, 'index'])->name('internal.referrers.index');
+        Route::get('/referrers/{id}', [InternalReferrerController::class, 'show'])
+            ->whereNumber('id')
+            ->name('internal.referrers.show');
     });
 
     // Mutations live outside the throttle group — bulk approvals can

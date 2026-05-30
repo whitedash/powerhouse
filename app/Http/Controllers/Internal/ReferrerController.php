@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\CommissionLedger;
 use App\Models\CommissionRule;
+use App\Models\CustomerReferral;
 use App\Models\Referrer;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -151,6 +152,181 @@ class ReferrerController extends Controller
                 ->sum('commission_amount'),
             'total_customers' => $referrers->sum('customer_count'),
             'pending_count' => CommissionLedger::where('status', 'pending')->count(),
+        ]);
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────
+     * SHOW — staff-facing detail page for a single referrer.
+     *
+     * Surfaces the per-referrer numbers that get rolled up on the
+     * /referrers index: KPI cards, paginated commission ledger,
+     * the customers they brought in, their active commission rules,
+     * and a 6-month trend for performance review.
+     * ─────────────────────────────────────────────────────────────── */
+
+    public function show(int $id): Response
+    {
+        $referrer = Referrer::with('user:id,name,email,role,created_at,avatar_colour')
+            ->findOrFail($id);
+
+        if (! $referrer->user) {
+            abort(404, 'Referrer is missing its user record.');
+        }
+
+        $now = now();
+        $monthStart = $now->copy()->startOfMonth();
+
+        // ── KPI bucket. Each line stands alone because the dashboard
+        //    card it feeds also reads it that way; pre-aggregating
+        //    here keeps the Vue side dumb.
+        $kpis = [
+            'total_customers' => CustomerReferral::where('referrer_id', $id)->count(),
+            'active_customers' => CustomerReferral::where('referrer_id', $id)
+                ->whereHas('customer', fn ($q) => $q->whereNull('archived_at'))
+                ->count(),
+            'pending_commission' => (float) CommissionLedger::where('referrer_id', $id)
+                ->where('status', 'pending')
+                ->sum('commission_amount'),
+            'approved_commission' => (float) CommissionLedger::where('referrer_id', $id)
+                ->where('status', 'approved')
+                ->sum('commission_amount'),
+            'paid_all_time' => (float) CommissionLedger::where('referrer_id', $id)
+                ->where('status', 'paid')
+                ->sum('commission_amount'),
+            'paid_this_year' => (float) CommissionLedger::where('referrer_id', $id)
+                ->where('status', 'paid')
+                ->whereYear('paid_at', $now->year)
+                ->sum('commission_amount'),
+            'this_month' => (float) CommissionLedger::where('referrer_id', $id)
+                ->where('created_at', '>=', $monthStart)
+                ->sum('commission_amount'),
+        ];
+
+        // ── Paginated ledger. Reuses describeLedgerEntry() so the
+        //    detail page reads identical labels to the global ledger
+        //    on /referrers.
+        $ledger = CommissionLedger::where('referrer_id', $id)
+            ->with([
+                'customer:id,name',
+                'product:id,name,slug,icon_colour',
+            ])
+            ->orderByDesc('created_at')
+            ->paginate(15)
+            ->through(fn (CommissionLedger $c): array => [
+                'id' => $c->id,
+                'customer_name' => $c->customer?->name,
+                'product_name' => $c->product?->name,
+                'product_slug' => $c->product?->slug,
+                'product_colour' => $c->product?->icon_colour,
+                'trigger_type' => $c->trigger_type,
+                'description' => $this->describeLedgerEntry($c),
+                'gross_amount' => (float) $c->gross_amount,
+                'commission_amount' => (float) $c->commission_amount,
+                'status' => $c->status,
+                'period_start' => $c->period_start?->format('d M Y'),
+                'period_end' => $c->period_end?->format('d M Y'),
+                'approved_at' => $c->approved_at?->format('d M Y'),
+                'paid_at' => $c->paid_at?->format('d M Y'),
+                'created_at' => $c->created_at?->format('d M Y'),
+            ]);
+
+        // ── Customers attributed to this referrer + their current
+        //    active/trial products. Eager-load both the customer
+        //    and its customerProducts → product chain so the row
+        //    can paint a product chip strip without N+1s.
+        $customers = CustomerReferral::where('referrer_id', $id)
+            ->with([
+                'customer:id,name,city,created_at,archived_at',
+                'customer.customerProducts' => fn ($q) => $q
+                    ->whereIn('status', ['active', 'trial'])
+                    ->with('product:id,name,slug,icon_colour'),
+            ])
+            ->orderByDesc('attributed_at')
+            ->get()
+            ->map(function (CustomerReferral $r) use ($id): array {
+                $cust = $r->customer;
+
+                return [
+                    'customer_id' => $r->customer_id,
+                    'customer_name' => $cust?->name,
+                    'customer_city' => $cust?->city,
+                    'is_archived' => $cust?->archived_at !== null,
+                    'attributed_at' => $r->attributed_at?->format('d M Y'),
+                    'products' => $cust
+                        ? $cust->customerProducts->map(fn ($cp): array => [
+                            'name' => $cp->product?->name,
+                            'slug' => $cp->product?->slug,
+                            'colour' => $cp->product?->icon_colour,
+                            'status' => $cp->status,
+                        ])->values()->all()
+                        : [],
+                    'total_commission' => (float) CommissionLedger::where('referrer_id', $id)
+                        ->where('customer_id', $r->customer_id)
+                        ->sum('commission_amount'),
+                ];
+            })
+            ->values()
+            ->all();
+
+        // ── Active commission rules. The existing describeRule()
+        //    already produces the UI string for the index page,
+        //    so the show page renders the same vocabulary.
+        $rules = CommissionRule::where('referrer_id', $id)
+            ->where('is_active', true)
+            ->with('product:id,name,slug')
+            ->get()
+            ->map(fn (CommissionRule $r): array => [
+                'id' => $r->id,
+                'product_name' => $r->product?->name,
+                'product_slug' => $r->product?->slug,
+                'type' => $r->type,
+                'config' => $r->config,
+                'valid_from' => $r->valid_from?->format('d M Y'),
+                'valid_until' => $r->valid_until?->format('d M Y'),
+                'description' => $this->describeRule($r),
+            ])
+            ->values()
+            ->all();
+
+        // ── Six-month trend. range(5, 0) walks backwards from
+        //    5 months ago → this month so the bars render
+        //    left-to-right oldest→newest.
+        $trend = collect(range(5, 0))
+            ->map(function (int $monthsAgo) use ($id, $now): array {
+                $date = $now->copy()->subMonthsNoOverflow($monthsAgo);
+
+                return [
+                    'month' => $date->format('M'),
+                    'new_customers' => CustomerReferral::where('referrer_id', $id)
+                        ->whereYear('attributed_at', $date->year)
+                        ->whereMonth('attributed_at', $date->month)
+                        ->count(),
+                    'commission' => (float) CommissionLedger::where('referrer_id', $id)
+                        ->whereYear('created_at', $date->year)
+                        ->whereMonth('created_at', $date->month)
+                        ->sum('commission_amount'),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return Inertia::render('Internal/Referrers/Show', [
+            'referrer' => [
+                'id' => $referrer->id,
+                'name' => $referrer->user->name,
+                'email' => $referrer->user->email,
+                'avatar_colour' => $referrer->user->avatar_colour,
+                'is_active' => $referrer->is_active,
+                'member_since' => $referrer->user->created_at?->format('d M Y'),
+                // last_login is a future column — exposed as null so the
+                // template binding doesn't break when the field lands.
+                'last_login' => null,
+            ],
+            'kpis' => $kpis,
+            'ledger' => $ledger,
+            'customers' => $customers,
+            'rules' => $rules,
+            'trend' => $trend,
         ]);
     }
 
