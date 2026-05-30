@@ -13,6 +13,11 @@ type ENUM(restaurant|bar|bakery|cafe|venue|other),
 address_line1, address_line2, city, postcode, country,
 billing_address JSON nullable,
 pipeline_stage ENUM(lead|prospect|active|churned),
+acquisition_channel ENUM(direct|google|social_media|landing_page|
+  referral|email|event|word_of_mouth|other) nullable
+  -- How the lead arrived. Surfaced on the customer header.
+channel_detail VARCHAR(255) nullable
+  -- Free-text follow-up (campaign name, platform, event, etc.).
 assigned_to BIGINT FK users nullable,
 referred_by BIGINT FK referrers nullable,
 archived_at nullable, created_at, updated_at
@@ -37,6 +42,9 @@ created_at, updated_at
 
 ## products
 id, slug VARCHAR(50) UNIQUE, name, description,
+billing_entity_id FK billing_entities nullable (SET NULL)
+  -- Default billing entity for invoices that include this product;
+  -- null = universal (operator picks the entity per invoice).
 icon_colour, is_active BOOLEAN, is_coming_soon BOOLEAN,
 sort_order INT, created_at, updated_at
 
@@ -110,7 +118,10 @@ is_active BOOLEAN DEFAULT true, created_at, updated_at
 ## invoices
 id, number VARCHAR(20) UNIQUE, customer_id FK,
 billing_entity_id FK, type ENUM(subscription|service),
-status ENUM(draft|sent|paid|overdue|void),
+status ENUM(draft|sent|partially_paid|paid|overdue|void),
+  -- partially_paid added in the 6-fixes sprint; markPaid()
+  -- accumulates amount_paid and branches status on whether
+  -- the running total covers invoice.total.
 subtotal DECIMAL(10,2), vat_rate DECIMAL(5,2),
 vat_amount DECIMAL(10,2), total DECIMAL(10,2),
 amount_paid DECIMAL(10,2) DEFAULT 0,
@@ -127,9 +138,18 @@ created_by BIGINT FK users, created_at, updated_at
 INDEX (next_reminder_at, reminders_paused, status)
 
 ## invoice_lines
-id, invoice_id FK, description VARCHAR(500),
+id, invoice_id FK,
+product_id FK products nullable,
+plan_id FK product_plans nullable,
+description VARCHAR(500),
 note VARCHAR(500) nullable, quantity DECIMAL(10,3),
-unit_price DECIMAL(10,2), amount DECIMAL(10,2),
+unit_price DECIMAL(10,2),
+amount DECIMAL(10,2)
+  -- POST-discount value. computeLineDiscount() is the only writer.
+discount_type ENUM(percentage|fixed) nullable,
+discount_value DECIMAL(10,2) DEFAULT 0,
+discount_amount DECIMAL(10,2) DEFAULT 0
+  -- Cooked discount £ — stored for audit; never recomputed on read.
 sort_order INT DEFAULT 0, created_at, updated_at
 
 ## maavelus_statements
@@ -176,6 +196,38 @@ period_start DATE nullable, period_end DATE nullable,
 approved_by BIGINT FK users nullable, approved_at nullable,
 paid_at nullable, voided_reason VARCHAR(500) nullable,
 created_at, updated_at
+
+## expenses (6-fixes sprint)
+id,
+category ENUM(referral_commission|software|hosting|travel|
+  office|marketing|advertising|equipment|other) DEFAULT 'other',
+description VARCHAR(255), supplier VARCHAR(255) nullable,
+amount DECIMAL(10,2)
+  -- Net amount before VAT.
+vat_rate DECIMAL(5,2) DEFAULT 0,
+vat_amount DECIMAL(10,2) DEFAULT 0,
+total DECIMAL(10,2)
+  -- amount + vat_amount. Stored, not derived; recomputed in
+  -- Expense::saving() so per-category SUM() reports stay cheap.
+expense_date DATE,
+status ENUM(pending|approved|paid) DEFAULT 'pending',
+is_reimbursable BOOLEAN DEFAULT false,
+receipt_path VARCHAR(500) nullable
+  -- Lives on the private disk via FileUploadService.
+receipt_original_name VARCHAR(255) nullable,
+project_id FK projects nullable (SET NULL),
+customer_id FK customers nullable (SET NULL),
+commission_ledger_id FK commission_ledger nullable (SET NULL)
+  -- Auto-set by ExpenseController::createFromCommission when a
+  -- commission row is marked paid. Idempotency anchor — the
+  -- helper bails out if a row already exists for this ledger id.
+notes TEXT nullable,
+created_by BIGINT FK users (RESTRICT),
+approved_by BIGINT FK users nullable (SET NULL),
+paid_at TIMESTAMP nullable,
+created_at, updated_at
+INDEX (category, status, expense_date) expenses_filter_idx
+INDEX (commission_ledger_id) expenses_commission_idx
 
 ## domains
 id, customer_id FK nullable, domain VARCHAR(255) UNIQUE,
@@ -237,22 +289,111 @@ type ENUM(internal|call|meeting|email),
 body TEXT, created_at, updated_at
 
 ## tasks
-id, customer_id FK nullable, contact_id FK nullable,
+id, customer_id FK nullable,
+project_id FK projects nullable (PM Sprint 1),
+milestone_id FK milestones nullable (PM Sprint 1),
+lead_id BIGINT UNSIGNED nullable
+  -- No FK yet; leads table arrives in Sprint 2.
+contact_id FK nullable,
+parent_task_id FK tasks nullable,
 assigned_to FK users, created_by FK users,
 title VARCHAR(500),
 type ENUM(task|call|email|meeting|note) DEFAULT 'task',
 description TEXT nullable,
 priority ENUM(low|medium|high) DEFAULT 'medium',
-status ENUM(open|complete),
+status ENUM(todo|in_progress|in_review|blocked|complete|cancelled)
+  DEFAULT 'todo' (PM Sprint 1: widened from {open,complete}),
 due_date DATE nullable (legacy — kept for safety),
 due_at TIMESTAMP nullable (canonical schedule),
 completed_at TIMESTAMP nullable,
 outcome TEXT nullable,
 duration_minutes UNSIGNED INT nullable,
+estimated_hours DECIMAL(6,2) nullable (PM Sprint 1),
+sort_order UNSIGNED INT DEFAULT 0 (PM Sprint 1, kanban order),
+blocked_reason TEXT nullable (PM Sprint 1),
 is_pinned BOOLEAN DEFAULT false,
 created_at, updated_at
--- Repurposed from simple tasks into CRM activity model.
+-- Repurposed from simple tasks into CRM activity model,
+-- then extended for the project-management kanban.
 -- INDEX (customer_id, is_pinned, due_at) for the timeline query.
+-- INDEX (project_id, milestone_id, sort_order) tasks_pm_board_idx
+-- INDEX (project_id, status) tasks_pm_status_idx
+-- INDEX (assigned_to, status) tasks_mywork_idx
+-- Migration 2026_05_30_070004 backfilled the old enum:
+--   open → todo, complete → complete. No row was lost.
+
+## projects (PM Sprint 1)
+id, customer_id FK nullable
+  -- Nullable so we can model internal projects with no customer.
+title VARCHAR(255), description TEXT nullable,
+status ENUM(planning|active|on_hold|completed|cancelled)
+  DEFAULT 'planning',
+priority ENUM(low|medium|high|urgent) DEFAULT 'medium',
+colour VARCHAR(7) DEFAULT '#3B82F6'
+  -- Used by kanban headers, MyWork strips, project cards.
+start_date DATE nullable, due_date DATE nullable,
+budget DECIMAL(10,2) nullable,
+hourly_rate DECIMAL(8,2) nullable
+  -- Default billing rate used for time entries on this project.
+project_lead BIGINT FK users nullable,
+created_by BIGINT FK users (RESTRICT),
+completed_at TIMESTAMP nullable,
+archived_at TIMESTAMP nullable
+  -- Soft-archive marker. Hidden from list/kanban but tasks +
+  -- time entries remain queryable for historical billing.
+created_at, updated_at
+INDEX (customer_id, status)
+INDEX (due_date, status)
+INDEX (status, archived_at)
+
+## milestones (PM Sprint 1)
+id, project_id FK projects (CASCADE),
+title VARCHAR(255), description TEXT nullable,
+due_date DATE nullable,
+status ENUM(pending|in_progress|completed) DEFAULT 'pending',
+sort_order UNSIGNED INT DEFAULT 0,
+completed_at TIMESTAMP nullable,
+created_at, updated_at
+INDEX (project_id, sort_order)
+INDEX (project_id, status)
+-- Cascade-delete fine: a milestone is meaningless outside its
+-- project. Tasks lose their milestone via SET NULL on the FK,
+-- so no task is lost when a milestone is deleted.
+
+## project_members (PM Sprint 1)
+project_id FK projects (CASCADE),
+user_id FK users (CASCADE),
+role ENUM(lead|member|viewer) DEFAULT 'member',
+joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+PRIMARY KEY (project_id, user_id)
+INDEX (user_id)
+-- Composite-PK pivot. No auto-increment id. No timestamps
+-- beyond joined_at (the row's whole reason to exist).
+
+## time_entries (PM Sprint 1)
+id, task_id FK tasks (CASCADE),
+project_id FK projects (CASCADE)
+  -- Denormalised from task.project_id so the project Time tab
+  -- can aggregate by project without joining tasks. Kept in
+  -- sync by TimeEntryController at create time.
+user_id FK users (RESTRICT)
+  -- Restrict so deleting a user with billable hours surfaces the
+  -- accounting question instead of silently dropping the data.
+minutes UNSIGNED INT
+  -- Stored as minutes. UI converts to hours. Avoids float drift.
+description TEXT nullable,
+logged_at DATE, is_billable BOOLEAN DEFAULT true,
+hourly_rate DECIMAL(8,2) nullable
+  -- Per-entry rate override; otherwise project.hourly_rate.
+invoice_line_id FK invoice_lines nullable (SET NULL),
+invoice_id FK invoices nullable (SET NULL)
+  -- Stamped when the entry is rolled into an invoice. Once set,
+  -- the entry is frozen — TimeEntryController refuses edits and
+  -- deletes until the invoice is voided.
+created_at, updated_at
+INDEX (project_id, is_billable, invoice_id) -- unbilled lookups
+INDEX (task_id)
+INDEX (user_id, logged_at)
 
 ## activity_log
 id, user_id BIGINT nullable, user_role VARCHAR(50) nullable,
