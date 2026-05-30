@@ -12516,3 +12516,25 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
 .row-menu button:hover { background: var(--surface-elevated, #f9fafb); }
 .row-menu button.danger { color: var(--danger, #ef4444); }
 .row-menu button.danger:hover { background: #fef2f2; }
+
+/* ─────────────────────────────────────────────────────────────
+   Portal — Connected applications (OAuth SSO sprint)
+   ───────────────────────────────────────────────────────────── */
+.connected-app-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-soft);
+}
+.connected-app-row:last-child { border-bottom: 0; }
+.connected-app-row .ca-meta { display: flex; flex-direction: column; gap: 2px; }
+.connected-app-row .ca-name {
+    font: 600 14px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+.connected-app-row .ca-sub { font-size: 12.5px; }
+
+/* Portal product card — promote SSO Open to primary, demote Manage. */
+.portal-product-card .pc-card-foot {
+    display: flex; flex-direction: column; gap: 6px;
+}

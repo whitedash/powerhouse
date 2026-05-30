@@ -51,6 +51,17 @@ return [
             'driver' => 'session',
             'provider' => 'portal_users',
         ],
+
+        // OAuth token guard for Passport. Used by /oauth/userinfo and
+        // /oauth/products via the auth:api middleware. The provider
+        // mirrors `portal` because the SSO sprint authenticates
+        // customer-side users — staff don't consume their own API.
+        // passport.guard is also pointed at 'portal' so /oauth/authorize
+        // uses portal sessions when minting authorization codes.
+        'api' => [
+            'driver' => 'passport',
+            'provider' => 'portal_users',
+        ],
     ],
 
     /*

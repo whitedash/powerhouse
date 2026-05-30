@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\PortalUser;
 use App\Models\SupportTicket;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -45,6 +46,43 @@ class DashboardController extends Controller
                 'mrr' => round($cp->mrr_contribution, 2),
                 'status' => $cp->status,
                 'next_billing_date' => $cp->next_billing_date?->format('j M Y'),
+                // SSO open URL. Consumer apps detect `sso=1` and
+                // bounce the browser through /oauth/authorize. The
+                // customer_id hint isn't trusted — it just speeds up
+                // the consumer's "who is this?" lookup, the token
+                // exchange is what actually proves identity.
+                'sso_url' => $this->resolveSsoUrl($cp->product?->slug, $customer->id),
+            ])
+            ->all();
+
+        // Connected apps — distinct OAuth clients holding non-revoked
+        // tokens for any portal_user on this customer. We aggregate
+        // across portal users so a single account view shows what
+        // any user under the company has authorised.
+        $portalUserIds = PortalUser::where('customer_id', $customer->id)->pluck('id')->all();
+
+        $connectedApps = DB::table('oauth_access_tokens as t')
+            ->join('oauth_clients as c', 'c.id', '=', 't.client_id')
+            ->whereIn('t.user_id', $portalUserIds)
+            ->where('t.revoked', false)
+            ->where(function ($q) {
+                $q->whereNull('t.expires_at')
+                    ->orWhere('t.expires_at', '>', now());
+            })
+            ->select(
+                't.client_id',
+                'c.name as client_name',
+                DB::raw('MAX(t.created_at) as last_authorized_at'),
+                DB::raw('COUNT(*) as token_count'),
+            )
+            ->groupBy('t.client_id', 'c.name')
+            ->orderByDesc('last_authorized_at')
+            ->get()
+            ->map(fn ($row): array => [
+                'client_id' => $row->client_id,
+                'name' => $row->client_name,
+                'last_authorized_at' => $row->last_authorized_at,
+                'token_count' => (int) $row->token_count,
             ])
             ->all();
 
@@ -86,10 +124,38 @@ class DashboardController extends Controller
                 'contact_name' => $customer->primaryContact?->name,
             ],
             'active_products' => $activeProducts,
+            'connected_apps' => $connectedApps,
             'recent_invoices' => $recentInvoices,
             'invoices_paid_count' => $invoicesPaid,
             'outstanding_total' => round($outstandingTotal, 2),
             'open_tickets' => $openTickets,
         ]);
+    }
+
+    /**
+     * Map a product slug to the SSO entry point on the consumer app.
+     * The hint `?sso=1&customer_id=X` tells the consumer to start an
+     * OAuth flow; auth still happens through Powerhouse, this is just
+     * the deep link.
+     *
+     * Unknown slugs return null — the dashboard falls back to the
+     * existing "Manage" link to the portal subscription page.
+     */
+    private function resolveSsoUrl(?string $slug, int $customerId): ?string
+    {
+        if ($slug === null || $slug === '') {
+            return null;
+        }
+
+        $base = match (true) {
+            str_starts_with($slug, 'maavelus') => 'https://restaurant.maavelus.co.uk',
+            $slug === 'myorderpad' => 'https://app.myorderpad.co.uk',
+            $slug === 'orderpad' => 'https://app.myorderpad.co.uk',
+            default => null,
+        };
+
+        return $base === null
+            ? null
+            : $base.'/?sso=1&customer_id='.$customerId;
     }
 }

@@ -13,7 +13,15 @@ return [
     |
     */
 
-    'guard' => 'web',
+    /*
+     * Authorize-page guard. Set to 'portal' so /oauth/authorize uses
+     * portal sessions (customer SSO is the primary OAuth flow).
+     * Staff don't currently exchange tokens through Passport — the
+     * legacy "Internal Staff" password client predates this sprint
+     * and is unused. If a staff API surfaces later, register a
+     * second client and document the guard split.
+     */
+    'guard' => 'portal',
 
     'middleware' => [],
 

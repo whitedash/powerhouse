@@ -32,6 +32,21 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
         ]);
 
+        // Unauthenticated guests hitting an auth:portal route get
+        // bounced to /portal/login. The default Authenticate
+        // middleware reaches for route('login'), which we don't
+        // register — without this hook it falls back to '/login'
+        // (a 404). The closure runs for every guest redirect so
+        // we limit it to oauth + portal paths to avoid accidentally
+        // catching staff routes.
+        $middleware->redirectGuestsTo(function (Request $request): ?string {
+            if ($request->is('oauth/*') || $request->is('portal/*')) {
+                return route('portal.login');
+            }
+
+            return null;
+        });
+
         // Cross-origin public POST endpoints can't carry a CSRF
         // token — the embed script lives on a third-party site
         // and webhook senders (Zapier, Make, custom integrations)
@@ -55,7 +70,15 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // JSON-render the auth exception for any request that's
+        // consuming an OAuth token. Without this, an unauthenticated
+        // /oauth/userinfo redirects to a login URL — fine for browsers,
+        // wrong for consumer apps that need a 401 back. The api/*
+        // prefix keeps the existing behaviour for the API route group.
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*'),
+            fn (Request $request) => $request->is('api/*')
+                || $request->is('oauth/userinfo')
+                || $request->is('oauth/products')
+                || $request->expectsJson(),
         );
     })->create();

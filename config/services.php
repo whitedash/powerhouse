@@ -49,4 +49,25 @@ return [
         'client_id' => env('QBO_CLIENT_ID'),
     ],
 
+    /*
+     * OAuth client IDs for the products that consume Powerhouse SSO.
+     * The IDs are UUIDs (Passport v12+ schema). Defaults match the
+     * seed data already in oauth_clients on local; production reads
+     * the actual UUIDs from .env. Secrets are server-side only —
+     * the consumer apps store them in their own configs.
+     */
+    'oauth_clients' => [
+        'maavelus_id' => env('MAAVELUS_OAUTH_ID', '019e6f1a-c6b2-738b-a483-a7a51cb22742'),
+        'maavelus_secret' => env('MAAVELUS_OAUTH_SECRET'),
+        'maavelus_redirect' => env('MAAVELUS_OAUTH_REDIRECT', 'https://maavelus.com/oauth/callback'),
+
+        'myorderpad_id' => env('MYORDERPAD_OAUTH_ID', '019e6f1a-c841-7275-83b5-16f8b9697033'),
+        'myorderpad_secret' => env('MYORDERPAD_OAUTH_SECRET'),
+        'myorderpad_redirect' => env('MYORDERPAD_OAUTH_REDIRECT', 'https://myorderpad.com/oauth/callback'),
+
+        'whitedash_portal_id' => env('WHITEDASH_PORTAL_OAUTH_ID', '019e6f1a-c524-718f-83b5-001ad023f194'),
+        'whitedash_portal_secret' => env('WHITEDASH_PORTAL_OAUTH_SECRET'),
+        'whitedash_portal_redirect' => env('WHITEDASH_PORTAL_OAUTH_REDIRECT'),
+    ],
+
 ];

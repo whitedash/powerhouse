@@ -28,6 +28,8 @@ use Illuminate\Support\Carbon;
  * @property int|null $assigned_to
  * @property int|null $referred_by
  * @property Carbon|null $archived_at
+ * @property Carbon|null $portal_last_login_at
+ * @property int $portal_login_count
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read User|null $assignedTo
@@ -67,6 +69,10 @@ class Customer extends Model
         'assigned_to',
         'referred_by',
         'archived_at',
+        // Portal-login activity. Aggregated across every portal_user
+        // that belongs to this customer; bumped in Portal\AuthController::login().
+        'portal_last_login_at',
+        'portal_login_count',
     ];
 
     protected function casts(): array
@@ -74,6 +80,8 @@ class Customer extends Model
         return [
             'billing_address' => 'array',
             'archived_at' => 'datetime',
+            'portal_last_login_at' => 'datetime',
+            'portal_login_count' => 'integer',
         ];
     }
 

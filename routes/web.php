@@ -37,11 +37,14 @@ use App\Http\Controllers\Internal\SupportController as InternalSupportController
 use App\Http\Controllers\Internal\TaskController as InternalTaskController;
 use App\Http\Controllers\Internal\TimeEntryController as InternalTimeEntryController;
 use App\Http\Controllers\Internal\WorkflowController as InternalWorkflowController;
+use App\Http\Controllers\OAuth\UserInfoController as OAuthUserInfoController;
 use App\Http\Controllers\Portal\AccountController as PortalAccountController;
 use App\Http\Controllers\Portal\AuthController as PortalAuthController;
+use App\Http\Controllers\Portal\ConnectedAppController as PortalConnectedAppController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
 use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
 use App\Http\Controllers\Portal\PasswordController as PortalPasswordController;
+use App\Http\Controllers\Portal\ProductsController as PortalProductsController;
 use App\Http\Controllers\Portal\SubscriptionController as PortalSubscriptionController;
 use App\Http\Controllers\Portal\SupportController as PortalSupportController;
 use App\Http\Controllers\Public\EmbedController as PublicEmbedController;
@@ -536,6 +539,24 @@ Route::post('/webhooks/{slug}', [PublicWebhookController::class, 'receive'])
 
 /*
 |--------------------------------------------------------------------------
+| OAuth — consumer-app endpoints (token-authenticated)
+|--------------------------------------------------------------------------
+| Passport already exposes /oauth/authorize, /oauth/token, etc.
+| These two are *our* additions: a userinfo profile call and a
+| product-access map. Both use auth:api (Passport guard, portal_users
+| provider). 60/min per token is plenty for normal consumer-app use
+| and slows abuse if a token leaks.
+*/
+Route::middleware(['auth:api', 'throttle:60,1'])
+    ->prefix('oauth')
+    ->name('oauth.')
+    ->group(function () {
+        Route::get('/userinfo', [OAuthUserInfoController::class, 'me'])->name('userinfo');
+        Route::get('/products', [OAuthUserInfoController::class, 'products'])->name('products');
+    });
+
+/*
+|--------------------------------------------------------------------------
 | Group 2 — Portal (customer)
 |--------------------------------------------------------------------------
 */
@@ -564,6 +585,12 @@ Route::prefix('portal')->middleware('auth.portal')->group(function () {
     Route::post('/logout', [PortalAuthController::class, 'logout'])->name('portal.logout');
 
     Route::get('/dashboard', PortalDashboardController::class)->name('portal.dashboard');
+
+    // SSO sprint — product access map + connected-app revoke.
+    Route::get('/products', [PortalProductsController::class, 'index'])->name('portal.products');
+    Route::post('/connected-apps/{clientId}/revoke', [PortalConnectedAppController::class, 'revoke'])
+        ->where('clientId', '[a-f0-9-]{36}')
+        ->name('portal.connected-apps.revoke');
 
     Route::get('/subscriptions', [PortalSubscriptionController::class, 'index'])->name('portal.subscriptions.index');
     Route::post('/subscriptions', [PortalSubscriptionController::class, 'store'])->name('portal.subscriptions.store');

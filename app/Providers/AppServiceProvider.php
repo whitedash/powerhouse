@@ -96,6 +96,36 @@ class AppServiceProvider extends ServiceProvider
         Passport::tokensExpireIn(now()->addDays(15));
         Passport::refreshTokensExpireIn(now()->addDays(30));
         Passport::personalAccessTokensExpireIn(now()->addMonths(6));
+
+        // OAuth scopes — the contract between Powerhouse (IdP) and
+        // the product apps that consume our tokens. Consumer apps
+        // request the scopes they need at /oauth/authorize; the
+        // branded consent screen lists them in plain language.
+        //
+        // Conventions:
+        //   profile             — basic identity (always granted)
+        //   portal              — the customer's own Powerhouse portal
+        //   {product_slug}      — access to a specific consumer app;
+        //                         consumer apps verify their scope
+        //                         is in the token via /oauth/userinfo
+        Passport::tokensCan([
+            'profile' => 'View profile info',
+            'portal' => 'Access customer portal',
+            'maavelus' => 'Access Maavelus restaurant control',
+            'myorderpad' => 'Access MyOrderPad',
+            'whitedash_portal' => 'Access Whitedash client portal',
+        ]);
+
+        // Default scope when none requested — keeps tokens minimal
+        // by default. A consumer app that needs product access has
+        // to ask for it explicitly in the authorize URL.
+        Passport::defaultScopes(['profile']);
+
+        // Replace Passport's default authorize view with the branded
+        // Powerhouse one. Blade still receives Passport's parameters
+        // (client, user, scopes, request, authToken) so the form
+        // submits cleanly to POST /oauth/authorize and DELETE /oauth/authorize.
+        Passport::authorizationView('oauth.authorize');
     }
 
     private function configureEloquent(): void
