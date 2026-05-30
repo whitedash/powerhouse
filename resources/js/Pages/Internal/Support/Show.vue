@@ -2,6 +2,12 @@
 import { computed, ref } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
+    Dialog,
+    DialogPanel,
+    TransitionChild,
+    TransitionRoot,
+} from '@headlessui/vue';
+import {
     IconArrowLeft,
     IconSend,
     IconCheck,
@@ -10,6 +16,10 @@ import {
     IconClock,
     IconAlertTriangle,
     IconExternalLink,
+    IconCheckbox,
+    IconPlus,
+    IconX,
+    IconList,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 
@@ -109,6 +119,50 @@ function submitStatus() {
 
 function back() {
     router.visit('/support');
+}
+
+/* ─── Create task from ticket ─── */
+const showTaskForm = ref(false);
+const ACTIVITY_TYPES = [
+    { value: 'task',    label: 'Task' },
+    { value: 'call',    label: 'Call' },
+    { value: 'email',   label: 'Email' },
+    { value: 'meeting', label: 'Meeting' },
+    { value: 'note',    label: 'Note' },
+];
+const todayIso = new Date().toISOString().slice(0, 10);
+
+const taskForm = useForm({
+    title: '',
+    type: 'task',
+    description: '',
+    priority: 'medium',
+    assigned_to: props.ticket.assigned_to_id ?? null,
+    due_at: '',
+});
+function openTaskForm() {
+    taskForm.reset();
+    taskForm.clearErrors();
+    taskForm.priority = 'medium';
+    taskForm.type = 'task';
+    // Default to the existing ticket assignee — the most common
+    // path is "the same person already handling this".
+    taskForm.assigned_to = props.ticket.assigned_to_id ?? null;
+    showTaskForm.value = true;
+}
+function submitTask() {
+    taskForm.post(`/support/${props.ticket.id}/task`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showTaskForm.value = false;
+            taskForm.reset();
+        },
+    });
+}
+function viewAllTicketsForCustomer() {
+    if (props.ticket.customer?.id) {
+        router.visit(`/support?customer_id=${props.ticket.customer.id}`);
+    }
 }
 </script>
 
@@ -273,6 +327,43 @@ function back() {
                         </div>
                     </section>
 
+                    <!-- Quick actions card -->
+                    <section class="card support-quick-actions" style="margin-top: 16px;">
+                        <header class="card-header">
+                            <h3>Quick actions</h3>
+                        </header>
+                        <div class="support-quick-body">
+                            <button
+                                type="button"
+                                class="btn btn-primary"
+                                style="width: 100%; justify-content: center;"
+                                @click="openTaskForm"
+                            >
+                                <IconCheckbox :size="14" stroke-width="2" />
+                                Create task
+                            </button>
+                            <Link
+                                v-if="ticket.customer"
+                                :href="`/customers/${ticket.customer.id}`"
+                                class="support-quick-link"
+                            >
+                                <IconUser :size="13" stroke-width="1.75" />
+                                View customer
+                                <IconExternalLink :size="11" stroke-width="1.75" />
+                            </Link>
+                            <button
+                                v-if="ticket.customer"
+                                type="button"
+                                class="support-quick-link"
+                                @click="viewAllTicketsForCustomer"
+                            >
+                                <IconList :size="13" stroke-width="1.75" />
+                                All tickets for this customer
+                                <IconExternalLink :size="11" stroke-width="1.75" />
+                            </button>
+                        </div>
+                    </section>
+
                     <!-- Customer card -->
                     <section v-if="ticket.customer" class="card" style="margin-top: 16px;">
                         <header class="card-header">
@@ -312,5 +403,112 @@ function back() {
                 </div>
             </div>
         </div>
+
+        <!-- ═══ CREATE TASK SLIDE-OVER ═══
+             Compact form — customer is implicit (the ticket's), so
+             the picker stays out of the way. -->
+        <TransitionRoot as="template" :show="showTaskForm">
+            <Dialog as="div" class="slide-over-dialog" @close="showTaskForm = false">
+                <TransitionChild
+                    as="template"
+                    enter="transition-opacity ease-out duration-200" enter-from="opacity-0" enter-to="opacity-100"
+                    leave="transition-opacity ease-in duration-150" leave-from="opacity-100" leave-to="opacity-0"
+                >
+                    <div class="slide-over-backdrop" />
+                </TransitionChild>
+                <TransitionChild
+                    as="template"
+                    enter="transform transition ease-out duration-200" enter-from="translate-x-full" enter-to="translate-x-0"
+                    leave="transform transition ease-in duration-150" leave-from="translate-x-0" leave-to="translate-x-full"
+                >
+                    <DialogPanel class="slide-over-panel">
+                        <form class="slide-over-form" @submit.prevent="submitTask">
+                            <header class="slide-over-header">
+                                <h2>Create task from ticket</h2>
+                                <button type="button" class="icon-btn" aria-label="Close" @click="showTaskForm = false">
+                                    <IconX :size="18" stroke-width="1.75" />
+                                </button>
+                            </header>
+                            <div class="slide-over-body">
+                                <div class="form-section">
+                                    <div class="muted-note">
+                                        Will be added to <strong>{{ ticket.customer?.name ?? 'this customer' }}</strong>'s activities and a note will be appended to this ticket.
+                                    </div>
+                                </div>
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Type</label>
+                                            <select v-model="taskForm.type">
+                                                <option v-for="t in ACTIVITY_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Title<span class="req">*</span></label>
+                                            <input
+                                                v-model="taskForm.title"
+                                                type="text"
+                                                required
+                                                maxlength="500"
+                                                :placeholder="`Follow up on ${ticket.subject}`"
+                                                :class="{ 'has-err': taskForm.errors.title }"
+                                            >
+                                            <div v-if="taskForm.errors.title" class="err">{{ taskForm.errors.title }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Details</label>
+                                            <textarea v-model="taskForm.description" rows="3" maxlength="5000" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-section">
+                                    <div class="form-row">
+                                        <div class="form-field">
+                                            <label>Priority</label>
+                                            <div class="priority-pills">
+                                                <button
+                                                    v-for="p in ['low', 'medium', 'high']"
+                                                    :key="p"
+                                                    type="button"
+                                                    class="pp-btn"
+                                                    :class="[p, { active: taskForm.priority === p }]"
+                                                    @click="taskForm.priority = p"
+                                                >{{ p.charAt(0).toUpperCase() + p.slice(1) }}</button>
+                                            </div>
+                                        </div>
+                                        <div class="form-field">
+                                            <label>Due date</label>
+                                            <input v-model="taskForm.due_at" type="date" :min="todayIso">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Assign to<span class="req">*</span></label>
+                                            <select v-model="taskForm.assigned_to">
+                                                <option :value="null">— Pick assignee —</option>
+                                                <option v-for="u in staff" :key="u.id" :value="u.id">{{ u.name }}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <footer class="slide-over-footer">
+                                <button type="button" class="btn btn-secondary" @click="showTaskForm = false">Cancel</button>
+                                <button type="submit" class="btn btn-primary" :disabled="taskForm.processing">
+                                    <IconPlus :size="14" stroke-width="2" />
+                                    {{ taskForm.processing ? 'Creating…' : 'Create task' }}
+                                </button>
+                            </footer>
+                        </form>
+                    </DialogPanel>
+                </TransitionChild>
+            </Dialog>
+        </TransitionRoot>
     </InternalLayout>
 </template>

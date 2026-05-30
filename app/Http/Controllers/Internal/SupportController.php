@@ -8,11 +8,14 @@ use App\Models\Customer;
 use App\Models\CustomerProduct;
 use App\Models\SupportMessage;
 use App\Models\SupportTicket;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -271,6 +274,83 @@ class SupportController extends Controller
         $this->forgetNavCaches();
 
         return back()->with('success', 'Reply sent.');
+    }
+
+    /**
+     * Spin up a CRM activity from a support ticket. The new task gets
+     * scoped to the ticket's customer so it shows up on the customer
+     * detail page's Activities tab and the assignee's dashboard.
+     *
+     * A short internal note is also appended to the ticket thread so
+     * the conversation history records "I made this a task" without
+     * leaking it to the customer.
+     */
+    public function createTask(int $id, Request $request): RedirectResponse
+    {
+        $ticket = SupportTicket::with('customer:id,name')->findOrFail($id);
+
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:500'],
+            // Mirrors the TaskController activity types so the picker
+            // on this slide-over uses the same vocabulary as the
+            // customer / dashboard creators.
+            'type' => ['required', Rule::in(['task', 'call', 'email', 'meeting', 'note'])],
+            'description' => ['nullable', 'string', 'max:5000'],
+            'priority' => ['required', 'in:low,medium,high'],
+            'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
+            'due_at' => ['nullable', 'date'],
+        ]);
+
+        $userId = $request->user()->id;
+        $assigneeId = $data['assigned_to'] ?? $userId;
+
+        DB::transaction(function () use ($ticket, $data, $userId, $assigneeId, $request) {
+            // Bare YYYY-MM-DD lands at midnight — bump to 09:00 so the
+            // dashboard list slot reads like a working day.
+            $dueAt = null;
+            if (! empty($data['due_at'])) {
+                $dueAt = Carbon::parse($data['due_at']);
+                if ($dueAt->isStartOfDay() && ! str_contains((string) $data['due_at'], ':')) {
+                    $dueAt->setTime(9, 0, 0);
+                }
+            }
+
+            $task = Task::create([
+                'customer_id' => $ticket->customer_id,
+                'title' => $data['title'],
+                'type' => $data['type'],
+                'description' => $data['description'] ?? null,
+                'priority' => $data['priority'],
+                'assigned_to' => $assigneeId,
+                'created_by' => $userId,
+                // Task status enum is open/complete — "pending" was a
+                // historic name; the create form on every other surface
+                // uses 'open' here too.
+                'status' => 'open',
+                'due_at' => $dueAt,
+            ]);
+
+            $assigneeName = User::query()->whereKey($assigneeId)->value('name') ?? 'a teammate';
+            SupportMessage::create([
+                'ticket_id' => $ticket->id,
+                'sender_type' => 'staff',
+                'sender_id' => $userId,
+                'body' => sprintf(
+                    'Task created: "%s" — assigned to %s.',
+                    $data['title'],
+                    $assigneeName,
+                ),
+                'is_internal_note' => true,
+            ]);
+
+            $this->logActivity($request, 'support.task_created', $ticket->id, after: [
+                'task_id' => $task->id,
+                'title' => $task->title,
+                'assigned_to' => $assigneeId,
+            ]);
+        });
+
+        return back()->with('success', 'Task created and added to customer activities.');
     }
 
     public function updateStatus(int $id, Request $request): RedirectResponse

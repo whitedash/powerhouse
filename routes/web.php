@@ -174,6 +174,9 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::get('/support/{id}', [InternalSupportController::class, 'show'])->name('internal.support.show');
     Route::post('/support/{id}/reply', [InternalSupportController::class, 'reply'])->name('internal.support.reply');
     Route::post('/support/{id}/status', [InternalSupportController::class, 'updateStatus'])->name('internal.support.status');
+    // Spin a CRM activity off a ticket — the new task is scoped to
+    // the ticket's customer and an internal note is appended.
+    Route::post('/support/{id}/task', [InternalSupportController::class, 'createTask'])->name('internal.support.task.create');
 
     // Help & docs — staff editor + viewer for the support_knowledge_base
     // articles. The customer portal has its own help routes (TBD) that

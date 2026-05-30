@@ -26,3 +26,13 @@ Schedule::command('invoices:generate-recurring')
     ->timezone('Europe/London')
     ->withoutOverlapping()
     ->runInBackground();
+
+// Auto-close support tickets idle in awaiting_customer for longer
+// than the configured threshold (Settings → Notifications). Runs
+// in the small hours so any morning team activity wins the
+// staleness race.
+Schedule::command('support:close-inactive')
+    ->dailyAt('03:00')
+    ->timezone('Europe/London')
+    ->withoutOverlapping()
+    ->runInBackground();

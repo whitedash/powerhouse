@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
@@ -17,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $ip_address
  * @property string|null $user_agent
  * @property Carbon|null $created_at
+ * @property-read User|null $user
  */
 class ActivityLog extends Model
 {
@@ -43,5 +45,14 @@ class ActivityLog extends Model
             'after' => 'array',
             'created_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Optional acting user. Nullable because system-generated events
+     * (cron, queue jobs) carry a null user_id.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

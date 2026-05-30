@@ -19,6 +19,12 @@ const form = useForm({
         email_on_overdue: !!props.values['notifications.email_on_overdue'],
         email_on_sla_breach: !!props.values['notifications.email_on_sla_breach'],
     },
+    // support.* lives in its own nest so the controller can validate
+    // it as a separate group without polluting the notifications
+    // namespace persisted to the settings table.
+    support: {
+        auto_close_days: Number(props.values['support.auto_close_days'] ?? 7),
+    },
 });
 
 function submit() {
@@ -185,6 +191,29 @@ function submit() {
                         style="opacity: .55; cursor: not-allowed;"
                         @click.prevent
                     />
+                </div>
+            </div>
+
+            <!-- Support automation -->
+            <div class="sec-label">Support automation</div>
+            <div class="status-rows" style="background: var(--neutral-bg); border-radius: var(--radius-md); padding: 12px 16px;">
+                <div class="set-row" style="display: flex; align-items: center; gap: 14px; padding: 10px 0;">
+                    <div style="flex: 1;">
+                        <div class="nm">Auto-close inactive tickets</div>
+                        <div class="sb">
+                            Tickets waiting on the customer for longer than this window are closed automatically.
+                            Set to <strong>0</strong> to disable.
+                        </div>
+                    </div>
+                    <input
+                        v-model.number="form.support.auto_close_days"
+                        type="number"
+                        min="0"
+                        max="90"
+                        class="field-input"
+                        style="width: 80px;"
+                    >
+                    <span style="color: var(--text-secondary); font-size: 13px;">days</span>
                 </div>
             </div>
 

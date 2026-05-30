@@ -4,7 +4,13 @@ namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\BillingEntity;
+use App\Models\Customer;
+use App\Models\Invoice;
+use App\Models\Product;
 use App\Models\Setting;
+use App\Models\SupportTicket;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,6 +41,9 @@ class SettingsController extends Controller
         'notifications.reminders_time' => '09:00',
         'notifications.email_on_overdue' => false,
         'notifications.email_on_sla_breach' => false,
+        // Support auto-close window in days. The
+        // support:close-inactive command reads from this. 0 disables.
+        'support.auto_close_days' => 7,
     ];
 
     /* ─────────────────────────────────────────────────────────────────────
@@ -280,6 +289,8 @@ class SettingsController extends Controller
             'notifications.reminders_time' => ['required', 'date_format:H:i'],
             'notifications.email_on_overdue' => ['required', 'boolean'],
             'notifications.email_on_sla_breach' => ['required', 'boolean'],
+            // Support auto-close threshold. 0 disables the job.
+            'support.auto_close_days' => ['required', 'integer', 'min:0', 'max:90'],
         ]);
 
         DB::transaction(function () use ($data, $request) {
@@ -290,6 +301,13 @@ class SettingsController extends Controller
                     ['value' => $this->encodeSettingValue($value)],
                 );
             }
+            // support.* keys live alongside the notifications panel
+            // because the operator workflow ("how does the queue
+            // behave") groups them together visually.
+            Setting::updateOrCreate(
+                ['key' => 'support.auto_close_days'],
+                ['value' => $this->encodeSettingValue((int) $data['support']['auto_close_days'])],
+            );
 
             $this->logActivity($request, 'settings.notifications_updated', 'settings', 0, after: [
                 'keys' => count($data['notifications']),
@@ -376,23 +394,158 @@ class SettingsController extends Controller
 
     public function auditLog(): Response
     {
-        $entries = ActivityLog::orderByDesc('created_at')
+        $logs = ActivityLog::with('user:id,name')
+            ->orderByDesc('created_at')
             ->take(200)
-            ->get()
-            ->map(fn (ActivityLog $a) => [
-                'id' => $a->id,
-                'action' => $a->action,
-                'user_role' => $a->user_role,
-                'entity_type' => $a->entity_type,
-                'entity_id' => $a->entity_id,
-                'ip_address' => $a->ip_address,
-                'created_at' => $a->created_at?->toIso8601String(),
-            ])
+            ->get();
+
+        // Pre-fetch the related-entity names in one go per type so the
+        // enricher doesn't fire one query per row. 200 rows × five
+        // entity types = ~1000 queries worst case if we didn't.
+        $bucketIds = $logs->groupBy('entity_type')->map(fn ($g) => $g->pluck('entity_id')->unique()->all());
+        $names = [
+            'customer' => $this->lookupNames(Customer::class, $bucketIds['customer'] ?? []),
+            'invoice' => $this->lookupNames(Invoice::class, $bucketIds['invoice'] ?? [], 'number'),
+            'task' => $this->lookupNames(Task::class, $bucketIds['task'] ?? [], 'title'),
+            'support_ticket' => $this->lookupNames(SupportTicket::class, $bucketIds['support_ticket'] ?? [], 'subject'),
+            'product' => $this->lookupNames(Product::class, $bucketIds['product'] ?? []),
+            'billing_entity' => $this->lookupNames(BillingEntity::class, $bucketIds['billing_entity'] ?? []),
+            'referrer' => [], // Referrer.name comes off the linked User; resolved below if needed.
+        ];
+
+        $entries = $logs
+            ->map(fn (ActivityLog $a) => $this->enrichActivity($a, $names))
             ->all();
 
         return Inertia::render('Internal/Settings/AuditLog', [
             'entries' => $entries,
         ]);
+    }
+
+    /**
+     * Build a human-readable audit-log row. Returns the raw fields the
+     * existing template already reads plus three new ones:
+     *
+     *   - label: a one-line phrase describing the event ("Created
+     *     invoice INV-0123") so the table reads as a sentence rather
+     *     than a snake_cased token.
+     *   - url: where to jump to inspect the affected entity, when one
+     *     applies. Used by the row's "View →" link and to make the
+     *     row clickable.
+     *   - has_diff: true when before+after payloads exist so the Vue
+     *     side can render the expandable diff block conditionally.
+     *
+     * @param  array<string, array<int, string>>  $names
+     * @return array<string, mixed>
+     */
+    private function enrichActivity(ActivityLog $log, array $names): array
+    {
+        $after = is_array($log->after) ? $log->after : [];
+        // entity_type and entity_id are NOT NULL at the schema level —
+        // every audit row points at something. The lookup map may
+        // simply not include the type, in which case ?? null wins.
+        $entityName = $names[$log->entity_type][$log->entity_id] ?? null;
+
+        $label = match ($log->action) {
+            'customer.created' => 'Added customer '.($entityName ?? 'a customer'),
+            'customer.updated' => 'Updated customer '.($entityName ?? '#'.$log->entity_id),
+            'customer.archived' => 'Archived customer '.($entityName ?? '#'.$log->entity_id),
+            'invoice.created' => 'Created invoice '.($after['number'] ?? $entityName ?? '#'.$log->entity_id),
+            'invoice.updated' => 'Edited invoice '.($entityName ?? '#'.$log->entity_id),
+            'invoice.sent' => 'Sent invoice '.($after['number'] ?? $entityName ?? '#'.$log->entity_id),
+            'invoice.marked_paid' => 'Marked '.($entityName ?? '#'.$log->entity_id).' as paid',
+            'invoice.voided' => 'Voided invoice '.($entityName ?? '#'.$log->entity_id),
+            'invoice.reminder_sent' => 'Sent reminder for '.($entityName ?? 'an invoice'),
+            'invoice.recurring_generated' => 'Generated recurring invoice '.($after['new_invoice_number'] ?? ''),
+            'invoice.recurring_stopped' => 'Stopped recurring schedule on '.($entityName ?? 'an invoice'),
+            'task.created' => 'Created activity: "'.($after['title'] ?? 'task').'"',
+            'task.completed' => 'Completed activity: "'.($after['title'] ?? 'task').'"',
+            'task.updated' => 'Updated activity',
+            'task.deleted' => 'Deleted activity',
+            'note.created' => 'Added a note',
+            'note.updated' => 'Edited a note',
+            'note.deleted' => 'Deleted a note',
+            'support.ticket_created' => 'Opened support ticket: '.($entityName ?? '#'.$log->entity_id),
+            'support.reply_sent' => 'Replied to ticket '.($entityName ?? '#'.$log->entity_id),
+            'support.status_updated' => 'Updated ticket status: '.($after['status'] ?? '—'),
+            'support.task_created' => 'Created task from ticket '.($entityName ?? '#'.$log->entity_id),
+            'support.auto_closed' => 'Auto-closed ticket '.($entityName ?? '#'.$log->entity_id),
+            'product.created' => 'Created product '.($entityName ?? ''),
+            'product.updated' => 'Updated product '.($entityName ?? ''),
+            'product.toggled' => 'Toggled product '.($entityName ?? '').' '.($after['is_active'] ?? false ? 'on' : 'off'),
+            'referrer.created' => 'Added referrer',
+            'referrer.updated' => 'Updated referrer',
+            'referrer.password_reset' => 'Reset referrer password',
+            'commission.approved' => 'Approved commission entry',
+            'commission.bulk_approved' => 'Approved '.($after['count'] ?? '?').' commission entries',
+            'commission.paid' => 'Marked commission as paid',
+            'billing_entity.created' => 'Created billing entity '.($entityName ?? ''),
+            'billing_entity.updated' => 'Updated billing entity '.($entityName ?? ''),
+            'auth.login' => 'Signed in',
+            'auth.logout' => 'Signed out',
+            'auth.failed' => 'Failed sign-in attempt',
+            'auth.password_changed' => 'Changed password',
+            'settings.notifications_updated' => 'Updated notification settings',
+            // Fallback humanises the dotted action name so we still
+            // get something readable for actions we haven't mapped.
+            default => ucfirst(str_replace(['.', '_'], [': ', ' '], $log->action)),
+        };
+
+        return [
+            'id' => $log->id,
+            'action' => $log->action,
+            'label' => $label,
+            'user_role' => $log->user_role,
+            'user_name' => $log->user
+                ? $log->user->name
+                : ($log->user_role === 'system' ? 'System' : 'Unknown'),
+            'entity_type' => $log->entity_type,
+            'entity_id' => $log->entity_id,
+            'entity_name' => $entityName,
+            'ip_address' => $log->ip_address,
+            'url' => $this->entityUrl($log),
+            'created_at' => $log->created_at?->toIso8601String(),
+            'time_ago' => $log->created_at?->diffForHumans(),
+            'before' => $log->before,
+            'after' => $log->after,
+            'has_diff' => ! empty($log->before) || ! empty($log->after),
+        ];
+    }
+
+    private function entityUrl(ActivityLog $log): ?string
+    {
+        // entity_id is NOT NULL at the schema level; the only
+        // optionality is whether we know how to link the given
+        // entity_type, which is the match() arm's responsibility.
+        return match ($log->entity_type) {
+            'customer' => '/customers/'.$log->entity_id,
+            'invoice' => '/invoices/'.$log->entity_id,
+            'task' => '/activities/'.$log->entity_id,
+            'support_ticket' => '/support/'.$log->entity_id,
+            'referrer' => '/referrers/'.$log->entity_id,
+            default => null,
+        };
+    }
+
+    /**
+     * Fetch id → label for a batch of model rows in one query so the
+     * audit-log enrichment doesn't N+1. Returns an empty map when no
+     * ids were supplied so callers can use [$id] ?? null safely.
+     *
+     * @param  array<int, int>  $ids
+     * @return array<int, string>
+     */
+    private function lookupNames(string $model, array $ids, string $column = 'name'): array
+    {
+        $ids = array_filter(array_map('intval', $ids));
+        if ($ids === []) {
+            return [];
+        }
+
+        return $model::query()
+            ->whereIn('id', $ids)
+            ->pluck($column, 'id')
+            ->all();
     }
 
     /* ─────────────────────────────────────────────────────────────────────

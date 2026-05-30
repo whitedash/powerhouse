@@ -9459,3 +9459,162 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
 .recurring-card .recurring-card-body {
     padding: 14px 18px 18px;
 }
+
+/* ─────────────────────────────────────────────────────────────────
+ * SUPPORT QUICK ACTIONS (right sidebar on /support/{id})
+ * ──────────────────────────────────────────────────────────────── */
+.support-quick-actions .support-quick-body {
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.support-quick-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    background: var(--neutral-bg);
+    border: 0;
+    color: var(--text-primary);
+    font: 500 12.5px/1 'Inter', sans-serif;
+    text-decoration: none;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+}
+.support-quick-link:hover {
+    background: var(--border-soft);
+    color: var(--accent);
+}
+.support-quick-link svg:last-child { margin-left: auto; color: var(--text-tertiary); }
+
+/* ─────────────────────────────────────────────────────────────────
+ * AUDIT LOG TABLE (Settings → Audit log) — enriched layout
+ * ──────────────────────────────────────────────────────────────── */
+.audit-table-wrap {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: #fff;
+}
+.audit-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.audit-table thead th {
+    text-align: left;
+    padding: 10px 14px;
+    background: #FBFCFE;
+    border-bottom: 1px solid var(--border-soft);
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-tertiary);
+}
+.audit-empty {
+    padding: 28px 14px;
+    text-align: center;
+    color: var(--text-secondary);
+    font: 400 13px/1.4 'Inter', sans-serif;
+}
+.audit-row td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: top;
+}
+.audit-row.clickable {
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.audit-row.clickable:hover { background: var(--neutral-bg); }
+.audit-when {
+    color: var(--text-secondary);
+    font: 500 12.5px/1.3 'Inter', sans-serif;
+    white-space: nowrap;
+}
+.audit-time-ago {
+    color: var(--text-tertiary);
+    font: 400 11px/1.3 'Inter', sans-serif;
+    margin-top: 2px;
+}
+.audit-who { font-size: 12.5px; }
+.audit-user {
+    font: 500 13px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+.audit-role {
+    color: var(--text-tertiary);
+    font: 400 11px/1.3 'Inter', sans-serif;
+    margin-top: 2px;
+}
+.audit-event { min-width: 0; }
+.audit-label {
+    font: 500 13px/1.4 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+.audit-action-code {
+    font: 500 10px/1.4 'JetBrains Mono', monospace;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+    text-transform: lowercase;
+}
+.audit-actions {
+    white-space: nowrap;
+    text-align: right;
+}
+.audit-actions .icon-btn,
+.audit-view {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius-md);
+    background: transparent;
+    border: 0;
+    color: var(--text-tertiary);
+    cursor: pointer;
+}
+.audit-actions .icon-btn:hover,
+.audit-view:hover {
+    background: var(--neutral-bg);
+    color: var(--accent);
+}
+.audit-chevron-open { transform: rotate(180deg); transition: transform 0.15s; }
+
+/* Diff disclosure row */
+.audit-diff-row td {
+    padding: 12px 14px 16px;
+    background: var(--neutral-bg);
+    border-bottom: 1px solid var(--border-soft);
+}
+.audit-diff {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.audit-diff-label {
+    font: 600 10px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-tertiary);
+    margin-bottom: 6px;
+}
+.audit-diff pre {
+    margin: 0;
+    padding: 10px 12px;
+    background: #fff;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    font: 400 11.5px/1.5 'JetBrains Mono', monospace;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 240px;
+    overflow: auto;
+}
+@media (max-width: 900px) {
+    .audit-diff { grid-template-columns: 1fr; }
+}
