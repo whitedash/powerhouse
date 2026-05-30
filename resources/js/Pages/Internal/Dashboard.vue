@@ -17,6 +17,7 @@ import {
     IconAlertTriangle,
     IconAlertCircle,
     IconAlarm,
+    IconClock,
     IconLayoutGrid,
     IconActivity,
     IconArrowRight,
@@ -232,6 +233,45 @@ function initials(name) {
 
 /* ─── Platform health ─── */
 const healthOk = computed(() => props.platform_health.every((s) => s.is_coming_soon || (s.uptime ?? 0) >= 99));
+
+/* ─── Needs-attention helpers ─── */
+const showAllAttention = ref(false);
+
+// Top 8 across all sources, red-first (already sorted server-side).
+const attentionPreview = computed(() => props.attention.slice(0, 8));
+
+// Modal groups items by type — operator can scan all overdue invoices
+// in one block, all SLA breaches in another, etc.
+const ATTENTION_GROUPS = [
+    { type: 'invoice', label: 'Overdue invoices' },
+    { type: 'ticket',  label: 'SLA breaches' },
+    { type: 'trial',   label: 'Trials ending' },
+    { type: 'task',    label: 'Overdue tasks' },
+];
+
+const attentionGrouped = computed(() => {
+    return ATTENTION_GROUPS
+        .map((g) => ({
+            ...g,
+            items: props.attention.filter((i) => i.type === g.type),
+        }))
+        .filter((g) => g.items.length > 0);
+});
+
+const ATT_ICON_BY_TYPE = {
+    invoice: IconReceipt,
+    ticket:  IconHeadset,
+    trial:   IconClock,
+    task:    IconCheckbox,
+};
+const ATT_TONE_BY_TYPE = {
+    invoice: 'red',
+    ticket:  'red',
+    trial:   'amber',
+    task:    'amber',
+};
+function attIcon(type) { return ATT_ICON_BY_TYPE[type] ?? IconAlertTriangle; }
+function attTone(type) { return ATT_TONE_BY_TYPE[type] ?? 'red'; }
 
 /* ─── Topbar actions ─── */
 function exportReport() {
@@ -558,13 +598,13 @@ function performComplete() {
                         </div>
                     </div>
 
-                    <!-- Activity -->
+                    <!-- Audit log (was "Activity") -->
                     <div class="card shadow-sm">
                         <div class="card-header">
                             <div class="h-icon"><IconActivity :size="16" stroke-width="1.75" /></div>
                             <div>
-                                <h3>Activity</h3>
-                                <div class="sub">Across all products</div>
+                                <h3>Audit log</h3>
+                                <div class="sub">Platform-wide activity log</div>
                             </div>
                             <div class="right">Last 24 hours</div>
                         </div>
@@ -586,14 +626,14 @@ function performComplete() {
                             No activity yet · actions will appear here
                         </div>
                         <div class="card-foot">
-                            <Link href="/analytics" class="foot-link">View all activity<IconArrowRight :size="14" stroke-width="1.75" /></Link>
+                            <Link href="/settings/audit-log" class="foot-link">View audit log<IconArrowRight :size="14" stroke-width="1.75" /></Link>
                         </div>
                     </div>
                 </div>
 
                 <!-- RIGHT COLUMN -->
                 <div class="col">
-                    <!-- Needs attention -->
+                    <!-- Needs attention — preview top 8, modal shows all -->
                     <div class="card attention">
                         <div class="card-header">
                             <div class="h-icon red"><IconAlertTriangle :size="16" stroke-width="1.75" /></div>
@@ -605,14 +645,16 @@ function performComplete() {
                                 <span v-if="attention_count > 0" class="att-count">{{ attention_count }} {{ attention_count === 1 ? 'item' : 'items' }}</span>
                             </div>
                         </div>
-                        <div v-if="attention.length" class="att-list">
+                        <div v-if="attentionPreview.length" class="att-list">
                             <Link
-                                v-for="(item, i) in attention"
+                                v-for="(item, i) in attentionPreview"
                                 :key="i"
                                 :href="item.href"
                                 class="att-row"
                             >
-                                <span class="pri-dot" :class="item.priority" />
+                                <span class="att-type-ic" :class="attTone(item.type)">
+                                    <component :is="attIcon(item.type)" :size="14" stroke-width="2" />
+                                </span>
                                 <div>
                                     <div class="att-title">{{ item.title }}</div>
                                     <div class="att-sub">{{ item.sub }}</div>
@@ -625,7 +667,9 @@ function performComplete() {
                             All clear · nothing needs attention
                         </div>
                         <div v-if="attention_count > 0" class="card-foot">
-                            <Link href="/invoices?status=overdue" class="foot-link">View all {{ attention_count }}<IconArrowRight :size="14" stroke-width="1.75" /></Link>
+                            <button type="button" class="foot-link" @click="showAllAttention = true">
+                                View all {{ attention_count }}<IconArrowRight :size="14" stroke-width="1.75" />
+                            </button>
                         </div>
                     </div>
 
@@ -644,10 +688,18 @@ function performComplete() {
                             </div>
                         </div>
                         <div v-if="tasks.length" class="tasks">
+                            <!--
+                              Fixed-column CSS grid: checkbox · type icon ·
+                              priority dot · title + sub · due date.
+                              Customer lives in the sub-line via
+                              listLabelForType so we don't need a separate
+                              customer column — the title cell takes the
+                              free 1fr space and the date right-aligns.
+                            -->
                             <div
                                 v-for="t in tasks"
                                 :key="t.id"
-                                class="task-row act-list-row"
+                                class="dash-act-row"
                                 :class="{ completing: completingId === t.id }"
                             >
                                 <button
@@ -658,27 +710,25 @@ function performComplete() {
                                     @click="askComplete(t)"
                                 />
                                 <span
-                                    class="act-list-type-icon"
+                                    class="dash-act-type-icon"
                                     :style="{ color: t.type_colour }"
                                     :title="t.type"
                                 >
                                     <component :is="iconByName(t.type_icon)" :size="14" stroke-width="1.75" />
                                 </span>
-                                <div class="act-list-main">
-                                    <div class="task-text">
+                                <span
+                                    class="dash-act-priority-dot"
+                                    :class="t.priority"
+                                    :title="`Priority: ${t.priority}`"
+                                />
+                                <div class="dash-act-main">
+                                    <div class="dash-act-title">
                                         <IconPin v-if="t.is_pinned" :size="11" stroke-width="2" style="color: var(--accent); margin-right: 4px;" />
                                         {{ t.title }}
-                                        <span
-                                            class="act-priority-dot"
-                                            :class="t.priority"
-                                            :title="`Priority: ${t.priority}`"
-                                        />
                                     </div>
-                                    <div class="task-meta">
-                                        <span>{{ listLabelForType(t) }}</span>
-                                    </div>
+                                    <div class="dash-act-sub">{{ listLabelForType(t) }}</div>
                                 </div>
-                                <div class="due" :class="taskDueLabel(t).cls">{{ taskDueLabel(t).text }}</div>
+                                <div class="dash-act-date" :class="taskDueLabel(t).cls">{{ taskDueLabel(t).text }}</div>
                             </div>
                         </div>
                         <div v-else style="padding: 24px; text-align: center; color: var(--text-tertiary); font: 400 13px/1.4 'Inter', sans-serif;">
@@ -1074,5 +1124,57 @@ function performComplete() {
                 />
             </div>
         </ConfirmModal>
+
+        <!-- ═══ "Needs attention" modal ═══
+             Display-only modal — confirm-style modals are reserved for
+             destructive actions per CLAUDE.md, so this is a plain
+             Teleport panel with grouped sections. Clicking through a
+             row navigates and auto-dismisses (Inertia replaces page). -->
+        <Teleport to="body">
+            <div
+                v-if="showAllAttention"
+                class="attention-modal-backdrop"
+                @click.self="showAllAttention = false"
+            >
+                <div class="attention-modal">
+                    <div class="attention-modal-header">
+                        <span>Needs attention ({{ attention_count }})</span>
+                        <button
+                            type="button"
+                            class="icon-btn"
+                            aria-label="Close"
+                            @click="showAllAttention = false"
+                        >
+                            <IconX :size="18" stroke-width="1.75" />
+                        </button>
+                    </div>
+                    <div class="attention-modal-body">
+                        <div v-if="attentionGrouped.length === 0" class="att-empty">
+                            <IconCircleCheckFilled :size="28" stroke-width="1.5" />
+                            All clear · nothing needs attention
+                        </div>
+                        <section v-for="g in attentionGrouped" :key="g.type" class="att-modal-group">
+                            <h4 class="att-modal-group-title">{{ g.label }} ({{ g.items.length }})</h4>
+                            <Link
+                                v-for="(item, i) in g.items"
+                                :key="`${g.type}-${i}`"
+                                :href="item.href"
+                                class="att-modal-row"
+                                @click="showAllAttention = false"
+                            >
+                                <span class="att-type-ic" :class="attTone(item.type)">
+                                    <component :is="attIcon(item.type)" :size="14" stroke-width="2" />
+                                </span>
+                                <div class="att-modal-row-text">
+                                    <div class="att-title">{{ item.title }}</div>
+                                    <div class="att-sub">{{ item.sub }}</div>
+                                </div>
+                                <span class="att-link">{{ item.action }}</span>
+                            </Link>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
     </InternalLayout>
 </template>

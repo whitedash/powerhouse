@@ -247,9 +247,21 @@ const breadcrumbs = [
                         -->
                         <div class="help-table-wrap">
                             <table class="data-table help-table">
+                                <!-- Fixed column widths. Without these the
+                                     Category badge length pushes the
+                                     Author column around between rows. -->
+                                <colgroup>
+                                    <col>
+                                    <col style="width: 120px">
+                                    <col style="width: 100px">
+                                    <col style="width: 130px">
+                                    <col style="width: 110px">
+                                    <col style="width: 60px">
+                                    <col style="width: 48px">
+                                </colgroup>
                                 <thead>
                                     <tr>
-                                        <th>Title</th>
+                                        <th class="col-title">Title</th>
                                         <th>Category</th>
                                         <th>Visibility</th>
                                         <th>Author</th>
@@ -260,7 +272,7 @@ const breadcrumbs = [
                                 </thead>
                                 <tbody>
                                     <tr v-for="a in visibleArticles" :key="a.id">
-                                        <td>
+                                        <td class="col-title">
                                             <Link :href="`/help/${a.slug}`" class="help-row-title">{{ a.title }}</Link>
                                         </td>
                                         <td>

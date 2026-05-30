@@ -53,6 +53,24 @@ const tabs = [
 function logout() {
     router.post('/logout');
 }
+
+/*
+ * Exit preview: attempt to close the impersonation tab (super_admin
+ * opens it via window.open from the internal dashboard, so the tab
+ * has an opener and CAN be closed via window.close). If the close
+ * call no-ops — because the user navigated and back-buttoned, or
+ * opened the URL directly — fall back to logging out the referrer
+ * guard, which clears the impersonation session.
+ */
+function exitPreview() {
+    window.close();
+    setTimeout(() => {
+        // Still here? window.close() was blocked — POST to the staff
+        // logout route to drop the impersonation session. Plain
+        // location.href would 405 because /logout is POST-only.
+        router.post('/logout');
+    }, 150);
+}
 </script>
 
 <template>
@@ -61,7 +79,10 @@ function logout() {
         <div v-if="page.props.referrer_preview_mode" class="preview-banner">
             <IconEye :size="16" stroke-width="2" />
             <span>Previewing as <strong>{{ me.name }}</strong></span>
-            <span class="preview-banner-hint">Close this tab to exit preview mode</span>
+            <button type="button" class="preview-exit-btn" @click="exitPreview">
+                <IconLogout :size="14" stroke-width="2" />
+                Exit preview
+            </button>
         </div>
 
         <nav class="portal-topnav">

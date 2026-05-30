@@ -465,16 +465,13 @@ function handleVoid() {
                                 />
                             </td>
 
-                            <!-- Invoice cell (number / line / type) -->
+                            <!-- Invoice cell (number / line) — the type pill
+                                 is no longer user-facing; subscription vs
+                                 service is now a backend concern only. -->
                             <td>
                                 <Link :href="`/invoices/${inv.id}`" style="color: inherit; text-decoration: none;">
                                     <div class="inv-num">{{ inv.number }}</div>
                                     <div class="inv-line">{{ inv.description }}</div>
-                                    <div class="inv-type">
-                                        <span class="badge badge-sm" :class="inv.type === 'service' ? 'badge-gold' : 'badge-info'">
-                                            {{ TYPE_LABELS[inv.type] }}
-                                        </span>
-                                    </div>
                                 </Link>
                             </td>
 

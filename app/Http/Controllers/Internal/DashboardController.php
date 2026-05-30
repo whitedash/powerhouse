@@ -14,7 +14,6 @@ use App\Models\Referrer;
 use App\Models\SupportTicket;
 use App\Models\Task;
 use App\Models\User;
-use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -65,14 +64,17 @@ class DashboardController extends Controller
         $prevMonthStart = $monthStart->copy()->subMonthNoOverflow();
         $prevMonthEnd = $monthEnd->copy()->subMonthNoOverflow();
 
-        $attention = $this->buildAttention($now);
+        // buildAttention returns every red/amber item across invoices,
+        // tickets, trials and tasks. The panel only previews the first 8
+        // (red first) — the modal renders the full list grouped by type.
+        $attention = $this->buildAttention($now, $request->user()?->id);
 
         return Inertia::render('Internal/Dashboard', [
             'greeting' => $this->buildGreeting($request),
             'today' => $now->format('l, j F Y'),
             'stats' => $this->buildStats($now),
             'products' => $this->buildProducts(),
-            'attention' => array_values($attention),
+            'attention' => $attention,
             'attention_count' => count($attention),
             'activity' => $this->buildActivity(),
             'tasks' => $this->buildTasks($request),
@@ -231,128 +233,110 @@ class DashboardController extends Controller
     }
 
     /**
+     * Build every "needs attention" item across the platform.
+     *
+     * Sources: overdue invoices, SLA-breached tickets, trials ending in
+     * 7 days, overdue tasks assigned to the current operator. Items are
+     * sorted red-first so the panel preview (first 8) leads with the
+     * highest-priority work. The modal renders the full list grouped
+     * by type — no take() cap is applied here.
+     *
      * @return array<int, array<string, mixed>>
      */
-    private function buildAttention(Carbon $now): array
+    private function buildAttention(Carbon $now, ?int $userId): array
     {
-        /** @var Collection<int, array<string, mixed>> $attention */
-        $attention = collect();
+        /** @var Collection<int, array<string, mixed>> $items */
+        $items = collect();
 
-        // Critical domains expiring inside 7 days — red priority.
-        Domain::whereNotNull('expiry_date')
-            ->where('expiry_date', '<=', $now->copy()->addDays(7))
-            ->orderBy('expiry_date')
-            ->get()
-            ->each(function (Domain $d) use ($now, $attention) {
-                $days = (int) abs($now->copy()->startOfDay()->diffInDays($d->expiry_date->copy()->startOfDay(), false));
-                $attention->push([
-                    'type' => 'domain',
-                    'priority' => 'red',
-                    'title' => $d->domain.' expires in '.$days.' '.($days === 1 ? 'day' : 'days'),
-                    'sub' => 'SSL also expiring · auto-renew check',
-                    'action' => 'Renew →',
-                    'href' => '/domains',
-                ]);
-            });
-
-        // Overdue invoices — red priority.
+        // Overdue invoices — red. We send all of them; the panel takes
+        // the first 8 across all sources and the modal lists everything.
         Invoice::where('status', 'overdue')
             ->with('customer:id,name')
             ->orderBy('due_date')
-            ->take(3)
             ->get()
-            ->each(function (Invoice $i) use ($now, $attention) {
-                $days = $i->due_date
-                    ? (int) abs($now->copy()->startOfDay()->diffInDays($i->due_date->copy()->startOfDay(), false))
+            ->each(function (Invoice $inv) use ($now, $items) {
+                $days = $inv->due_date
+                    ? (int) abs($now->copy()->startOfDay()->diffInDays($inv->due_date->copy()->startOfDay(), false))
                     : 0;
-                $attention->push([
+                $items->push([
                     'type' => 'invoice',
                     'priority' => 'red',
-                    'title' => 'Invoice '.$i->number.' overdue '.$days.' '.($days === 1 ? 'day' : 'days'),
-                    'sub' => $i->customer->name.' · £'.number_format((float) $i->total, 2),
+                    'title' => 'Invoice '.$inv->number.' overdue '.$days.' '.($days === 1 ? 'day' : 'days'),
+                    'sub' => $inv->customer->name.' · £'.number_format((float) $inv->total, 2),
                     'action' => 'Chase →',
-                    'href' => '/invoices/'.$i->id,
+                    'href' => '/invoices/'.$inv->id,
                 ]);
             });
 
-        // SLA-breached tickets — red priority.
-        SupportTicket::whereNotIn('status', ['resolved', 'closed'])
+        // SLA-breached tickets — red.
+        SupportTicket::whereIn('status', ['open', 'in_progress'])
             ->whereNotNull('sla_breach_at')
             ->where('sla_breach_at', '<', $now)
             ->with('customer:id,name')
-            ->take(2)
+            ->orderBy('sla_breach_at')
             ->get()
-            ->each(function (SupportTicket $t) use ($now, $attention) {
-                $createdAt = $t->created_at;
-                $openFor = $createdAt
-                    ? $createdAt->diffForHumans($now, ['syntax' => CarbonInterface::DIFF_ABSOLUTE, 'short' => true])
-                    : 'just now';
-                $attention->push([
+            ->each(function (SupportTicket $t) use ($items) {
+                $items->push([
                     'type' => 'ticket',
                     'priority' => 'red',
-                    'title' => 'Ticket #TK-'.str_pad((string) $t->id, 4, '0', STR_PAD_LEFT).' SLA breached',
-                    'sub' => $t->customer->name.' · '.$openFor.' open',
+                    'title' => 'SLA breached: '.Str::limit((string) $t->subject, 40),
+                    'sub' => $t->customer->name,
                     'action' => 'View →',
-                    'href' => '/support',
+                    'href' => '/support/'.$t->id,
                 ]);
             });
 
-        // Outstanding (not-yet-overdue) invoices — amber priority.
-        Invoice::where('status', 'sent')
-            ->with('customer:id,name')
-            ->orderBy('due_date')
-            ->take(2)
-            ->get()
-            ->each(function (Invoice $i) use ($attention) {
-                $attention->push([
-                    'type' => 'invoice',
-                    'priority' => 'amber',
-                    'title' => 'Invoice '.$i->number.' outstanding',
-                    'sub' => $i->customer->name.' · £'.number_format((float) $i->total, 2),
-                    'action' => 'Chase →',
-                    'href' => '/invoices/'.$i->id,
-                ]);
-            });
-
-        // Trials ending in 3 days — amber priority.
+        // Trials ending in the next 7 days — amber.
         CustomerProduct::where('status', 'trial')
             ->whereNotNull('trial_ends_at')
-            ->where('trial_ends_at', '<=', $now->copy()->addDays(3))
+            ->where('trial_ends_at', '<=', $now->copy()->addDays(7))
             ->with(['customer:id,name', 'product:id,name'])
-            ->take(2)
+            ->orderBy('trial_ends_at')
             ->get()
-            ->each(function (CustomerProduct $cp) use ($now, $attention) {
-                $days = $cp->trial_ends_at
-                    ? (int) abs($now->copy()->startOfDay()->diffInDays($cp->trial_ends_at->copy()->startOfDay(), false))
-                    : 0;
-                $attention->push([
+            ->each(function (CustomerProduct $cp) use ($items) {
+                $items->push([
                     'type' => 'trial',
                     'priority' => 'amber',
-                    'title' => $cp->product->name.' trial ending in '.$days.' '.($days === 1 ? 'day' : 'days'),
-                    'sub' => $cp->customer->name.' · no card on file',
+                    'title' => $cp->product->name.' trial ending',
+                    'sub' => $cp->customer->name.' · '.($cp->trial_ends_at?->format('d M') ?? '—'),
                     'action' => 'Upgrade →',
                     'href' => '/customers/'.$cp->customer_id,
                 ]);
             });
 
-        // SSL certs expiring 8–30 days out — single rolled-up amber row.
-        $sslExpiring = Domain::whereNotNull('ssl_expiry_date')
-            ->where('ssl_expiry_date', '>', $now->copy()->addDays(7))
-            ->where('ssl_expiry_date', '<=', $now->copy()->addDays(30))
-            ->count();
-
-        if ($sslExpiring > 0) {
-            $attention->push([
-                'type' => 'ssl',
-                'priority' => 'amber',
-                'title' => $sslExpiring.' SSL cert'.($sslExpiring > 1 ? 's' : '').' expiring in 30 days',
-                'sub' => 'domain monitor · review needed',
-                'action' => 'Review →',
-                'href' => '/domains',
-            ]);
+        // Overdue tasks (assigned to the current operator) — amber.
+        // Scoped to the operator because the dashboard is personal:
+        // someone else's overdue task isn't *your* problem.
+        if ($userId !== null) {
+            Task::where('status', 'open')
+                ->whereNotNull('due_at')
+                ->where('due_at', '<', $now)
+                ->where('assigned_to', $userId)
+                ->with('customer:id,name')
+                ->orderBy('due_at')
+                ->get()
+                ->each(function (Task $t) use ($items) {
+                    $items->push([
+                        'type' => 'task',
+                        'priority' => 'amber',
+                        'title' => $t->title,
+                        // Tasks may or may not have a customer; without one
+                        // we fall back to a dash. Customer relation only
+                        // resolves when customer_id is set.
+                        'sub' => $t->customer_id !== null ? $t->customer->name : '—',
+                        'action' => 'View →',
+                        'href' => $t->customer_id !== null ? '/customers/'.$t->customer_id : '/',
+                    ]);
+                });
         }
 
-        return $attention->all();
+        // Stable sort: red before amber, original push order preserved
+        // within each priority. values() resets the keys so Inertia
+        // serialises as a JSON array, not an object.
+        return $items
+            ->sortBy(fn (array $i): int => $i['priority'] === 'red' ? 0 : 1, SORT_REGULAR, false)
+            ->values()
+            ->all();
     }
 
     /**

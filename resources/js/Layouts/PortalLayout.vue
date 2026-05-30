@@ -57,6 +57,21 @@ const tabs = computed(() => [
 function logout() {
     router.post('/portal/logout');
 }
+
+/*
+ * Exit preview: super_admin opens the impersonation tab via
+ * window.open from the internal dashboard, so window.close()
+ * normally works. If it doesn't (user navigated and back-buttoned,
+ * or opened the URL directly), fall back to POSTing the portal
+ * logout endpoint. Plain location.href would 405 because the
+ * portal logout route is POST-only.
+ */
+function exitPreview() {
+    window.close();
+    setTimeout(() => {
+        router.post('/portal/logout');
+    }, 150);
+}
 </script>
 
 <template>
@@ -69,7 +84,10 @@ function logout() {
         <div v-if="page.props.portal_preview_mode" class="preview-banner">
             <IconEye :size="16" stroke-width="2" />
             <span>Previewing as <strong>{{ me.name || me.customerName }}</strong></span>
-            <span class="preview-banner-hint">Close this tab to exit preview mode</span>
+            <button type="button" class="preview-exit-btn" @click="exitPreview">
+                <IconLogout :size="14" stroke-width="2" />
+                Exit preview
+            </button>
         </div>
 
         <!-- Topnav: sticky white bar with brand, tabs, bell, user pill -->
