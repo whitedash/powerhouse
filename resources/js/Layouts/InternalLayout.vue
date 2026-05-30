@@ -37,6 +37,8 @@ import {
     IconUser,
     IconLoader2,
     IconWorld,
+    IconLayoutKanban,
+    IconCheckbox,
 } from '@tabler/icons-vue';
 import ToastContainer from '@/Components/UI/ToastContainer.vue';
 
@@ -183,6 +185,8 @@ const sections = computed(() => {
             label: 'Workspace',
             items: [
                 { key: 'overview',      label: 'Overview',      href: '/',           icon: IconLayoutDashboard },
+                { key: 'my-work',       label: 'My Work',       href: '/my-work',    icon: IconCheckbox },
+                { key: 'projects',      label: 'Projects',      href: '/projects',   icon: IconLayoutKanban },
                 { key: 'customers',     label: 'Customers',     href: '/customers',  icon: IconUsers },
                 { key: 'invoices',      label: 'Invoices',      href: '/invoices',   icon: IconReceipt,    badge: invoicesBadge.value },
                 { key: 'subscriptions', label: 'Subscriptions', href: '/subscriptions', icon: IconCreditCard },

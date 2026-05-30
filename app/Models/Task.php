@@ -12,6 +12,9 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int|null $customer_id
+ * @property int|null $project_id
+ * @property int|null $milestone_id
+ * @property int|null $lead_id
  * @property int|null $contact_id
  * @property int|null $parent_task_id
  * @property int|null $assigned_to
@@ -26,24 +29,36 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $completed_at
  * @property string|null $outcome
  * @property int|null $duration_minutes
+ * @property string|null $estimated_hours
+ * @property int $sort_order
+ * @property string|null $blocked_reason
  * @property bool $is_pinned
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Customer|null $customer
+ * @property-read Project|null $project
+ * @property-read Milestone|null $milestone
  * @property-read Contact|null $contact
  * @property-read Task|null $parentTask
  * @property-read Collection<int, Task> $childTasks
  * @property-read Collection<int, Note> $notes
+ * @property-read Collection<int, TimeEntry> $timeEntries
  * @property-read User|null $assignedTo
  * @property-read User|null $createdBy
  * @property-read bool $is_overdue
  * @property-read string $type_icon
  * @property-read string $type_colour
+ * @property-read int $total_minutes
+ * @property-read float $total_hours
+ * @property-read bool $is_pm_task
  */
 class Task extends Model
 {
     protected $fillable = [
         'customer_id',
+        'project_id',
+        'milestone_id',
+        'lead_id',
         'contact_id',
         'parent_task_id',
         'assigned_to',
@@ -52,12 +67,19 @@ class Task extends Model
         'type',
         'description',
         'priority',
+        // The PM sprint widened status to:
+        //   todo | in_progress | in_review | blocked | complete | cancelled
+        // The legacy CRM still treats {todo, complete} as "open" vs
+        // "done"; the new kanban needs the full set.
         'status',
         'due_date',
         'due_at',
         'completed_at',
         'outcome',
         'duration_minutes',
+        'estimated_hours',
+        'sort_order',
+        'blocked_reason',
         'is_pinned',
     ];
 
@@ -71,6 +93,8 @@ class Task extends Model
             'completed_at' => 'datetime',
             'is_pinned' => 'boolean',
             'duration_minutes' => 'integer',
+            'estimated_hours' => 'decimal:2',
+            'sort_order' => 'integer',
         ];
     }
 
@@ -121,6 +145,27 @@ class Task extends Model
     }
 
     /**
+     * Parent project — null for legacy CRM tasks created before the
+     * project management feature shipped, and for any task that the
+     * operator chooses to keep loose (e.g. a personal "Quick task"
+     * logged from the MyWork page).
+     */
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function milestone(): BelongsTo
+    {
+        return $this->belongsTo(Milestone::class);
+    }
+
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(TimeEntry::class);
+    }
+
+    /**
      * Overdue = scheduled in the past with no completion timestamp.
      * Notes have no due_at by design, so they can never be "overdue" —
      * the !$this->completed_at && $this->due_at conjunction handles
@@ -131,6 +176,31 @@ class Task extends Model
         return Attribute::get(fn (): bool => ! $this->completed_at
             && $this->due_at instanceof Carbon
             && $this->due_at->isPast());
+    }
+
+    /**
+     * Aggregate of every logged minute on this task. Hydrated lazily
+     * — the kanban card uses this for the "2h logged" stamp, and the
+     * project Tasks tab for the Hours column.
+     */
+    protected function totalMinutes(): Attribute
+    {
+        return Attribute::get(fn (): int => (int) $this->timeEntries()->sum('minutes'));
+    }
+
+    protected function totalHours(): Attribute
+    {
+        return Attribute::get(fn (): float => round($this->total_minutes / 60, 2));
+    }
+
+    /**
+     * Marker used by the activity feed + customer Show.vue to decide
+     * whether to render the project chip on a task row. CRM-only tasks
+     * (no project) keep the original look.
+     */
+    protected function isPmTask(): Attribute
+    {
+        return Attribute::get(fn (): bool => $this->project_id !== null);
     }
 
     /**

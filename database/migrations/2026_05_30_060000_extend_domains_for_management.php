@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Schema;
  * and the artisan checker don't have to recompute them on every read.
  * The check command writes back whenever it runs.
  */
-return new class extends Migration
+return new class() extends Migration
 {
     public function up(): void
     {

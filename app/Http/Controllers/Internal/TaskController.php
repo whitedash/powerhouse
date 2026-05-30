@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Contact;
 use App\Models\Customer;
+use App\Models\Milestone;
 use App\Models\Task;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -64,7 +66,12 @@ class TaskController extends Controller
         $related = $task->customer_id
             ? Task::where('customer_id', $task->customer_id)
                 ->where('id', '!=', $task->id)
-                ->whereIn('status', ['open'])
+                // Active = anything not terminal. The PM sprint widened
+                // the enum from {open,complete} to the six-state set,
+                // so "open" is now expressed as "not in (complete,
+                // cancelled)" — easier to read than listing the four
+                // active states.
+                ->whereNotIn('status', ['complete', 'cancelled'])
                 ->orderByRaw('due_at IS NULL, due_at ASC')
                 ->take(5)
                 ->get(['id', 'type', 'title', 'due_at', 'status', 'priority', 'is_pinned'])
@@ -200,7 +207,11 @@ class TaskController extends Controller
                 'parent_task_id' => $data['parent_task_id'] ?? null,
                 'assigned_to' => $data['assigned_to'] ?? $userId,
                 'created_by' => $userId,
-                'status' => 'open',
+                // 'todo' is the new "open" — the entry state for the
+                // PM kanban. CRM tasks created from the customer page
+                // start here and the operator can later progress them
+                // through the workflow.
+                'status' => 'todo',
                 // Notes are open-ended by design — no schedule.
                 'due_at' => $data['type'] === 'note' ? null : $this->parseDueAt($data['due_at'] ?? null),
                 'duration_minutes' => $data['duration_minutes'] ?? null,
@@ -331,6 +342,120 @@ class TaskController extends Controller
         $this->logActivity($request, 'task.deleted', $task, before: $snapshot);
 
         return back()->with('success', 'Activity deleted.');
+    }
+
+    /**
+     * PM-flavoured status transition. Distinct from complete() which
+     * is the single-purpose "tick this off" handler used by the
+     * activity feed checkbox — updateStatus is the generic kanban
+     * column-change endpoint that the project board and the MyWork
+     * status popover both call.
+     *
+     * Side effect: when a task hits 'complete' it triggers a
+     * milestone-completion check so the milestone auto-rolls to
+     * completed once every task is done. The operator can still
+     * un-complete the milestone manually.
+     */
+    public function updateStatus(int $id, Request $request): RedirectResponse
+    {
+        $task = Task::findOrFail($id);
+
+        // Same access rule as complete(): assignee or super_admin.
+        // PM workflows assume the assignee owns transitions; if you
+        // need someone else to move the card, reassign first.
+        $user = $request->user();
+        if ($task->assigned_to !== $user->id
+            && $task->created_by !== $user->id
+            && ! $user->isSuperAdmin()) {
+            abort(403, 'You can only change status on tasks you own or are assigned to.');
+        }
+
+        $data = $request->validate([
+            'status' => ['required', Rule::in(['todo', 'in_progress', 'in_review', 'blocked', 'complete', 'cancelled'])],
+            // Blocked requires a reason — surface why the work
+            // stopped so it's actionable on the MyWork page.
+            'blocked_reason' => 'required_if:status,blocked|nullable|string|max:500',
+        ]);
+
+        $oldStatus = $task->status;
+
+        DB::transaction(function () use ($task, $data) {
+            $task->update([
+                'status' => $data['status'],
+                'completed_at' => $data['status'] === 'complete' ? now() : null,
+                // Clear the blocked_reason when moving out of blocked
+                // so a stale note doesn't sit on a now-active card.
+                'blocked_reason' => $data['status'] === 'blocked'
+                    ? ($data['blocked_reason'] ?? null)
+                    : null,
+            ]);
+
+            if ($data['status'] === 'complete' && $task->milestone_id !== null) {
+                $this->checkMilestoneCompletion($task->milestone_id);
+            }
+        });
+
+        $this->logActivity($request, 'task.status_changed', $task, after: [
+            'from' => $oldStatus,
+            'to' => $data['status'],
+        ]);
+
+        return back()->with('success', 'Status updated.');
+    }
+
+    /**
+     * Bulk reorder — called by the kanban drag-drop. Each item
+     * carries its new sort_order and (in milestone mode) the
+     * target milestone_id, so the same endpoint handles moves
+     * within a column AND between columns.
+     */
+    public function reorderTasks(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.id' => 'required|integer|exists:tasks,id',
+            'items.*.sort_order' => 'required|integer|min:0',
+            'items.*.milestone_id' => 'nullable|integer|exists:milestones,id',
+        ]);
+
+        DB::transaction(function () use ($data) {
+            foreach ($data['items'] as $item) {
+                Task::where('id', $item['id'])
+                    ->update([
+                        'sort_order' => $item['sort_order'],
+                        // Keying with array_key_exists rather than
+                        // ?? null lets the caller skip milestone_id
+                        // entirely (status-board moves) without
+                        // clobbering the existing milestone.
+                        ...(array_key_exists('milestone_id', $item)
+                            ? ['milestone_id' => $item['milestone_id']]
+                            : []),
+                    ]);
+            }
+        });
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Roll the parent milestone to completed when every one of its
+     * tasks is done. Idempotent — calling this on an already-
+     * completed milestone is a no-op.
+     */
+    private function checkMilestoneCompletion(int $milestoneId): void
+    {
+        $milestone = Milestone::findOrFail($milestoneId);
+        $total = Task::where('milestone_id', $milestoneId)->count();
+        $done = Task::where('milestone_id', $milestoneId)
+            ->where('status', 'complete')
+            ->count();
+
+        if ($total > 0 && $total === $done && $milestone->status !== 'completed') {
+            $milestone->update([
+                'status' => 'completed',
+                'completed_at' => now(),
+            ]);
+        }
     }
 
     /**

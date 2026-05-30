@@ -162,6 +162,7 @@ const tabs = computed(() => [
     { key: 'invoices',   label: 'Invoices',   count: props.customer.invoices.length },
     { key: 'products',   label: 'Products',   count: props.customer.products.length },
     { key: 'contracts',  label: 'Contracts',  count: contracts.value.length },
+    { key: 'projects',   label: 'Projects',   count: (props.customer.projects ?? []).length },
     { key: 'support',    label: 'Support',    count: props.customer.open_tickets },
     { key: 'activities', label: 'Activities', count: props.customer.tasks.length },
     { key: 'activity',   label: 'Audit log' },
@@ -2045,6 +2046,52 @@ const contractDeleteMessage = computed(() =>
                                 <span v-else class="contract-no-file">No file attached</span>
                             </footer>
                         </article>
+                    </div>
+                </section>
+            </div>
+
+            <!-- ═══ PROJECTS TAB ═══ -->
+            <div v-else-if="activeTab === 'projects'" class="cust-projects" style="margin: 0 -24px -24px; padding: 24px;">
+                <section class="card">
+                    <header class="card-header">
+                        <div class="h-icon"><IconUsersGroup :size="16" stroke-width="1.75" /></div>
+                        <div>
+                            <h3>Projects</h3>
+                            <p class="card-sub">Active and completed projects for this customer.</p>
+                        </div>
+                        <a :href="`/projects?customer_id=${customer.id}`" class="ghost-link" style="margin-left: auto;">
+                            <IconArrowRight :size="14" stroke-width="1.75" />
+                            New project
+                        </a>
+                    </header>
+
+                    <div v-if="(customer.projects ?? []).length === 0" class="cp-empty">
+                        <p class="muted">No projects for this customer yet.</p>
+                        <a href="/projects" class="ghost-link">+ Create first project</a>
+                    </div>
+
+                    <div v-else class="cust-projects-grid">
+                        <a
+                            v-for="p in customer.projects"
+                            :key="p.id"
+                            :href="`/projects/${p.id}`"
+                            class="cust-project-card"
+                            :class="{ overdue: p.is_overdue }"
+                        >
+                            <div class="cust-project-colour" :style="{ background: p.colour }"></div>
+                            <div class="cust-project-body">
+                                <div class="cust-project-title">{{ p.title }}</div>
+                                <div class="cust-project-meta">
+                                    <span class="status-badge" :class="`status-${p.status}`">{{ p.status }}</span>
+                                    <span class="priority-dot" :class="`pri-${p.priority}`"></span>
+                                    <span v-if="p.due_date" :class="['muted', 'small', { 'text-danger': p.is_overdue }]">Due {{ p.due_date }}</span>
+                                </div>
+                                <div class="project-progress-bar">
+                                    <div class="project-progress-fill" :style="{ width: p.progress + '%' }"></div>
+                                </div>
+                                <div class="muted small">{{ p.completed_count }}/{{ p.tasks_count }} tasks · {{ p.progress }}%</div>
+                            </div>
+                        </a>
                     </div>
                 </section>
             </div>

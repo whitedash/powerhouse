@@ -21,6 +21,7 @@ use App\Models\Product;
 use App\Models\ProductPlan;
 use App\Models\ProductPlanCategory;
 use App\Models\ProductPlanPrice;
+use App\Models\Project;
 use App\Models\Referrer;
 use App\Models\Task;
 use App\Models\User;
@@ -230,6 +231,16 @@ class CustomerController extends Controller
             'groups.customers:id,name',
             'contracts' => fn ($q) => $q->orderByDesc('created_at')
                 ->with('uploader:id,name'),
+            // Projects belonging to this customer. Active first,
+            // soonest-due first. Eager-counts let the card show
+            // "5/12 tasks" without a per-row N+1.
+            'projects' => fn ($q) => $q->whereNull('archived_at')
+                ->withCount([
+                    'tasks',
+                    'tasks as completed_count' => fn ($q2) => $q2->where('status', 'complete'),
+                ])
+                ->orderByRaw("CASE status WHEN 'active' THEN 1 ELSE 2 END")
+                ->orderByRaw('due_date IS NULL, due_date ASC'),
             'supportTickets:id,customer_id,subject,status',
             'portalUsers:id,customer_id,name,email,last_login_at,created_at',
         ])->findOrFail($id);
@@ -465,6 +476,26 @@ class CustomerController extends Controller
                     'created_at' => $c->created_at?->format('d M Y'),
                 ])->values(),
 
+                // Projects tab data — slim payload (compute progress
+                // via the model accessor to share the same logic the
+                // /projects index uses). Larastan hasn't picked up
+                // Customer::projects() since the relation was added
+                // in this same change; the ignore lets the typed
+                // closure compile until the next cache regenerate.
+                /** @phpstan-ignore-next-line argument.type */
+                'projects' => $customer->projects->map(fn (Project $p): array => [
+                    'id' => $p->id,
+                    'title' => $p->title,
+                    'status' => $p->status,
+                    'priority' => $p->priority,
+                    'colour' => $p->colour,
+                    'progress' => $p->progress,
+                    'due_date' => $p->due_date?->format('d M Y'),
+                    'is_overdue' => $p->is_overdue,
+                    'tasks_count' => $p->tasks_count ?? 0,
+                    'completed_count' => $p->completed_count ?? 0,
+                ])->values(),
+
                 'portal_users' => $customer->portalUsers->map(fn (PortalUser $pu): array => [
                     'id' => $pu->id,
                     'name' => $pu->name,
@@ -664,7 +695,9 @@ class CustomerController extends Controller
                 'assigned_to' => $request->user()->id,
                 'created_by' => $request->user()->id,
                 'title' => $data['title'],
-                'status' => 'open',
+                // 'todo' is the post-PM equivalent of the old 'open'
+                // — the entry state for the kanban workflow.
+                'status' => 'todo',
                 'due_date' => $data['due_date'] ?? null,
             ]);
 

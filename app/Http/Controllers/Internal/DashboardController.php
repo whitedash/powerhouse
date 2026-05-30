@@ -10,6 +10,7 @@ use App\Models\CustomerProduct;
 use App\Models\Domain;
 use App\Models\Invoice;
 use App\Models\Product;
+use App\Models\Project;
 use App\Models\Referrer;
 use App\Models\SupportTicket;
 use App\Models\Task;
@@ -314,11 +315,57 @@ class DashboardController extends Controller
                 ]);
             });
 
+        // Overdue projects — red. Two cap so we don't drown out
+        // invoice + ticket pressure; the Projects page is the full
+        // list. Internal projects (no customer) fall back to a
+        // generic sub-label.
+        Project::where('status', 'active')
+            ->whereNull('archived_at')
+            ->whereNotNull('due_date')
+            ->where('due_date', '<', $now)
+            ->with('customer:id,name')
+            ->orderBy('due_date')
+            ->take(2)
+            ->get()
+            ->each(function (Project $p) use ($items) {
+                $items->push([
+                    'type' => 'project',
+                    'priority' => 'red',
+                    'title' => 'Project overdue: '.Str::limit($p->title, 40),
+                    // customer_id is nullable on projects (internal vs
+                    // customer-attached); branch on the FK rather than
+                    // a nullsafe chain to keep phpstan quiet.
+                    'sub' => $p->customer_id !== null ? $p->customer->name : 'Internal project',
+                    'action' => 'Open →',
+                    'href' => '/projects/'.$p->id,
+                ]);
+            });
+
+        // Blocked tasks assigned to the operator — red. These are
+        // work that can't proceed without someone unblocking; the
+        // sub-label exposes the reason inline.
+        if ($userId !== null) {
+            Task::where('status', 'blocked')
+                ->where('assigned_to', $userId)
+                ->take(2)
+                ->get()
+                ->each(function (Task $t) use ($items) {
+                    $items->push([
+                        'type' => 'task',
+                        'priority' => 'red',
+                        'title' => 'Blocked: '.Str::limit($t->title, 40),
+                        'sub' => Str::limit($t->blocked_reason ?? 'No reason given', 80),
+                        'action' => 'View →',
+                        'href' => '/activities/'.$t->id,
+                    ]);
+                });
+        }
+
         // Overdue tasks (assigned to the current operator) — amber.
         // Scoped to the operator because the dashboard is personal:
         // someone else's overdue task isn't *your* problem.
         if ($userId !== null) {
-            Task::where('status', 'open')
+            Task::whereNotIn('status', ['complete', 'cancelled'])
                 ->whereNotNull('due_at')
                 ->where('due_at', '<', $now)
                 ->where('assigned_to', $userId)
@@ -386,7 +433,10 @@ class DashboardController extends Controller
         }
 
         return Task::where('assigned_to', $userId)
-            ->where('status', 'open')
+            // After the PM sprint, "open" became any non-terminal
+            // status — the dashboard sidebar list still wants
+            // anything actionable on this operator's plate.
+            ->whereNotIn('status', ['complete', 'cancelled'])
             ->with(['customer:id,name', 'contact:id,name'])
             ->orderByRaw('is_pinned DESC, due_at IS NULL, due_at ASC')
             ->take(5)

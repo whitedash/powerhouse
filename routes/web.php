@@ -13,13 +13,16 @@ use App\Http\Controllers\Internal\HelpController as InternalHelpController;
 use App\Http\Controllers\Internal\ImpersonationController as InternalImpersonationController;
 use App\Http\Controllers\Internal\InvoiceController as InternalInvoiceController;
 use App\Http\Controllers\Internal\MaavelusStatementController as InternalMaavelusStatementController;
+use App\Http\Controllers\Internal\MilestoneController as InternalMilestoneController;
 use App\Http\Controllers\Internal\MyAccountController as InternalMyAccountController;
+use App\Http\Controllers\Internal\MyWorkController as InternalMyWorkController;
 use App\Http\Controllers\Internal\NoteController as InternalNoteController;
 use App\Http\Controllers\Internal\ProductController as InternalProductController;
 use App\Http\Controllers\Internal\ProductOverviewController as InternalProductOverviewController;
 use App\Http\Controllers\Internal\ProductPlanCategoryController as InternalProductPlanCategoryController;
 use App\Http\Controllers\Internal\ProductPlanController as InternalProductPlanController;
 use App\Http\Controllers\Internal\ProductPlanPriceController as InternalProductPlanPriceController;
+use App\Http\Controllers\Internal\ProjectController as InternalProjectController;
 use App\Http\Controllers\Internal\ProvisioningController as InternalProvisioningController;
 use App\Http\Controllers\Internal\ReferrerController as InternalReferrerController;
 use App\Http\Controllers\Internal\SearchController as InternalSearchController;
@@ -27,6 +30,7 @@ use App\Http\Controllers\Internal\SettingsController as InternalSettingsControll
 use App\Http\Controllers\Internal\SubscriptionController as InternalSubscriptionController;
 use App\Http\Controllers\Internal\SupportController as InternalSupportController;
 use App\Http\Controllers\Internal\TaskController as InternalTaskController;
+use App\Http\Controllers\Internal\TimeEntryController as InternalTimeEntryController;
 use App\Http\Controllers\Portal\AccountController as PortalAccountController;
 use App\Http\Controllers\Portal\AuthController as PortalAuthController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
@@ -153,6 +157,56 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::post('/notes', [InternalNoteController::class, 'store'])->name('internal.notes.store');
     Route::put('/notes/{id}', [InternalNoteController::class, 'update'])->name('internal.notes.update');
     Route::delete('/notes/{id}', [InternalNoteController::class, 'destroy'])->name('internal.notes.destroy');
+
+    // ─── Project management ───
+    // Projects + milestones + time tracking. All inside the existing
+    // staff/super_admin role gate; the customer policy guards each
+    // controller method individually.
+    Route::prefix('projects')->name('internal.projects.')->group(function () {
+        Route::get('/', [InternalProjectController::class, 'index'])->name('index');
+        Route::post('/', [InternalProjectController::class, 'store'])->name('store');
+        Route::get('/{id}', [InternalProjectController::class, 'show'])
+            ->whereNumber('id')->name('show');
+        Route::put('/{id}', [InternalProjectController::class, 'update'])
+            ->whereNumber('id')->name('update');
+        Route::delete('/{id}', [InternalProjectController::class, 'destroy'])
+            ->whereNumber('id')->name('destroy');
+        // Convert a set of unbilled, billable time entries into a
+        // draft invoice. Lives on the project resource because the
+        // selection is always "from one project".
+        Route::post('/{id}/invoice', [InternalProjectController::class, 'generateInvoice'])
+            ->whereNumber('id')->name('invoice.generate');
+    });
+
+    Route::prefix('milestones')->name('internal.milestones.')->group(function () {
+        Route::post('/', [InternalMilestoneController::class, 'store'])->name('store');
+        // Reorder is registered before {id} so it doesn't get
+        // caught by the numeric route-model binding rule below.
+        Route::post('/reorder', [InternalMilestoneController::class, 'reorder'])->name('reorder');
+        Route::put('/{id}', [InternalMilestoneController::class, 'update'])
+            ->whereNumber('id')->name('update');
+        Route::delete('/{id}', [InternalMilestoneController::class, 'destroy'])
+            ->whereNumber('id')->name('destroy');
+    });
+
+    // PM-only task endpoints. Distinct from /tasks above (which is
+    // CRM-flavoured): kanban status changes and drag-drop reorder.
+    Route::post('/tasks/reorder', [InternalTaskController::class, 'reorderTasks'])
+        ->name('internal.tasks.reorder');
+    Route::post('/tasks/{id}/status', [InternalTaskController::class, 'updateStatus'])
+        ->whereNumber('id')->name('internal.tasks.status');
+
+    Route::prefix('time-entries')->name('internal.time-entries.')->group(function () {
+        Route::post('/', [InternalTimeEntryController::class, 'store'])->name('store');
+        Route::put('/{id}', [InternalTimeEntryController::class, 'update'])
+            ->whereNumber('id')->name('update');
+        Route::delete('/{id}', [InternalTimeEntryController::class, 'destroy'])
+            ->whereNumber('id')->name('destroy');
+    });
+
+    // Personal task dashboard — separate page, no per-user data leak
+    // risk since the controller filters to auth()->id() unconditionally.
+    Route::get('/my-work', [InternalMyWorkController::class, 'index'])->name('internal.my-work');
 
     // My account — staff/super_admin self-service profile + password.
     // No role:super_admin gate; every staff member needs this.

@@ -118,6 +118,16 @@ class Customer extends Model
         return $this->hasMany(Contract::class);
     }
 
+    /**
+     * Projects with this customer attached. Internal projects (no
+     * customer) won't appear here — they're queried via Project
+     * directly.
+     */
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class);
+    }
+
     public function supportTickets(): HasMany
     {
         return $this->hasMany(SupportTicket::class);
