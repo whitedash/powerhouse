@@ -361,7 +361,7 @@ class TaskController extends Controller
      * completed once every task is done. The operator can still
      * un-complete the milestone manually.
      */
-    public function updateStatus(int $id, Request $request): RedirectResponse
+    public function updateStatus(int $id, Request $request): JsonResponse|RedirectResponse
     {
         $task = Task::findOrFail($id);
 
@@ -404,6 +404,18 @@ class TaskController extends Controller
             'from' => $oldStatus,
             'to' => $data['status'],
         ]);
+
+        // Kanban drag-drop calls this via raw fetch() — Inertia would
+        // throw "valid Inertia response" on a back() redirect there.
+        // Inertia POSTs (the timeline status quick-change) still get
+        // a redirect because we want the toast.
+        if ($request->wantsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return response()->json([
+                'ok' => true,
+                'task_id' => $task->id,
+                'status' => $task->status,
+            ]);
+        }
 
         return back()->with('success', 'Status updated.');
     }

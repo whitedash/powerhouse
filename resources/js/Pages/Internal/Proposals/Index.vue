@@ -73,12 +73,48 @@ const form = useForm({
     valid_until: '',
     notes: '',
     lines: [{ description: '', note: '', quantity: 1, unit_price: 0, product_id: null, plan_id: null, discount_type: null, discount_value: 0 }],
+
+    // Optional payment schedule. When schedule_enabled is false the
+    // payload below is omitted entirely from the POST (see submit()).
+    schedule_enabled: false,
+    schedule: { items: [] },
 });
+
+/* ─── Payment schedule helpers (mirror PaymentScheduleEditor on Show.vue) ─── */
+function emptyScheduleItem() {
+    return {
+        label: '',
+        amount_type: 'percentage',
+        amount_value: 0,
+        trigger_type: 'manual',
+        trigger_date: '',
+    };
+}
+function addScheduleItem() {
+    form.schedule.items.push(emptyScheduleItem());
+}
+function removeScheduleItem(i) {
+    form.schedule.items.splice(i, 1);
+}
+function scheduleItemAmount(item) {
+    const value = Number(item.amount_value || 0);
+    return item.amount_type === 'percentage'
+        ? Math.round(total.value * (value / 100) * 100) / 100
+        : Math.round(value * 100) / 100;
+}
+const scheduleTotal = computed(() =>
+    form.schedule.items.reduce((s, item) => s + scheduleItemAmount(item), 0),
+);
+const scheduleMatches = computed(() =>
+    Math.abs(scheduleTotal.value - total.value) < 0.005,
+);
 
 function openCreate() {
     form.reset();
     form.clearErrors();
     form.lines = [{ description: '', note: '', quantity: 1, unit_price: 0, product_id: null, plan_id: null, discount_type: null, discount_value: 0 }];
+    form.schedule_enabled = false;
+    form.schedule = { items: [] };
     showCreate.value = true;
 }
 
@@ -115,10 +151,20 @@ const vatAmount = computed(() => Math.round(subtotal.value * (vatRate.value / 10
 const total = computed(() => Math.round((subtotal.value + vatAmount.value) * 100) / 100);
 
 function submit() {
-    form.post('/proposals', {
-        preserveScroll: false,
-        onSuccess: () => { showCreate.value = false; },
-    });
+    // Strip the schedule key entirely when the toggle is off so the
+    // controller's `nullable|array` validation sees an absent value
+    // (not an empty array, which Laravel would still call `array`).
+    form
+        .transform(data => {
+            const payload = { ...data };
+            delete payload.schedule_enabled;
+            if (! data.schedule_enabled) delete payload.schedule;
+            return payload;
+        })
+        .post('/proposals', {
+            preserveScroll: false,
+            onSuccess: () => { showCreate.value = false; },
+        });
 }
 
 /* ─── Row actions ─── */
@@ -330,6 +376,58 @@ function money(n) { return `£${Number(n || 0).toLocaleString('en-GB', { minimum
                             <div class="prop-totals-row"><span>Subtotal</span><strong>{{ money(subtotal) }}</strong></div>
                             <div v-if="vatRate > 0" class="prop-totals-row"><span>VAT ({{ vatRate }}%)</span><strong>{{ money(vatAmount) }}</strong></div>
                             <div class="prop-totals-row grand"><span>Total</span><strong>{{ money(total) }}</strong></div>
+                        </div>
+
+                        <!-- Optional payment schedule (mirrors the Show.vue editor) -->
+                        <div class="form-section sched-create-section">
+                            <label class="checkbox-inline">
+                                <input
+                                    v-model="form.schedule_enabled"
+                                    type="checkbox"
+                                    @change="form.schedule_enabled && form.schedule.items.length === 0 ? addScheduleItem() : null"
+                                />
+                                Add payment schedule
+                            </label>
+
+                            <div v-if="form.schedule_enabled" class="sched-create-body">
+                                <div v-for="(item, i) in form.schedule.items" :key="i" class="sched-create-row">
+                                    <input v-model="item.label" type="text" class="form-input" placeholder="e.g. 40% Deposit" maxlength="255" />
+                                    <select v-model="item.amount_type" class="form-input">
+                                        <option value="percentage">%</option>
+                                        <option value="fixed">£</option>
+                                    </select>
+                                    <input v-model.number="item.amount_value" type="number" min="0" step="0.01" class="form-input" placeholder="0" />
+                                    <select v-model="item.trigger_type" class="form-input">
+                                        <option value="immediate">Immediate</option>
+                                        <option value="on_date">On date</option>
+                                        <option value="manual">Manual</option>
+                                        <!-- on_milestone unavailable until a project exists -->
+                                    </select>
+                                    <input
+                                        v-if="item.trigger_type === 'on_date'"
+                                        v-model="item.trigger_date"
+                                        type="date"
+                                        class="form-input"
+                                    />
+                                    <div v-else class="sched-create-spacer muted small">{{ money(scheduleItemAmount(item)) }}</div>
+                                    <button type="button" class="icon-btn xs danger" @click="removeScheduleItem(i)">
+                                        <IconX :size="13" stroke-width="2" />
+                                    </button>
+                                </div>
+
+                                <button type="button" class="ghost-link" @click="addScheduleItem">
+                                    <IconPlus :size="13" stroke-width="2" /> Add instalment
+                                </button>
+
+                                <div class="sched-create-summary" :class="{ 'text-warning': ! scheduleMatches }">
+                                    Schedule total: {{ money(scheduleTotal) }} of {{ money(total) }}
+                                    <span v-if="! scheduleMatches"> — instalments don't add up to the proposal total.</span>
+                                </div>
+
+                                <p class="muted small">
+                                    Milestone-linked instalments can be added after the proposal is created and tied to a project.
+                                </p>
+                            </div>
                         </div>
 
                         <div class="form-section">

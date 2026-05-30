@@ -48,6 +48,15 @@ for every layout, component, and interaction pattern.
   `ConfirmModal` Vue component at
   `resources/js/Components/UI/ConfirmModal.vue` (v-model:show,
   variant=danger|warning|primary, emits @confirm).
+- **Dropdown clipping rule.** Never add `overflow:hidden` to
+  `.card`, `.table-card`, or any container that may host a `···`
+  dropdown popover. `border-radius` clips backgrounds and borders
+  without `overflow:hidden`. If clipping is genuinely needed for a
+  specific element inside a card (image, progress bar, fill marquee),
+  apply `overflow:hidden` to **that element** — or use the
+  `.card-clip` utility class on the wrapper. We removed four
+  per-namespace `.X .card { overflow: visible }` overrides because
+  the root cause was a global default that didn't need to exist.
 
 ## Key files
 - SCHEMA.md — complete database schema (source of truth)

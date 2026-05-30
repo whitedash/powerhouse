@@ -431,7 +431,8 @@ body {
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md);
-    overflow: hidden;
+    /* No overflow:hidden — same rule as .card. Row ···
+     * menus rely on this. Border-radius still clips fine. */
 }
 .tbl {
     width: 100%;
@@ -1378,6 +1379,30 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
+    /*
+     * NO overflow:hidden here. Cards routinely host
+     * absolutely-positioned dropdown popovers (Headless UI
+     * Menus, custom ··· menus) and clipping was the source
+     * of recurring "dropdown is half-cut-off" bug reports
+     * that we kept patching with per-namespace overrides.
+     *
+     * border-radius does NOT need overflow:hidden to render —
+     * the corners clip the .card background and border on
+     * their own. Only the .card-head bottom-border doesn't
+     * round perfectly, and that's invisible against flat fills.
+     *
+     * If a SPECIFIC element inside a card needs clipping
+     * (image cover, progress bar fill, marquee), apply
+     * overflow:hidden to THAT element, or use the
+     * .card-clip utility on the wrapper.
+     */
+}
+
+/* Utility: opt-in clip for the rare card that genuinely
+ * needs it (eg. images that overflow rounded corners, fill
+ * bars that should stop at the radius). Replaces what used
+ * to be the global .card overflow rule. */
+.card-clip {
     overflow: hidden;
 }
 
@@ -7942,23 +7967,9 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
 .apr-priority.medium { background: var(--warning); }
 .apr-priority.low    { background: var(--success); }
 
-/* ──────────────────────────────────────────────────────────────────────
- * CUSTOMER DETAIL — let the ··· menus escape their parent card.
- *
- * .card globally carries overflow:hidden so card-headers' background
- * is clipped to the rounded corner. On the customer detail page this
- * also clips Headless UI's absolute-positioned MenuItems popover —
- * the dropdown gets sliced off whenever the row is near a card edge.
- *
- * Scope the override to .cust-detail so other pages keep the clip.
- * We DO still need the corners to look clean, so re-apply a rounded
- * bottom on the last child via background-clip; in practice the card
- * body backgrounds inside cust-detail are flat white that matches the
- * card colour, so the corners read fine without overflow:hidden.
- * ──────────────────────────────────────────────────────────────────── */
-.cust-detail .card {
-    overflow: visible;
-}
+/* (Customer-detail .card overflow override removed — .card no
+ *  longer carries overflow:hidden globally, so the per-namespace
+ *  unclip is redundant. See the .card rule for the rationale.) */
 
 /* ──────────────────────────────────────────────────────────────────────
  * TOAST CONTAINER — global flash → toast bridge (ToastContainer.vue)
@@ -8482,15 +8493,9 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     border-top: 1px solid var(--border-soft);
 }
 
-/* ── REFERRERS TABLE-CARD: UNCLIP ROW DROPDOWNS ──────────────────
- * Same root cause as the customer-detail card fix: .card has
- * overflow: hidden globally so the rounded corners clip cleanly.
- * The Referrers table puts a Headless UI Menu inside each row,
- * and its popover was being cropped by that overflow. Scope the
- * override to .referrers .table-card so other surfaces still get
- * the rounded clip.
- */
-.referrers .table-card { overflow: visible; }
+/* (Referrers table-card overflow override removed — .table-card
+ *  no longer carries overflow:hidden globally. See the .card rule
+ *  for the rationale.) */
 
 /* ─────────────────────────────────────────────────────────────────
  * REFERRER DETAIL PAGE (/referrers/{id})
@@ -8712,10 +8717,8 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     margin-top: 2px;
 }
 .ref-show .muted { color: var(--text-tertiary); }
-/* Default open-up direction would clip — these table rows are tall
-   and the dropdown can otherwise drop below the viewport on the
-   bottom rows. Card already overflow: visible from the rule below. */
-.ref-show .card { overflow: visible; }
+/* (.ref-show .card overflow: visible removed — .card no longer
+ * carries overflow:hidden globally.) */
 
 /* Commission rules */
 .ref-show .ref-show-rule-list {
@@ -8945,7 +8948,8 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
  * ──────────────────────────────────────────────────────────────── */
 
 .act-show { display: flex; flex-direction: column; gap: 20px; }
-.act-show .card { overflow: visible; }
+/* (.act-show .card overflow override removed — .card no longer
+ * carries overflow:hidden globally.) */
 .act-show .muted { color: var(--text-tertiary); }
 
 /* Header */
@@ -10855,6 +10859,53 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
     font-variant-numeric: tabular-nums;
 }
 .projects-show .kanban-cards { display: flex; flex-direction: column; gap: 6px; min-height: 40px; }
+
+/* Card wrapper: hosts the Link and a sibling ··· menu button.
+ * position:relative so the absolute-positioned button + popover
+ * align to this rather than the column. */
+.projects-show .kt-card-wrap {
+    position: relative;
+}
+.projects-show .kt-menu-btn {
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .12s, background .12s, border-color .12s;
+}
+/* Reveal on card hover; keep visible when the menu is open. */
+.projects-show .kt-card-wrap:hover .kt-menu-btn,
+.projects-show .kt-menu-btn:focus,
+.projects-show .kt-menu-btn[aria-expanded="true"] {
+    opacity: 1;
+}
+.projects-show .kt-menu-btn:hover {
+    background: var(--neutral-bg);
+    border-color: var(--border);
+    color: var(--text-primary);
+}
+.projects-show .kt-menu {
+    /* Anchor the popover under the menu button. .row-menu in the
+     * Forms sprint defines the base look; we just override the
+     * positioning here so it lines up with the card corner. */
+    position: absolute;
+    top: 30px; right: 4px;
+    min-width: 170px;
+    z-index: 30;
+}
+.projects-show .kt-menu-sub {
+    padding: 6px 10px 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 10.5px;
+}
+
 .projects-show .kanban-task-card {
     display: block;
     background: #fff;
@@ -11554,7 +11605,69 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
 }
 .text-warning { color: #B45309; }
 
-/* ─── .public-proposal (public acceptance page) ─── */
+/* Schedule row 3rd column — holds the invoice link, the
+ * "Invoice now" button, or a pending badge. Default block
+ * flow wraps when the label runs long; lock it to a single
+ * row, right-aligned, with a min-width so the button has
+ * enough room to render its label. */
+.proposals-show .sched-status {
+    display: flex; align-items: center; justify-content: flex-end;
+    min-width: 110px;
+    text-align: right;
+    white-space: nowrap;
+}
+.proposals-show .sched-status .btn { white-space: nowrap; }
+
+/* Empty-state body inside .card (e.g. "No payment schedule
+ * attached"). Uses the same .card-body container so the
+ * padding lines up with populated cards, but we centre the
+ * icon + copy and stack them vertically. */
+.proposals-show .card-body.center {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 8px;
+    padding: 24px 16px;
+    text-align: center;
+}
+
+/* Proposals/Index new-proposal slide-over — line rows. The
+ * grid already exists but the per-row remove button was
+ * sliding under the amount column when the description
+ * wrapped to a second line. Pin the icon-btn to the row
+ * baseline so it stays in column. */
+.proposals-list .prop-line-row {
+    display: grid;
+    grid-template-columns: 1fr 90px 110px 110px 32px;
+    gap: 6px; align-items: start;
+    margin-bottom: 6px;
+}
+.proposals-list .prop-line-row .icon-btn { margin-top: 6px; }
+
+/* New-proposal slide-over: optional payment schedule block.
+ * Same grid metaphor as the editor on Show.vue (sched-edit-row)
+ * but trimmed: no milestone column since the proposal has no
+ * project at create time. */
+.proposals-list .sched-create-section {
+    border-top: 1px dashed var(--border);
+    padding-top: 12px;
+}
+.proposals-list .sched-create-body { margin-top: 10px; }
+.proposals-list .sched-create-row {
+    display: grid;
+    grid-template-columns: 1fr 70px 100px 120px 1fr 28px;
+    gap: 6px; align-items: center;
+    margin-bottom: 6px;
+}
+.proposals-list .sched-create-spacer {
+    text-align: right; font-variant-numeric: tabular-nums;
+}
+.proposals-list .sched-create-summary {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: var(--neutral-bg);
+    border-radius: var(--radius-md);
+    font: 500 13px/1.4 'Inter', sans-serif;
+}
 .public-proposal {
     min-height: 100vh;
     background: var(--content-bg);

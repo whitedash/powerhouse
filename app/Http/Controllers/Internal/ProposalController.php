@@ -7,6 +7,8 @@ use App\Models\ActivityLog;
 use App\Models\BillingEntity;
 use App\Models\Contract;
 use App\Models\Customer;
+use App\Models\PaymentSchedule;
+use App\Models\PaymentScheduleItem;
 use App\Models\Product;
 use App\Models\Proposal;
 use App\Models\ProposalLine;
@@ -159,6 +161,19 @@ class ProposalController extends Controller
             'lines.*.plan_id' => 'nullable|integer|exists:product_plans,id',
             'lines.*.discount_type' => ['nullable', Rule::in(['percentage', 'fixed'])],
             'lines.*.discount_value' => 'nullable|numeric|min:0',
+
+            // Optional payment schedule built alongside the proposal.
+            // When omitted the proposal is created without one and
+            // the operator can still attach a schedule later from the
+            // detail page's edit button — same shape as the editor
+            // slide-over there.
+            'schedule' => 'nullable|array',
+            'schedule.items' => 'required_with:schedule|array|min:1',
+            'schedule.items.*.label' => 'required|string|max:255',
+            'schedule.items.*.amount_type' => ['required', Rule::in(['fixed', 'percentage'])],
+            'schedule.items.*.amount_value' => 'required|numeric|min:0',
+            'schedule.items.*.trigger_type' => ['required', Rule::in(['immediate', 'on_date', 'on_milestone', 'manual'])],
+            'schedule.items.*.trigger_date' => 'nullable|date',
         ]);
 
         $proposal = DB::transaction(function () use ($data, $request) {
@@ -237,9 +252,54 @@ class ProposalController extends Controller
                 ProposalLine::create([...$line, 'proposal_id' => $proposal->id]);
             }
 
+            // Optional payment schedule. Items can be expressed as
+            // a £ amount OR a % of the proposal total — we keep both
+            // values so editing the proposal total later can re-derive
+            // amounts without losing the operator's original intent.
+            if (! empty($data['schedule']['items'] ?? [])) {
+                $schedule = PaymentSchedule::create([
+                    'name' => $proposal->title,
+                    'proposal_id' => $proposal->id,
+                    'customer_id' => $proposal->customer_id,
+                    'billing_entity_id' => $proposal->billing_entity_id,
+                    'total' => $total,
+                    'created_by' => $request->user()->id,
+                ]);
+
+                foreach ($data['schedule']['items'] as $i => $item) {
+                    $isPct = $item['amount_type'] === 'percentage';
+                    $rawValue = (float) $item['amount_value'];
+
+                    $itemAmount = $isPct
+                        ? round($total * ($rawValue / 100), 2)
+                        : round($rawValue, 2);
+                    $itemPct = $isPct
+                        ? round($rawValue, 2)
+                        : ($total > 0 ? round(($rawValue / $total) * 100, 2) : null);
+
+                    PaymentScheduleItem::create([
+                        'schedule_id' => $schedule->id,
+                        'label' => $item['label'],
+                        'percentage' => $itemPct,
+                        'amount' => $itemAmount,
+                        'trigger_type' => $item['trigger_type'],
+                        // on_milestone isn't selectable at create
+                        // time (no project linked yet) — the UI
+                        // forces 'manual' or 'on_date' instead.
+                        'trigger_date' => $item['trigger_type'] === 'on_date'
+                            ? ($item['trigger_date'] ?? null)
+                            : null,
+                        'milestone_id' => null,
+                        'status' => 'pending',
+                        'sort_order' => $i,
+                    ]);
+                }
+            }
+
             $this->log($request, 'proposal.created', $proposal->id, after: [
                 'reference' => $proposal->reference,
                 'total' => $total,
+                'schedule_items' => count($data['schedule']['items'] ?? []),
             ]);
 
             return $proposal;

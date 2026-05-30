@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\Internal\DashboardController;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -56,3 +58,16 @@ Schedule::command('domains:check-health')
     ->timezone('Europe/London')
     ->withoutOverlapping()
     ->runInBackground();
+
+// Warm the dashboard platform-health cache every 15 minutes so the
+// landing page never has to wait on the outbound probes itself.
+// Forget-then-build is intentional: we want to bust any stale row
+// (eg. cleared at deploy) AND prime the new one in the same pass.
+Schedule::call(function (): void {
+    Cache::forget('dashboard.platform_health');
+    app(DashboardController::class)->buildPlatformHealth();
+})
+    ->everyFifteenMinutes()
+    ->timezone('Europe/London')
+    ->name('warm.health.cache')
+    ->withoutOverlapping();

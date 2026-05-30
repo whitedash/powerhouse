@@ -213,7 +213,21 @@ function onDropMilestone(toKey) {
     const items = dest.map((t, i) => ({
         id: t.id, sort_order: i + 1, milestone_id: target,
     }));
-    router.post('/tasks/reorder', { items }, { preserveScroll: true });
+    // Reorder is a JSON endpoint — Inertia's router.post() would
+    // throw because the response is {"ok":true}, not an Inertia
+    // page. fetch() bypasses the Inertia adapter cleanly. We don't
+    // reload the page either: the local kanban state already
+    // reflects the move, and the server is just persisting it.
+    fetch('/tasks/reorder', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({ items }),
+    });
 
     dragState.taskId = null;
     dragState.fromKey = null;
@@ -232,9 +246,20 @@ function onDropStatus(toStatus) {
         dragState.fromKey = null;
         return;
     }
-    router.post(`/tasks/${dragState.taskId}/status`, {
-        status: toStatus,
-    }, { preserveScroll: true });
+    // Drag-drop status changes use fetch() — same reason as the
+    // reorder endpoint: the controller switches to JSON when the
+    // request looks XHR-shaped, and Inertia would otherwise reject
+    // a non-Inertia response.
+    fetch(`/tasks/${dragState.taskId}/status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({ status: toStatus }),
+    });
     dragState.taskId = null;
     dragState.fromKey = null;
 }
@@ -245,16 +270,24 @@ const blockedTaskId = ref(null);
 const blockedReason = ref('');
 function confirmBlocked() {
     if (! blockedReason.value.trim() || ! blockedTaskId.value) return;
-    router.post(`/tasks/${blockedTaskId.value}/status`, {
-        status: 'blocked',
-        blocked_reason: blockedReason.value.trim(),
-    }, {
-        preserveScroll: true,
-        onFinish: () => {
-            showBlockedModal.value = false;
-            blockedTaskId.value = null;
-            blockedReason.value = '';
+    const id = blockedTaskId.value;
+    const reason = blockedReason.value.trim();
+    // Same fetch path as the kanban drag handlers — the modal sits
+    // on top of the same kanban, so any router.post() would refuse
+    // the JSON response from updateStatus().
+    fetch(`/tasks/${id}/status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
+            'X-Requested-With': 'XMLHttpRequest',
         },
+        body: JSON.stringify({ status: 'blocked', blocked_reason: reason }),
+    }).finally(() => {
+        showBlockedModal.value = false;
+        blockedTaskId.value = null;
+        blockedReason.value = '';
     });
 }
 
@@ -329,6 +362,124 @@ function confirmDeleteEntry() {
         preserveScroll: true,
         onFinish: () => { showDeleteEntry.value = false; entryToDelete.value = null; },
     });
+}
+
+/* ─── Kanban task card ··· menu (edit / delete / status) ───
+ *
+ * The kanban card is a <Link> to /activities/{id}; the menu
+ * button uses click.prevent.stop so navigation doesn't fire
+ * underneath. State is keyed by task id; only one menu is
+ * open at a time.
+ */
+const openTaskMenu = ref(null);
+function toggleTaskMenu(id) {
+    openTaskMenu.value = openTaskMenu.value === id ? null : id;
+}
+// Auto-close when clicking elsewhere on the page.
+function closeTaskMenuOnOutside(e) {
+    if (! openTaskMenu.value) return;
+    const el = e.target.closest('.kt-menu-wrap');
+    if (! el) openTaskMenu.value = null;
+}
+if (typeof window !== 'undefined') {
+    window.addEventListener('click', closeTaskMenuOnOutside, true);
+}
+
+/* Edit slide-over — mirrors the Customers/Show.vue task editor
+ * pattern (transform + PUT /tasks/{id}). Submits via fetch() so
+ * the kanban doesn't full-reload; we mutate the local card on
+ * success and close. */
+const showEditTask = ref(false);
+const editingTaskId = ref(null);
+const editTask = reactive({
+    type: 'task',
+    title: '',
+    description: '',
+    priority: 'medium',
+    assigned_to: null,
+    due_at: '',
+    estimated_hours: null,
+    milestone_id: null,
+});
+
+function openEditTask(t) {
+    openTaskMenu.value = null;
+    editingTaskId.value = t.id;
+    editTask.type = t.type ?? 'task';
+    editTask.title = t.title ?? '';
+    editTask.description = t.description ?? '';
+    editTask.priority = t.priority ?? 'medium';
+    editTask.assigned_to = t.assigned_to?.id ?? t.assigned_to ?? null;
+    // due_at on the server is a TIMESTAMP; we only edit the date
+    // portion from this slide-over to keep the form simple. Time
+    // editing is on the activity detail page.
+    editTask.due_at = t.due_at
+        ? new Date(t.due_at).toISOString().slice(0, 10)
+        : '';
+    editTask.estimated_hours = t.estimated_hours ?? null;
+    editTask.milestone_id = t.milestone_id ?? null;
+    showEditTask.value = true;
+}
+
+function submitEditTask() {
+    if (! editingTaskId.value) return;
+    fetch(`/tasks/${editingTaskId.value}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({ ...editTask }),
+    }).then(() => {
+        // Hydrate the kanban + tasks lists from the server so any
+        // computed fields (assigned_to relation, total_hours) update.
+        router.reload({ only: ['project'] });
+        showEditTask.value = false;
+        editingTaskId.value = null;
+    });
+}
+
+/* Delete confirm */
+const showDeleteTask = ref(false);
+const taskToDelete = ref(null);
+function askDeleteTask(t) {
+    openTaskMenu.value = null;
+    taskToDelete.value = t;
+    showDeleteTask.value = true;
+}
+function confirmDeleteTask() {
+    if (! taskToDelete.value) return;
+    const id = taskToDelete.value.id;
+    fetch(`/tasks/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    }).then(() => {
+        router.reload({ only: ['project'] });
+        showDeleteTask.value = false;
+        taskToDelete.value = null;
+    });
+}
+
+/* In-menu status change — bypasses the modal-required 'blocked'
+ * status (drag into Blocked column for that). */
+function menuStatusChange(taskId, status) {
+    openTaskMenu.value = null;
+    fetch(`/tasks/${taskId}/status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({ status }),
+    }).then(() => router.reload({ only: ['project'] }));
 }
 
 /* ─── Status quick-change inline (Tasks tab) ─── */
@@ -540,28 +691,56 @@ function actionLabel(action) {
                             Due {{ m.due_date }}
                         </div>
                         <div class="kanban-cards">
-                            <Link
+                            <div
                                 v-for="t in tasksByMilestone[m.id] ?? []"
                                 :key="t.id"
-                                :href="`/activities/${t.id}`"
-                                class="kanban-task-card"
-                                draggable="true"
-                                @dragstart="onDragStart(t, m.id)"
+                                class="kt-card-wrap kt-menu-wrap"
                             >
-                                <div class="kt-head">
-                                    <span class="priority-dot" :class="`pri-${t.priority}`"></span>
-                                    <span class="kt-title">{{ t.title }}</span>
+                                <Link
+                                    :href="`/activities/${t.id}`"
+                                    class="kanban-task-card"
+                                    draggable="true"
+                                    @dragstart="onDragStart(t, m.id)"
+                                >
+                                    <div class="kt-head">
+                                        <span class="priority-dot" :class="`pri-${t.priority}`"></span>
+                                        <span class="kt-title">{{ t.title }}</span>
+                                    </div>
+                                    <div class="kt-meta">
+                                        <span class="status-dot" :class="t.status"></span>
+                                        <span class="muted small">{{ statusLabel(t.status) }}</span>
+                                        <span v-if="t.due_at" class="muted small">· {{ new Date(t.due_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short'}) }}</span>
+                                    </div>
+                                    <div v-if="t.assigned_to" class="kt-foot">
+                                        <span class="av xs" :style="{ background: t.assigned_to.avatar_colour ?? 'var(--text-tertiary)' }">{{ initials(t.assigned_to.name) }}</span>
+                                        <span v-if="t.total_hours > 0" class="muted small">{{ t.total_hours }}h logged</span>
+                                    </div>
+                                </Link>
+                                <button
+                                    type="button"
+                                    class="kt-menu-btn"
+                                    @click.prevent.stop="toggleTaskMenu(t.id)"
+                                >
+                                    <IconDots :size="14" stroke-width="2" />
+                                </button>
+                                <div
+                                    v-if="openTaskMenu === t.id"
+                                    class="row-menu kt-menu"
+                                    @click.stop
+                                >
+                                    <button type="button" @click="openEditTask(t)">
+                                        <IconEdit :size="13" stroke-width="2" /> Edit task
+                                    </button>
+                                    <div class="kt-menu-sub muted small">Change status</div>
+                                    <button type="button" @click="menuStatusChange(t.id, 'todo')">Todo</button>
+                                    <button type="button" @click="menuStatusChange(t.id, 'in_progress')">In progress</button>
+                                    <button type="button" @click="menuStatusChange(t.id, 'in_review')">In review</button>
+                                    <button type="button" @click="menuStatusChange(t.id, 'complete')">Complete</button>
+                                    <button type="button" class="danger" @click="askDeleteTask(t)">
+                                        <IconX :size="13" stroke-width="2" /> Delete
+                                    </button>
                                 </div>
-                                <div class="kt-meta">
-                                    <span class="status-dot" :class="t.status"></span>
-                                    <span class="muted small">{{ statusLabel(t.status) }}</span>
-                                    <span v-if="t.due_at" class="muted small">· {{ new Date(t.due_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short'}) }}</span>
-                                </div>
-                                <div v-if="t.assigned_to" class="kt-foot">
-                                    <span class="av xs" :style="{ background: t.assigned_to.avatar_colour ?? 'var(--text-tertiary)' }">{{ initials(t.assigned_to.name) }}</span>
-                                    <span v-if="t.total_hours > 0" class="muted small">{{ t.total_hours }}h logged</span>
-                                </div>
-                            </Link>
+                            </div>
                         </div>
                         <div class="kanban-add-wrap">
                             <button v-if="!quickAddOpen[m.id]" type="button" class="kanban-add" @click="openQuickAdd(m.id)">
@@ -595,23 +774,43 @@ function actionLabel(action) {
                             <span class="kanban-column-count">{{ tasksByMilestone.unassigned?.length ?? 0 }}</span>
                         </div>
                         <div class="kanban-cards">
-                            <Link
+                            <div
                                 v-for="t in tasksByMilestone.unassigned ?? []"
                                 :key="t.id"
-                                :href="`/activities/${t.id}`"
-                                class="kanban-task-card"
-                                draggable="true"
-                                @dragstart="onDragStart(t, 'unassigned')"
+                                class="kt-card-wrap kt-menu-wrap"
                             >
-                                <div class="kt-head">
-                                    <span class="priority-dot" :class="`pri-${t.priority}`"></span>
-                                    <span class="kt-title">{{ t.title }}</span>
+                                <Link
+                                    :href="`/activities/${t.id}`"
+                                    class="kanban-task-card"
+                                    draggable="true"
+                                    @dragstart="onDragStart(t, 'unassigned')"
+                                >
+                                    <div class="kt-head">
+                                        <span class="priority-dot" :class="`pri-${t.priority}`"></span>
+                                        <span class="kt-title">{{ t.title }}</span>
+                                    </div>
+                                    <div class="kt-meta">
+                                        <span class="status-dot" :class="t.status"></span>
+                                        <span class="muted small">{{ statusLabel(t.status) }}</span>
+                                    </div>
+                                </Link>
+                                <button type="button" class="kt-menu-btn" @click.prevent.stop="toggleTaskMenu(t.id)">
+                                    <IconDots :size="14" stroke-width="2" />
+                                </button>
+                                <div v-if="openTaskMenu === t.id" class="row-menu kt-menu" @click.stop>
+                                    <button type="button" @click="openEditTask(t)">
+                                        <IconEdit :size="13" stroke-width="2" /> Edit task
+                                    </button>
+                                    <div class="kt-menu-sub muted small">Change status</div>
+                                    <button type="button" @click="menuStatusChange(t.id, 'todo')">Todo</button>
+                                    <button type="button" @click="menuStatusChange(t.id, 'in_progress')">In progress</button>
+                                    <button type="button" @click="menuStatusChange(t.id, 'in_review')">In review</button>
+                                    <button type="button" @click="menuStatusChange(t.id, 'complete')">Complete</button>
+                                    <button type="button" class="danger" @click="askDeleteTask(t)">
+                                        <IconX :size="13" stroke-width="2" /> Delete
+                                    </button>
                                 </div>
-                                <div class="kt-meta">
-                                    <span class="status-dot" :class="t.status"></span>
-                                    <span class="muted small">{{ statusLabel(t.status) }}</span>
-                                </div>
-                            </Link>
+                            </div>
                         </div>
                         <div class="kanban-add-wrap">
                             <button v-if="!quickAddOpen.unassigned" type="button" class="kanban-add" @click="openQuickAdd('unassigned')">
@@ -651,26 +850,41 @@ function actionLabel(action) {
                             <span class="kanban-column-count">{{ tasksByStatus[s]?.length ?? 0 }}</span>
                         </div>
                         <div class="kanban-cards">
-                            <Link
+                            <div
                                 v-for="t in tasksByStatus[s] ?? []"
                                 :key="t.id"
-                                :href="`/activities/${t.id}`"
-                                class="kanban-task-card"
-                                draggable="true"
-                                @dragstart="onDragStart(t, s)"
+                                class="kt-card-wrap kt-menu-wrap"
                             >
-                                <div class="kt-head">
-                                    <span class="priority-dot" :class="`pri-${t.priority}`"></span>
-                                    <span class="kt-title">{{ t.title }}</span>
+                                <Link
+                                    :href="`/activities/${t.id}`"
+                                    class="kanban-task-card"
+                                    draggable="true"
+                                    @dragstart="onDragStart(t, s)"
+                                >
+                                    <div class="kt-head">
+                                        <span class="priority-dot" :class="`pri-${t.priority}`"></span>
+                                        <span class="kt-title">{{ t.title }}</span>
+                                    </div>
+                                    <div v-if="t.milestone_title" class="kt-meta">
+                                        <span class="muted small">{{ t.milestone_title }}</span>
+                                    </div>
+                                    <div v-if="s === 'blocked' && t.blocked_reason" class="kt-blocked muted small">
+                                        <IconAlertTriangle :size="12" stroke-width="2" />
+                                        {{ t.blocked_reason }}
+                                    </div>
+                                </Link>
+                                <button type="button" class="kt-menu-btn" @click.prevent.stop="toggleTaskMenu(t.id)">
+                                    <IconDots :size="14" stroke-width="2" />
+                                </button>
+                                <div v-if="openTaskMenu === t.id" class="row-menu kt-menu" @click.stop>
+                                    <button type="button" @click="openEditTask(t)">
+                                        <IconEdit :size="13" stroke-width="2" /> Edit task
+                                    </button>
+                                    <button type="button" class="danger" @click="askDeleteTask(t)">
+                                        <IconX :size="13" stroke-width="2" /> Delete
+                                    </button>
                                 </div>
-                                <div v-if="t.milestone_title" class="kt-meta">
-                                    <span class="muted small">{{ t.milestone_title }}</span>
-                                </div>
-                                <div v-if="s === 'blocked' && t.blocked_reason" class="kt-blocked muted small">
-                                    <IconAlertTriangle :size="12" stroke-width="2" />
-                                    {{ t.blocked_reason }}
-                                </div>
-                            </Link>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1087,5 +1301,82 @@ function actionLabel(action) {
                 </div>
             </div>
         </Teleport>
+
+        <!-- Edit task slide-over -->
+        <Teleport to="body">
+            <div v-if="showEditTask" class="slide-over-overlay" @click.self="showEditTask = false">
+                <div class="slide-over" style="width: 480px;">
+                    <div class="slide-over-head">
+                        <h2>Edit task</h2>
+                        <button type="button" class="icon-btn" @click="showEditTask = false">
+                            <IconX :size="18" stroke-width="2" />
+                        </button>
+                    </div>
+                    <form class="slide-over-body" @submit.prevent="submitEditTask">
+                        <div class="form-section">
+                            <label class="form-label">Title</label>
+                            <input v-model="editTask.title" type="text" class="form-input" maxlength="500" required />
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Type</label>
+                            <select v-model="editTask.type" class="form-input">
+                                <option value="task">Task</option>
+                                <option value="call">Call</option>
+                                <option value="email">Email</option>
+                                <option value="meeting">Meeting</option>
+                                <option value="note">Note</option>
+                            </select>
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Priority</label>
+                            <select v-model="editTask.priority" class="form-input">
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Assigned to</label>
+                            <select v-model.number="editTask.assigned_to" class="form-input">
+                                <option :value="null">Unassigned</option>
+                                <option v-for="u in staff" :key="u.id" :value="u.id">{{ u.name }}</option>
+                            </select>
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Milestone</label>
+                            <select v-model.number="editTask.milestone_id" class="form-input">
+                                <option :value="null">Unassigned</option>
+                                <option v-for="m in project.milestones" :key="m.id" :value="m.id">{{ m.title }}</option>
+                            </select>
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Due date</label>
+                            <input v-model="editTask.due_at" type="date" class="form-input" />
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Estimated hours</label>
+                            <input v-model.number="editTask.estimated_hours" type="number" min="0" step="0.25" class="form-input" />
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Description</label>
+                            <textarea v-model="editTask.description" class="form-input" rows="3" />
+                        </div>
+                    </form>
+                    <div class="slide-over-foot">
+                        <button type="button" class="btn btn-ghost" @click="showEditTask = false">Cancel</button>
+                        <button type="button" class="btn btn-primary" @click="submitEditTask">Save changes</button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
+
+        <ConfirmModal
+            v-model:show="showDeleteTask"
+            variant="danger"
+            :title="`Delete ${taskToDelete?.title ?? 'task'}?`"
+            message="The task and any attached time entries / notes will be removed. This cannot be undone."
+            confirm-label="Delete"
+            @confirm="confirmDeleteTask"
+        />
     </InternalLayout>
 </template>

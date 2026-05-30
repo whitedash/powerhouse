@@ -582,11 +582,16 @@ class DashboardController extends Controller
      *
      * @return array<int, array<string, mixed>>
      */
-    private function buildPlatformHealth(): array
+    public function buildPlatformHealth(): array
     {
         return Cache::remember(
             'dashboard.platform_health',
-            now()->addMinutes(5),
+            // 15 minutes. Bumped from 5 because the outbound probes
+            // (1-2s each, 4-6 hosts) added 8+ seconds to every cold
+            // dashboard load. A schedule:work task wakes up every 15
+            // minutes (routes/console.php) to refresh this key in
+            // the background so the dashboard is *always* warm.
+            now()->addMinutes(15),
             function (): array {
                 /** @var array<int, array<string, mixed>> $checks */
                 $checks = [];
@@ -599,7 +604,7 @@ class DashboardController extends Controller
                     'maavelus-hospitality' => 'https://maavelus.co.uk',
                     'myorderpad' => 'https://myorderpad.co.uk',
                     'orderpad' => 'https://myorderpad.co.uk',
-                    'whitedash' => 'https://whitedash.co.uk',
+                    'whitedash' => 'https://whitedash.com',
                 ];
 
                 Product::where('is_active', true)
@@ -699,12 +704,32 @@ class DashboardController extends Controller
         $start = microtime(true);
 
         try {
-            $response = Http::timeout(5)
-                ->withOptions(['verify' => false])
+            // 8s — external marketing sites can be slow on a cold
+            // visit, and a 5s probe was giving false negatives.
+            //
+            // allow_redirects.strict = false so we follow same-host
+            // 301s to https (the whitedash.com landing page redirects
+            // through CDN). Guzzle's default already follows but
+            // rejects host changes; spelling it out makes intent
+            // explicit and survives Guzzle config changes.
+            $response = Http::timeout(8)
+                ->withOptions([
+                    'verify' => false,
+                    'allow_redirects' => [
+                        'max' => 5,
+                        'strict' => false,
+                        'referer' => false,
+                        'protocols' => ['http', 'https'],
+                        'track_redirects' => false,
+                    ],
+                ])
                 ->get($url);
             $ms = (int) round((microtime(true) - $start) * 1000);
 
             return [
+                // < 500 = "service answered". 4xx auth/rate-limit
+                // means the host is alive — still healthy from our
+                // perspective.
                 'ok' => $response->status() < 500,
                 'ms' => $ms,
                 'status_code' => $response->status(),
