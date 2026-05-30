@@ -100,7 +100,7 @@ class HelpController extends Controller
                 'is_published' => $article->is_published,
                 'views' => $article->views,
                 'content_raw' => $article->content,
-                'content_html' => $this->renderMarkdown($article->content),
+                'content_html' => $this->renderContent($article->content),
                 'author' => $article->author?->name,
                 'updated_at' => $article->updated_at?->diffForHumans(),
             ],
@@ -212,14 +212,32 @@ class HelpController extends Controller
         return $slug;
     }
 
-    private function renderMarkdown(string $markdown): string
+    /**
+     * Render an article's stored body for display. New articles created
+     * after the rich-text-editor rollout are stored as HTML directly —
+     * detected by checking whether the trimmed body starts with a
+     * tag. Older articles created when the editor was a plain
+     * textarea were stored as Markdown and are rendered through
+     * commonmark to preserve their formatting.
+     *
+     * The Markdown path keeps `html_input => escape` so any HTML
+     * inside an old body is rendered as text; the HTML path trusts
+     * the body because it was authored by staff via the editor and
+     * Tiptap serialises only its allow-listed nodes.
+     */
+    private function renderContent(string $body): string
     {
+        $trimmed = ltrim($body);
+        if ($trimmed !== '' && str_starts_with($trimmed, '<')) {
+            return $body;
+        }
+
         $converter = new GithubFlavoredMarkdownConverter([
             'html_input' => 'escape',
             'allow_unsafe_links' => false,
         ]);
 
-        return (string) $converter->convert($markdown);
+        return (string) $converter->convert($body);
     }
 
     /**

@@ -24,6 +24,7 @@ import {
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import RichTextEditor from '@/Components/UI/RichTextEditor.vue';
 
 const props = defineProps({
     articles: { type: Array, default: () => [] },
@@ -381,15 +382,11 @@ const breadcrumbs = [
                                         <div class="form-field">
                                             <label>
                                                 Content<span class="req">*</span>
-                                                <span style="float: right; color: var(--text-tertiary); font-weight: 400; font-size: 11px;">Markdown supported</span>
+                                                <span style="float: right; color: var(--text-tertiary); font-weight: 400; font-size: 11px;">Rich text</span>
                                             </label>
-                                            <textarea
+                                            <RichTextEditor
                                                 v-model="form.content"
-                                                rows="15"
-                                                class="help-content-input"
-                                                :class="{ 'has-err': form.errors.content }"
-                                                placeholder="# Heading&#10;&#10;Write the article body here…"
-                                                required
+                                                placeholder="Write the article body here…"
                                             />
                                             <div v-if="form.errors.content" class="err">{{ form.errors.content }}</div>
                                         </div>

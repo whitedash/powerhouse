@@ -17,6 +17,12 @@
         "@headlessui/vue": "^1.7.23",
         "@inertiajs/vue3": "^3.3.0",
         "@tabler/icons-vue": "^3.44.0",
+        "@tiptap/extension-image": "^3.23.6",
+        "@tiptap/extension-link": "^3.23.6",
+        "@tiptap/extension-placeholder": "^3.23.6",
+        "@tiptap/pm": "^3.23.6",
+        "@tiptap/starter-kit": "^3.23.6",
+        "@tiptap/vue-3": "^3.23.6",
         "@vitejs/plugin-vue": "^6.0.7",
         "dayjs": "^1.11.21",
         "vue": "^3.5.35"

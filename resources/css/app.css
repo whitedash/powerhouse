@@ -9983,3 +9983,184 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     max-height: 360px;
     overflow: auto;
 }
+
+/* ─────────────────────────────────────────────────────────────────
+ * CUSTOMER GROUP BADGES
+ *
+ * Subtle pill-shaped chip used wherever a customer's groups are
+ * surfaced. Caller supplies the foreground/background colour inline;
+ * this rule sets the pill geometry only.
+ */
+.customer-group-badge {
+    font: 500 11px/1 'Inter', sans-serif;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    opacity: 0.92;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.customer-group-badge:hover { opacity: 1; }
+
+/* /customer-groups landing page */
+.cg-page { padding: 20px 0; }
+.cg-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+}
+.cg-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.cg-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.cg-card-actions { display: flex; gap: 4px; }
+.cg-desc {
+    font: 400 13px/1.45 'Inter', sans-serif;
+    color: var(--text-secondary);
+    margin: 0;
+}
+.cg-meta {
+    font: 400 11.5px/1.3 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.cg-meta svg { vertical-align: -2px; }
+.cg-meta-sep { color: var(--text-tertiary); }
+.cg-empty {
+    background: #fff;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--text-tertiary);
+}
+.cg-empty svg { color: var(--text-tertiary); }
+.cg-empty h3 {
+    margin: 12px 0 4px;
+    font: 600 16px/1.2 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+.cg-empty p {
+    margin: 0 0 18px;
+    font: 400 13.5px/1.6 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+ * RICH TEXT EDITOR (Tiptap)
+ *
+ * Used in the Help & docs editor slide-over. The toolbar lives at
+ * the top of the wrapper and the EditorContent renders below. The
+ * `.ProseMirror` selector is what Tiptap actually mounts; we style
+ * it via the `.rte-content` parent so the typography rules apply.
+ */
+.rte-wrapper {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: #fff;
+}
+.rte-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-soft);
+    background: var(--neutral-bg);
+    flex-wrap: wrap;
+}
+.rte-btn {
+    width: 30px;
+    height: 30px;
+    border: 0;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    color: var(--text-secondary);
+    padding: 0;
+}
+.rte-btn:hover { background: #fff; color: var(--text-primary); }
+.rte-btn.active {
+    background: var(--warning-bg);
+    color: var(--accent);
+}
+.rte-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.rte-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border-soft);
+    margin: 0 4px;
+}
+
+.rte-content { min-height: 300px; }
+.rte-content .ProseMirror {
+    padding: 16px;
+    min-height: 300px;
+    font: 400 14px/1.7 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: none;
+}
+.rte-content .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    color: var(--text-tertiary);
+    float: left;
+    height: 0;
+    pointer-events: none;
+}
+.rte-content h1 { font-size: 22px; font-weight: 700; margin: 16px 0 8px; }
+.rte-content h2 { font-size: 18px; font-weight: 600; margin: 14px 0 6px; }
+.rte-content h3 { font-size: 16px; font-weight: 600; margin: 12px 0 4px; }
+.rte-content p { margin: 0 0 10px; }
+.rte-content ul,
+.rte-content ol { padding-left: 22px; margin-bottom: 10px; }
+.rte-content blockquote {
+    border-left: 3px solid var(--accent);
+    padding-left: 12px;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin: 10px 0;
+}
+.rte-content code {
+    background: var(--neutral-bg);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+}
+.rte-content pre {
+    background: var(--bg-navy);
+    color: #E2E8F0;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+    font: 500 12.5px/1.5 'JetBrains Mono', monospace;
+}
+.rte-content pre code { background: transparent; padding: 0; color: inherit; }
+.rte-content img {
+    max-width: 100%;
+    border-radius: var(--radius-md);
+    margin: 8px 0;
+}
+.rte-content a {
+    color: var(--accent);
+    text-decoration: underline;
+}

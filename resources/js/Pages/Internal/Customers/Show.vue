@@ -74,6 +74,8 @@ const props = defineProps({
     // Empty when a referral is already attached; otherwise carries
     // every active referrer for the "Add referral" picker.
     available_referrers: { type: Array, default: () => [] },
+    // All groups the customer could be added to.
+    available_groups: { type: Array, default: () => [] },
 });
 
 const PIPELINE_LABELS = {
@@ -722,6 +724,73 @@ function performRevokePortal() {
     );
 }
 
+/* ─── Customer groups (add / remove) ─── */
+const showAddToGroup = ref(false);
+const selectedGroupId = ref(null);
+const addingToGroup = ref(false);
+
+function openAddToGroup() {
+    selectedGroupId.value = null;
+    showAddToGroup.value = true;
+}
+
+function submitAddToGroup() {
+    if (! selectedGroupId.value) return;
+    addingToGroup.value = true;
+    router.post(`/customer-groups/${selectedGroupId.value}/members`, {
+        customer_id: props.customer.id,
+    }, {
+        preserveScroll: true,
+        onFinish: () => {
+            addingToGroup.value = false;
+            showAddToGroup.value = false;
+        },
+    });
+}
+
+const showRemoveGroupModal = ref(false);
+const removeGroupTarget = ref(null);
+const removingFromGroup = ref(false);
+function askRemoveGroup(group) {
+    removeGroupTarget.value = group;
+    showRemoveGroupModal.value = true;
+}
+function performRemoveGroup() {
+    if (! removeGroupTarget.value) return;
+    removingFromGroup.value = true;
+    router.delete(`/customer-groups/${removeGroupTarget.value.id}/members/${props.customer.id}`, {
+        preserveScroll: true,
+        onFinish: () => {
+            removingFromGroup.value = false;
+            showRemoveGroupModal.value = false;
+            removeGroupTarget.value = null;
+        },
+    });
+}
+const removeGroupMessage = computed(() =>
+    removeGroupTarget.value
+        ? `${props.customer.name} will be removed from "${removeGroupTarget.value.name}".`
+        : '',
+);
+
+// Subtle tinted chip — light background of the group's colour with
+// the colour itself as both border and text.
+function groupBadgeStyle(colour) {
+    const c = colour || '#64748B';
+    return {
+        background: c + '22',
+        color: c,
+        borderColor: c,
+    };
+}
+
+// Filter out groups the customer is already in so the picker only
+// shows actionable options.
+const addableGroups = computed(() => {
+    const assigned = new Set((props.customer.customer_groups ?? []).map((g) => g.id));
+    return (props.available_groups ?? []).filter((g) => ! assigned.has(g.id));
+});
+
 /* ─── Add / remove referral attribution (super_admin only) ─── */
 const showAddReferral = ref(false);
 const addReferralForm = useForm({
@@ -1247,14 +1316,28 @@ const contractDeleteMessage = computed(() =>
                             </div>
                             <div class="acc-cell acc-row-last" style="grid-column: 1 / -1; border-right: 0;">
                                 <div class="acc-label">Group account</div>
-                                <div class="acc-value muted" style="display: flex; align-items: center; gap: 12px;">
-                                    <template v-if="customer.group">
-                                        {{ customer.group.name }} <span>· {{ customer.group.member_count }} member{{ customer.group.member_count === 1 ? '' : 's' }}</span>
+                                <div class="acc-value muted" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <template v-if="customer.customer_groups && customer.customer_groups.length">
+                                        <span
+                                            v-for="g in customer.customer_groups"
+                                            :key="g.id"
+                                            class="customer-group-badge"
+                                            :style="groupBadgeStyle(g.colour)"
+                                            @click.stop="askRemoveGroup(g)"
+                                            :title="`Click to remove ${g.name}`"
+                                        >{{ g.name }}</span>
                                     </template>
                                     <template v-else>
                                         None assigned
-                                        <a href="#" class="acc-link" style="font-size: 13px;" @click.prevent>Add to group<IconArrowRight :size="14" stroke-width="1.75" /></a>
                                     </template>
+                                    <button
+                                        type="button"
+                                        class="acc-link"
+                                        style="font-size: 13px; background: none; border: 0; cursor: pointer; padding: 0;"
+                                        @click="openAddToGroup"
+                                    >
+                                        + Add to group<IconArrowRight :size="14" stroke-width="1.75" />
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -3268,6 +3351,66 @@ const contractDeleteMessage = computed(() =>
                 </div>
             </transition>
         </Teleport>
+
+        <!-- ═══ ADD TO GROUP SLIDE-OVER ═══ -->
+        <Teleport to="body">
+            <transition name="slide-over">
+                <div v-if="showAddToGroup" class="slide-over">
+                    <div class="slide-over-backdrop" @click="showAddToGroup = false" />
+                    <aside class="slide-over-panel" style="width: 360px;" role="dialog" aria-modal="true">
+                        <form class="slide-over-form" @submit.prevent="submitAddToGroup">
+                            <header class="slide-over-header">
+                                <h2>Add to group</h2>
+                                <button type="button" class="icon-btn" aria-label="Close" @click="showAddToGroup = false">
+                                    <IconX :size="18" stroke-width="1.75" />
+                                </button>
+                            </header>
+                            <div class="slide-over-body">
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Group<span class="req">*</span></label>
+                                            <select v-model="selectedGroupId" required>
+                                                <option :value="null" disabled>Select a group…</option>
+                                                <option v-for="g in addableGroups" :key="g.id" :value="g.id">
+                                                    {{ g.name }}
+                                                </option>
+                                            </select>
+                                            <div v-if="addableGroups.length === 0" class="field-help" style="color: var(--text-tertiary);">
+                                                No groups available — every existing group is already assigned to this customer.
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <Link href="/customer-groups" class="ghost-link" style="font-size: 12px;">
+                                                + Manage groups
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <footer class="slide-over-footer">
+                                <button type="button" class="btn btn-secondary" @click="showAddToGroup = false">Cancel</button>
+                                <button type="submit" class="btn btn-primary" :disabled="! selectedGroupId || addingToGroup">
+                                    {{ addingToGroup ? 'Adding…' : 'Add' }}
+                                </button>
+                            </footer>
+                        </form>
+                    </aside>
+                </div>
+            </transition>
+        </Teleport>
+
+        <ConfirmModal
+            v-model:show="showRemoveGroupModal"
+            :title="removeGroupTarget ? `Remove from '${removeGroupTarget.name}'?` : 'Remove from group?'"
+            :message="removeGroupMessage"
+            confirm-label="Remove"
+            variant="danger"
+            :loading="removingFromGroup"
+            @confirm="performRemoveGroup"
+        />
 
         <ConfirmModal
             v-model:show="showContractDeleteModal"

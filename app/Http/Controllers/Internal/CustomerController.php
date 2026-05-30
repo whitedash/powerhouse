@@ -6,6 +6,7 @@ use App\Events\PaginatedListAccessed;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCustomerRequest;
 use App\Http\Requests\UpdateCustomerRequest;
+use App\Models\AccountGroup;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
 use App\Models\CommissionLedger;
@@ -372,6 +373,16 @@ class CustomerController extends Controller
                     ]
                     : null,
 
+                // All groups this customer currently belongs to — used
+                // by the overview header to render coloured chips and
+                // by the "Add to group" slide-over to know which
+                // groups are already assigned.
+                'customer_groups' => $customer->groups->map(fn (AccountGroup $g): array => [
+                    'id' => $g->id,
+                    'name' => $g->name,
+                    'colour' => $g->colour,
+                ])->values()->all(),
+
                 'notes' => $customer->notes->map(fn (Note $n) => [
                     'id' => $n->id,
                     'type' => $n->type,
@@ -545,6 +556,12 @@ class CustomerController extends Controller
             'contact_roles' => self::CONTACT_ROLES,
             'note_types' => self::NOTE_TYPES,
             'types' => self::TYPE_VALUES,
+            // Every customer group (segment) the operator could add
+            // this customer to. Pre-fetched in full so the slide-over
+            // doesn't need a round-trip on open.
+            'available_groups' => AccountGroup::orderBy('name')
+                ->get(['id', 'name', 'colour'])
+                ->all(),
         ]);
     }
 

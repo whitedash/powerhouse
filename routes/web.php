@@ -6,6 +6,7 @@ use App\Http\Controllers\Internal\BillingEntityController as InternalBillingEnti
 use App\Http\Controllers\Internal\ContactController as InternalContactController;
 use App\Http\Controllers\Internal\ContractController as InternalContractController;
 use App\Http\Controllers\Internal\CustomerController as InternalCustomerController;
+use App\Http\Controllers\Internal\CustomerGroupController as InternalCustomerGroupController;
 use App\Http\Controllers\Internal\DashboardController as InternalDashboardController;
 use App\Http\Controllers\Internal\DomainController as InternalDomainController;
 use App\Http\Controllers\Internal\HelpController as InternalHelpController;
@@ -111,6 +112,24 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::get('/contracts/{id}/download', [InternalContractController::class, 'download'])
         ->whereNumber('id')
         ->name('internal.contracts.download');
+
+    // Customer groups (segments) — CRUD + membership endpoints. The
+    // model is AccountGroup (legacy) but the URL + UI use the
+    // "customer groups" vocabulary throughout.
+    Route::get('/customer-groups', [InternalCustomerGroupController::class, 'index'])->name('internal.customer-groups.index');
+    Route::post('/customer-groups', [InternalCustomerGroupController::class, 'store'])->name('internal.customer-groups.store');
+    Route::put('/customer-groups/{id}', [InternalCustomerGroupController::class, 'update'])
+        ->whereNumber('id')
+        ->name('internal.customer-groups.update');
+    Route::delete('/customer-groups/{id}', [InternalCustomerGroupController::class, 'destroy'])
+        ->whereNumber('id')
+        ->name('internal.customer-groups.destroy');
+    Route::post('/customer-groups/{id}/members', [InternalCustomerGroupController::class, 'addMember'])
+        ->whereNumber('id')
+        ->name('internal.customer-groups.members.add');
+    Route::delete('/customer-groups/{id}/members/{customerId}', [InternalCustomerGroupController::class, 'removeMember'])
+        ->where(['id' => '[0-9]+', 'customerId' => '[0-9]+'])
+        ->name('internal.customer-groups.members.remove');
     Route::post('/customers/{id}/tasks', [InternalCustomerController::class, 'storeTask'])->name('internal.customers.tasks.store');
 
     // Global task endpoints — for the dashboard New-task slide-over and

@@ -109,9 +109,11 @@ function submit() {
                     <div class="help-article-divider" />
 
                     <!--
-                      content_html is server-rendered through league/commonmark with
-                      html_input=escape — so any tags inside the markdown source are
-                      treated as text, not raw HTML. v-html is safe here.
+                      content_html is either HTML authored by staff via the
+                      Tiptap rich-text editor (allow-listed nodes only) or
+                      legacy Markdown rendered through league/commonmark
+                      with html_input=escape. Either way the body has only
+                      ever been touched by staff, so v-html is safe here.
                     -->
                     <div class="help-article-content prose" v-html="article.content_html" />
                 </article>
