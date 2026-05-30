@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\StaffLoginController;
 use App\Http\Controllers\Internal\AnalyticsController as InternalAnalyticsController;
 use App\Http\Controllers\Internal\BillingEntityController as InternalBillingEntityController;
 use App\Http\Controllers\Internal\ContactController as InternalContactController;
+use App\Http\Controllers\Internal\ContractController as InternalContractController;
 use App\Http\Controllers\Internal\CustomerController as InternalCustomerController;
 use App\Http\Controllers\Internal\DashboardController as InternalDashboardController;
 use App\Http\Controllers\Internal\DomainController as InternalDomainController;
@@ -95,6 +96,21 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::put('/contacts/{id}', [InternalContactController::class, 'update'])->name('internal.contacts.update');
     Route::delete('/contacts/{id}', [InternalContactController::class, 'destroy'])->name('internal.contacts.destroy');
     Route::post('/contacts/{id}/primary', [InternalContactController::class, 'setPrimary'])->name('internal.contacts.primary');
+
+    // Contracts — staff CRUD with PDF upload via FileUploadService.
+    // The download endpoint streams through Storage::disk('private')
+    // so the file path is never exposed and the request is gated
+    // through the parent Customer policy.
+    Route::post('/contracts', [InternalContractController::class, 'store'])->name('internal.contracts.store');
+    Route::post('/contracts/{id}', [InternalContractController::class, 'update'])
+        ->whereNumber('id')
+        ->name('internal.contracts.update');
+    Route::delete('/contracts/{id}', [InternalContractController::class, 'destroy'])
+        ->whereNumber('id')
+        ->name('internal.contracts.destroy');
+    Route::get('/contracts/{id}/download', [InternalContractController::class, 'download'])
+        ->whereNumber('id')
+        ->name('internal.contracts.download');
     Route::post('/customers/{id}/tasks', [InternalCustomerController::class, 'storeTask'])->name('internal.customers.tasks.store');
 
     // Global task endpoints — for the dashboard New-task slide-over and

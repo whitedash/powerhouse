@@ -10,6 +10,7 @@ use App\Models\ActivityLog;
 use App\Models\BillingEntity;
 use App\Models\CommissionLedger;
 use App\Models\Contact;
+use App\Models\Contract;
 use App\Models\Customer;
 use App\Models\CustomerProduct;
 use App\Models\CustomerReferral;
@@ -226,7 +227,8 @@ class CustomerController extends Controller
                 ->orderByDesc('created_at')
                 ->limit(5),
             'groups.customers:id,name',
-            'contracts:id,customer_id,title,status,type',
+            'contracts' => fn ($q) => $q->orderByDesc('created_at')
+                ->with('uploader:id,name'),
             'supportTickets:id,customer_id,subject,status',
             'portalUsers:id,customer_id,name,email,last_login_at,created_at',
         ])->findOrFail($id);
@@ -410,6 +412,25 @@ class CustomerController extends Controller
                 ])->values(),
 
                 'contracts_count' => $customer->contracts->count(),
+                'contracts' => $customer->contracts->map(fn (Contract $c): array => [
+                    'id' => $c->id,
+                    'title' => $c->title,
+                    'description' => $c->description,
+                    'type' => $c->type,
+                    'status' => $c->status,
+                    'value' => $c->value !== null ? (float) $c->value : null,
+                    'signed_at' => $c->signed_at?->format('d M Y'),
+                    'start_date' => $c->start_date?->toDateString(),
+                    'end_date' => $c->end_date?->toDateString(),
+                    'end_date_display' => $c->end_date?->format('d M Y'),
+                    'expires_in_days' => $c->expires_in_days,
+                    'is_expired' => $c->is_expired,
+                    'has_file' => $c->pdf_path !== null && $c->pdf_path !== '',
+                    'original_name' => $c->file_original_name,
+                    'notes' => $c->notes,
+                    'uploader' => $c->uploader?->name,
+                    'created_at' => $c->created_at?->format('d M Y'),
+                ])->values(),
 
                 'portal_users' => $customer->portalUsers->map(fn (PortalUser $pu): array => [
                     'id' => $pu->id,

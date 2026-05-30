@@ -51,6 +51,8 @@ import {
     IconUserCheck,
     IconMessageCircle,
     IconPin,
+    IconFileText,
+    IconUpload,
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -115,13 +117,46 @@ const PRODUCT_PB_COLOURS = {
     smscube: 'violet',
 };
 
+/* ─── Contracts ─── */
+const contracts = computed(() => props.customer.contracts ?? []);
+
+const CONTRACT_TYPE_LABEL = {
+    service_agreement: 'Service',
+    sow: 'SoW',
+    retainer: 'Retainer',
+    nda: 'NDA',
+    other: 'Other',
+};
+const CONTRACT_STATUS_LABEL = {
+    draft: 'Draft',
+    sent: 'Sent',
+    signed: 'Signed',
+    countersigned: 'Countersigned',
+    expired: 'Expired',
+    void: 'Void',
+};
+function contractStatusClass(c) {
+    if (c.is_expired) return 'badge-overdue';
+    return {
+        draft: 'badge-inactive',
+        sent: 'badge-pending',
+        signed: 'badge-active',
+        countersigned: 'badge-active',
+        expired: 'badge-overdue',
+        void: 'badge-inactive',
+    }[c.status] ?? 'badge-inactive';
+}
+function formatMoney(value) {
+    return Number(value || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 /* ─── Tabs ─── */
 const activeTab = ref('overview');
 const tabs = computed(() => [
     { key: 'overview',   label: 'Overview' },
     { key: 'invoices',   label: 'Invoices',   count: props.customer.invoices.length },
     { key: 'products',   label: 'Products',   count: props.customer.products.length },
-    { key: 'contracts',  label: 'Contracts',  count: props.customer.contracts_count },
+    { key: 'contracts',  label: 'Contracts',  count: contracts.value.length },
     { key: 'support',    label: 'Support',    count: props.customer.open_tickets },
     { key: 'activities', label: 'Activities', count: props.customer.tasks.length },
     { key: 'activity',   label: 'Audit log' },
@@ -893,6 +928,114 @@ const headerStatusBadge = computed(() => {
     if (props.customer.pipeline_stage === 'churned') return { class: 'badge-overdue', label: 'Churned' };
     return { class: 'badge-inactive', label: 'Lead' };
 });
+
+/* ─── Contracts CRUD ─── */
+const showContractForm = ref(false);
+const editingContractId = ref(null);
+const contractFileName = ref(''); // local UI hint for the picked file
+
+const contractForm = useForm({
+    customer_id: props.customer.id,
+    title: '',
+    description: '',
+    type: 'service_agreement',
+    status: 'draft',
+    signed_at: '',
+    start_date: '',
+    end_date: '',
+    value: null,
+    notes: '',
+    file: null,
+});
+
+function resetContractForm() {
+    contractForm.reset();
+    contractForm.clearErrors();
+    contractForm.customer_id = props.customer.id;
+    contractForm.type = 'service_agreement';
+    contractForm.status = 'draft';
+    contractFileName.value = '';
+}
+
+function openAddContract() {
+    editingContractId.value = null;
+    resetContractForm();
+    showContractForm.value = true;
+}
+
+function openEditContract(c) {
+    editingContractId.value = c.id;
+    resetContractForm();
+    contractForm.title = c.title ?? '';
+    contractForm.description = c.description ?? '';
+    contractForm.type = c.type ?? 'service_agreement';
+    contractForm.status = c.status ?? 'draft';
+    contractForm.signed_at = c.signed_at_iso ?? (c.signed_at ? toIsoDate(c.signed_at) : '');
+    contractForm.start_date = c.start_date ?? '';
+    contractForm.end_date = c.end_date ?? '';
+    contractForm.value = c.value;
+    contractForm.notes = c.notes ?? '';
+    contractFileName.value = c.original_name ?? '';
+    showContractForm.value = true;
+}
+
+// "26 Aug 2026" → "2026-08-26" so the date input accepts the value
+// we already formatted server-side for display.
+function toIsoDate(human) {
+    try {
+        const d = new Date(human);
+        if (Number.isNaN(d.getTime())) return '';
+        return d.toISOString().slice(0, 10);
+    } catch (_) {
+        return '';
+    }
+}
+
+function onContractFile(event) {
+    const file = event.target.files?.[0] ?? null;
+    contractForm.file = file;
+    contractFileName.value = file?.name ?? '';
+}
+
+function submitContract() {
+    const target = editingContractId.value
+        ? `/contracts/${editingContractId.value}`
+        : '/contracts';
+    contractForm.post(target, {
+        preserveScroll: true,
+        forceFormData: true,
+        onSuccess: () => {
+            showContractForm.value = false;
+            resetContractForm();
+            editingContractId.value = null;
+        },
+    });
+}
+
+const showContractDeleteModal = ref(false);
+const contractDeleteTarget = ref(null);
+const contractDeleteProcessing = ref(false);
+function askDeleteContract(c) {
+    contractDeleteTarget.value = c;
+    showContractDeleteModal.value = true;
+}
+function performDeleteContract() {
+    if (! contractDeleteTarget.value) return;
+    contractDeleteProcessing.value = true;
+    router.delete(`/contracts/${contractDeleteTarget.value.id}`, {
+        preserveScroll: true,
+        onFinish: () => {
+            contractDeleteProcessing.value = false;
+            showContractDeleteModal.value = false;
+            contractDeleteTarget.value = null;
+        },
+    });
+}
+const contractDeleteMessage = computed(() =>
+    contractDeleteTarget.value
+        ? `"${contractDeleteTarget.value.title}" and its attached PDF (if any) will be permanently removed.`
+        : '',
+);
 </script>
 
 <template>
@@ -1698,19 +1841,95 @@ const headerStatusBadge = computed(() => {
             </div>
 
             <!-- ═══ CONTRACTS TAB ═══ -->
-            <div v-else-if="activeTab === 'contracts'" style="margin: 0 -24px -24px; padding: 24px;">
+            <div v-else-if="activeTab === 'contracts'" class="cust-contracts" style="margin: 0 -24px -24px; padding: 24px;">
                 <section class="card">
                     <header class="card-header">
                         <div class="h-icon"><IconReceipt2 :size="16" stroke-width="1.75" /></div>
                         <div>
                             <h3>Contracts</h3>
-                            <div class="sub">{{ customer.contracts_count }} on file</div>
+                            <div class="sub">{{ contracts.length }} on file</div>
+                        </div>
+                        <div class="right">
+                            <button type="button" class="btn btn-primary btn-sm" @click="openAddContract">
+                                <IconPlus :size="14" stroke-width="1.75" />
+                                Add contract
+                            </button>
                         </div>
                     </header>
-                    <div class="tab-empty">
+
+                    <div v-if="contracts.length === 0" class="tab-empty">
+                        <div style="color: var(--text-tertiary); display: inline-flex;">
+                            <IconFileText :size="40" stroke-width="1.5" />
+                        </div>
                         <h3>No contracts yet</h3>
-                        <p>Contracts are managed in the next phase.</p>
-                        <a href="#" class="ghost-link" @click.prevent>New contract<IconArrowRight :size="14" stroke-width="1.75" /></a>
+                        <p>Upload signed agreements, NDAs, or statements of work so they're discoverable next to the account.</p>
+                        <button type="button" class="ghost-link" @click="openAddContract">
+                            + Add first contract
+                        </button>
+                    </div>
+
+                    <div v-else class="contract-list">
+                        <article v-for="c in contracts" :key="c.id" class="contract-card">
+                            <header class="contract-card-head">
+                                <span class="contract-type-badge" :class="`type-${c.type}`">{{ CONTRACT_TYPE_LABEL[c.type] || c.type }}</span>
+                                <span class="contract-title">{{ c.title }}</span>
+                                <span class="badge badge-sm" :class="contractStatusClass(c)">{{ CONTRACT_STATUS_LABEL[c.status] || c.status }}</span>
+                                <Menu as="div" class="dd-menu" style="margin-left: auto;">
+                                    <MenuButton class="icon-btn" aria-label="Contract actions">
+                                        <IconDots :size="16" stroke-width="1.75" />
+                                    </MenuButton>
+                                    <MenuItems class="dd-popover right-align">
+                                        <MenuItem v-slot="{ active }">
+                                            <button type="button" :class="['dd-option', { active }]" @click="openEditContract(c)">Edit</button>
+                                        </MenuItem>
+                                        <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
+                                        <MenuItem v-slot="{ active }">
+                                            <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDeleteContract(c)">Delete</button>
+                                        </MenuItem>
+                                    </MenuItems>
+                                </Menu>
+                            </header>
+
+                            <div v-if="c.description" class="contract-desc">{{ c.description }}</div>
+
+                            <div class="contract-meta">
+                                <span v-if="c.value !== null" class="contract-value">£{{ formatMoney(c.value) }}</span>
+                                <span v-if="c.signed_at" class="contract-meta-row">
+                                    <IconCheck :size="11" stroke-width="2" /> Signed {{ c.signed_at }}
+                                </span>
+                                <span v-else class="contract-meta-row muted">
+                                    Not yet signed
+                                </span>
+                                <span v-if="c.end_date_display && c.expires_in_days !== null && c.expires_in_days < 0" class="warn-pill red">
+                                    Expired {{ c.end_date_display }}
+                                </span>
+                                <span v-else-if="c.end_date_display && c.expires_in_days !== null && c.expires_in_days <= 30" class="warn-pill">
+                                    Expires in {{ c.expires_in_days }} day{{ c.expires_in_days === 1 ? '' : 's' }}
+                                </span>
+                                <span v-else-if="c.end_date_display" class="contract-meta-row muted">
+                                    Expires {{ c.end_date_display }}
+                                </span>
+                            </div>
+
+                            <div v-if="c.notes" class="contract-notes">{{ c.notes }}</div>
+
+                            <footer class="contract-card-foot">
+                                <span class="contract-foot-meta">
+                                    <template v-if="c.uploader">{{ c.uploader }} · </template>{{ c.created_at }}
+                                </span>
+                                <a
+                                    v-if="c.has_file"
+                                    :href="`/contracts/${c.id}/download`"
+                                    target="_blank"
+                                    rel="noopener"
+                                    class="ghost-link"
+                                >
+                                    <IconDownload :size="13" stroke-width="1.75" />
+                                    Download PDF
+                                </a>
+                                <span v-else class="contract-no-file">No file attached</span>
+                            </footer>
+                        </article>
                     </div>
                 </section>
             </div>
@@ -2836,6 +3055,142 @@ const headerStatusBadge = computed(() => {
                 </div>
             </template>
         </Teleport>
+
+        <!-- ═══ CONTRACT SLIDE-OVER (add / edit) ═══ -->
+        <Teleport to="body">
+            <transition name="slide-over">
+                <div v-if="showContractForm" class="slide-over">
+                    <div class="slide-over-backdrop" @click="showContractForm = false" />
+                    <aside class="slide-over-panel contract-slide-over" role="dialog" aria-modal="true">
+                        <form class="slide-over-form" @submit.prevent="submitContract">
+                            <header class="slide-over-header">
+                                <h2>{{ editingContractId ? 'Edit contract' : 'Add contract' }}</h2>
+                                <button type="button" class="icon-btn" aria-label="Close" @click="showContractForm = false">
+                                    <IconX :size="18" stroke-width="1.75" />
+                                </button>
+                            </header>
+                            <div class="slide-over-body">
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Title<span class="req">*</span></label>
+                                            <input v-model="contractForm.title" type="text" required maxlength="255" :class="{ 'has-err': contractForm.errors.title }">
+                                            <div v-if="contractForm.errors.title" class="err">{{ contractForm.errors.title }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Description</label>
+                                            <textarea v-model="contractForm.description" rows="2" maxlength="5000" placeholder="A short summary of what this contract covers." />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-section">
+                                    <div class="form-row">
+                                        <div class="form-field">
+                                            <label>Type</label>
+                                            <select v-model="contractForm.type">
+                                                <option value="service_agreement">Service agreement</option>
+                                                <option value="sow">Statement of work</option>
+                                                <option value="retainer">Retainer</option>
+                                                <option value="nda">NDA</option>
+                                                <option value="other">Other</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-field">
+                                            <label>Status</label>
+                                            <select v-model="contractForm.status">
+                                                <option value="draft">Draft</option>
+                                                <option value="sent">Sent</option>
+                                                <option value="signed">Signed</option>
+                                                <option value="countersigned">Countersigned</option>
+                                                <option value="expired">Expired</option>
+                                                <option value="void">Void</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-section">
+                                    <div class="form-row">
+                                        <div class="form-field">
+                                            <label>Start date</label>
+                                            <input v-model="contractForm.start_date" type="date">
+                                        </div>
+                                        <div class="form-field">
+                                            <label>Expiry date</label>
+                                            <input v-model="contractForm.end_date" type="date" :class="{ 'has-err': contractForm.errors.end_date }">
+                                            <div v-if="contractForm.errors.end_date" class="err">{{ contractForm.errors.end_date }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-field">
+                                            <label>Signed on</label>
+                                            <input v-model="contractForm.signed_at" type="date">
+                                        </div>
+                                        <div class="form-field">
+                                            <label>Contract value</label>
+                                            <div style="display: flex; align-items: center; gap: 6px;">
+                                                <span style="color: var(--text-tertiary);">£</span>
+                                                <input v-model.number="contractForm.value" type="number" step="0.01" min="0" placeholder="Optional" style="flex: 1;">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-section">
+                                    <label>PDF</label>
+                                    <label class="contract-upload-zone">
+                                        <input
+                                            type="file"
+                                            accept="application/pdf"
+                                            style="display: none;"
+                                            @change="onContractFile"
+                                        >
+                                        <IconUpload :size="18" stroke-width="1.75" />
+                                        <div class="contract-upload-text">
+                                            <div class="contract-upload-title">
+                                                <template v-if="contractFileName">{{ contractFileName }}</template>
+                                                <template v-else>Click to upload PDF</template>
+                                            </div>
+                                            <div class="contract-upload-sub">PDF only · max 10 MB</div>
+                                        </div>
+                                    </label>
+                                    <div v-if="contractForm.errors.file" class="err">{{ contractForm.errors.file }}</div>
+                                </div>
+
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Internal notes</label>
+                                            <textarea v-model="contractForm.notes" rows="3" maxlength="2000" placeholder="Not visible to the customer." />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <footer class="slide-over-footer">
+                                <button type="button" class="btn btn-secondary" @click="showContractForm = false">Cancel</button>
+                                <button type="submit" class="btn btn-primary" :disabled="contractForm.processing">
+                                    <IconCheck :size="14" stroke-width="2" />
+                                    {{ contractForm.processing ? 'Saving…' : (editingContractId ? 'Save changes' : 'Add contract') }}
+                                </button>
+                            </footer>
+                        </form>
+                    </aside>
+                </div>
+            </transition>
+        </Teleport>
+
+        <ConfirmModal
+            v-model:show="showContractDeleteModal"
+            :title="contractDeleteTarget ? `Delete '${contractDeleteTarget.title}'?` : 'Delete contract?'"
+            :message="contractDeleteMessage"
+            confirm-label="Delete"
+            variant="danger"
+            :loading="contractDeleteProcessing"
+            @confirm="performDeleteContract"
+        />
     </InternalLayout>
 </template>
 
