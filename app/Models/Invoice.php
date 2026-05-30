@@ -147,4 +147,34 @@ class Invoice extends Model
     {
         return $this->hasMany(self::class, 'parent_invoice_id');
     }
+
+    /**
+     * Pessimistic-lock the latest INV-#### row and return the next
+     * number in sequence. Must be called inside an open DB transaction
+     * — the lock survives until COMMIT, blocking a parallel caller
+     * from claiming the same number. Used by the InvoiceController
+     * store() path, the invoices:generate-recurring artisan, and the
+     * invoices:generate-subscriptions artisan so all three share one
+     * source of truth for the numbering scheme.
+     */
+    public static function generateNextNumber(): string
+    {
+        $last = self::query()
+            ->where('number', 'like', 'INV-%')
+            ->orderByDesc('id')
+            ->lockForUpdate()
+            ->value('number');
+
+        if ($last === null) {
+            return 'INV-0001';
+        }
+
+        // Extract the trailing run of digits. The match() check is
+        // defensive — a typo'd number would fall back to 1 rather
+        // than crash the whole sweep.
+        preg_match('/(\d+)$/', $last, $matches);
+        $next = isset($matches[1]) ? ((int) $matches[1]) + 1 : 1;
+
+        return 'INV-'.str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+    }
 }

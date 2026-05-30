@@ -916,18 +916,14 @@ class InvoiceController extends Controller
     /**
      * Hot path during store(): pessimistic-lock the latest INV-#### row,
      * derive the next number, return it. Must be called inside an open
-     * DB::transaction so the lock survives until COMMIT.
+     * DB::transaction so the lock survives until COMMIT. Delegates to
+     * Invoice::generateNextNumber() so the controller, the recurring
+     * generator artisan, and the subscription invoicer artisan all
+     * share one numbering implementation.
      */
     private function generateNextInvoiceNumberLocked(): string
     {
-        $last = Invoice::where('number', 'like', 'INV-%')
-            ->orderByDesc('id')
-            ->lockForUpdate()
-            ->value('number');
-
-        $seq = $last ? ((int) substr($last, -4)) + 1 : 1;
-
-        return 'INV-'.str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
+        return Invoice::generateNextNumber();
     }
 
     private function buildSummary(): array

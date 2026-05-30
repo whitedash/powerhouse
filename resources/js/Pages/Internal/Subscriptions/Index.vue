@@ -181,6 +181,8 @@ const editForm = useForm({
     interval_unit: 'month',
     billing_entity_id: null,
     next_billing_date: '',
+    auto_invoice: false,
+    auto_invoice_entity_id: null,
     discount_pct: null,
     discount_expires_at: '',
     stripe_subscription_id: '',
@@ -211,6 +213,8 @@ function openEdit(sub) {
     editForm.interval_unit = sub.interval_unit ?? 'month';
     editForm.billing_entity_id = sub.billing_entity?.id ?? null;
     editForm.next_billing_date = sub.next_billing_date ?? '';
+    editForm.auto_invoice = !! sub.auto_invoice;
+    editForm.auto_invoice_entity_id = sub.auto_invoice_entity_id ?? null;
     editForm.discount_pct = sub.discount_pct ?? null;
     editForm.discount_expires_at = sub.discount_expires_at ?? '';
     editForm.stripe_subscription_id = sub.stripe_subscription_id ?? '';
@@ -564,6 +568,11 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                                         <IconAlertTriangle :size="11" stroke-width="1.75" />
                                         Cancels {{ formatDate(sub.cancels_at) }}
                                     </span>
+                                    <span
+                                        v-if="sub.auto_invoice"
+                                        class="badge badge-info badge-sm"
+                                        title="Auto-generates a draft invoice on the renewal date"
+                                    >↻ Auto-invoice</span>
                                 </div>
                             </td>
                             <td>
@@ -755,6 +764,35 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                                                 <option :value="null">— None —</option>
                                                 <option v-for="be in billing_entities" :key="be.id" :value="be.id">{{ be.name }}</option>
                                             </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Auto-invoice -->
+                                <div class="form-section" style="border-top: 1px solid var(--border-soft); padding-top: 14px;">
+                                    <div class="set-row" style="display: flex; align-items: center; gap: 14px;">
+                                        <div style="flex: 1;">
+                                            <div class="nm">Auto-generate invoices</div>
+                                            <div class="sb">Create a draft invoice automatically on each renewal date.</div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            class="toggle"
+                                            :class="{ on: editForm.auto_invoice }"
+                                            aria-label="Toggle auto-invoice"
+                                            @click="editForm.auto_invoice = ! editForm.auto_invoice"
+                                        />
+                                    </div>
+                                    <div v-if="editForm.auto_invoice" class="form-row single" style="margin-top: 12px;">
+                                        <div class="form-field">
+                                            <label>Bill from entity</label>
+                                            <select v-model="editForm.auto_invoice_entity_id">
+                                                <option :value="null">Default billing entity</option>
+                                                <option v-for="be in billing_entities" :key="be.id" :value="be.id">{{ be.name }}</option>
+                                            </select>
+                                            <div class="field-help">
+                                                Defaults to the first active billing entity when not set.
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

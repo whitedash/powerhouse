@@ -24,6 +24,9 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $trial_ends_at
  * @property Carbon|null $started_at
  * @property Carbon|null $next_billing_date
+ * @property bool $auto_invoice
+ * @property int|null $auto_invoice_entity_id
+ * @property Carbon|null $last_invoiced_at
  * @property string|null $discount_pct
  * @property Carbon|null $discount_expires_at
  * @property Carbon|null $cancels_at
@@ -42,6 +45,7 @@ use Illuminate\Support\Carbon;
  * @property-read ProductPlan|null $productPlan
  * @property-read ProductPlanPrice|null $planPrice
  * @property-read BillingEntity|null $billingEntity
+ * @property-read BillingEntity|null $autoInvoiceEntity
  */
 class CustomerProduct extends Model
 {
@@ -61,6 +65,9 @@ class CustomerProduct extends Model
         'trial_ends_at',
         'started_at',
         'next_billing_date',
+        'auto_invoice',
+        'auto_invoice_entity_id',
+        'last_invoiced_at',
         'discount_pct',
         'discount_expires_at',
         'cancels_at',
@@ -79,6 +86,8 @@ class CustomerProduct extends Model
             'trial_ends_at' => 'datetime',
             'started_at' => 'datetime',
             'next_billing_date' => 'date',
+            'auto_invoice' => 'boolean',
+            'last_invoiced_at' => 'date',
             'discount_expires_at' => 'date',
             'cancels_at' => 'date',
             'cancelled_at' => 'datetime',
@@ -99,6 +108,16 @@ class CustomerProduct extends Model
     public function billingEntity(): BelongsTo
     {
         return $this->belongsTo(BillingEntity::class);
+    }
+
+    /**
+     * The billing entity the auto-invoice job should bill from when
+     * this subscription is due. Null means "fall back to the default
+     * active billing entity" — keeps single-entity setups clean.
+     */
+    public function autoInvoiceEntity(): BelongsTo
+    {
+        return $this->belongsTo(BillingEntity::class, 'auto_invoice_entity_id');
     }
 
     public function productPlan(): BelongsTo

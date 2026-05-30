@@ -27,6 +27,17 @@ Schedule::command('invoices:generate-recurring')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Auto-generate draft invoices for active subscriptions whose
+// next_billing_date has come due. Runs 30 minutes after the
+// recurring-invoice generator so the two sweeps don't compete for
+// the INV-#### lock — both call Invoice::generateNextNumber()
+// which is itself safe, but staggering keeps log output legible.
+Schedule::command('invoices:generate-subscriptions')
+    ->dailyAt('07:30')
+    ->timezone('Europe/London')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Auto-close support tickets idle in awaiting_customer for longer
 // than the configured threshold (Settings → Notifications). Runs
 // in the small hours so any morning team activity wins the

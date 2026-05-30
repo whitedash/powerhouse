@@ -71,6 +71,9 @@ class SubscriptionController extends Controller
                 'started_at' => $cp->started_at?->toIso8601String(),
                 'trial_ends_at' => $cp->trial_ends_at?->toIso8601String(),
                 'next_billing_date' => $cp->next_billing_date?->toDateString(),
+                'auto_invoice' => (bool) $cp->auto_invoice,
+                'auto_invoice_entity_id' => $cp->auto_invoice_entity_id,
+                'last_invoiced_at' => $cp->last_invoiced_at?->toDateString(),
                 'cancels_at' => $cp->cancels_at?->toDateString(),
                 'discount_pct' => $cp->discount_pct !== null ? (float) $cp->discount_pct : null,
                 'discount_expires_at' => $cp->discount_expires_at?->toDateString(),
@@ -141,6 +144,11 @@ class SubscriptionController extends Controller
             'interval_unit' => ['required', 'in:day,week,month,year,one_time'],
             'billing_entity_id' => ['nullable', 'integer', 'exists:billing_entities,id'],
             'next_billing_date' => ['nullable', 'date'],
+            // Auto-invoice opt-in. Entity is optional — falls back to
+            // the default billing entity in the artisan command when
+            // null. Casting to int|bool happens at the model layer.
+            'auto_invoice' => ['nullable', 'boolean'],
+            'auto_invoice_entity_id' => ['nullable', 'integer', 'exists:billing_entities,id'],
             'discount_pct' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'discount_expires_at' => ['nullable', 'date'],
             'stripe_subscription_id' => ['nullable', 'string', 'max:100'],
