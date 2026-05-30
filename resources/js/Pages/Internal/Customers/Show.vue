@@ -162,6 +162,7 @@ const tabs = computed(() => [
     { key: 'invoices',   label: 'Invoices',   count: props.customer.invoices.length },
     { key: 'products',   label: 'Products',   count: props.customer.products.length },
     { key: 'contracts',  label: 'Contracts',  count: contracts.value.length },
+    { key: 'proposals',  label: 'Proposals',  count: (props.customer.proposals ?? []).length },
     { key: 'projects',   label: 'Projects',   count: (props.customer.projects ?? []).length },
     { key: 'support',    label: 'Support',    count: props.customer.open_tickets },
     { key: 'activities', label: 'Activities', count: props.customer.tasks.length },
@@ -2046,6 +2047,53 @@ const contractDeleteMessage = computed(() =>
                                 <span v-else class="contract-no-file">No file attached</span>
                             </footer>
                         </article>
+                    </div>
+                </section>
+            </div>
+
+            <!-- ═══ PROPOSALS TAB ═══ -->
+            <div v-else-if="activeTab === 'proposals'" class="cust-proposals" style="margin: 0 -24px -24px; padding: 24px;">
+                <section class="card">
+                    <header class="card-header">
+                        <div class="h-icon"><IconUsersGroup :size="16" stroke-width="1.75" /></div>
+                        <div>
+                            <h3>Proposals</h3>
+                            <p class="card-sub">Quotes sent to this customer.</p>
+                        </div>
+                        <a href="/proposals" class="ghost-link" style="margin-left: auto;">
+                            <IconArrowRight :size="14" stroke-width="1.75" />
+                            New proposal
+                        </a>
+                    </header>
+
+                    <div v-if="(customer.proposals ?? []).length === 0" class="cp-empty">
+                        <p class="muted">No proposals for this customer yet.</p>
+                        <a href="/proposals" class="ghost-link">+ Create first proposal</a>
+                    </div>
+
+                    <div v-else>
+                        <div
+                            v-for="p in customer.proposals"
+                            :key="p.id"
+                            class="cust-prop-row"
+                        >
+                            <a :href="`/proposals/${p.id}`" class="prop-ref-mono">{{ p.reference }}</a>
+                            <div>
+                                <a :href="`/proposals/${p.id}`" class="tbl-link">{{ p.title }}</a>
+                            </div>
+                            <span class="muted small">{{ p.created_at }}</span>
+                            <span
+                                class="badge"
+                                :class="{
+                                    'badge-inactive': p.status === 'draft' || p.status === 'expired',
+                                    'badge-pending': p.status === 'sent',
+                                    'badge-active': p.status === 'accepted',
+                                    'badge-danger': p.status === 'rejected',
+                                }"
+                            >{{ p.status }}</span>
+                            <strong>£{{ Number(p.total).toFixed(2) }}</strong>
+                            <a :href="`/proposals/${p.id}`" class="ghost-link inline">View →</a>
+                        </div>
                     </div>
                 </section>
             </div>

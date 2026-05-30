@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Public\ProposalAcceptanceController;
 use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Milestone;
+use App\Models\PaymentScheduleItem;
 use App\Models\Task;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -89,6 +91,29 @@ class MilestoneController extends Controller
             'due_date' => $milestone->due_date?->toDateString(),
         ]);
 
+        // Milestone-trigger hook: when the milestone flips to
+        // completed, spawn an invoice for any payment schedule
+        // items keyed to it. Wrapped in try/catch so a failure in
+        // the billing side doesn't block the milestone update — we
+        // want the kanban to keep moving even if the books are
+        // temporarily wedged.
+        if ($data['status'] === 'completed' && $before['status'] !== 'completed') {
+            try {
+                $this->triggerMilestoneItems($milestone->id, $request);
+            } catch (\Throwable $e) {
+                ActivityLog::create([
+                    'user_id' => $request->user()->id,
+                    'user_role' => $request->user()->role,
+                    'action' => 'payment_schedule.milestone_trigger_failed',
+                    'entity_type' => 'milestone',
+                    'entity_id' => $milestone->id,
+                    'after' => ['message' => substr($e->getMessage(), 0, 300)],
+                    'ip_address' => $request->ip(),
+                    'user_agent' => substr((string) $request->userAgent(), 0, 500),
+                ]);
+            }
+        }
+
         return back()->with('success', 'Milestone updated.');
     }
 
@@ -141,6 +166,51 @@ class MilestoneController extends Controller
         });
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Spawn invoices for payment schedule items whose trigger is
+     * this milestone. Each successful trigger leaves an audit row
+     * separate from the milestone update — the operator can scan
+     * the activity feed and see "Invoice INV-xxxx auto-generated
+     * because Discovery completed".
+     *
+     * Reuses ProposalAcceptanceController::generateScheduleInvoice
+     * so manual and auto triggers always emit identical invoices.
+     */
+    private function triggerMilestoneItems(int $milestoneId, Request $request): void
+    {
+        $items = PaymentScheduleItem::with('schedule')
+            ->where('milestone_id', $milestoneId)
+            ->where('trigger_type', 'on_milestone')
+            ->where('status', 'pending')
+            ->get();
+
+        foreach ($items as $item) {
+            $invoice = app(ProposalAcceptanceController::class)
+                ->generateScheduleInvoice($item->schedule, $item, $request->user()->id);
+
+            $item->update([
+                'invoice_id' => $invoice->id,
+                'status' => 'invoiced',
+            ]);
+
+            ActivityLog::create([
+                'user_id' => $request->user()->id,
+                'user_role' => $request->user()->role,
+                'action' => 'payment_schedule.milestone_invoiced',
+                'entity_type' => 'payment_schedule',
+                'entity_id' => $item->schedule_id,
+                'after' => [
+                    'milestone_id' => $milestoneId,
+                    'item_id' => $item->id,
+                    'invoice_id' => $invoice->id,
+                    'amount' => (float) $item->amount,
+                ],
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 500),
+            ]);
+        }
     }
 
     /**

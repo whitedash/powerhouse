@@ -65,6 +65,10 @@ function buildDefaults(entity) {
         legal_name: entity?.legal_name ?? '',
         company_number: entity?.company_number ?? '',
         vat_number: entity?.vat_number ?? '',
+        // VAT switch + default rate. When vat_registered is false
+        // we don't even render VAT on documents from this entity.
+        vat_registered: entity?.vat_registered ?? true,
+        default_vat_rate: Number(entity?.default_vat_rate ?? 20),
         address_line1: addr.line1,
         address_line2: addr.line2,
         city: addr.city,
@@ -342,6 +346,57 @@ const qboConnected = computed(() => !!selectedEntity.value?.qbo_realm_id);
                             <div class="field-help">Leave blank if not VAT registered</div>
                             <div v-if="form.errors.vat_number" class="field-err">{{ form.errors.vat_number }}</div>
                         </div>
+
+                        <!--
+                            VAT switch — when off, every proposal /
+                            invoice from this entity ships without
+                            a VAT row. The default_vat_rate radios
+                            only render when the switch is on, so
+                            the operator can't accidentally save
+                            both "not registered" and "20% rate".
+                        -->
+                        <div class="field full vat-settings">
+                            <div class="vat-switch-row">
+                                <div>
+                                    <div class="field-label">VAT registered</div>
+                                    <div class="field-help">Turn off if below the £90,000 VAT threshold.</div>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="toggle"
+                                    :class="{ on: form.vat_registered }"
+                                    aria-label="Toggle VAT registered"
+                                    @click="form.vat_registered = ! form.vat_registered"
+                                />
+                            </div>
+
+                            <div v-if="form.vat_registered" class="vat-rate-row">
+                                <div class="field-label">Default VAT rate</div>
+                                <div class="vat-rate-options">
+                                    <button
+                                        v-for="rate in [0, 5, 20]"
+                                        :key="rate"
+                                        type="button"
+                                        class="vat-rate-pill"
+                                        :class="{ active: Number(form.default_vat_rate) === rate }"
+                                        @click="form.default_vat_rate = rate"
+                                    >{{ rate }}%</button>
+                                    <input
+                                        v-model.number="form.default_vat_rate"
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        step="0.01"
+                                        class="field-input vat-rate-custom"
+                                    >
+                                </div>
+                            </div>
+
+                            <div v-else class="vat-info-chip">
+                                VAT will not be applied to invoices or proposals from this entity.
+                            </div>
+                        </div>
+
                         <div class="field full">
                             <label class="field-label" for="address_line1">Address line 1</label>
                             <input

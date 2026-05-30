@@ -18,12 +18,14 @@ use App\Http\Controllers\Internal\MilestoneController as InternalMilestoneContro
 use App\Http\Controllers\Internal\MyAccountController as InternalMyAccountController;
 use App\Http\Controllers\Internal\MyWorkController as InternalMyWorkController;
 use App\Http\Controllers\Internal\NoteController as InternalNoteController;
+use App\Http\Controllers\Internal\PaymentScheduleController as InternalPaymentScheduleController;
 use App\Http\Controllers\Internal\ProductController as InternalProductController;
 use App\Http\Controllers\Internal\ProductOverviewController as InternalProductOverviewController;
 use App\Http\Controllers\Internal\ProductPlanCategoryController as InternalProductPlanCategoryController;
 use App\Http\Controllers\Internal\ProductPlanController as InternalProductPlanController;
 use App\Http\Controllers\Internal\ProductPlanPriceController as InternalProductPlanPriceController;
 use App\Http\Controllers\Internal\ProjectController as InternalProjectController;
+use App\Http\Controllers\Internal\ProposalController as InternalProposalController;
 use App\Http\Controllers\Internal\ProvisioningController as InternalProvisioningController;
 use App\Http\Controllers\Internal\ReferrerController as InternalReferrerController;
 use App\Http\Controllers\Internal\SearchController as InternalSearchController;
@@ -39,6 +41,7 @@ use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
 use App\Http\Controllers\Portal\PasswordController as PortalPasswordController;
 use App\Http\Controllers\Portal\SubscriptionController as PortalSubscriptionController;
 use App\Http\Controllers\Portal\SupportController as PortalSupportController;
+use App\Http\Controllers\Public\ProposalAcceptanceController as PublicProposalAcceptanceController;
 use App\Http\Controllers\Referrer\AccountController as ReferrerAccountController;
 use App\Http\Controllers\Referrer\AuthController as ReferrerAuthController;
 use App\Http\Controllers\Referrer\CommissionController as ReferrerCommissionController;
@@ -208,6 +211,36 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // Personal task dashboard — separate page, no per-user data leak
     // risk since the controller filters to auth()->id() unconditionally.
     Route::get('/my-work', [InternalMyWorkController::class, 'index'])->name('internal.my-work');
+
+    // ─── Proposals ───
+    // CRUD + send + download + convert to contract. The public-side
+    // acceptance flow lives outside this auth group (see below).
+    Route::prefix('proposals')->name('internal.proposals.')->group(function () {
+        Route::get('/', [InternalProposalController::class, 'index'])->name('index');
+        Route::post('/', [InternalProposalController::class, 'store'])->name('store');
+        Route::get('/{id}', [InternalProposalController::class, 'show'])
+            ->whereNumber('id')->name('show');
+        Route::delete('/{id}', [InternalProposalController::class, 'destroy'])
+            ->whereNumber('id')->name('destroy');
+        Route::post('/{id}/send', [InternalProposalController::class, 'send'])
+            ->whereNumber('id')->name('send');
+        Route::get('/{id}/pdf', [InternalProposalController::class, 'downloadPdf'])
+            ->whereNumber('id')->name('pdf');
+        Route::get('/{id}/accepted-pdf', [InternalProposalController::class, 'downloadAcceptedPdf'])
+            ->whereNumber('id')->name('accepted-pdf');
+        Route::post('/{id}/convert', [InternalProposalController::class, 'convertToContract'])
+            ->whereNumber('id')->name('convert');
+    });
+
+    // Payment schedules attach to a proposal or project. The
+    // store path lives at the resource root; manual item-trigger
+    // is its own POST so it can be called from the proposal Show
+    // page's per-item button without nesting URLs.
+    Route::post('/payment-schedules', [InternalPaymentScheduleController::class, 'store'])
+        ->name('internal.payment-schedules.store');
+    Route::post('/payment-schedules/items/{itemId}/trigger', [InternalPaymentScheduleController::class, 'triggerItem'])
+        ->whereNumber('itemId')
+        ->name('internal.payment-schedules.items.trigger');
 
     // ─── Expenses ───
     // CRUD + approval workflow. Approval is gated to super_admin
@@ -409,6 +442,20 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         Route::delete('/{id}', [InternalMaavelusStatementController::class, 'destroy'])->name('destroy');
     });
 });
+
+/*
+|--------------------------------------------------------------------------
+| Public proposal acceptance — NO auth
+|--------------------------------------------------------------------------
+| Token-only authorisation. The token is single-use: accept() nulls it
+| out, so a re-visit shows the success page rather than the form again.
+*/
+Route::get('/proposals/accept/{token}', [PublicProposalAcceptanceController::class, 'show'])
+    ->where('token', '[a-f0-9]{64}')
+    ->name('proposal.accept.show');
+Route::post('/proposals/accept/{token}', [PublicProposalAcceptanceController::class, 'accept'])
+    ->where('token', '[a-f0-9]{64}')
+    ->name('proposal.accept.submit');
 
 /*
 |--------------------------------------------------------------------------

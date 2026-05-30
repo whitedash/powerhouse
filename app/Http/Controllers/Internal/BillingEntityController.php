@@ -30,6 +30,8 @@ class BillingEntityController extends Controller
                 'legal_name' => $e->legal_name,
                 'company_number' => $e->company_number,
                 'vat_number' => $e->vat_number,
+                'default_vat_rate' => (float) $e->default_vat_rate,
+                'vat_registered' => $e->vat_registered,
                 'address' => $e->address,
                 // Encrypted-cast fields decrypt automatically on read.
                 // Never call Crypt::decrypt() — the model handles it.
@@ -205,6 +207,11 @@ class BillingEntityController extends Controller
             'legal_name' => $data['legal_name'],
             'company_number' => $data['company_number'],
             'vat_number' => $data['vat_number'] ?? null,
+            // VAT switch — when false, every document from this
+            // entity renders without a VAT line. default_vat_rate
+            // sticks around so toggling back on doesn't reset to 20%.
+            'default_vat_rate' => $data['default_vat_rate'] ?? 20.00,
+            'vat_registered' => (bool) ($data['vat_registered'] ?? true),
             'address' => [
                 'line1' => $data['address_line1'],
                 'line2' => $data['address_line2'] ?? null,

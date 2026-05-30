@@ -243,6 +243,9 @@ class CustomerController extends Controller
                 ->orderByRaw('due_date IS NULL, due_date ASC'),
             'supportTickets:id,customer_id,subject,status',
             'portalUsers:id,customer_id,name,email,last_login_at,created_at',
+            // Proposals tab — slim payload mapped below. Newest first
+            // so the operator sees the most recent quote at a glance.
+            'proposals' => fn ($q) => $q->orderByDesc('created_at'),
         ])->findOrFail($id);
 
         Gate::authorize('view', $customer);
@@ -479,6 +482,24 @@ class CustomerController extends Controller
                     'notes' => $c->notes,
                     'uploader' => $c->uploader?->name,
                     'created_at' => $c->created_at?->format('d M Y'),
+                ])->values(),
+
+                // Proposals tab — slim payload for the customer
+                // detail page. Larastan can't infer the relation's
+                // model type from the closure parameter (same issue
+                // we hit with projects), so we ignore the typed-map
+                // shape check. The accessed properties are all on
+                // the Proposal model proper.
+                /** @phpstan-ignore-next-line argument.type */
+                'proposals' => $customer->proposals->map(fn (\App\Models\Proposal $p): array => [
+                    'id' => $p->id,
+                    'reference' => $p->reference,
+                    'title' => $p->title,
+                    'status' => $p->status,
+                    'total' => (float) $p->total,
+                    'sent_at' => $p->sent_at?->format('d M Y'),
+                    'accepted_at' => $p->accepted_at?->format('d M Y'),
+                    'created_at' => $p->created_at?->format('d M Y'),
                 ])->values(),
 
                 // Projects tab data — slim payload (compute progress

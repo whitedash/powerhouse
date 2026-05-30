@@ -25,6 +25,11 @@ class StoreBillingEntityRequest extends FormRequest
             'legal_name' => ['required', 'string', 'max:255'],
             'company_number' => ['required', 'string', 'max:50'],
             'vat_number' => ['nullable', 'string', 'max:50'],
+            // VAT switch + default rate. The toggle gates whether
+            // the rate is even consulted; we accept any 0–100
+            // figure so reduced (5%) or zero-rated entities both fit.
+            'vat_registered' => ['sometimes', 'boolean'],
+            'default_vat_rate' => ['sometimes', 'numeric', 'min:0', 'max:100'],
             'address_line1' => ['required', 'string', 'max:255'],
             'address_line2' => ['nullable', 'string', 'max:255'],
             'city' => ['required', 'string', 'max:100'],
