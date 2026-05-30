@@ -18,6 +18,7 @@ import {
     IconAlertCircle,
     IconAlarm,
     IconClock,
+    IconRefresh,
     IconLayoutGrid,
     IconActivity,
     IconArrowRight,
@@ -96,7 +97,11 @@ function prodInitial(p) {
     return (p.name?.[0] ?? '?').toUpperCase();
 }
 function viewProductHref(p) {
-    return p.is_coming_soon ? '/settings' : `/customers?product=${p.slug}`;
+    // Active products jump to the product overview screen so the
+    // operator sees the rolled-up MRR, customer count, plan mix, and
+    // recent activity for that product. Coming-soon products have no
+    // overview yet — settings is the natural place to finish setup.
+    return p.is_coming_soon ? '/settings' : `/products/${p.slug}`;
 }
 
 const activeProductCount = computed(() => props.products.filter((p) => !p.is_coming_soon).length);
@@ -232,7 +237,20 @@ function initials(name) {
 }
 
 /* ─── Platform health ─── */
-const healthOk = computed(() => props.platform_health.every((s) => s.is_coming_soon || (s.uptime ?? 0) >= 99));
+const healthOk = computed(() =>
+    props.platform_health.every((s) => s.status === 'healthy'),
+);
+const healthCheckedAt = computed(() => props.platform_health[0]?.checked_at ?? null);
+
+function refreshHealth() {
+    // Partial Inertia reload — only the platform_health prop comes
+    // back. The controller honours ?refresh_health=1 to forget the
+    // 5-minute cache, so this button actually re-runs the probes.
+    router.reload({
+        only: ['platform_health'],
+        data: { refresh_health: 1 },
+    });
+}
 
 /* ─── Needs-attention helpers ─── */
 const showAllAttention = ref(false);
@@ -833,15 +851,24 @@ function performComplete() {
                     </div>
                 </div>
 
-                <!-- Platform health -->
+                <!-- Platform health (real HTTP probes, 5-min cached) -->
                 <div class="card shadow-sm">
                     <div class="card-header">
                         <div class="h-icon"><IconServer :size="16" stroke-width="1.75" /></div>
                         <div>
                             <h3>Platform health</h3>
-                            <div class="sub">All systems operational</div>
+                            <div class="sub">{{ healthOk ? 'All systems operational' : 'Issues detected' }}</div>
                         </div>
                         <div class="right">
+                            <button
+                                type="button"
+                                class="icon-btn"
+                                aria-label="Re-run health checks"
+                                title="Re-run health checks now"
+                                @click="refreshHealth"
+                            >
+                                <IconRefresh :size="16" stroke-width="1.75" />
+                            </button>
                             <span
                                 class="badge badge-sm"
                                 :class="healthOk ? 'badge-active' : 'badge-overdue'"
@@ -850,22 +877,29 @@ function performComplete() {
                     </div>
                     <div class="health-head">
                         <div>Service</div>
-                        <div>Uptime</div>
-                        <div>Last check</div>
+                        <div>Response</div>
+                        <div>Checked</div>
                         <div style="text-align: right;">Status</div>
                     </div>
                     <div v-for="(s, i) in platform_health" :key="i" class="health-row">
                         <div class="h-name">
-                            <span class="dot" :class="{ neutral: s.is_coming_soon }" />{{ s.name }}
+                            <span class="health-dot" :class="s.status" />{{ s.name }}
                         </div>
-                        <div class="h-uptime" :class="{ 'h-muted': s.is_coming_soon }">{{ s.uptime !== null ? `${s.uptime.toFixed(2)}%` : '—' }}</div>
-                        <div class="h-checked" :class="{ 'h-muted': s.is_coming_soon }">{{ s.last_check ?? '—' }}</div>
+                        <div class="h-uptime">{{ s.status === 'healthy' ? `${s.response_ms}ms` : s.status === 'degraded' ? `${s.response_ms}ms · slow` : 'Down' }}</div>
+                        <div class="h-checked">Checked {{ s.checked_at }}</div>
                         <div style="text-align: right;">
                             <span
                                 class="badge badge-sm"
-                                :class="s.is_coming_soon ? 'badge-soon' : 'badge-active'"
-                            >{{ s.is_coming_soon ? 'Coming soon' : 'Operational' }}</span>
+                                :class="{
+                                    'badge-active': s.status === 'healthy',
+                                    'badge-pending': s.status === 'degraded',
+                                    'badge-overdue': s.status === 'critical',
+                                }"
+                            >{{ s.status === 'healthy' ? 'Operational' : s.status === 'degraded' ? 'Degraded' : 'Down' }}</span>
                         </div>
+                    </div>
+                    <div class="health-foot">
+                        Checked every 5 minutes<template v-if="healthCheckedAt"> · Last run {{ healthCheckedAt }}</template>
                     </div>
                 </div>
             </div>

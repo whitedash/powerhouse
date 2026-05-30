@@ -18,7 +18,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -57,6 +59,14 @@ class DashboardController extends Controller
     public function index(Request $request): Response
     {
         Gate::authorize('viewAny', Customer::class);
+
+        // The "Refresh" button on the Platform health card triggers a
+        // partial Inertia reload with this query param so the operator
+        // can bust the 5-minute health cache on demand without forcing
+        // the whole dashboard to rerun every query.
+        if ($request->boolean('refresh_health')) {
+            Cache::forget('dashboard.platform_health');
+        }
 
         $now = now();
         $monthStart = $now->copy()->startOfMonth();
@@ -484,37 +494,175 @@ class DashboardController extends Controller
     }
 
     /**
+     * Public-facing health snapshot for the dashboard card.
+     *
+     * Hits each active product surface, the Stripe and Postmark status
+     * endpoints (if their credentials are configured), and runs a local
+     * SELECT 1 against MySQL for the Powerhouse row. Results are cached
+     * for 5 minutes — every dashboard load shouldn't block on 4+
+     * outbound HTTP requests with a 5s timeout each.
+     *
+     * TODO: Store results in service_health_checks table for historical
+     * uptime tracking. Sprint: Domain & DNS management.
+     *
      * @return array<int, array<string, mixed>>
      */
     private function buildPlatformHealth(): array
     {
-        $services = Product::orderBy('sort_order')
-            ->get()
-            ->map(fn (Product $p): array => [
-                'name' => $p->name,
-                'is_coming_soon' => $p->is_coming_soon,
-                // Real health check arrives with the /powerhouse/summary
-                // endpoint next sprint. Until then the page renders a
-                // static "Operational" signal for shipped products.
-                'uptime' => $p->is_coming_soon ? null : 99.95,
-                'last_check' => $p->is_coming_soon ? null : 'Just now',
-            ])
-            ->all();
+        return Cache::remember(
+            'dashboard.platform_health',
+            now()->addMinutes(5),
+            function (): array {
+                /** @var array<int, array<string, mixed>> $checks */
+                $checks = [];
 
-        $services[] = [
-            'name' => 'Customer Portal',
-            'is_coming_soon' => false,
-            'uptime' => 100.0,
-            'last_check' => 'Just now',
-        ];
-        $services[] = [
-            'name' => 'Powerhouse',
-            'is_coming_soon' => false,
-            'uptime' => 100.0,
-            'last_check' => 'Just now',
-        ];
+                // Slug → public URL. Product surfaces only get checked if
+                // they're active in the products table AND we know where
+                // to point at them — silently skip unknown slugs.
+                $productUrls = [
+                    'maavelus' => 'https://maavelus.co.uk',
+                    'maavelus-hospitality' => 'https://maavelus.co.uk',
+                    'myorderpad' => 'https://myorderpad.co.uk',
+                    'orderpad' => 'https://myorderpad.co.uk',
+                    'whitedash' => 'https://whitedash.co.uk',
+                ];
 
-        return $services;
+                Product::where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->get(['id', 'name', 'slug', 'icon_colour'])
+                    ->each(function (Product $product) use (&$checks, $productUrls): void {
+                        $url = $productUrls[$product->slug] ?? null;
+                        if ($url === null) {
+                            return;
+                        }
+                        $check = $this->checkUrl($url);
+                        $checks[] = [
+                            'name' => $product->name,
+                            'type' => 'product',
+                            'url' => $url,
+                            'status' => $this->classifyStatus($check),
+                            'response_ms' => $check['ms'],
+                            'checked_at' => now()->format('H:i'),
+                            'icon_colour' => $product->icon_colour,
+                        ];
+                    });
+
+                // Stripe — only check if a secret key is configured so
+                // dev environments without keys don't show a misleading
+                // red dot.
+                $stripeKey = (string) config('services.stripe.secret');
+                if ($stripeKey !== '' && str_starts_with($stripeKey, 'sk_')) {
+                    $s = $this->checkUrl('https://status.stripe.com/api/v2/status.json');
+                    $checks[] = [
+                        'name' => 'Stripe',
+                        'type' => 'integration',
+                        'url' => 'https://stripe.com',
+                        'status' => $this->classifyStatus($s),
+                        'response_ms' => $s['ms'],
+                        'checked_at' => now()->format('H:i'),
+                        'icon_colour' => '#635BFF',
+                    ];
+                }
+
+                // Postmark — same logic, gated on the token being set.
+                // Read via config() only; calling env() at runtime
+                // returns null once `config:cache` has been run.
+                // Falls back to the bare `postmark_token` legacy key
+                // some env files still use.
+                $postmarkToken = (string) (config('services.postmark.key') ?? config('services.postmark_token'));
+                if ($postmarkToken !== '') {
+                    $s = $this->checkUrl('https://status.postmarkapp.com/api/v1/status');
+                    $checks[] = [
+                        'name' => 'Postmark',
+                        'type' => 'integration',
+                        'url' => 'https://postmarkapp.com',
+                        'status' => $this->classifyStatus($s),
+                        'response_ms' => $s['ms'],
+                        'checked_at' => now()->format('H:i'),
+                        'icon_colour' => '#FFDE00',
+                    ];
+                }
+
+                // Powerhouse self-check — SELECT 1 keeps it cheap. If
+                // the DB is down the dashboard wouldn't render at all,
+                // but a slow SELECT 1 is still a useful signal.
+                $dbOk = true;
+                $dbMs = 0;
+
+                try {
+                    $start = microtime(true);
+                    DB::select('SELECT 1');
+                    $dbMs = (int) round((microtime(true) - $start) * 1000);
+                } catch (\Throwable $e) {
+                    $dbOk = false;
+                }
+                $checks[] = [
+                    'name' => 'Powerhouse',
+                    'type' => 'system',
+                    'url' => (string) config('app.url'),
+                    'status' => $dbOk ? 'healthy' : 'critical',
+                    'response_ms' => $dbMs,
+                    'checked_at' => now()->format('H:i'),
+                    'icon_colour' => '#F59E0B',
+                ];
+
+                return $checks;
+            },
+        );
+    }
+
+    /**
+     * Single outbound HTTP probe used by buildPlatformHealth().
+     *
+     * Returns ok=true for any sub-500 response (4xx is "service answered
+     * with rate-limit / auth error" — still a live host). 5s timeout.
+     *
+     * @return array{ok: bool, ms: int, status_code: int}
+     */
+    private function checkUrl(string $url): array
+    {
+        $start = microtime(true);
+
+        try {
+            $response = Http::timeout(5)
+                ->withOptions(['verify' => false])
+                ->get($url);
+            $ms = (int) round((microtime(true) - $start) * 1000);
+
+            return [
+                'ok' => $response->status() < 500,
+                'ms' => $ms,
+                'status_code' => $response->status(),
+            ];
+        } catch (\Throwable $e) {
+            $ms = (int) round((microtime(true) - $start) * 1000);
+
+            return [
+                'ok' => false,
+                'ms' => $ms,
+                'status_code' => 0,
+            ];
+        }
+    }
+
+    /**
+     * Map a raw probe result to the three-tier status the UI renders.
+     *
+     * @param  array{ok: bool, ms: int, status_code: int}  $check
+     */
+    private function classifyStatus(array $check): string
+    {
+        if (! $check['ok']) {
+            return 'critical';
+        }
+        if ($check['ms'] > 5000) {
+            return 'critical';
+        }
+        if ($check['ms'] > 2000) {
+            return 'degraded';
+        }
+
+        return 'healthy';
     }
 
     private function buildGreeting(Request $request): string

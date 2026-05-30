@@ -8399,7 +8399,11 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     grid-template-columns: 24px 32px 12px 1fr 80px;
     align-items: center;
     gap: 8px;
-    padding: 10px 0;
+    /* 16px L/R matches the .card-header gutter and .att-row padding
+       so the activities rows align vertically with the other rows
+       in the right column rather than sitting flush against the
+       card border. */
+    padding: 10px 16px;
     border-bottom: 1px solid var(--border-soft);
 }
 .dashboard .dash-act-row:last-child { border-bottom: none; }
@@ -8448,3 +8452,42 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     font-weight: 500;
 }
 .dashboard .dash-act-date.amber { color: var(--warning); font-weight: 500; }
+
+/* ── DASHBOARD: PLATFORM HEALTH STATUS DOTS / FOOTER ─────────────
+ * Three-tier health (healthy / degraded / critical) lit from the
+ * real HTTP probe results. Degraded and critical pulse so a slow
+ * or downed service is impossible to miss out of the corner of
+ * your eye.
+ */
+.dashboard .health-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+    background: var(--text-tertiary);
+    flex-shrink: 0;
+}
+.dashboard .health-dot.healthy  { background: var(--success); }
+.dashboard .health-dot.degraded { background: var(--warning); animation: health-pulse 1.6s ease-in-out infinite; }
+.dashboard .health-dot.critical { background: var(--danger);  animation: health-pulse 1.2s ease-in-out infinite; }
+@keyframes health-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+}
+.dashboard .health-foot {
+    padding: 10px 18px;
+    text-align: right;
+    color: var(--text-tertiary);
+    font: 400 11px/1.3 'Inter', sans-serif;
+    border-top: 1px solid var(--border-soft);
+}
+
+/* ── REFERRERS TABLE-CARD: UNCLIP ROW DROPDOWNS ──────────────────
+ * Same root cause as the customer-detail card fix: .card has
+ * overflow: hidden globally so the rounded corners clip cleanly.
+ * The Referrers table puts a Headless UI Menu inside each row,
+ * and its popover was being cropped by that overflow. Scope the
+ * override to .referrers .table-card so other surfaces still get
+ * the rounded clip.
+ */
+.referrers .table-card { overflow: visible; }
