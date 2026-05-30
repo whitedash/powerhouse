@@ -291,6 +291,11 @@ class CustomerController extends Controller
                 'country' => $customer->country,
                 'billing_address' => $customer->billing_address,
                 'pipeline_stage' => $customer->pipeline_stage,
+                // Acquisition channel — surface on the customer
+                // header so staff can see at a glance how a lead
+                // arrived. channel_detail is the free-text follow-up.
+                'acquisition_channel' => $customer->acquisition_channel,
+                'channel_detail' => $customer->channel_detail,
                 'assigned_to' => $customer->assigned_to,
                 'assigned_user' => $customer->assignedTo
                     ? [
@@ -613,6 +618,8 @@ class CustomerController extends Controller
                 'postcode' => $data['postcode'],
                 'country' => $data['country'] ?? 'GB',
                 'pipeline_stage' => $data['pipeline_stage'] ?? 'lead',
+                'acquisition_channel' => $data['acquisition_channel'] ?? null,
+                'channel_detail' => $data['channel_detail'] ?? null,
                 'assigned_to' => $data['assigned_to'] ?? null,
             ]);
 
@@ -624,6 +631,18 @@ class CustomerController extends Controller
                 'role' => $data['contact_role'] ?? 'owner',
                 'is_primary' => true,
             ]);
+
+            // Referral attribution — when the operator picked a
+            // referrer at create time, write the pivot now so the
+            // commission engine has something to compute against
+            // from the customer's first invoice onward.
+            if (! empty($data['referrer_id'])) {
+                CustomerReferral::create([
+                    'customer_id' => $customer->id,
+                    'referrer_id' => $data['referrer_id'],
+                    'attributed_at' => now(),
+                ]);
+            }
 
             $this->logActivity($request, 'customer.created', $customer, after: ['name' => $customer->name]);
 

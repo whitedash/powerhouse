@@ -545,6 +545,16 @@ class ReferrerController extends Controller
                 $before,
                 ['status' => 'paid', 'amount' => $entry->commission_amount],
             );
+
+            // Mirror the payout into the expenses ledger so the
+            // books reconcile without a manual step. The helper is
+            // idempotent — safe against a re-submit of the same
+            // entry from a stuck UI.
+            $entry->loadMissing(['referrer.user:id,name', 'customer:id,name']);
+            ExpenseController::createFromCommission(
+                $entry,
+                $request->user()->id,
+            );
         });
 
         return back()->with('success', 'Commission entry marked as paid.');

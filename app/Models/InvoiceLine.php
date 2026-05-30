@@ -34,6 +34,13 @@ class InvoiceLine extends Model
         'quantity',
         'unit_price',
         'amount',
+        // Line-level discount. discount_type tells the UI how to read
+        // discount_value (% vs £). discount_amount is the cooked
+        // figure — stored at write time so reports don't have to
+        // re-derive it. `amount` is post-discount; UI reads both.
+        'discount_type',
+        'discount_value',
+        'discount_amount',
         'sort_order',
     ];
 
@@ -43,6 +50,8 @@ class InvoiceLine extends Model
             'quantity' => 'decimal:3',
             'unit_price' => 'decimal:2',
             'amount' => 'decimal:2',
+            'discount_value' => 'decimal:2',
+            'discount_amount' => 'decimal:2',
             'sort_order' => 'integer',
         ];
     }

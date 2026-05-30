@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\BillingEntity;
 use App\Models\CustomerProduct;
 use App\Models\Product;
 use App\Models\ProductPlan;
@@ -32,6 +33,7 @@ class ProductController extends Controller
             ->with([
                 'planCategories',
                 'plans' => fn ($q) => $q->with(['activePrices'])->orderBy('sort_order'),
+                'billingEntity:id,name',
             ])
             ->get()
             ->map(fn (Product $p): array => [
@@ -39,6 +41,11 @@ class ProductController extends Controller
                 'name' => $p->name,
                 'slug' => $p->slug,
                 'description' => $p->description,
+                // Default billing entity — used by InvoiceController
+                // create to auto-pick the entity when a product with
+                // a default is added to a line item.
+                'billing_entity_id' => $p->billing_entity_id,
+                'billing_entity_name' => $p->billingEntity?->name,
                 'icon_colour' => $p->icon_colour,
                 'is_active' => $p->is_active,
                 'is_coming_soon' => $p->is_coming_soon,
@@ -85,8 +92,16 @@ class ProductController extends Controller
             ])
             ->all();
 
+        // Billing-entity dropdown for the product detail form.
+        // Inactive entities filter out — the picker should only
+        // show entities the team can actually invoice through.
+        $billingEntities = BillingEntity::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return Inertia::render('Internal/Settings/Products', [
             'products' => $products,
+            'billing_entities' => $billingEntities,
         ]);
     }
 
@@ -310,6 +325,9 @@ class ProductController extends Controller
             // emits this shape; we re-validate so direct API hits can't
             // smuggle malformed colours into the rendered avatars.
             'icon_colour' => ['required', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            // Optional default billing entity. Null = universal product
+            // (the operator picks an entity per invoice).
+            'billing_entity_id' => ['nullable', 'integer', 'exists:billing_entities,id'],
             'is_active' => ['sometimes', 'boolean'],
             'is_coming_soon' => ['sometimes', 'boolean'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],

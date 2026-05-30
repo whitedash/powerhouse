@@ -33,6 +33,17 @@ class StoreCustomerRequest extends FormRequest
             'postcode' => ['required', 'string', 'max:20'],
             'country' => ['nullable', 'string', 'size:2'],
             'pipeline_stage' => ['nullable', Rule::in(self::PIPELINE_STAGES)],
+            // Acquisition channel — how the customer found us. The
+            // enum mirrors customers.acquisition_channel. channel_detail
+            // is a free-text follow-up (campaign name, platform, etc.).
+            'acquisition_channel' => ['nullable', Rule::in([
+                'direct', 'google', 'social_media', 'landing_page',
+                'referral', 'email', 'event', 'word_of_mouth', 'other',
+            ])],
+            'channel_detail' => ['nullable', 'string', 'max:255'],
+            // referrer_id is REQUIRED when channel = referral so we
+            // can immediately attach the CustomerReferral row.
+            'referrer_id' => ['nullable', 'integer', 'exists:referrers,id', 'required_if:acquisition_channel,referral'],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
             'contact_name' => ['required', 'string', 'max:255'],
             'contact_email' => ['required', 'email:rfc,dns', 'max:255'],

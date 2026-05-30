@@ -224,12 +224,41 @@ const form = useForm({
     postcode: '',
     country: 'GB',
     pipeline_stage: 'lead',
+    // Acquisition channel + the detail follow-up; referrer_id only
+    // surfaces when channel === 'referral'. All three are nullable
+    // server-side so a quick lead-capture skips them entirely.
+    acquisition_channel: null,
+    channel_detail: '',
+    referrer_id: null,
     assigned_to: '',
     contact_name: '',
     contact_email: '',
     contact_phone: '',
     contact_role: 'owner',
 });
+
+/* ─── Acquisition channel picker ─── */
+const CHANNELS = [
+    { key: 'direct',        label: 'Direct',         icon: 'navigation' },
+    { key: 'google',        label: 'Google',         icon: 'search' },
+    { key: 'social_media',  label: 'Social media',   icon: 'share' },
+    { key: 'landing_page',  label: 'Landing page',   icon: 'layout' },
+    { key: 'referral',      label: 'Referral',       icon: 'users' },
+    { key: 'email',         label: 'Email',          icon: 'mail' },
+    { key: 'event',         label: 'Event',          icon: 'calendar' },
+    { key: 'word_of_mouth', label: 'Word of mouth',  icon: 'message' },
+    { key: 'other',         label: 'Other',          icon: 'dots' },
+];
+const CHANNEL_DETAIL = {
+    social_media:  { label: 'Which platform?',           placeholder: 'e.g. Instagram, LinkedIn' },
+    landing_page:  { label: 'Which page / campaign?',    placeholder: 'e.g. Summer 2026 offer' },
+    email:         { label: 'Campaign name',             placeholder: 'e.g. May newsletter' },
+    event:         { label: 'Event name',                placeholder: 'e.g. Bath Restaurant Week' },
+    google:        { label: 'Search term or campaign',   placeholder: 'e.g. "Bristol POS"' },
+};
+const channelNeedsDetail = computed(() => CHANNEL_DETAIL[form.acquisition_channel] !== undefined);
+const channelDetailLabel = computed(() => CHANNEL_DETAIL[form.acquisition_channel]?.label ?? 'Details');
+const channelDetailPlaceholder = computed(() => CHANNEL_DETAIL[form.acquisition_channel]?.placeholder ?? '');
 
 function openCreate() {
     form.reset();
@@ -700,6 +729,43 @@ onMounted(() => {
                                                 <option v-for="u in assignable_users" :key="u.id" :value="u.id">{{ u.name }}</option>
                                             </select>
                                         </div>
+                                    </div>
+                                </div>
+
+                                <!-- ─── Acquisition channel ─── -->
+                                <!--
+                                    Optional. Picker is a grid of pill-cards;
+                                    selecting Referral surfaces the referrer
+                                    dropdown (required server-side via
+                                    required_if). Selecting social/email/event/
+                                    google/landing_page surfaces a free-text
+                                    detail field.
+                                -->
+                                <div class="form-section">
+                                    <div class="form-section-title">How did they find us? <span class="muted small">(optional)</span></div>
+                                    <div class="channel-grid">
+                                        <button
+                                            v-for="c in CHANNELS"
+                                            :key="c.key"
+                                            type="button"
+                                            class="channel-pill"
+                                            :class="{ active: form.acquisition_channel === c.key }"
+                                            @click="form.acquisition_channel = (form.acquisition_channel === c.key ? null : c.key); if (form.acquisition_channel !== 'referral') form.referrer_id = null;"
+                                        >{{ c.label }}</button>
+                                    </div>
+
+                                    <div v-if="channelNeedsDetail" class="form-field" style="margin-top: 10px;">
+                                        <label for="channel_detail">{{ channelDetailLabel }}</label>
+                                        <input id="channel_detail" v-model="form.channel_detail" type="text" :placeholder="channelDetailPlaceholder" maxlength="255">
+                                    </div>
+
+                                    <div v-if="form.acquisition_channel === 'referral'" class="form-field" style="margin-top: 10px;">
+                                        <label for="referrer_id">Referred by <span class="req">*</span></label>
+                                        <select id="referrer_id" v-model="form.referrer_id" :class="{ 'has-err': form.errors.referrer_id }">
+                                            <option :value="null">Select referrer…</option>
+                                            <option v-for="r in referrers" :key="r.id" :value="r.id">{{ r.name ?? r.user_name }}</option>
+                                        </select>
+                                        <div v-if="form.errors.referrer_id" class="err">{{ form.errors.referrer_id }}</div>
                                     </div>
                                 </div>
                             </div>

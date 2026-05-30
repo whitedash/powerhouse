@@ -11,6 +11,7 @@ return [
         'logo' => 1024 * 1024,           // 1 MB
         'contract' => 20 * 1024 * 1024,  // 20 MB
         'import' => 10 * 1024 * 1024,    // 10 MB
+        'receipt' => 5 * 1024 * 1024,    // 5 MB — PDF or photo
         'default' => 5 * 1024 * 1024,    // 5 MB
     ],
 
@@ -30,6 +31,13 @@ return [
         ],
         'contract' => [
             'application/pdf',
+        ],
+        // Receipts are uploaded by staff for expense audit trails;
+        // PDF for vendor invoices, photos for hand-written receipts.
+        'receipt' => [
+            'application/pdf',
+            'image/jpeg',
+            'image/png',
         ],
         'import' => [
             'text/csv',

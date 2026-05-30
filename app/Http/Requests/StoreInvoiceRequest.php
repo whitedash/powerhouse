@@ -34,6 +34,13 @@ class StoreInvoiceRequest extends FormRequest
             // makes "this is a Maavelus charge" readable at a glance.
             'lines.*.product_id' => ['nullable', 'integer', 'exists:products,id'],
             'lines.*.plan_id' => ['nullable', 'integer', 'exists:product_plans,id'],
+            // Line-level discount (FIX 6). discount_type tells the
+            // server to read discount_value as a percentage (0–100)
+            // or a fixed £ amount; we recompute the cooked
+            // discount_amount + net amount in the controller so the
+            // client can't smuggle a bigger discount than maths allows.
+            'lines.*.discount_type' => ['nullable', Rule::in(['percentage', 'fixed'])],
+            'lines.*.discount_value' => ['nullable', 'numeric', 'min:0', 'max:999999'],
             // Recurring template fields. is_recurring opt-in; when on,
             // the three recurring_* fields gate together so we don't
             // accept "recurring but no schedule" half-states.

@@ -9,6 +9,7 @@ use App\Http\Controllers\Internal\CustomerController as InternalCustomerControll
 use App\Http\Controllers\Internal\CustomerGroupController as InternalCustomerGroupController;
 use App\Http\Controllers\Internal\DashboardController as InternalDashboardController;
 use App\Http\Controllers\Internal\DomainController as InternalDomainController;
+use App\Http\Controllers\Internal\ExpenseController as InternalExpenseController;
 use App\Http\Controllers\Internal\HelpController as InternalHelpController;
 use App\Http\Controllers\Internal\ImpersonationController as InternalImpersonationController;
 use App\Http\Controllers\Internal\InvoiceController as InternalInvoiceController;
@@ -208,6 +209,25 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // risk since the controller filters to auth()->id() unconditionally.
     Route::get('/my-work', [InternalMyWorkController::class, 'index'])->name('internal.my-work');
 
+    // ─── Expenses ───
+    // CRUD + approval workflow. Approval is gated to super_admin
+    // inside the controller; the rest of the methods sit behind the
+    // surrounding staff/super_admin role group.
+    Route::prefix('expenses')->name('internal.expenses.')->group(function () {
+        Route::get('/', [InternalExpenseController::class, 'index'])->name('index');
+        Route::post('/', [InternalExpenseController::class, 'store'])->name('store');
+        Route::put('/{id}', [InternalExpenseController::class, 'update'])
+            ->whereNumber('id')->name('update');
+        Route::delete('/{id}', [InternalExpenseController::class, 'destroy'])
+            ->whereNumber('id')->name('destroy');
+        Route::post('/{id}/approve', [InternalExpenseController::class, 'approve'])
+            ->whereNumber('id')->name('approve');
+        Route::post('/{id}/mark-paid', [InternalExpenseController::class, 'markPaid'])
+            ->whereNumber('id')->name('mark-paid');
+        Route::get('/{id}/receipt', [InternalExpenseController::class, 'receipt'])
+            ->whereNumber('id')->name('receipt');
+    });
+
     // My account — staff/super_admin self-service profile + password.
     // No role:super_admin gate; every staff member needs this.
     Route::get('/account', [InternalMyAccountController::class, 'show'])->name('internal.account.show');
@@ -253,6 +273,11 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // the artisan generator from cloning it again.
     Route::post('/invoices/{id}/stop-recurring', [InternalInvoiceController::class, 'stopRecurring'])->name('internal.invoices.stop-recurring');
     Route::get('/domains', [InternalDomainController::class, 'index'])->name('internal.domains.index');
+    // WHOIS lookup — fires from the Add/Edit slide-over BEFORE the
+    // domain row exists, so it has no {id} segment. Sits ahead of
+    // the {id}-bound routes below.
+    Route::post('/domains/whois-lookup', [InternalDomainController::class, 'whoisLookup'])
+        ->name('internal.domains.whois');
     Route::post('/domains', [InternalDomainController::class, 'store'])->name('internal.domains.store');
     Route::put('/domains/{id}', [InternalDomainController::class, 'update'])
         ->whereNumber('id')

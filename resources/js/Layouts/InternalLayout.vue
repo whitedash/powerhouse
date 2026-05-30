@@ -39,6 +39,7 @@ import {
     IconWorld,
     IconLayoutKanban,
     IconCheckbox,
+    IconReceipt2,
 } from '@tabler/icons-vue';
 import ToastContainer from '@/Components/UI/ToastContainer.vue';
 
@@ -201,6 +202,7 @@ const sections = computed(() => {
             label: 'Account',
             items: [
                 { key: 'support',  label: 'Support',     href: '/support',  icon: IconHeadset,   badge: supportBadge.value },
+                { key: 'expenses', label: 'Expenses',    href: '/expenses', icon: IconReceipt2 },
                 { key: 'settings', label: 'Settings',    href: '/settings', icon: IconSettings },
                 { key: 'help',     label: 'Help & docs', href: '/help',     icon: IconHelpCircle },
             ],

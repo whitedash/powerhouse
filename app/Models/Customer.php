@@ -60,6 +60,10 @@ class Customer extends Model
         'country',
         'billing_address',
         'pipeline_stage',
+        // How the customer found us — free-text channel + an optional
+        // detail line (e.g. social_media + "LinkedIn"). Nullable.
+        'acquisition_channel',
+        'channel_detail',
         'assigned_to',
         'referred_by',
         'archived_at',

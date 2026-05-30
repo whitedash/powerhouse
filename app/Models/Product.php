@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
@@ -12,12 +13,14 @@ use Illuminate\Support\Carbon;
  * @property string $slug
  * @property string $name
  * @property string|null $description
+ * @property int|null $billing_entity_id
  * @property string|null $icon_colour
  * @property bool $is_active
  * @property bool $is_coming_soon
  * @property int $sort_order
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read BillingEntity|null $billingEntity
  * @property-read Collection<int, CustomerProduct> $customerProducts
  * @property-read Collection<int, CommissionRule> $commissionRules
  * @property-read Collection<int, OnboardingSequence> $onboardingSequences
@@ -31,6 +34,9 @@ class Product extends Model
         'slug',
         'name',
         'description',
+        // Default billing entity — when set, invoices that include
+        // this product pre-select the matching entity automatically.
+        'billing_entity_id',
         'icon_colour',
         'is_active',
         'is_coming_soon',
@@ -44,6 +50,11 @@ class Product extends Model
             'is_coming_soon' => 'boolean',
             'sort_order' => 'integer',
         ];
+    }
+
+    public function billingEntity(): BelongsTo
+    {
+        return $this->belongsTo(BillingEntity::class);
     }
 
     public function customerProducts(): HasMany

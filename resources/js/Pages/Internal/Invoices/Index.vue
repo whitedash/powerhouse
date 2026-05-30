@@ -511,6 +511,15 @@ function handleVoid() {
                                     <span v-if="inv.paid_at" class="paid-on">paid {{ formatShortDate(inv.paid_at) }}</span>
                                 </div>
 
+                                <!-- Partially paid — amber, with how much of the
+                                     total has been received. The sub-label uses
+                                     the same .paid-on class as the paid stack so
+                                     spacing matches. -->
+                                <div v-else-if="inv.status === 'partially_paid'" class="status-stack">
+                                    <span class="badge badge-pending">Part paid</span>
+                                    <span class="paid-on">£{{ Number(inv.amount_paid ?? 0).toFixed(2) }} of £{{ Number(inv.total).toFixed(2) }}</span>
+                                </div>
+
                                 <!-- Overdue: cluster (badge + days-late warn pill) -->
                                 <div v-else-if="inv.status === 'overdue'" class="status-cluster">
                                     <span class="badge badge-overdue">Overdue</span>

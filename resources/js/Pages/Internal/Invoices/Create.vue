@@ -85,8 +85,10 @@ const initialForm = (() => {
                     unit_price: Number(l.unit_price ?? 0),
                     product_id: l.product_id ?? null,
                     plan_id: l.plan_id ?? null,
+                    discount_type: l.discount_type ?? null,
+                    discount_value: Number(l.discount_value ?? 0),
                 }))
-                : [{ description: '', note: '', quantity: 1, unit_price: 0, product_id: null, plan_id: null }],
+                : [{ description: '', note: '', quantity: 1, unit_price: 0, product_id: null, plan_id: null, discount_type: null, discount_value: 0 }],
             is_recurring: !!props.invoice.is_recurring,
             recurring_interval_count: props.invoice.recurring_interval_count ?? 1,
             recurring_interval_unit: props.invoice.recurring_interval_unit ?? 'month',
@@ -104,7 +106,7 @@ const initialForm = (() => {
         vat_rate: 20,
         notes: '',
         lines: [
-            { description: '', note: '', quantity: 1, unit_price: 0, product_id: null, plan_id: null },
+            { description: '', note: '', quantity: 1, unit_price: 0, product_id: null, plan_id: null, discount_type: null, discount_value: 0 },
         ],
         is_recurring: false,
         recurring_interval_count: 1,
@@ -200,7 +202,7 @@ function entityLegal(e) {
 /* ─── Line items ─── */
 function addLine() {
     if (form.lines.length >= MAX_LINES) return;
-    form.lines.push({ description: '', note: '', quantity: 1, unit_price: 0, product_id: null, plan_id: null });
+    form.lines.push({ description: '', note: '', quantity: 1, unit_price: 0, product_id: null, plan_id: null, discount_type: null, discount_value: 0 });
 }
 
 function removeLine(index) {
@@ -221,7 +223,60 @@ function onProductSelected(index) {
     // Changing product invalidates the previously picked plan —
     // a Maavelus Pro plan doesn't survive a swap to MyOrderPad.
     form.lines[index].plan_id = null;
+    // Also clear the manual-price flag so a freshly-picked plan
+    // can re-populate the unit_price without us having to ask.
+    form.lines[index]._price_manually_set = false;
+
+    // Auto-select the invoice billing entity from the product's
+    // default — only when the invoice doesn't have one yet, so
+    // we never silently overwrite a deliberate choice.
+    const product = props.products.find(p => p.id === form.lines[index].product_id);
+    if (product?.billing_entity_id && ! form.billing_entity_id) {
+        form.billing_entity_id = product.billing_entity_id;
+    }
 }
+
+/**
+ * Plan picked — auto-populate unit_price (only if the operator
+ * hasn't manually edited it) and description (if empty), so the
+ * common path is one click rather than three fields.
+ */
+function onPlanSelected(index) {
+    const line = form.lines[index];
+    if (! line.plan_id) return;
+
+    const plans = getProductPlans(line.product_id);
+    const plan = plans.find(p => p.id === line.plan_id);
+    if (! plan) return;
+
+    if (! line._price_manually_set && plan.price !== null && plan.price !== undefined) {
+        line.unit_price = plan.price;
+    }
+    if (! line.description) {
+        const product = props.products.find(p => p.id === line.product_id);
+        const label = plan.interval_label ? ` (${plan.interval_label})` : '';
+        line.description = `${product?.name ?? ''} — ${plan.name}${label}`.trim();
+    }
+}
+
+function onPriceManualEdit(index) {
+    form.lines[index]._price_manually_set = true;
+}
+
+/**
+ * Filter products by the currently-selected billing entity. When
+ * no entity is chosen, every product is fair game; otherwise we
+ * show products whose default entity matches OR products with no
+ * default (universal). The note below the picker explains the
+ * filter to the operator so they understand why some items are
+ * missing.
+ */
+const availableProducts = computed(() => {
+    if (! form.billing_entity_id) return props.products;
+    return props.products.filter(p =>
+        ! p.billing_entity_id || p.billing_entity_id === form.billing_entity_id
+    );
+});
 
 /* ─── Recurring schedule ─── */
 const recurringInterval = computed({
@@ -237,15 +292,39 @@ const recurringInterval = computed({
     },
 });
 
-function lineAmount(line) {
+/* Gross (pre-discount) line amount. */
+function lineGross(line) {
     const q = Number(line.quantity || 0);
     const p = Number(line.unit_price || 0);
     return Math.round(q * p * 100) / 100;
 }
 
+/* Discount in £ — mirrors the server computeLineDiscount(). */
+function lineDiscount(line) {
+    const gross = lineGross(line);
+    if (! line.discount_type || ! Number(line.discount_value)) return 0;
+    const value = Number(line.discount_value);
+    const raw = line.discount_type === 'percentage' ? gross * (value / 100) : value;
+    return Math.min(Math.round(raw * 100) / 100, gross);
+}
+
+/* Net (post-discount) line amount — what actually goes on the invoice. */
+function lineAmount(line) {
+    return Math.round((lineGross(line) - lineDiscount(line)) * 100) / 100;
+}
+
 /* ─── Totals (live) ─── */
+// `subtotal` is post-discount (= the value the customer will be VATed
+// on). `totalDiscount` exists only to drive the summary "Discounts:
+// -£x" row — it doesn't enter the maths anywhere else.
+const totalDiscount = computed(() =>
+    form.lines.reduce((sum, l) => sum + lineDiscount(l), 0)
+);
 const subtotal = computed(() =>
     form.lines.reduce((sum, l) => sum + lineAmount(l), 0)
+);
+const subtotalGross = computed(() =>
+    form.lines.reduce((sum, l) => sum + lineGross(l), 0)
 );
 const vatAmount = computed(() => Math.round(subtotal.value * (Number(form.vat_rate) / 100) * 100) / 100);
 const total = computed(() => subtotal.value + vatAmount.value);
@@ -515,25 +594,33 @@ function handleDiscard() {
                                     maxlength="500"
                                 >
                                 <div v-if="products.length" class="li-product-row">
+                                    <!--
+                                        The product list is filtered by the
+                                        invoice's billing entity (if set). The
+                                        note below the picker explains why
+                                        some items are hidden so the operator
+                                        doesn't search for a missing product.
+                                    -->
                                     <select
                                         v-model="line.product_id"
                                         class="line-product"
                                         @change="onProductSelected(idx)"
                                     >
                                         <option :value="null">No product</option>
-                                        <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }}</option>
+                                        <option v-for="p in availableProducts" :key="p.id" :value="p.id">{{ p.name }}</option>
                                     </select>
                                     <select
                                         v-if="line.product_id && getProductPlans(line.product_id).length"
                                         v-model="line.plan_id"
                                         class="line-plan"
+                                        @change="onPlanSelected(idx)"
                                     >
                                         <option :value="null">No plan</option>
                                         <option
                                             v-for="plan in getProductPlans(line.product_id)"
                                             :key="plan.id"
                                             :value="plan.id"
-                                        >{{ plan.name }}</option>
+                                        >{{ plan.name }}{{ plan.price !== null && plan.price !== undefined ? ` — £${plan.price.toFixed(2)}${plan.interval_label ? '/' + plan.interval_label : ''}` : '' }}</option>
                                     </select>
                                 </div>
                             </div>
@@ -556,9 +643,16 @@ function handleDiscard() {
                                     step="0.01"
                                     min="0"
                                     max="999999"
+                                    @input="onPriceManualEdit(idx)"
                                 >
                             </div>
-                            <div class="li-amt">{{ formatGBP(lineAmount(line)) }}</div>
+                            <div class="li-amt">
+                                <!-- Strikethrough the gross when a
+                                     discount is in play, so the
+                                     net amount stands out. -->
+                                <span v-if="lineDiscount(line) > 0" class="li-strike">{{ formatGBP(lineGross(line)) }}</span>
+                                <span :class="{ 'li-net': lineDiscount(line) > 0 }">{{ formatGBP(lineAmount(line)) }}</span>
+                            </div>
                             <button
                                 type="button"
                                 class="li-x"
@@ -569,6 +663,31 @@ function handleDiscard() {
                                 <IconX :size="16" stroke-width="1.75" />
                             </button>
                         </div>
+
+                        <!--
+                            Line-level discount row. Collapsed by
+                            default; the "+ Discount" link reveals
+                            type pills + value input + the live saving.
+                        -->
+                        <div v-if="line.discount_type !== null" class="line-discount-row">
+                            <div class="ld-toggle">
+                                <button type="button" class="ld-pill" :class="{ active: line.discount_type === 'percentage' }" @click="line.discount_type = 'percentage'">%</button>
+                                <button type="button" class="ld-pill" :class="{ active: line.discount_type === 'fixed' }" @click="line.discount_type = 'fixed'">£</button>
+                            </div>
+                            <input
+                                v-model.number="line.discount_value"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                class="ld-input"
+                                :placeholder="line.discount_type === 'percentage' ? 'e.g. 10' : 'e.g. 5.00'"
+                            >
+                            <span v-if="lineDiscount(line) > 0" class="ld-saving">Saving {{ formatGBP(lineDiscount(line)) }}</span>
+                            <button type="button" class="ld-clear" @click="line.discount_type = null; line.discount_value = 0">Remove</button>
+                        </div>
+                        <button v-else type="button" class="add-line-discount" @click="line.discount_type = 'percentage'">
+                            + Discount
+                        </button>
 
                         <button
                             type="button"
@@ -590,7 +709,24 @@ function handleDiscard() {
                             </button>
                         </div>
                         <div class="totals-grid">
-                            <div class="total-row">
+                            <!-- If any line carries a discount, surface
+                                 the gross subtotal AND the savings row
+                                 above the post-discount subtotal. -->
+                            <template v-if="totalDiscount > 0">
+                                <div class="total-row">
+                                    <span class="lbl">Subtotal</span>
+                                    <span class="val">{{ formatGBP(subtotalGross) }}</span>
+                                </div>
+                                <div class="total-row" style="color: var(--success);">
+                                    <span class="lbl">Discounts</span>
+                                    <span class="val">-{{ formatGBP(totalDiscount) }}</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="lbl">Net</span>
+                                    <span class="val">{{ formatGBP(subtotal) }}</span>
+                                </div>
+                            </template>
+                            <div v-else class="total-row">
                                 <span class="lbl">Subtotal</span>
                                 <span class="val">{{ formatGBP(subtotal) }}</span>
                             </div>

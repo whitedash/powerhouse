@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Domain;
 use App\Services\CloudflareService;
+use App\Services\WhoisService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -181,6 +182,42 @@ class DomainController extends Controller
      * because the Vue side calls it via fetch — the records panel
      * is a slide-over that opens on demand from the ··· menu.
      */
+    /**
+     * Public WHOIS lookup for the Add/Edit-domain slide-over. The
+     * UI calls this BEFORE the domain exists in our table, so there
+     * is no row to authorise against; we lean on the surrounding
+     * staff/super_admin role middleware instead. Empty/error
+     * payload is the silent fallback — the operator just types the
+     * fields manually.
+     */
+    public function whoisLookup(Request $request, WhoisService $whois): JsonResponse
+    {
+        Gate::authorize('viewAny', Customer::class);
+
+        $data = $request->validate([
+            'domain' => 'required|string|max:255|regex:/^([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/',
+        ]);
+
+        try {
+            $result = $whois->lookup($data['domain']);
+
+            return response()->json([
+                'registrar' => $result['registrar'],
+                'expiry_date' => $result['expiry_date'],
+                // `found` lets the front-end show a subtle "no data"
+                // notice without conflating it with a genuine error.
+                'found' => $result['registrar'] !== null || $result['expiry_date'] !== null,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'registrar' => null,
+                'expiry_date' => null,
+                'found' => false,
+                'error' => 'WHOIS lookup failed.',
+            ]);
+        }
+    }
+
     public function dnsRecords(int $id): JsonResponse
     {
         $domain = Domain::findOrFail($id);

@@ -22,6 +22,7 @@ import {
     IconChevronDown,
     IconChevronLeft,
     IconChevronRight,
+    IconLoader2,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -118,6 +119,56 @@ const filteredCustomers = computed(() => {
     if (! q) return props.customers.slice(0, 8);
     return props.customers.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 8);
 });
+
+/* ─── WHOIS auto-detect ─── */
+const whoisLoading = ref(false);
+const whoisHint = ref('');
+
+async function autoDetect() {
+    if (! form.domain || whoisLoading.value) return;
+    whoisLoading.value = true;
+    whoisHint.value = '';
+
+    try {
+        const res = await fetch('/domains/whois-lookup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
+            },
+            body: JSON.stringify({ domain: form.domain }),
+        });
+
+        const data = await res.json();
+
+        // Never overwrite a value the operator already typed — the
+        // WHOIS server's idea of "registrar" may be slightly different
+        // from what the staff member typed, and a silent overwrite
+        // would be a worse UX than an empty field.
+        let filledAny = false;
+        if (data.registrar && ! form.registrar) {
+            form.registrar = data.registrar;
+            filledAny = true;
+        }
+        if (data.expiry_date && ! form.expiry_date) {
+            form.expiry_date = data.expiry_date;
+            filledAny = true;
+        }
+
+        if (data.error) {
+            whoisHint.value = 'WHOIS lookup failed — fill the fields manually.';
+        } else if (! data.found) {
+            whoisHint.value = 'No WHOIS data returned for this domain.';
+        } else if (! filledAny) {
+            whoisHint.value = 'WHOIS data found but fields are already filled.';
+        }
+    } catch {
+        whoisHint.value = 'Network error — fill the fields manually.';
+    } finally {
+        whoisLoading.value = false;
+    }
+}
 
 function openCreate() {
     editingId.value = null;
@@ -376,7 +427,26 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true }); }
                                     <div class="form-row single">
                                         <div class="form-field">
                                             <label>Domain<span class="req">*</span></label>
-                                            <input v-model="form.domain" type="text" required maxlength="255" style="font-family: 'JetBrains Mono', monospace;" placeholder="example.co.uk" :class="{ 'has-err': form.errors.domain }">
+                                            <!--
+                                                Domain + Auto-detect side-by-side. The button
+                                                hits /domains/whois-lookup and only fills the
+                                                registrar / expiry fields below if they're
+                                                currently empty — never overwrites manual input.
+                                            -->
+                                            <div class="dm-input-row">
+                                                <input v-model="form.domain" type="text" required maxlength="255" style="font-family: 'JetBrains Mono', monospace;" placeholder="example.co.uk" :class="{ 'has-err': form.errors.domain }">
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-ghost btn-sm"
+                                                    :disabled="!form.domain || whoisLoading"
+                                                    @click="autoDetect"
+                                                >
+                                                    <IconLoader2 v-if="whoisLoading" :size="14" stroke-width="2" class="spin" />
+                                                    <IconSearch v-else :size="14" stroke-width="2" />
+                                                    {{ whoisLoading ? 'Detecting…' : 'Auto-detect' }}
+                                                </button>
+                                            </div>
+                                            <p v-if="whoisHint" class="muted small">{{ whoisHint }}</p>
                                             <div v-if="form.errors.domain" class="err">{{ form.errors.domain }}</div>
                                         </div>
                                     </div>

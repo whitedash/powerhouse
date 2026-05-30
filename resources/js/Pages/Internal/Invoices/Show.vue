@@ -168,13 +168,24 @@ const dueDateClass = computed(() => {
 });
 
 const showPaymentDetails = computed(() => !['paid', 'void'].includes(inv.value.status));
-const showRecordPaymentCard = computed(() => ['sent', 'overdue'].includes(inv.value.status));
-const showMarkPaidInTopbar = computed(() => ['sent', 'overdue'].includes(inv.value.status));
+// partially_paid joins sent + overdue as a "can still record more"
+// state; the record-payment card and the top-bar button both surface
+// it so the operator can chase the balance from either entry point.
+const showRecordPaymentCard = computed(() => ['sent', 'overdue', 'partially_paid'].includes(inv.value.status));
+const showMarkPaidInTopbar = computed(() => ['sent', 'overdue', 'partially_paid'].includes(inv.value.status));
+
+// Live remaining balance — the payment form defaults to this and
+// the side panel surfaces it as "Outstanding".
+const remainingBalance = computed(() => {
+    const total = Number(inv.value.total ?? 0);
+    const paid = Number(inv.value.amount_paid ?? 0);
+    return Math.max(0, Math.round((total - paid) * 100) / 100);
+});
 
 /* ─── Record payment form ─── */
 const recordPaymentRef = ref(null);
 const paymentForm = useForm({
-    amount_received: Number(inv.value.amount_due ?? inv.value.total).toFixed(2),
+    amount_received: remainingBalance.value.toFixed(2),
     payment_date: dayjs().format('YYYY-MM-DD'),
     payment_method: 'bank_transfer',
     reference: '',
@@ -416,8 +427,24 @@ const icons = {
                                         <div v-if="line.note" class="note">{{ line.note }}</div>
                                     </td>
                                     <td class="num">{{ formatQuantity(line.quantity) }}</td>
-                                    <td class="num">{{ formatGBP(line.unit_price) }}</td>
-                                    <td class="num amt">{{ formatGBP(line.amount) }}</td>
+                                    <td class="num">
+                                        {{ formatGBP(line.unit_price) }}
+                                        <!--
+                                            Discount badge — appears only when a
+                                            line-level discount was applied at
+                                            create time. Format mirrors the picker
+                                            in Create.vue (% vs £).
+                                        -->
+                                        <span v-if="line.discount_type" class="discount-badge">
+                                            -{{ line.discount_type === 'percentage' ? `${Number(line.discount_value).toFixed(0)}%` : formatGBP(line.discount_value) }}
+                                        </span>
+                                    </td>
+                                    <td class="num amt">
+                                        <span v-if="line.discount_amount > 0" class="line-strike">
+                                            {{ formatGBP(Number(line.quantity) * Number(line.unit_price)) }}
+                                        </span>
+                                        {{ formatGBP(line.amount) }}
+                                    </td>
                                 </tr>
                                 <tr v-if="invoice.lines.length === 0">
                                     <td colspan="4" class="lines-empty">No line items added.</td>
@@ -687,6 +714,15 @@ const icons = {
                         </header>
 
                         <form class="inv-record-body" @submit.prevent="submitPayment">
+                            <!-- Remaining balance — surfaces what the operator
+                                 can still record. For partial-paid invoices it's
+                                 the bit that hasn't been collected yet; for
+                                 sent/overdue it equals the full total. -->
+                            <div v-if="invoice.amount_paid > 0" class="remaining-row">
+                                <span class="k">Remaining balance</span>
+                                <strong class="v">£{{ remainingBalance.toFixed(2) }}</strong>
+                            </div>
+
                             <div class="form-field">
                                 <label>Amount received<span class="req">*</span></label>
                                 <div class="input-prefix">
@@ -696,7 +732,7 @@ const icons = {
                                         type="number"
                                         step="0.01"
                                         min="0.01"
-                                        :max="invoice.total"
+                                        :max="remainingBalance"
                                         required
                                         :class="{ 'has-err': paymentForm.errors.amount_received }"
                                     >

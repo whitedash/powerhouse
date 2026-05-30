@@ -283,26 +283,83 @@ class InvoiceController extends Controller
      *
      * @return array<string, mixed>
      */
+    /**
+     * Resolve the post-discount picture for a submitted line. We
+     * always compute these server-side because the client could
+     * lie about the discount amount and inflate the apparent saving.
+     *
+     * Returns the cooked `amount` (post-discount), the raw
+     * `discount_amount`, and the type + value so the audit trail
+     * shows "10%" or "£5.00" rather than the cooked figure alone.
+     *
+     * @param  array<string, mixed>  $line
+     * @return array{amount: float, discount_type: ?string, discount_value: float, discount_amount: float}
+     */
+    private function computeLineDiscount(array $line): array
+    {
+        $gross = round((float) ($line['quantity'] ?? 0) * (float) ($line['unit_price'] ?? 0), 2);
+        $type = $line['discount_type'] ?? null;
+        $value = (float) ($line['discount_value'] ?? 0);
+
+        if ($type === null || $value <= 0) {
+            return [
+                'amount' => $gross,
+                'discount_type' => null,
+                'discount_value' => 0,
+                'discount_amount' => 0,
+            ];
+        }
+
+        $discountAmount = $type === 'percentage'
+            ? round($gross * ($value / 100), 2)
+            : round($value, 2);
+
+        // Cap at the gross so a £20 fixed discount on a £15 line
+        // doesn't turn the amount negative — same rationale as
+        // the percentage ceiling at 100%.
+        $discountAmount = min($discountAmount, $gross);
+
+        return [
+            'amount' => round($gross - $discountAmount, 2),
+            'discount_type' => $type,
+            'discount_value' => $value,
+            'discount_amount' => $discountAmount,
+        ];
+    }
+
     private function productPicker(): array
     {
         return [
             'products' => Product::where('is_active', true)
                 ->orderBy('sort_order')
-                ->get(['id', 'name', 'slug', 'icon_colour'])
+                ->get(['id', 'name', 'slug', 'icon_colour', 'billing_entity_id'])
                 ->map(fn (Product $p): array => [
                     'id' => $p->id,
                     'name' => $p->name,
                     'slug' => $p->slug,
                     'icon_colour' => $p->icon_colour,
+                    // Pass billing_entity_id so the front-end can auto-
+                    // select the entity when this product is added to a
+                    // line, and so the entity filter can hide products
+                    // that belong to a different entity.
+                    'billing_entity_id' => $p->billing_entity_id,
                 ])
                 ->all(),
             'product_plans' => ProductPlan::where('is_active', true)
+                ->with(['activePrices', 'category:id,name'])
                 ->orderBy('sort_order')
-                ->get(['id', 'product_id', 'name'])
+                ->get(['id', 'product_id', 'name', 'category_id'])
                 ->groupBy('product_id')
                 ->map(fn ($plans) => $plans->map(fn (ProductPlan $p) => [
                     'id' => $p->id,
                     'name' => $p->name,
+                    // Default price (first active) — used for the line-
+                    // item auto-populate when the operator picks a plan.
+                    'price' => $p->activePrices->first()?->price !== null
+                        ? (float) $p->activePrices->first()->price
+                        : null,
+                    'interval_label' => $p->activePrices->first()?->interval_label,
+                    'category_name' => $p->category?->name,
                 ])->values()->all())
                 ->all(),
         ];
@@ -318,8 +375,12 @@ class InvoiceController extends Controller
 
         DB::transaction(function () use ($invoice, $data, $request, $sendAfter) {
             $lines = collect($data['lines']);
+            // Subtotal is the sum of POST-discount line amounts;
+            // computeLineDiscount returns the cooked `amount` field
+            // we'll also store, so the totals never drift from the
+            // per-line numbers visible in the UI.
             $subtotal = $lines->reduce(
-                fn (float $carry, array $l) => $carry + round((float) $l['quantity'] * (float) $l['unit_price'], 2),
+                fn (float $carry, array $l) => $carry + $this->computeLineDiscount($l)['amount'],
                 0.0,
             );
             $vatRate = (float) $data['vat_rate'];
@@ -372,17 +433,22 @@ class InvoiceController extends Controller
                 ->delete();
 
             foreach ($data['lines'] as $i => $line) {
-                $attributes = [
-                    'invoice_id' => $invoice->id,
-                    'product_id' => $line['product_id'] ?? null,
-                    'plan_id' => $line['plan_id'] ?? null,
-                    'description' => $line['description'],
-                    'note' => $line['note'] ?? null,
-                    'quantity' => (float) $line['quantity'],
-                    'unit_price' => (float) $line['unit_price'],
-                    'amount' => round((float) $line['quantity'] * (float) $line['unit_price'], 2),
-                    'sort_order' => $i,
-                ];
+                $attributes = array_merge(
+                    [
+                        'invoice_id' => $invoice->id,
+                        'product_id' => $line['product_id'] ?? null,
+                        'plan_id' => $line['plan_id'] ?? null,
+                        'description' => $line['description'],
+                        'note' => $line['note'] ?? null,
+                        'quantity' => (float) $line['quantity'],
+                        'unit_price' => (float) $line['unit_price'],
+                        'sort_order' => $i,
+                    ],
+                    // Discount fields + the net amount are computed
+                    // server-side so the client can't smuggle a
+                    // larger discount than maths allows.
+                    $this->computeLineDiscount($line),
+                );
 
                 if (! empty($line['id'])) {
                     InvoiceLine::where('id', $line['id'])
@@ -510,8 +576,9 @@ class InvoiceController extends Controller
             $number = $this->generateNextInvoiceNumberLocked();
 
             $lines = collect($data['lines']);
+            // Same discount-aware sum as the update path.
             $subtotal = $lines->reduce(
-                fn (float $carry, array $l) => $carry + round((float) $l['quantity'] * (float) $l['unit_price'], 2),
+                fn (float $carry, array $l) => $carry + $this->computeLineDiscount($l)['amount'],
                 0.0,
             );
             $vatRate = (float) $data['vat_rate'];
@@ -556,17 +623,19 @@ class InvoiceController extends Controller
             ]);
 
             foreach ($data['lines'] as $i => $line) {
-                InvoiceLine::create([
-                    'invoice_id' => $invoice->id,
-                    'product_id' => $line['product_id'] ?? null,
-                    'plan_id' => $line['plan_id'] ?? null,
-                    'description' => $line['description'],
-                    'note' => $line['note'] ?? null,
-                    'quantity' => (float) $line['quantity'],
-                    'unit_price' => (float) $line['unit_price'],
-                    'amount' => round((float) $line['quantity'] * (float) $line['unit_price'], 2),
-                    'sort_order' => $i,
-                ]);
+                InvoiceLine::create(array_merge(
+                    [
+                        'invoice_id' => $invoice->id,
+                        'product_id' => $line['product_id'] ?? null,
+                        'plan_id' => $line['plan_id'] ?? null,
+                        'description' => $line['description'],
+                        'note' => $line['note'] ?? null,
+                        'quantity' => (float) $line['quantity'],
+                        'unit_price' => (float) $line['unit_price'],
+                        'sort_order' => $i,
+                    ],
+                    $this->computeLineDiscount($line),
+                ));
             }
 
             $this->logActivity($request, 'invoice.created', $invoice, after: [
@@ -696,6 +765,12 @@ class InvoiceController extends Controller
                     'quantity' => (float) $l->quantity,
                     'unit_price' => (float) $l->unit_price,
                     'amount' => (float) $l->amount,
+                    // Surface discount fields so the line UI can show
+                    // the strikethrough + "-10%" badge without an
+                    // additional roundtrip.
+                    'discount_type' => $l->discount_type,
+                    'discount_value' => $l->discount_value !== null ? (float) $l->discount_value : 0,
+                    'discount_amount' => $l->discount_amount !== null ? (float) $l->discount_amount : 0,
                     'sort_order' => (int) $l->sort_order,
                     'product_id' => $l->product_id,
                     'product_name' => $l->product?->name,
@@ -734,31 +809,64 @@ class InvoiceController extends Controller
             return back()->with('error', "Invoice {$invoice->number} is already {$invoice->status}.");
         }
 
+        // Outstanding cap — the operator can't record more than the
+        // remaining balance in a single payment. Computed up front
+        // so the validator has a known max.
+        $invoiceTotal = (float) $invoice->total;
+        $previouslyPaid = (float) ($invoice->amount_paid ?? 0);
+        $outstanding = round($invoiceTotal - $previouslyPaid, 2);
+        if ($outstanding <= 0) {
+            return back()->with('error', "Invoice {$invoice->number} has no outstanding balance.");
+        }
+
         $data = $request->validate([
-            'amount_received' => ['required', 'numeric', 'min:0.01', 'max:'.$invoice->total],
+            'amount_received' => ['required', 'numeric', 'min:0.01', 'max:'.$outstanding],
             'payment_date' => ['required', 'date', 'before_or_equal:today'],
             'payment_method' => ['required', 'in:'.implode(',', self::PAYMENT_METHODS)],
             'reference' => ['nullable', 'string', 'max:255'],
         ]);
 
-        DB::transaction(function () use ($invoice, $data, $request) {
+        $paymentAmount = (float) $data['amount_received'];
+        $newTotalPaid = round($previouslyPaid + $paymentAmount, 2);
+
+        // Branch the status on whether the new running total clears
+        // the invoice total. We use >= to absorb 1p float drift —
+        // £239.99 of £240.00 in real life means the customer paid.
+        if ($newTotalPaid >= $invoiceTotal - 0.005) {
+            $newStatus = 'paid';
+            $paidAt = $data['payment_date'];
+        } else {
+            $newStatus = 'partially_paid';
+            $paidAt = null;
+        }
+
+        DB::transaction(function () use ($invoice, $data, $request, $newStatus, $newTotalPaid, $paidAt, $paymentAmount, $invoiceTotal) {
             $invoice->update([
-                'status' => 'paid',
-                'amount_paid' => $data['amount_received'],
-                'paid_at' => $data['payment_date'],
+                'status' => $newStatus,
+                'amount_paid' => $newTotalPaid,
+                'paid_at' => $paidAt,
                 'payment_method' => $data['payment_method'],
                 'payment_reference' => $data['reference'] ?? null,
             ]);
 
-            $this->logActivity($request, 'invoice.marked_paid', $invoice, after: [
-                'amount' => (float) $data['amount_received'],
+            $this->logActivity($request, 'invoice.payment_recorded', $invoice, after: [
+                'amount' => $paymentAmount,
+                'total_paid' => $newTotalPaid,
+                'invoice_total' => $invoiceTotal,
+                'status' => $newStatus,
                 'method' => $data['payment_method'],
             ]);
 
             $this->forgetNavInvoiceCaches();
         });
 
-        return back()->with('success', "Invoice {$invoice->number} marked as paid.");
+        if ($newStatus === 'paid') {
+            return back()->with('success', "Invoice {$invoice->number} fully paid (£".number_format($newTotalPaid, 2).').');
+        }
+
+        $remaining = number_format($invoiceTotal - $newTotalPaid, 2);
+
+        return back()->with('success', "Payment recorded. £{$remaining} outstanding on invoice {$invoice->number}.");
     }
 
     public function voidInvoice(int $id, Request $request): RedirectResponse
