@@ -160,6 +160,17 @@ class Task extends Model
         return $this->belongsTo(Milestone::class);
     }
 
+    /**
+     * Parent lead when this task was logged against a pipeline
+     * lead rather than a customer. The lead_id column landed
+     * empty in PM Sprint 1; the FK constraint was added with
+     * the leads migration so the type is now safe.
+     */
+    public function lead(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class);
+    }
+
     public function timeEntries(): HasMany
     {
         return $this->hasMany(TimeEntry::class);

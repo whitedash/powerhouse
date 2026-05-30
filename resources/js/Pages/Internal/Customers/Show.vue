@@ -1226,6 +1226,17 @@ const contractDeleteMessage = computed(() =>
             <div v-if="activeTab === 'overview'" class="cust-detail-content" style="margin: 0 -24px -24px;">
                 <!-- LEFT COLUMN -->
                 <div class="col">
+                    <!--
+                        Lead origin chip — present when this customer was
+                        minted via LeadController::convert. Single-line
+                        summary + a link back to the lead history.
+                    -->
+                    <div v-if="customer.lead_origin" class="lead-origin-chip">
+                        <IconUserPlus :size="14" stroke-width="2" />
+                        <span>Converted from lead · {{ customer.lead_origin.source.replace(/_/g, ' ') }}<template v-if="customer.lead_origin.converted_at"> · {{ new Date(customer.lead_origin.converted_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) }}</template></span>
+                        <Link :href="`/leads/${customer.lead_origin.id}`" class="ghost-link inline">View lead →</Link>
+                    </div>
+
                     <!-- Account details -->
                     <section class="card">
                         <header class="card-header">

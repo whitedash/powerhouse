@@ -11769,3 +11769,286 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
 }
 .cust-proposals .prop-ref-mono:hover { text-decoration: underline; }
 
+/* ════════════════════════════════════════════════════════════════
+   Leads pipeline (Leads Sprint)
+   ──────────────────────────────────────────────────────────────
+   Two surfaces: .leads-index (kanban + list) and .lead-show
+   (detail page with conversion modal). The kanban reuses the
+   .kanban-board / .kanban-column primitives from PM Sprint 1
+   but narrower columns + a coloured top stripe per status.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Lead origin chip on the customer overview tab — appears when
+   the customer was minted via LeadController::convert. */
+.lead-origin-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    background: var(--info-bg);
+    border: 1px solid #BFDBFE;
+    border-radius: var(--radius-md);
+    font: 500 12.5px/1.4 'Inter', sans-serif;
+    color: #1D4ED8;
+    margin-bottom: 16px;
+}
+.lead-origin-chip svg { flex-shrink: 0; }
+.lead-origin-chip .ghost-link { margin-left: auto; }
+
+/* View toggle (pipeline / list) — pill group on the topbar */
+.leads-index .view-toggle {
+    display: inline-flex; gap: 2px;
+    padding: 3px;
+    background: var(--neutral-bg);
+    border-radius: var(--radius-md);
+}
+.leads-index .view-toggle button {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 30px; padding: 0 12px;
+    border: 0; background: transparent;
+    border-radius: var(--radius-sm);
+    font: 500 12.5px/1 'Inter', sans-serif;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background .12s, color .12s;
+}
+.leads-index .view-toggle button:hover { color: var(--text-primary); }
+.leads-index .view-toggle button.active {
+    background: #fff;
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Lead source chip — used in cards + list rows */
+.lead-source-chip {
+    display: inline-block;
+    font: 500 10px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--neutral-bg);
+    color: var(--text-tertiary);
+    white-space: nowrap;
+}
+
+/* ─── .leads-index pipeline view ─── */
+.leads-pipeline { margin-top: 16px; }
+.leads-index .kanban-board { gap: 12px; }
+.leads-index .kanban-column {
+    width: 240px;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--border);
+    border-radius: var(--radius-md);
+}
+.leads-index .kanban-column-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 2px 2px;
+}
+.leads-index .kanban-column-title {
+    display: inline-flex; align-items: center; gap: 5px;
+    flex: 1;
+    font: 600 13px/1.2 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+.leads-index .kanban-meta {
+    font: 500 11px/1 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    margin: 2px 0 6px;
+    padding: 0 2px;
+    font-variant-numeric: tabular-nums;
+}
+.leads-index .kanban-cards { min-height: 60px; }
+.leads-index .lead-card {
+    display: block;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 10px;
+    margin-bottom: 8px;
+    text-decoration: none;
+    color: inherit;
+    cursor: grab;
+    transition: box-shadow .15s, transform .12s;
+}
+.leads-index .lead-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+.leads-index .lead-card:active { cursor: grabbing; }
+.leads-index .lead-card-head {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+}
+.leads-index .lead-card-id { min-width: 0; flex: 1; }
+.leads-index .lead-card-name {
+    font: 600 12.5px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.leads-index .lead-card-company {
+    font: 400 11px/1.3 'Inter', sans-serif;
+    color: var(--text-secondary);
+    margin-top: 1px;
+}
+.leads-index .lead-card-footer {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+}
+.leads-index .lead-card-value {
+    font: 600 12px/1 'Inter', sans-serif;
+    color: var(--success);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Quick-add wrapper in New column */
+.leads-index .lead-quick-add-wrap { margin-top: 6px; }
+.leads-index .lead-quick-add {
+    display: flex; flex-direction: column; gap: 6px;
+}
+.leads-index .lead-quick-add input {
+    width: 100%; height: 32px; padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font: 400 12.5px/1 'Inter', sans-serif;
+    outline: 0;
+}
+
+/* Collapsed Won/Lost columns */
+.leads-index .kanban-column.collapsed {
+    width: 48px; min-height: 200px;
+    padding: 8px 4px;
+    cursor: pointer;
+}
+.leads-index .kanban-column.collapsed .kanban-column-header { padding: 0; }
+.leads-index .kanban-column.collapsed .kanban-column-title { display: none; }
+.leads-index .kanban-column.collapsed .kanban-column-count {
+    margin: 0 auto;
+}
+.leads-index .kanban-column-expand-btn {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font: 500 11px/1 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    padding: 16px 0;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    width: 100%;
+    text-align: center;
+}
+
+/* ─── .leads-index list view ─── */
+.leads-index .lead-row-name {
+    display: flex; align-items: center; gap: 8px;
+    min-width: 0;
+}
+
+/* ─── .lead-show detail page ─── */
+.lead-show .lead-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 0 18px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 18px;
+}
+.lead-show .lead-header h1 {
+    margin: 0 0 4px;
+    font: 700 22px/1.2 'Inter', sans-serif;
+    letter-spacing: -.01em;
+}
+.lead-show .lead-header-meta { flex: 1; min-width: 0; }
+.lead-show .lead-header-status {
+    position: relative;
+}
+.lead-show .lead-header-status .badge.lg {
+    cursor: pointer; border-style: solid;
+}
+.lead-show .status-popover {
+    position: absolute;
+    top: calc(100% + 6px); right: 0; z-index: 30;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    padding: 4px;
+    display: flex; flex-direction: column;
+    min-width: 160px;
+}
+.lead-show .status-opt {
+    text-align: left;
+    padding: 6px 12px;
+    border: 0; background: transparent;
+    font: 500 12.5px/1.2 'Inter', sans-serif;
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+.lead-show .status-opt:hover { background: var(--neutral-bg); }
+.lead-show .lead-header-actions { display: flex; align-items: center; gap: 8px; }
+
+.lead-show .lead-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 60fr) minmax(0, 40fr);
+    gap: 16px;
+}
+.lead-show .lead-left,
+.lead-show .lead-right { display: flex; flex-direction: column; gap: 14px; }
+
+.lead-show .contact-grid { display: flex; flex-direction: column; gap: 8px; }
+.lead-show .contact-row {
+    display: flex; align-items: center; gap: 8px;
+    font: 400 13px/1.4 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.lead-show .contact-row svg { color: var(--text-tertiary); flex-shrink: 0; }
+.lead-show .contact-link {
+    color: var(--text-primary); text-decoration: none; font-weight: 500;
+}
+.lead-show .contact-link:hover { color: var(--accent); text-decoration: underline; }
+
+.lead-show .activity-row {
+    display: grid;
+    grid-template-columns: 16px 1fr auto auto;
+    gap: 10px; align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--border-soft);
+}
+.lead-show .activity-row:last-child { border-bottom: 0; }
+.lead-show .activity-title {
+    color: var(--text-primary); text-decoration: none;
+    font: 500 13px/1.3 'Inter', sans-serif;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lead-show .activity-title:hover { color: var(--accent); }
+
+.lead-show .pipeline-summary { font: 400 12.5px/1.4 'Inter', sans-serif; }
+
+.lead-show .convert-card { border: 2px solid var(--accent); }
+.lead-show .convert-card-body {
+    padding: 16px 18px;
+    display: flex; flex-direction: column; gap: 8px;
+}
+.lead-show .convert-card-body h3 {
+    margin: 0;
+    font: 600 14px/1.2 'Inter', sans-serif;
+}
+.lead-show .convert-card-body .btn { margin-top: 4px; }
+
+.lead-show .small-meta {
+    display: flex; flex-direction: column; gap: 4px;
+    font: 400 12.5px/1.4 'Inter', sans-serif;
+}
+
+.lead-show .convert-checklist {
+    list-style: none; padding: 0; margin: 0 0 14px;
+    display: flex; flex-direction: column; gap: 4px;
+    font: 400 13px/1.5 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.lead-show .convert-checklist li {
+    display: flex; align-items: center; gap: 6px;
+}
+.lead-show .convert-checklist svg { color: var(--success); flex-shrink: 0; }
+

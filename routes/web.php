@@ -13,6 +13,7 @@ use App\Http\Controllers\Internal\ExpenseController as InternalExpenseController
 use App\Http\Controllers\Internal\HelpController as InternalHelpController;
 use App\Http\Controllers\Internal\ImpersonationController as InternalImpersonationController;
 use App\Http\Controllers\Internal\InvoiceController as InternalInvoiceController;
+use App\Http\Controllers\Internal\LeadController as InternalLeadController;
 use App\Http\Controllers\Internal\MaavelusStatementController as InternalMaavelusStatementController;
 use App\Http\Controllers\Internal\MilestoneController as InternalMilestoneController;
 use App\Http\Controllers\Internal\MyAccountController as InternalMyAccountController;
@@ -211,6 +212,27 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // Personal task dashboard — separate page, no per-user data leak
     // risk since the controller filters to auth()->id() unconditionally.
     Route::get('/my-work', [InternalMyWorkController::class, 'index'])->name('internal.my-work');
+
+    // ─── Leads ───
+    // Standalone pipeline — leads live in their own table and
+    // don't appear in /customers until LeadController::convert
+    // mints the customer row. Status update is JSON because the
+    // kanban applies it optimistically; everything else is a
+    // standard redirect-back round-trip.
+    Route::prefix('leads')->name('internal.leads.')->group(function () {
+        Route::get('/', [InternalLeadController::class, 'index'])->name('index');
+        Route::post('/', [InternalLeadController::class, 'store'])->name('store');
+        Route::get('/{id}', [InternalLeadController::class, 'show'])
+            ->whereNumber('id')->name('show');
+        Route::put('/{id}', [InternalLeadController::class, 'update'])
+            ->whereNumber('id')->name('update');
+        Route::post('/{id}/status', [InternalLeadController::class, 'updateStatus'])
+            ->whereNumber('id')->name('status');
+        Route::post('/{id}/convert', [InternalLeadController::class, 'convert'])
+            ->whereNumber('id')->name('convert');
+        Route::delete('/{id}', [InternalLeadController::class, 'destroy'])
+            ->whereNumber('id')->name('destroy');
+    });
 
     // ─── Proposals ───
     // CRUD + send + download + convert to contract. The public-side

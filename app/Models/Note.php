@@ -8,8 +8,9 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
- * @property int $customer_id
+ * @property int|null $customer_id
  * @property int|null $task_id
+ * @property int|null $lead_id
  * @property int|null $created_by
  * @property string $type
  * @property string $body
@@ -18,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Customer|null $customer
  * @property-read Task|null $task
+ * @property-read Lead|null $lead
  * @property-read User|null $createdBy
  * @property-read User|null $author
  */
@@ -26,6 +28,7 @@ class Note extends Model
     protected $fillable = [
         'customer_id',
         'task_id',
+        'lead_id',
         'created_by',
         'type',
         'body',
@@ -47,6 +50,18 @@ class Note extends Model
     public function task(): BelongsTo
     {
         return $this->belongsTo(Task::class);
+    }
+
+    /**
+     * Lead this note is attached to. Notes are normally either
+     * customer-scoped or task-scoped; lead-scoped is a third
+     * mode used by the leads pipeline detail page. On lead
+     * conversion the controller re-targets these to the new
+     * customer_id and clears lead_id.
+     */
+    public function lead(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class);
     }
 
     public function createdBy(): BelongsTo

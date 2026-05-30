@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\CustomerProduct;
 use App\Models\Domain;
 use App\Models\Invoice;
+use App\Models\Lead;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\Referrer;
@@ -360,6 +361,30 @@ class DashboardController extends Controller
                     ]);
                 });
         }
+
+        // New leads — amber. Anything created in the last 48h that
+        // hasn't moved off 'new' yet is a fair signal someone needs
+        // to make first contact. Capped at 2 so the panel doesn't
+        // drown out invoices and tickets on busy weeks.
+        Lead::where('status', 'new')
+            ->whereNull('customer_id')
+            ->where('created_at', '>=', $now->copy()->subDays(2))
+            ->orderByDesc('created_at')
+            ->take(2)
+            ->get()
+            ->each(function (Lead $lead) use ($items) {
+                $sub = $lead->company !== null
+                    ? $lead->company.' · '.str_replace('_', ' ', $lead->source)
+                    : str_replace('_', ' ', $lead->source).' · '.($lead->created_at?->diffForHumans() ?? 'just now');
+                $items->push([
+                    'type' => 'lead',
+                    'priority' => 'amber',
+                    'title' => 'New lead: '.$lead->name,
+                    'sub' => $sub,
+                    'action' => 'View →',
+                    'href' => '/leads/'.$lead->id,
+                ]);
+            });
 
         // Overdue tasks (assigned to the current operator) — amber.
         // Scoped to the operator because the dashboard is personal:

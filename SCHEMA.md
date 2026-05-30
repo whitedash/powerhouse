@@ -375,8 +375,45 @@ author_id FK users, created_at, updated_at
 -- visibility; is_published gates everywhere. Soft-delete via
 -- is_published=false.
 
+## leads (Leads sprint)
+id,
+first_name VARCHAR(100), last_name VARCHAR(100) nullable,
+email VARCHAR(255) nullable, phone VARCHAR(50) nullable,
+company VARCHAR(255) nullable, job_title VARCHAR(255) nullable,
+status ENUM(new|contacted|qualified|proposal|negotiation
+  |won|lost|unresponsive) DEFAULT 'new',
+source ENUM(manual|landing_page|facebook|google|referral
+  |email|phone|event|word_of_mouth|other) DEFAULT 'manual',
+source_detail VARCHAR(255) nullable,
+assigned_to FK users nullable SET NULL,
+estimated_value DECIMAL(10,2) nullable,
+notes TEXT nullable,
+customer_id FK customers nullable SET NULL
+  -- Stamped on conversion; the index/list filters whereNull on
+  -- this column so converted leads vanish from the pipeline.
+converted_at TIMESTAMP nullable,
+lost_reason TEXT nullable,
+form_submission_id UNSIGNED BIGINT nullable
+  -- No FK yet; the forms table arrives in Sprint 3.
+created_by FK users RESTRICT,
+created_at, updated_at
+-- INDEX (status, assigned_to)         leads_kanban_idx
+-- INDEX (source, created_at)          leads_funnel_idx
+-- INDEX (customer_id)                 leads_converted_idx
+-- INDEX (assigned_to, status)         leads_mywork_idx
+-- Leads live in their own table so a half-qualified prospect
+-- never leaks into /customers. Conversion via
+-- LeadController::convert() creates Customer + primary Contact,
+-- re-targets tasks/notes, then stamps customer_id + converted_at
+-- on the lead itself for audit / lead_origin chip on the
+-- customer detail page.
+
 ## notes
 id, customer_id FK, created_by FK users,
+lead_id FK leads nullable SET NULL (Leads sprint)
+  -- A note can hang off a customer, a task, or a lead. On lead
+  -- conversion LeadController::convert() re-targets the lead's
+  -- notes at the new customer (lead_id = null, customer_id set).
 type ENUM(internal|call|meeting|email),
 body TEXT, created_at, updated_at
 
@@ -384,8 +421,9 @@ body TEXT, created_at, updated_at
 id, customer_id FK nullable,
 project_id FK projects nullable (PM Sprint 1),
 milestone_id FK milestones nullable (PM Sprint 1),
-lead_id BIGINT UNSIGNED nullable
-  -- No FK yet; leads table arrives in Sprint 2.
+lead_id FK leads nullable SET NULL (Leads sprint)
+  -- Column landed empty in PM Sprint 1. The FK was added by
+  -- the leads migration once the referenced table existed.
 contact_id FK nullable,
 parent_task_id FK tasks nullable,
 assigned_to FK users, created_by FK users,

@@ -15,6 +15,7 @@ use App\Models\Contract;
 use App\Models\Customer;
 use App\Models\CustomerProduct;
 use App\Models\CustomerReferral;
+use App\Models\Lead;
 use App\Models\Note;
 use App\Models\PortalUser;
 use App\Models\Product;
@@ -22,6 +23,7 @@ use App\Models\ProductPlan;
 use App\Models\ProductPlanCategory;
 use App\Models\ProductPlanPrice;
 use App\Models\Project;
+use App\Models\Proposal;
 use App\Models\Referrer;
 use App\Models\Task;
 use App\Models\User;
@@ -484,6 +486,19 @@ class CustomerController extends Controller
                     'created_at' => $c->created_at?->format('d M Y'),
                 ])->values(),
 
+                // Origin lead — populated for customers minted via
+                // LeadController::convert. Surfaces a "converted from
+                // lead" chip on the overview tab and a link back to
+                // the lead history. Returns the slim subset of fields
+                // the chip actually uses.
+                'lead_origin' => Lead::where('customer_id', $id)
+                    ->orderByDesc('converted_at')
+                    ->first()?->only([
+                        'id', 'first_name', 'last_name',
+                        'source', 'source_detail', 'estimated_value',
+                        'converted_at',
+                    ]),
+
                 // Proposals tab — slim payload for the customer
                 // detail page. Larastan can't infer the relation's
                 // model type from the closure parameter (same issue
@@ -491,7 +506,7 @@ class CustomerController extends Controller
                 // shape check. The accessed properties are all on
                 // the Proposal model proper.
                 /** @phpstan-ignore-next-line argument.type */
-                'proposals' => $customer->proposals->map(fn (\App\Models\Proposal $p): array => [
+                'proposals' => $customer->proposals->map(fn (Proposal $p): array => [
                     'id' => $p->id,
                     'reference' => $p->reference,
                     'title' => $p->title,
