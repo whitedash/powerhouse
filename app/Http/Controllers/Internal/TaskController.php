@@ -5,18 +5,182 @@ namespace App\Http\Controllers\Internal;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Contact;
+use App\Models\Customer;
 use App\Models\Task;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class TaskController extends Controller
 {
     private const TYPES = ['task', 'call', 'email', 'meeting', 'note'];
 
     private const PRIORITIES = ['low', 'medium', 'high'];
+
+    /**
+     * Activity detail page. Surfaces the full task + related context
+     * (notes, child tasks, related open activities on the same
+     * customer, plus the customer context card itself).
+     */
+    public function show(int $id, Request $request): Response
+    {
+        $task = Task::with([
+            'customer:id,name,city',
+            'contact:id,customer_id,name,email,phone,job_title',
+            'assignedTo:id,name,avatar_colour,role',
+            'createdBy:id,name',
+            'parentTask:id,title,type',
+            'notes' => fn ($q) => $q->orderBy('created_at')
+                ->with('author:id,name,avatar_colour'),
+            'childTasks' => fn ($q) => $q->with('assignedTo:id,name,avatar_colour'),
+        ])->findOrFail($id);
+
+        // Authorisation. Tasks attached to a customer ride the
+        // CustomerPolicy::view check; orphan tasks (customer_id null)
+        // fall back to ownership-or-super_admin so a staffer can't
+        // browse another staffer's private TODO list.
+        $user = $request->user();
+        if ($task->customer_id !== null) {
+            Gate::authorize('view', $task->customer);
+        } else {
+            abort_unless(
+                $task->assigned_to === $user->id
+                || $task->created_by === $user->id
+                || $user->isSuperAdmin(),
+                403,
+                'You do not have access to this activity.',
+            );
+        }
+
+        // Other open activities on the same customer — gives the
+        // operator a one-click jump to anything else they need to
+        // chase on this account.
+        $related = $task->customer_id
+            ? Task::where('customer_id', $task->customer_id)
+                ->where('id', '!=', $task->id)
+                ->whereIn('status', ['open'])
+                ->orderByRaw('due_at IS NULL, due_at ASC')
+                ->take(5)
+                ->get(['id', 'type', 'title', 'due_at', 'status', 'priority', 'is_pinned'])
+                ->map(fn (Task $r): array => [
+                    'id' => $r->id,
+                    'type' => $r->type,
+                    'type_icon' => $r->type_icon,
+                    'type_colour' => $r->type_colour,
+                    'title' => $r->title,
+                    'due_at' => $r->due_at?->toIso8601String(),
+                    'is_overdue' => $r->is_overdue,
+                    'status' => $r->status,
+                    'priority' => $r->priority,
+                    'is_pinned' => $r->is_pinned,
+                ])
+                ->all()
+            : [];
+
+        // Slim staff list for the linked-task assign-to picker.
+        $staff = User::whereIn('role', ['super_admin', 'staff'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'avatar_colour'])
+            ->all();
+
+        // Customer-scoped contacts feed the inline "create linked task"
+        // form's contact picker.
+        $contacts = $task->customer_id
+            ? Contact::where('customer_id', $task->customer_id)
+                ->orderBy('name')
+                ->get(['id', 'name', 'email'])
+                ->all()
+            : [];
+
+        return Inertia::render('Internal/Activities/Show', [
+            'task' => [
+                'id' => $task->id,
+                'title' => $task->title,
+                'type' => $task->type,
+                'type_icon' => $task->type_icon,
+                'type_colour' => $task->type_colour,
+                'description' => $task->description,
+                'priority' => $task->priority,
+                'status' => $task->status,
+                'due_at' => $task->due_at?->toIso8601String(),
+                'completed_at' => $task->completed_at?->toIso8601String(),
+                'completed_at_human' => $task->completed_at?->diffForHumans(),
+                'outcome' => $task->outcome,
+                'duration_minutes' => $task->duration_minutes,
+                'is_pinned' => $task->is_pinned,
+                'is_overdue' => $task->is_overdue,
+                'created_at' => $task->created_at?->format('d M Y, H:i'),
+                'customer_id' => $task->customer_id,
+                'customer' => $task->customer ? [
+                    'id' => $task->customer->id,
+                    'name' => $task->customer->name,
+                    'city' => $task->customer->city,
+                ] : null,
+                'contact' => $task->contact ? [
+                    'id' => $task->contact->id,
+                    'name' => $task->contact->name,
+                    'email' => $task->contact->email,
+                    'phone' => $task->contact->phone,
+                    'job_title' => $task->contact->job_title,
+                ] : null,
+                'assigned_to' => $task->assigned_to,
+                'assigned_to_user' => $task->assignedTo ? [
+                    'id' => $task->assignedTo->id,
+                    'name' => $task->assignedTo->name,
+                    'avatar_colour' => $task->assignedTo->avatar_colour,
+                ] : null,
+                'created_by_user' => $task->createdBy ? [
+                    'id' => $task->createdBy->id,
+                    'name' => $task->createdBy->name,
+                ] : null,
+                'parent_task' => $task->parentTask ? [
+                    'id' => $task->parentTask->id,
+                    'title' => $task->parentTask->title,
+                    'type' => $task->parentTask->type,
+                ] : null,
+                'notes' => $task->notes->map(fn ($n): array => [
+                    'id' => $n->id,
+                    'body' => $n->body,
+                    'is_pinned' => $n->is_pinned,
+                    'created_at' => $n->created_at?->toIso8601String(),
+                    'created_at_human' => $n->created_at?->diffForHumans(),
+                    'author' => $n->author ? [
+                        'id' => $n->author->id,
+                        'name' => $n->author->name,
+                        'avatar_colour' => $n->author->avatar_colour,
+                    ] : null,
+                ])->values()->all(),
+                'child_tasks' => $task->childTasks->map(fn (Task $c): array => [
+                    'id' => $c->id,
+                    'title' => $c->title,
+                    'type' => $c->type,
+                    'type_icon' => $c->type_icon,
+                    'type_colour' => $c->type_colour,
+                    'status' => $c->status,
+                    'priority' => $c->priority,
+                    'due_at' => $c->due_at?->toIso8601String(),
+                    'is_overdue' => $c->is_overdue,
+                    'assigned_to_user' => $c->assignedTo ? [
+                        'id' => $c->assignedTo->id,
+                        'name' => $c->assignedTo->name,
+                        'avatar_colour' => $c->assignedTo->avatar_colour,
+                    ] : null,
+                ])->values()->all(),
+            ],
+            'related' => $related,
+            'staff' => $staff,
+            'contacts' => $contacts,
+            // me lets the frontend default the "Assign to" picker in
+            // the linked-task slide-over without an extra fetch.
+            'me_id' => $user->id,
+        ]);
+    }
 
     public function store(Request $request): RedirectResponse
     {
@@ -33,6 +197,7 @@ class TaskController extends Controller
                 'priority' => $data['priority'] ?? 'medium',
                 'customer_id' => $data['customer_id'] ?? null,
                 'contact_id' => $data['contact_id'] ?? null,
+                'parent_task_id' => $data['parent_task_id'] ?? null,
                 'assigned_to' => $data['assigned_to'] ?? $userId,
                 'created_by' => $userId,
                 'status' => 'open',
@@ -185,6 +350,7 @@ class TaskController extends Controller
             'priority' => ['nullable', Rule::in(self::PRIORITIES)],
             'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
             'contact_id' => ['nullable', 'integer', 'exists:contacts,id'],
+            'parent_task_id' => ['nullable', 'integer', 'exists:tasks,id'],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
             'due_at' => ['nullable', 'date'],
             'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:480'],

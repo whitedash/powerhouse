@@ -1804,9 +1804,13 @@ const headerStatusBadge = computed(() => {
 
                             <div class="act-content">
                                 <header class="act-header">
-                                    <span class="act-title" :class="{ done: t.status === 'complete' }">
-                                        {{ t.title || activityTypeLabel(t.type) }}
-                                    </span>
+                                    <!-- Activity title routes to the detail page so the
+                                         operator can drill into notes + linked tasks. -->
+                                    <Link
+                                        :href="`/activities/${t.id}`"
+                                        class="act-title"
+                                        :class="{ done: t.status === 'complete' }"
+                                    >{{ t.title || activityTypeLabel(t.type) }}</Link>
                                     <span class="act-priority-dot" :class="t.priority" :title="`Priority: ${t.priority}`" />
                                     <span v-if="t.contact_name" class="act-contact">
                                         <IconUser :size="11" stroke-width="1.75" />
@@ -1821,6 +1825,9 @@ const headerStatusBadge = computed(() => {
                                             <IconDots :size="14" stroke-width="1.75" />
                                         </MenuButton>
                                         <MenuItems class="dd-popover right-align">
+                                            <MenuItem v-slot="{ active }">
+                                                <Link :href="`/activities/${t.id}`" :class="['dd-option', { active }]">View details</Link>
+                                            </MenuItem>
                                             <MenuItem v-if="t.status !== 'complete'" v-slot="{ active }">
                                                 <button type="button" :class="['dd-option', { active }]" @click="askCompleteActivity(t)">Mark complete</button>
                                             </MenuItem>

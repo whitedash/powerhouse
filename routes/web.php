@@ -12,6 +12,7 @@ use App\Http\Controllers\Internal\ImpersonationController as InternalImpersonati
 use App\Http\Controllers\Internal\InvoiceController as InternalInvoiceController;
 use App\Http\Controllers\Internal\MaavelusStatementController as InternalMaavelusStatementController;
 use App\Http\Controllers\Internal\MyAccountController as InternalMyAccountController;
+use App\Http\Controllers\Internal\NoteController as InternalNoteController;
 use App\Http\Controllers\Internal\ProductController as InternalProductController;
 use App\Http\Controllers\Internal\ProductOverviewController as InternalProductOverviewController;
 use App\Http\Controllers\Internal\ProductPlanCategoryController as InternalProductPlanCategoryController;
@@ -103,6 +104,20 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::post('/tasks/{id}/complete', [InternalTaskController::class, 'complete'])->name('internal.tasks.complete');
     Route::post('/tasks/{id}/pin', [InternalTaskController::class, 'togglePin'])->name('internal.tasks.pin');
     Route::delete('/tasks/{id}', [InternalTaskController::class, 'destroy'])->name('internal.tasks.destroy');
+
+    // Activity detail page (per task). /activities/{id} stays semantic
+    // — "activity" is the user-facing word for a task even though the
+    // controller is still TaskController.
+    Route::get('/activities/{id}', [InternalTaskController::class, 'show'])
+        ->whereNumber('id')
+        ->name('internal.activities.show');
+
+    // Notes — standalone CRUD used by the activity detail page's
+    // notes thread. The legacy /customers/{id}/notes endpoint stays
+    // for the customer-page note panel.
+    Route::post('/notes', [InternalNoteController::class, 'store'])->name('internal.notes.store');
+    Route::put('/notes/{id}', [InternalNoteController::class, 'update'])->name('internal.notes.update');
+    Route::delete('/notes/{id}', [InternalNoteController::class, 'destroy'])->name('internal.notes.destroy');
 
     // My account — staff/super_admin self-service profile + password.
     // No role:super_admin gate; every staff member needs this.

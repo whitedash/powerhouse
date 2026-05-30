@@ -3,14 +3,17 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property int|null $customer_id
  * @property int|null $contact_id
+ * @property int|null $parent_task_id
  * @property int|null $assigned_to
  * @property int|null $created_by
  * @property string $title
@@ -28,6 +31,9 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Customer|null $customer
  * @property-read Contact|null $contact
+ * @property-read Task|null $parentTask
+ * @property-read Collection<int, Task> $childTasks
+ * @property-read Collection<int, Note> $notes
  * @property-read User|null $assignedTo
  * @property-read User|null $createdBy
  * @property-read bool $is_overdue
@@ -39,6 +45,7 @@ class Task extends Model
     protected $fillable = [
         'customer_id',
         'contact_id',
+        'parent_task_id',
         'assigned_to',
         'created_by',
         'title',
@@ -85,6 +92,32 @@ class Task extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Parent task this one was spawned from. The activity detail page
+     * surfaces children under "Linked tasks" — they were created from
+     * the parent's "Create linked task" affordance with parent_task_id
+     * pre-filled.
+     */
+    public function parentTask(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_task_id');
+    }
+
+    public function childTasks(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_task_id');
+    }
+
+    /**
+     * Notes scoped to this task. A note can also be customer-scoped
+     * (task_id null), which is how the legacy customer-page note panel
+     * keeps working unchanged.
+     */
+    public function notes(): HasMany
+    {
+        return $this->hasMany(Note::class);
     }
 
     /**
