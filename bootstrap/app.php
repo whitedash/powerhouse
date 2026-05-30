@@ -8,6 +8,7 @@ use App\Http\Middleware\RedirectIfPortalAuthenticated;
 use App\Http\Middleware\RedirectIfReferrer;
 use App\Http\Middleware\SanitizeInput;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\VerifyFormWebhookSignature;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -31,6 +32,18 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
         ]);
 
+        // Cross-origin public POST endpoints can't carry a CSRF
+        // token — the embed script lives on a third-party site
+        // and webhook senders (Zapier, Make, custom integrations)
+        // don't browse our pages first. Authentication for these
+        // is done via:
+        //   - form submit: honeypot + per-IP rate limit
+        //   - form webhook: HMAC signature (VerifyFormWebhookSignature)
+        $middleware->validateCsrfTokens(except: [
+            'forms/*/submit',
+            'webhooks/*',
+        ]);
+
         $middleware->alias([
             'role' => EnsureRole::class,
             'portal_auth' => EnsurePortalUser::class,
@@ -38,6 +51,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'portal_owns' => EnsurePortalDataOwnership::class,
             'portal_guest' => RedirectIfPortalAuthenticated::class,
             'block_referrer' => RedirectIfReferrer::class,
+            'form.webhook' => VerifyFormWebhookSignature::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

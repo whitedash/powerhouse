@@ -12052,3 +12052,354 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
 }
 .lead-show .convert-checklist svg { color: var(--success); flex-shrink: 0; }
 
+
+/* ─────────────────────────────────────────────────────────────
+   Forms + Workflows (Forms sprint)
+   ───────────────────────────────────────────────────────────── */
+
+.forms-index .forms-summary,
+.workflows-index .forms-summary {
+    display: flex; gap: 12px; margin: 16px 0 24px;
+}
+.forms-index .forms-summary-pill {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 12px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    min-width: 140px;
+}
+.forms-index .forms-summary-pill strong {
+    font: 600 20px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+
+.forms-list {
+    display: grid; gap: 14px;
+}
+.form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    transition: border-color 0.15s ease;
+}
+.form-card:hover { border-color: var(--border-strong); }
+.form-card-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 12px;
+}
+.form-card-title {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.form-card-title h3 {
+    margin: 0;
+    font: 600 16px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+.form-card-actions {
+    display: flex; gap: 6px; align-items: center;
+    position: relative;
+}
+.form-card-desc {
+    margin: 8px 0 4px;
+    font: 400 13.5px/1.5 'Inter', sans-serif;
+}
+.form-card-meta {
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    margin-top: 8px;
+}
+.form-card-integration-toggle {
+    margin-top: 14px;
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font: 600 13px/1.2 'Inter', sans-serif;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 0;
+}
+.form-card-integration-toggle:hover { text-decoration: underline; }
+
+.form-integration {
+    margin-top: 14px;
+    padding: 14px;
+    background: var(--surface-elevated, #f9fafb);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    display: flex; flex-direction: column; gap: 14px;
+}
+.form-integration-block label {
+    display: block;
+    font: 600 12px/1.2 'Inter', sans-serif;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+}
+.form-integration-block pre,
+.form-integration-block code {
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 10px;
+    font: 400 12px/1.5 'JetBrains Mono', monospace;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 0 0 6px;
+}
+.form-integration-block .btn { margin-top: 4px; }
+.form-integration-actions { display: flex; gap: 8px; }
+.form-secret { letter-spacing: 0.04em; }
+
+/* Status chips */
+.status-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font: 600 11px/1.4 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.sc-active   { background: #ecfdf5; color: #065f46; }
+.sc-inactive { background: #f3f4f6; color: #4b5563; }
+.sc-draft    { background: #fef3c7; color: #92400e; }
+.sc-sub-new       { background: #dbeafe; color: #1e40af; }
+.sc-sub-processed { background: #ecfdf5; color: #065f46; }
+.sc-sub-spam      { background: #fee2e2; color: #b91c1c; }
+.sc-sub-error     { background: #fef3c7; color: #92400e; }
+
+/* Form / workflow builder slide-over */
+.slide-over-wide { max-width: 720px; }
+.form-section {
+    padding: 18px 0;
+    border-top: 1px solid var(--border);
+}
+.form-section:first-child { border-top: none; padding-top: 0; }
+.form-section-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+}
+.form-section-title {
+    margin: 0 0 10px;
+    font: 600 13px/1.2 'Inter', sans-serif;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.form-section-head .form-section-title { margin-bottom: 0; }
+
+.checkbox-inline {
+    display: inline-flex; align-items: center; gap: 6px;
+    font: 400 13.5px/1.4 'Inter', sans-serif;
+    cursor: pointer;
+    margin: 8px 0;
+}
+.checkbox-inline input { margin: 0; }
+
+/* Field builder rows */
+.field-builder-row {
+    display: grid;
+    grid-template-columns: 32px 1fr 28px;
+    gap: 10px;
+    padding: 10px;
+    background: var(--surface-elevated, #f9fafb);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+.field-builder-handle {
+    display: flex; flex-direction: column; gap: 2px;
+}
+.field-builder-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 12px;
+}
+.field-builder-grid .form-row-wide { grid-column: 1 / -1; }
+.field-builder-grid label.small {
+    font: 600 11px/1.2 'Inter', sans-serif;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+}
+
+/* Workflow list */
+.workflows-list { display: grid; gap: 14px; }
+.workflow-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+}
+.workflow-card-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 12px;
+}
+.workflow-card-title {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.workflow-card-title h3 {
+    margin: 0;
+    font: 600 16px/1.3 'Inter', sans-serif;
+}
+.workflow-card-desc { margin: 8px 0 4px; font-size: 13.5px; }
+.workflow-card-meta { margin-top: 6px; }
+.workflow-card-actions { position: relative; }
+
+.trigger-chip {
+    padding: 3px 10px;
+    background: #ede9fe;
+    color: #5b21b6;
+    border-radius: 4px;
+    font: 600 11px/1.4 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.action-chip {
+    display: inline-block;
+    padding: 3px 9px;
+    background: #dbeafe;
+    color: #1e40af;
+    border-radius: 4px;
+    font: 500 11.5px/1.5 'Inter', sans-serif;
+    margin-right: 6px;
+    margin-top: 6px;
+}
+.workflow-actions-preview {
+    margin-top: 10px;
+}
+
+/* Workflow action builder rows */
+.action-builder-row {
+    display: grid;
+    grid-template-columns: 32px 1fr 28px;
+    gap: 10px;
+    padding: 12px;
+    background: var(--surface-elevated, #f9fafb);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 10px;
+}
+.action-builder-handle {
+    display: flex; flex-direction: column; gap: 2px;
+}
+.action-builder-body { display: grid; gap: 10px; }
+.grid-2 {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px;
+}
+.grid-3 {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px 12px;
+}
+
+/* Switch (used for workflow active toggle) */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 36px; height: 20px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch .slider {
+    position: absolute; inset: 0;
+    background: #cbd5e1;
+    border-radius: 20px;
+    transition: background 0.2s ease;
+}
+.switch .slider::before {
+    content: '';
+    position: absolute;
+    left: 2px; top: 2px;
+    width: 16px; height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s ease;
+}
+.switch input:checked + .slider { background: var(--success, #10b981); }
+.switch input:checked + .slider::before { transform: translateX(16px); }
+
+/* Form submissions table */
+.form-submissions .data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.form-submissions .data-table th {
+    text-align: left;
+    padding: 10px 14px;
+    background: var(--surface-elevated, #f9fafb);
+    border-bottom: 1px solid var(--border);
+    font: 600 12px/1.2 'Inter', sans-serif;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.form-submissions .data-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font: 400 13.5px/1.4 'Inter', sans-serif;
+}
+.form-submissions .data-table tr.clickable { cursor: pointer; }
+.form-submissions .data-table tr.clickable:hover { background: var(--surface-elevated, #f9fafb); }
+.form-submissions .expanded-row td { background: var(--surface-elevated, #f9fafb); padding: 0; }
+.submission-detail { padding: 14px; }
+.submission-meta { margin-bottom: 8px; }
+.submission-payload {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+    font: 400 12px/1.5 'JetBrains Mono', monospace;
+    overflow-x: auto;
+    margin: 0;
+}
+
+/* Empty-state card */
+.empty-card {
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--text-secondary);
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.empty-card h3 {
+    margin: 0;
+    font: 600 16px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+.empty-card p { margin: 0 0 8px; }
+
+/* Row menu (popover) */
+.menu-wrap { position: relative; }
+.row-menu {
+    position: absolute;
+    right: 0; top: 100%;
+    margin-top: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    min-width: 160px;
+    padding: 4px;
+    z-index: 50;
+}
+.row-menu button {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    text-align: left;
+    font: 400 13px/1.4 'Inter', sans-serif;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+.row-menu button:hover { background: var(--surface-elevated, #f9fafb); }
+.row-menu button.danger { color: var(--danger, #ef4444); }
+.row-menu button.danger:hover { background: #fef2f2; }

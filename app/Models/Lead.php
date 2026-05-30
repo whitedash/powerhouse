@@ -33,6 +33,7 @@ use Illuminate\Support\Carbon;
  * @property-read User|null $assignedTo
  * @property-read User $createdBy
  * @property-read Customer|null $customer
+ * @property-read FormSubmission|null $formSubmission
  * @property-read Collection<int, Task> $tasks
  * @property-read Collection<int, Note> $notes_thread
  * @property-read string $name
@@ -85,6 +86,16 @@ class Lead extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * The form_submission that produced this lead, if it was
+     * captured automatically by WorkflowEngine::actionCreateLead().
+     * Null for leads added by hand.
+     */
+    public function formSubmission(): BelongsTo
+    {
+        return $this->belongsTo(FormSubmission::class);
     }
 
     /**

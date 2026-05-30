@@ -10,6 +10,7 @@ use App\Http\Controllers\Internal\CustomerGroupController as InternalCustomerGro
 use App\Http\Controllers\Internal\DashboardController as InternalDashboardController;
 use App\Http\Controllers\Internal\DomainController as InternalDomainController;
 use App\Http\Controllers\Internal\ExpenseController as InternalExpenseController;
+use App\Http\Controllers\Internal\FormBuilderController as InternalFormBuilderController;
 use App\Http\Controllers\Internal\HelpController as InternalHelpController;
 use App\Http\Controllers\Internal\ImpersonationController as InternalImpersonationController;
 use App\Http\Controllers\Internal\InvoiceController as InternalInvoiceController;
@@ -35,6 +36,7 @@ use App\Http\Controllers\Internal\SubscriptionController as InternalSubscription
 use App\Http\Controllers\Internal\SupportController as InternalSupportController;
 use App\Http\Controllers\Internal\TaskController as InternalTaskController;
 use App\Http\Controllers\Internal\TimeEntryController as InternalTimeEntryController;
+use App\Http\Controllers\Internal\WorkflowController as InternalWorkflowController;
 use App\Http\Controllers\Portal\AccountController as PortalAccountController;
 use App\Http\Controllers\Portal\AuthController as PortalAuthController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
@@ -42,7 +44,10 @@ use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
 use App\Http\Controllers\Portal\PasswordController as PortalPasswordController;
 use App\Http\Controllers\Portal\SubscriptionController as PortalSubscriptionController;
 use App\Http\Controllers\Portal\SupportController as PortalSupportController;
+use App\Http\Controllers\Public\EmbedController as PublicEmbedController;
+use App\Http\Controllers\Public\FormController as PublicFormController;
 use App\Http\Controllers\Public\ProposalAcceptanceController as PublicProposalAcceptanceController;
+use App\Http\Controllers\Public\WebhookController as PublicWebhookController;
 use App\Http\Controllers\Referrer\AccountController as ReferrerAccountController;
 use App\Http\Controllers\Referrer\AuthController as ReferrerAuthController;
 use App\Http\Controllers\Referrer\CommissionController as ReferrerCommissionController;
@@ -232,6 +237,33 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
             ->whereNumber('id')->name('convert');
         Route::delete('/{id}', [InternalLeadController::class, 'destroy'])
             ->whereNumber('id')->name('destroy');
+    });
+
+    // ─── Forms (form builder) ───
+    // The actual public endpoints (/forms/{slug}/submit,
+    // /forms/{slug}/embed.js, /webhooks/{slug}) live OUTSIDE
+    // this auth group at the bottom of the file.
+    Route::prefix('forms')->name('internal.forms.')->group(function () {
+        Route::get('/', [InternalFormBuilderController::class, 'index'])->name('index');
+        Route::post('/', [InternalFormBuilderController::class, 'store'])->name('store');
+        Route::put('/{id}', [InternalFormBuilderController::class, 'update'])
+            ->whereNumber('id')->name('update');
+        Route::delete('/{id}', [InternalFormBuilderController::class, 'destroy'])
+            ->whereNumber('id')->name('destroy');
+        Route::get('/{id}/submissions', [InternalFormBuilderController::class, 'submissions'])
+            ->whereNumber('id')->name('submissions');
+    });
+
+    // ─── Workflows ───
+    Route::prefix('workflows')->name('internal.workflows.')->group(function () {
+        Route::get('/', [InternalWorkflowController::class, 'index'])->name('index');
+        Route::post('/', [InternalWorkflowController::class, 'store'])->name('store');
+        Route::put('/{id}', [InternalWorkflowController::class, 'update'])
+            ->whereNumber('id')->name('update');
+        Route::delete('/{id}', [InternalWorkflowController::class, 'destroy'])
+            ->whereNumber('id')->name('destroy');
+        Route::post('/{id}/toggle', [InternalWorkflowController::class, 'toggle'])
+            ->whereNumber('id')->name('toggle');
     });
 
     // ─── Proposals ───
@@ -478,6 +510,29 @@ Route::get('/proposals/accept/{token}', [PublicProposalAcceptanceController::cla
 Route::post('/proposals/accept/{token}', [PublicProposalAcceptanceController::class, 'accept'])
     ->where('token', '[a-f0-9]{64}')
     ->name('proposal.accept.submit');
+
+/*
+|--------------------------------------------------------------------------
+| Public form endpoints — NO auth, CSRF excluded in bootstrap/app.php
+|--------------------------------------------------------------------------
+| Three surfaces, one slug:
+|   GET  /forms/{slug}/embed.js   — JavaScript widget for any site
+|   POST /forms/{slug}/submit     — browser form post (honeypot + rate-limited)
+|   POST /webhooks/{slug}         — system-to-system, HMAC-signed
+|
+| Slug regex matches the form builder's validation rule.
+*/
+Route::get('/forms/{slug}/embed.js', [PublicEmbedController::class, 'script'])
+    ->where('slug', '[a-z0-9-]+')
+    ->name('form.embed.script');
+Route::post('/forms/{slug}/submit', [PublicFormController::class, 'submit'])
+    ->where('slug', '[a-z0-9-]+')
+    ->middleware('throttle:30,1')
+    ->name('form.submit');
+Route::post('/webhooks/{slug}', [PublicWebhookController::class, 'receive'])
+    ->where('slug', '[a-z0-9-]+')
+    ->middleware(['form.webhook', 'throttle:120,1'])
+    ->name('form.webhook.receive');
 
 /*
 |--------------------------------------------------------------------------

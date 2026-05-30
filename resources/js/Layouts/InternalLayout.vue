@@ -42,6 +42,8 @@ import {
     IconReceipt2,
     IconFileDescription,
     IconUserPlus,
+    IconForms,
+    IconBolt,
 } from '@tabler/icons-vue';
 import ToastContainer from '@/Components/UI/ToastContainer.vue';
 
@@ -191,6 +193,8 @@ const sections = computed(() => {
                 { key: 'my-work',       label: 'My Work',       href: '/my-work',    icon: IconCheckbox },
                 { key: 'projects',      label: 'Projects',      href: '/projects',   icon: IconLayoutKanban },
                 { key: 'leads',         label: 'Leads',         href: '/leads',      icon: IconUserPlus },
+                { key: 'forms',         label: 'Forms',         href: '/forms',      icon: IconForms },
+                { key: 'workflows',     label: 'Workflows',     href: '/workflows',  icon: IconBolt },
                 { key: 'customers',     label: 'Customers',     href: '/customers',  icon: IconUsers },
                 { key: 'invoices',      label: 'Invoices',      href: '/invoices',   icon: IconReceipt,    badge: invoicesBadge.value },
                 { key: 'proposals',     label: 'Proposals',     href: '/proposals',  icon: IconFileDescription },

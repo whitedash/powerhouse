@@ -554,6 +554,82 @@ event_type VARCHAR(100), payload JSON,
 processed_at nullable, created_at
 -- UNIQUE(source, event_id) — idempotency key. No updated_at.
 
+## forms (Forms sprint)
+id,
+name VARCHAR(255), description TEXT nullable,
+slug VARCHAR(100) UNIQUE
+  -- Used in /forms/{slug}/embed.js, /forms/{slug}/submit,
+  -- and /webhooks/{slug}. Regex: ^[a-z0-9-]+$.
+status ENUM(active|inactive|draft) DEFAULT 'draft',
+submit_button_text VARCHAR(100) DEFAULT 'Submit',
+success_message TEXT nullable,
+redirect_url VARCHAR(500) nullable,
+gdpr_consent_enabled BOOLEAN DEFAULT false,
+gdpr_consent_text TEXT nullable,
+webhook_secret VARCHAR(64)
+  -- HMAC-SHA256 key for the inbound webhook route.
+  -- VerifyFormWebhookSignature middleware reads it.
+submission_count INT DEFAULT 0
+  -- Denormalised; incremented per successful submit.
+created_by FK users RESTRICT,
+created_at, updated_at
+-- INDEX (slug, status) forms_public_lookup_idx
+
+## form_fields (Forms sprint)
+id, form_id FK forms CASCADE,
+label VARCHAR(255), field_key VARCHAR(100)
+  -- POST field name; ^[a-z][a-z0-9_]*$ enforced by builder.
+type ENUM(text|email|phone|textarea|select|radio
+  |checkbox|number|date|hidden) DEFAULT 'text',
+placeholder VARCHAR(255) nullable,
+default_value VARCHAR(255) nullable,
+options JSON nullable
+  -- For select/radio: ["Option 1","Option 2"].
+is_required BOOLEAN DEFAULT false,
+validation_rules JSON nullable,
+sort_order INT DEFAULT 0, created_at, updated_at
+-- INDEX (form_id, sort_order) form_fields_order_idx
+
+## form_submissions (Forms sprint)
+id, form_id FK forms RESTRICT
+  -- RESTRICT because a deleted form would orphan the
+  -- submission's origin. Retire forms via status=inactive.
+data JSON
+  -- All non-framework POST values verbatim.
+status ENUM(new|processed|spam|error) DEFAULT 'new',
+ip_address VARCHAR(45) nullable, user_agent TEXT nullable,
+referrer_url VARCHAR(500) nullable,
+lead_id FK leads nullable SET NULL
+  -- Back-stamped by WorkflowEngine when create_lead fires.
+created_at, updated_at
+-- INDEX (form_id, status, created_at) form_submissions_funnel_idx
+-- INDEX (lead_id)                     form_submissions_lead_idx
+
+## workflows (Forms sprint)
+id, name VARCHAR(255), description TEXT nullable,
+is_active BOOLEAN DEFAULT true,
+trigger_type ENUM(form_submitted|webhook_received
+  |lead_created|lead_status_changed|manual),
+trigger_config JSON nullable
+  -- {"form_id": 4}, {"to": "qualified"}, {"source": "mailchimp"}.
+run_count INT DEFAULT 0, last_run_at TIMESTAMP nullable,
+created_by FK users RESTRICT,
+created_at, updated_at
+-- INDEX (trigger_type, is_active) workflows_dispatch_idx
+
+## workflow_actions (Forms sprint)
+id, workflow_id FK workflows CASCADE,
+action_type ENUM(create_lead|update_lead_status
+  |create_task|assign_to_user|add_note
+  |send_notification|add_to_group|webhook_outbound),
+config JSON
+  -- Action-specific; see WorkflowEngine docblock.
+sort_order INT DEFAULT 0, created_at, updated_at
+-- INDEX (workflow_id, sort_order) workflow_actions_order_idx
+-- Engine reads actions ORDER BY sort_order — earlier actions
+-- accumulate context (e.g. create_lead writes lead_id) that
+-- later actions consume (create_task reads lead_id).
+
 ---
 
 ## API key storage rule (no schema changes — convention)
