@@ -11,6 +11,7 @@ use App\Http\Controllers\Internal\HelpController as InternalHelpController;
 use App\Http\Controllers\Internal\ImpersonationController as InternalImpersonationController;
 use App\Http\Controllers\Internal\InvoiceController as InternalInvoiceController;
 use App\Http\Controllers\Internal\MaavelusStatementController as InternalMaavelusStatementController;
+use App\Http\Controllers\Internal\MyAccountController as InternalMyAccountController;
 use App\Http\Controllers\Internal\ProductController as InternalProductController;
 use App\Http\Controllers\Internal\ProductOverviewController as InternalProductOverviewController;
 use App\Http\Controllers\Internal\ProductPlanCategoryController as InternalProductPlanCategoryController;
@@ -43,6 +44,7 @@ use Illuminate\Support\Facades\Route;
 */
 Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(function () {
     Route::get('/', [InternalDashboardController::class, 'index'])->name('internal.dashboard');
+    Route::get('/export/dashboard', [InternalDashboardController::class, 'export'])->name('internal.dashboard.export');
 
     // List/search endpoints — 60/min/user to slow bulk scraping
     Route::middleware('throttle:60,1')->group(function () {
@@ -93,6 +95,12 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::post('/tasks/{id}/complete', [InternalTaskController::class, 'complete'])->name('internal.tasks.complete');
     Route::post('/tasks/{id}/pin', [InternalTaskController::class, 'togglePin'])->name('internal.tasks.pin');
     Route::delete('/tasks/{id}', [InternalTaskController::class, 'destroy'])->name('internal.tasks.destroy');
+
+    // My account — staff/super_admin self-service profile + password.
+    // No role:super_admin gate; every staff member needs this.
+    Route::get('/account', [InternalMyAccountController::class, 'show'])->name('internal.account.show');
+    Route::put('/account', [InternalMyAccountController::class, 'update'])->name('internal.account.update');
+    Route::put('/account/password', [InternalMyAccountController::class, 'updatePassword'])->name('internal.account.password');
     Route::delete('/customers/{id}/archive', [InternalCustomerController::class, 'archive'])->name('internal.customers.archive');
 
     // Portal access — issue or rotate portal credentials for a customer.

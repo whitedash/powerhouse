@@ -455,7 +455,15 @@
                   {{-- $logo_path is a data: URL. The controller builds it
                        to sidestep dompdf's chroot restriction on absolute
                        filesystem paths. --}}
-                  <img src="{{ $logo_path }}" alt="" style="height: 40px; max-width: 120px; object-fit: contain;">
+                  {{-- dompdf ignores object-fit, so we constrain with
+                       max-height + max-width and let width:auto / height:auto
+                       keep the aspect ratio. Without `display:block`, dompdf
+                       drops the logo inline with whitespace baseline drift. --}}
+                  <img
+                    src="{{ $logo_path }}"
+                    alt="{{ $billing_entity?->name ?? 'Logo' }}"
+                    style="max-height: 50px; max-width: 150px; width: auto; height: auto; display: block;"
+                  >
                 @else
                   <div class="brand-mark">W</div>
                 @endif

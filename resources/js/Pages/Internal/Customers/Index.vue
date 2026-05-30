@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     Dialog,
@@ -246,6 +246,19 @@ function submit() {
         },
     });
 }
+
+// Dashboard's "+ New customer" button navigates here with ?create=1
+// so the slide-over pops open on mount. Strip the param from the URL
+// once consumed so a reload doesn't re-open it.
+onMounted(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('create') === '1') {
+        openCreate();
+        params.delete('create');
+        const qs = params.toString();
+        window.history.replaceState({}, '', '/customers' + (qs ? '?' + qs : ''));
+    }
+});
 </script>
 
 <template>

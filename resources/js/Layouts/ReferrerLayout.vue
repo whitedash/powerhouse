@@ -14,6 +14,7 @@ import {
     IconUserCircle,
     IconEye,
 } from '@tabler/icons-vue';
+import ToastContainer from '@/Components/UI/ToastContainer.vue';
 
 defineProps({
     title: { type: String, default: '' },
@@ -133,5 +134,7 @@ function logout() {
             </div>
             <div class="portal-footer-right">© 2026 Whitedash Holdings Ltd</div>
         </footer>
+
+        <ToastContainer />
     </div>
 </template>

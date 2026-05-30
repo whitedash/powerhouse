@@ -29,7 +29,13 @@ import {
     IconBell,
     IconChevronDown,
     IconLogout,
+    IconUserCircle,
+    IconCircleCheck,
+    IconAlertTriangle,
+    IconClock,
+    IconTicket,
 } from '@tabler/icons-vue';
+import ToastContainer from '@/Components/UI/ToastContainer.vue';
 
 const props = defineProps({
     title: { type: String, default: '' },
@@ -77,6 +83,54 @@ const supportBadge = computed(() => {
     if (open > 0) return { count: open, cls: 'amber' };
     return null;
 });
+
+/*
+ * Bell-menu notifications. The same nav.* counts that drive the
+ * sidebar badges drive this dropdown, so the operator can't see
+ * 3 overdue invoices in the sidebar and a different number here.
+ * Each entry carries a tabler icon, a tone (drives the chip colour),
+ * a label, and an href to the filtered page that resolves it.
+ */
+const notifications = computed(() => {
+    const n = nav.value;
+    if (! n) return [];
+    const out = [];
+    if ((n.invoices_overdue ?? 0) > 0) {
+        out.push({
+            icon: IconReceipt,
+            tone: 'red',
+            label: `${n.invoices_overdue} overdue invoice${n.invoices_overdue === 1 ? '' : 's'}`,
+            href: '/invoices?status=overdue',
+        });
+    }
+    if ((n.invoices_outstanding ?? 0) > 0) {
+        out.push({
+            icon: IconClock,
+            tone: 'amber',
+            label: `${n.invoices_outstanding} outstanding invoice${n.invoices_outstanding === 1 ? '' : 's'}`,
+            href: '/invoices?status=sent',
+        });
+    }
+    if ((n.support_sla_breached ?? 0) > 0) {
+        out.push({
+            icon: IconAlertTriangle,
+            tone: 'red',
+            label: `${n.support_sla_breached} SLA breach${n.support_sla_breached === 1 ? '' : 'es'}`,
+            href: '/support?status=open',
+        });
+    }
+    if ((n.support_open ?? 0) > 0) {
+        out.push({
+            icon: IconTicket,
+            tone: 'blue',
+            label: `${n.support_open} open ticket${n.support_open === 1 ? '' : 's'}`,
+            href: '/support',
+        });
+    }
+
+    return out;
+});
+const notifTotal = computed(() => notifications.value.length);
 
 /*
  * Sidebar Products are server-driven (HandleInertiaRequests.share()
@@ -239,9 +293,38 @@ function logout() {
                         <span class="kbd">⌘K</span>
                     </div>
 
-                    <button class="bell-btn" aria-label="Notifications">
-                        <IconBell :size="20" stroke-width="1.75" />
-                    </button>
+                    <Menu as="div" class="bell-menu">
+                        <MenuButton class="bell-btn" aria-label="Notifications">
+                            <IconBell :size="20" stroke-width="1.75" />
+                            <span v-if="notifTotal > 0" class="bell-dot" />
+                        </MenuButton>
+                        <MenuItems class="bell-popover">
+                            <div class="bell-popover-head">
+                                <span>Notifications</span>
+                                <span v-if="notifTotal > 0" class="bell-popover-count">{{ notifTotal }}</span>
+                            </div>
+                            <div v-if="notifications.length" class="bell-popover-list">
+                                <Link
+                                    v-for="(n, i) in notifications"
+                                    :key="i"
+                                    :href="n.href"
+                                    class="bell-row"
+                                >
+                                    <span class="bell-row-icon" :class="n.tone">
+                                        <component :is="n.icon" :size="14" stroke-width="2" />
+                                    </span>
+                                    <span class="bell-row-text">{{ n.label }}</span>
+                                </Link>
+                            </div>
+                            <div v-else class="bell-popover-empty">
+                                <IconCircleCheck :size="22" stroke-width="2" />
+                                <span>All caught up</span>
+                            </div>
+                            <Link href="/analytics" class="bell-popover-foot">
+                                View activity
+                            </Link>
+                        </MenuItems>
+                    </Menu>
 
                     <div class="divider-v" />
 
@@ -256,9 +339,20 @@ function logout() {
                     </MenuButton>
                     <MenuItems class="user-menu-popover topbar-user-popover">
                         <MenuItem v-slot="{ active }">
+                            <Link
+                                href="/account"
+                                class="user-menu-item"
+                                :class="{ active }"
+                            >
+                                <IconUserCircle :size="16" stroke-width="1.75" />
+                                <span>My account</span>
+                            </Link>
+                        </MenuItem>
+                        <div class="user-menu-divider" />
+                        <MenuItem v-slot="{ active }">
                             <button
                                 type="button"
-                                class="user-menu-item"
+                                class="user-menu-item danger"
                                 :class="{ active }"
                                 @click="logout"
                             >
@@ -275,6 +369,8 @@ function logout() {
                 <slot />
             </div>
         </main>
+
+        <ToastContainer />
     </div>
 </template>
 

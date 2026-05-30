@@ -7922,3 +7922,344 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
 .apr-priority.high   { background: var(--danger); }
 .apr-priority.medium { background: var(--warning); }
 .apr-priority.low    { background: var(--success); }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * CUSTOMER DETAIL — let the ··· menus escape their parent card.
+ *
+ * .card globally carries overflow:hidden so card-headers' background
+ * is clipped to the rounded corner. On the customer detail page this
+ * also clips Headless UI's absolute-positioned MenuItems popover —
+ * the dropdown gets sliced off whenever the row is near a card edge.
+ *
+ * Scope the override to .cust-detail so other pages keep the clip.
+ * We DO still need the corners to look clean, so re-apply a rounded
+ * bottom on the last child via background-clip; in practice the card
+ * body backgrounds inside cust-detail are flat white that matches the
+ * card colour, so the corners read fine without overflow:hidden.
+ * ──────────────────────────────────────────────────────────────────── */
+.cust-detail .card {
+    overflow: visible;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * TOAST CONTAINER — global flash → toast bridge (ToastContainer.vue)
+ * Stacks in the top-right; entries slide in from the right and fade
+ * out the same way. Each toast carries a left border in the variant
+ * colour for at-a-glance status, plus a matching icon.
+ * ──────────────────────────────────────────────────────────────────── */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 380px;
+    pointer-events: none;
+}
+.toast {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, .12);
+    pointer-events: all;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--border);
+    min-width: 280px;
+}
+.toast-success { border-left-color: var(--success); }
+.toast-error   { border-left-color: var(--danger); }
+.toast-warning { border-left-color: var(--warning); }
+.toast-info    { border-left-color: var(--info); }
+
+.toast-icon {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    margin-top: 1px;
+}
+.toast-success .toast-icon { color: var(--success); }
+.toast-error   .toast-icon { color: var(--danger); }
+.toast-warning .toast-icon { color: var(--warning); }
+.toast-info    .toast-icon { color: var(--info); }
+
+.toast-message {
+    flex: 1;
+    font: 400 13px/1.45 'Inter', sans-serif;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+.toast-close {
+    background: transparent;
+    border: 0;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 2px;
+    flex-shrink: 0;
+    line-height: 1;
+    border-radius: 4px;
+}
+.toast-close:hover { color: var(--text-primary); background: var(--neutral-bg); }
+
+/* Slide in from the right, slide out the same way. The leave-to step
+ * also collapses max-height so the stack pulls together smoothly. */
+.toast-enter-active { transition: all .25s ease; }
+.toast-leave-active { transition: all .2s ease; }
+.toast-enter-from {
+    opacity: 0;
+    transform: translateX(110%);
+}
+.toast-leave-to {
+    opacity: 0;
+    transform: translateX(110%);
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    border-width: 0;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * INTERNAL — My Account page (Internal/Account.vue) + user menu extras
+ * ──────────────────────────────────────────────────────────────────── */
+.my-account {
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex; flex-direction: column;
+    gap: 16px;
+}
+.my-account-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 24px;
+    display: flex; flex-direction: column; gap: 14px;
+}
+.my-account-card-header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 4px;
+}
+.my-account-card-header h3 {
+    margin: 0;
+    font: 600 16px/1.2 'Inter', sans-serif;
+    color: var(--text-primary);
+    letter-spacing: -.005em;
+}
+.my-account-avatar-block {
+    display: flex; align-items: center; gap: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border-soft);
+}
+.my-account-avatar {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: #fff;
+    font: 700 22px/1 'Inter', sans-serif;
+    flex-shrink: 0;
+}
+.my-account-name {
+    font: 600 16px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+.my-account-role {
+    margin-top: 4px;
+    display: flex; align-items: center; gap: 8px;
+    flex-wrap: wrap;
+}
+.my-account-since {
+    font: 400 12.5px/1.3 'Inter', sans-serif;
+    color: var(--text-tertiary);
+}
+.my-account-form {
+    display: flex; flex-direction: column; gap: 12px;
+}
+.my-account-form .form-field { display: flex; flex-direction: column; gap: 4px; }
+.my-account-form .form-field label {
+    font: 500 12.5px/1.3 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.my-account-form .form-field input,
+.my-account-form .form-field select {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    font: 400 14px/1.4 'Inter', sans-serif;
+    color: var(--text-primary);
+    background: #fff;
+    transition: border-color .12s;
+}
+.my-account-form .form-field input:focus { border-color: var(--accent); outline: 0; }
+.my-account-form .form-field .has-err { border-color: var(--danger); }
+.my-account-form .form-field .err {
+    font: 400 11.5px/1.3 'Inter', sans-serif;
+    color: var(--danger);
+}
+.my-account-form .form-field .form-hint {
+    font: 400 11.5px/1.3 'Inter', sans-serif;
+    color: var(--text-tertiary);
+}
+.my-account-footer { display: flex; justify-content: flex-end; padding-top: 4px; }
+.my-account-last-login {
+    text-align: center;
+    font: 400 12px/1.3 'Inter', sans-serif;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+}
+
+/* User menu divider + danger flavour for Sign out */
+.user-menu-divider {
+    height: 1px;
+    background: var(--border-soft);
+    margin: 4px 0;
+}
+.user-menu-item.danger {
+    color: var(--danger);
+}
+.user-menu-item.danger.active,
+.user-menu-item.danger:hover {
+    background: var(--danger-bg);
+    color: var(--danger);
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * BELL NOTIFICATIONS — InternalLayout topbar dropdown
+ * Same nav badges that drive the sidebar drive this dropdown so the
+ * two surfaces stay in sync.
+ * ──────────────────────────────────────────────────────────────────── */
+.bell-menu { position: relative; }
+.bell-btn { position: relative; }
+.bell-dot {
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--danger);
+    border: 2px solid #fff;
+    pointer-events: none;
+}
+
+.bell-popover {
+    position: absolute;
+    z-index: 60;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 280px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    outline: 0;
+}
+.bell-popover-head {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex; align-items: center; justify-content: space-between;
+    font: 600 13px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+.bell-popover-count {
+    font: 500 11.5px/1 'JetBrains Mono', monospace;
+    color: var(--text-tertiary);
+    background: var(--neutral-bg);
+    padding: 3px 8px;
+    border-radius: 999px;
+}
+.bell-popover-list { display: flex; flex-direction: column; }
+.bell-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    text-decoration: none;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-soft);
+    transition: background .12s;
+}
+.bell-row:last-child { border-bottom: 0; }
+.bell-row:hover { background: var(--neutral-bg); }
+.bell-row-icon {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+}
+.bell-row-icon.red   { background: var(--danger-bg); color: var(--danger); }
+.bell-row-icon.amber { background: var(--warning-bg); color: var(--warning); }
+.bell-row-icon.blue  { background: var(--info-bg); color: var(--info); }
+.bell-row-icon.green { background: var(--success-bg); color: var(--success); }
+.bell-row-text {
+    font: 500 13px/1.3 'Inter', sans-serif;
+    flex: 1;
+}
+.bell-popover-empty {
+    padding: 24px 16px;
+    text-align: center;
+    color: var(--text-tertiary);
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    font: 500 13px/1.3 'Inter', sans-serif;
+}
+.bell-popover-empty svg { color: var(--success); }
+.bell-popover-foot {
+    display: block;
+    padding: 8px 14px;
+    text-align: center;
+    background: var(--neutral-bg);
+    border-top: 1px solid var(--border-soft);
+    color: var(--accent);
+    font: 500 12.5px/1 'Inter', sans-serif;
+    text-decoration: none;
+}
+.bell-popover-foot:hover { background: var(--border-soft); }
+
+/* ── HELP TABLE VIEW ─────────────────────────────────────────────
+ * Flat table replaces the previous category-grouped card grid.
+ * Lives inside the .help shell so it sits next to .help-sidebar
+ * in the existing .help-layout flex row.
+ */
+.help .help-table-wrap {
+    background: #fff;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+.help .help-table { width: 100%; border-collapse: collapse; }
+.help .help-table thead th {
+    text-align: left;
+    padding: 10px 14px;
+    background: var(--neutral-bg);
+    border-bottom: 1px solid var(--border-soft);
+    font: 600 11.5px/1 'Inter', sans-serif;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+}
+.help .help-table tbody td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    font: 500 13px/1.3 'Inter', sans-serif;
+    color: var(--text-secondary);
+    vertical-align: middle;
+}
+.help .help-table tbody tr:last-child td { border-bottom: 0; }
+.help .help-table tbody tr:hover { background: var(--neutral-bg); }
+.help .help-table th.num,
+.help .help-table td.num { text-align: right; white-space: nowrap; }
+.help .help-table th.actions,
+.help .help-table td.actions { width: 40px; text-align: right; }
+.help .help-row-title {
+    color: var(--text-primary);
+    font-weight: 600;
+    text-decoration: none;
+}
+.help .help-row-title:hover { color: var(--accent); }
+.help .help-views-cell {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+}

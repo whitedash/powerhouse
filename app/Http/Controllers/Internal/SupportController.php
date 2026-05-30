@@ -190,6 +190,7 @@ class SupportController extends Controller
             'subject' => ['required', 'string', 'max:255'],
             'message' => ['required', 'string', 'max:5000'],
             'priority' => ['required', 'in:low,medium,high,urgent'],
+            'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
         $ticket = DB::transaction(function () use ($data, $request) {
@@ -198,6 +199,7 @@ class SupportController extends Controller
                 'subject' => $data['subject'],
                 'status' => 'open',
                 'priority' => $data['priority'],
+                'assigned_to' => $data['assigned_to'] ?? null,
                 'sla_breach_at' => now()->addHours(self::SLA_HOURS[$data['priority']]),
             ]);
 

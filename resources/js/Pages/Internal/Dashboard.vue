@@ -235,10 +235,16 @@ const healthOk = computed(() => props.platform_health.every((s) => s.is_coming_s
 
 /* ─── Topbar actions ─── */
 function exportReport() {
-    /* stub — wired in a later sprint */
+    // Plain window navigation rather than router.visit() — the export
+    // endpoint streams a CSV with a download header that Inertia would
+    // try to interpret as a page response.
+    window.location.href = '/export/dashboard';
 }
 function goNewCustomer() {
-    router.visit('/customers');
+    // The customers list reads ?create=1 and opens the slide-over on
+    // mount; this avoids duplicating the slide-over markup on the
+    // dashboard while still letting the user create from here.
+    router.visit('/customers?create=1');
 }
 
 /* ─── New-task slide-over ─── */
@@ -507,9 +513,9 @@ function performComplete() {
                             </div>
                             <div class="right">
                                 <span>Total MRR <strong style="color: var(--text-primary); font-weight: 600;">{{ gbp(totalMrr) }}</strong></span>
-                                <button type="button" class="icon-btn" aria-label="More">
-                                    <IconDots :size="16" stroke-width="1.75" />
-                                </button>
+                                <Link href="/analytics" class="ghost-link" title="Open analytics">
+                                    <IconArrowRight :size="16" stroke-width="1.75" />
+                                </Link>
                             </div>
                         </div>
                         <div class="prod-table">
@@ -580,7 +586,7 @@ function performComplete() {
                             No activity yet · actions will appear here
                         </div>
                         <div class="card-foot">
-                            <a href="#" class="foot-link" @click.prevent>View all activity<IconArrowRight :size="14" stroke-width="1.75" /></a>
+                            <Link href="/analytics" class="foot-link">View all activity<IconArrowRight :size="14" stroke-width="1.75" /></Link>
                         </div>
                     </div>
                 </div>
@@ -619,7 +625,7 @@ function performComplete() {
                             All clear · nothing needs attention
                         </div>
                         <div v-if="attention_count > 0" class="card-foot">
-                            <a href="#" class="foot-link" @click.prevent>View all {{ attention_count }}<IconArrowRight :size="14" stroke-width="1.75" /></a>
+                            <Link href="/invoices?status=overdue" class="foot-link">View all {{ attention_count }}<IconArrowRight :size="14" stroke-width="1.75" /></Link>
                         </div>
                     </div>
 
@@ -773,7 +779,7 @@ function performComplete() {
                         No referrers yet
                     </div>
                     <div class="card-foot">
-                        <a href="#" class="foot-link" @click.prevent>View all referrers<IconArrowRight :size="14" stroke-width="1.75" /></a>
+                        <Link href="/referrers" class="foot-link">View all referrers<IconArrowRight :size="14" stroke-width="1.75" /></Link>
                     </div>
                 </div>
 

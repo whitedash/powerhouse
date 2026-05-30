@@ -102,16 +102,33 @@ function timeAgo(iso) {
     return `${Math.floor(day / 365)}y ago`;
 }
 
+/*
+ * Always compute SLA from the raw sla_breach_at ISO. The server-side
+ * is_breached / hours_until_breach are useful flags but Carbon's
+ * diffInHours returns a float in Carbon 3 — without rounding the cell
+ * was rendering "-3.452347234" days. Recomputing client-side keeps the
+ * number nice and lets us bucket by hour vs day automatically.
+ */
 function slaCellLabel(ticket) {
     if (! ticket.sla_breach_at) return { label: '—', cls: 'muted' };
-    if (ticket.is_breached) {
-        return { label: `Breached ${timeAgo(ticket.sla_breach_at)}`, cls: 'breached' };
+
+    const breachMs = new Date(ticket.sla_breach_at).getTime();
+    const diffMs = breachMs - Date.now();
+    const diffHours = Math.round(diffMs / 3600000);
+
+    if (diffMs < 0) {
+        const hoursAgo = Math.abs(diffHours);
+        if (hoursAgo < 24) return { label: `Breached ${hoursAgo}h ago`, cls: 'breached' };
+        const daysAgo = Math.round(hoursAgo / 24);
+
+        return { label: `Breached ${daysAgo}d ago`, cls: 'breached' };
     }
-    if (ticket.is_breaching_soon) {
-        return { label: `${ticket.hours_until_breach}h left`, cls: 'urgent' };
-    }
-    const h = ticket.hours_until_breach;
-    return { label: h !== null ? `${h}h left` : '—', cls: 'normal' };
+
+    if (diffHours <= 4) return { label: `${diffHours}h left`, cls: 'urgent' };
+    if (diffHours <= 24) return { label: `${diffHours}h left`, cls: 'normal' };
+    const days = Math.round(diffHours / 24);
+
+    return { label: `${days}d left`, cls: 'normal' };
 }
 
 /* ─── Filters ─── */
@@ -149,6 +166,7 @@ const newForm = useForm({
     subject: '',
     message: '',
     priority: 'medium',
+    assigned_to: null,
 });
 const customerQuery = ref('');
 const customerListOpen = ref(false);
@@ -474,6 +492,15 @@ const nextUrl = computed(() => props.tickets.next_page_url);
                                             <div class="field-help">
                                                 SLA budget: Urgent 4h · High 8h · Medium 24h · Low 72h
                                             </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Assign to</label>
+                                            <select v-model="newForm.assigned_to">
+                                                <option :value="null">Unassigned</option>
+                                                <option v-for="s in staff" :key="s.id" :value="s.id">{{ s.name }}</option>
+                                            </select>
                                         </div>
                                     </div>
                                     <div class="form-row single">

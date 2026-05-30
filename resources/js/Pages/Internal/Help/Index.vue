@@ -20,8 +20,6 @@ import {
     IconEye,
     IconDots,
     IconX,
-    IconAlertCircle,
-    IconCircleCheck,
     IconDeviceFloppy,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
@@ -54,20 +52,6 @@ const countsByCategory = computed(() => {
 const visibleArticles = computed(() => {
     if (activeFilter.value === 'all') return props.articles;
     return props.articles.filter((a) => a.category === activeFilter.value);
-});
-
-/*
- * Group within the selected filter so a single category header
- * still appears above its cards (helps when "All" is selected
- * and the page lists multiple categories back-to-back).
- */
-const groupedArticles = computed(() => {
-    const groups = new Map();
-    for (const a of visibleArticles.value) {
-        if (! groups.has(a.category)) groups.set(a.category, []);
-        groups.get(a.category).push(a);
-    }
-    return [...groups.entries()].map(([category, items]) => ({ category, items }));
 });
 
 // Debounce search so each keystroke doesn't trigger a roundtrip.
@@ -210,19 +194,7 @@ const breadcrumbs = [
         </template>
 
         <div class="help">
-            <div
-                v-if="$page.props.flash?.success"
-                style="margin-bottom: 14px; padding: 10px 14px; background: var(--success-bg); color: var(--success); border: 1px solid #BBF7D0; border-radius: var(--radius-md); font: 500 13px/1.4 'Inter', sans-serif; display: flex; align-items: center; gap: 8px;"
-            >
-                <IconCircleCheck :size="16" stroke-width="2" />{{ $page.props.flash.success }}
-            </div>
-            <div
-                v-if="$page.props.flash?.error"
-                style="margin-bottom: 14px; padding: 10px 14px; background: var(--danger-bg); color: var(--danger); border: 1px solid #FECACA; border-radius: var(--radius-md); font: 500 13px/1.4 'Inter', sans-serif; display: flex; align-items: center; gap: 8px;"
-            >
-                <IconAlertCircle :size="16" stroke-width="2" />{{ $page.props.flash.error }}
-            </div>
-
+            <!-- Flash is handled globally by <ToastContainer /> in the layout. -->
             <div class="help-layout">
                 <!-- LEFT — category filter rail -->
                 <aside class="help-sidebar">
@@ -265,56 +237,71 @@ const breadcrumbs = [
                     </div>
 
                     <template v-else>
-                        <div v-for="group in groupedArticles" :key="group.category" class="help-group">
-                            <div class="help-group-header">
-                                <div class="help-group-bar" />
-                                <h3>{{ group.category }}</h3>
-                                <span class="help-group-count">{{ group.items.length }}</span>
-                            </div>
-
-                            <div class="help-cards">
-                                <article v-for="a in group.items" :key="a.id" class="help-card">
-                                    <div class="help-card-top">
-                                        <span class="badge badge-info badge-sm">{{ a.category }}</span>
-                                        <Menu as="div" class="dd-menu">
-                                            <MenuButton class="icon-btn" aria-label="Article actions">
-                                                <IconDots :size="16" stroke-width="1.75" />
-                                            </MenuButton>
-                                            <MenuItems class="dd-popover right-align">
-                                                <MenuItem v-slot="{ active }">
-                                                    <button type="button" :class="['dd-option', { active }]" @click="openEdit(a)">Edit</button>
-                                                </MenuItem>
-                                                <MenuItem v-slot="{ active }">
-                                                    <button type="button" :class="['dd-option', { active }]" @click="quickUnpublish(a)">Unpublish</button>
-                                                </MenuItem>
-                                                <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
-                                                <MenuItem v-slot="{ active }">
-                                                    <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDelete(a)">Delete</button>
-                                                </MenuItem>
-                                            </MenuItems>
-                                        </Menu>
-                                    </div>
-
-                                    <Link :href="`/help/${a.slug}`" class="help-card-title">{{ a.title }}</Link>
-                                    <p class="help-card-excerpt">{{ a.excerpt }}</p>
-
-                                    <footer class="help-card-footer">
-                                        <span class="help-meta-item">{{ a.author ?? 'Unknown' }}</span>
-                                        <span class="help-meta-sep">·</span>
-                                        <span class="help-meta-item">{{ a.updated_at }}</span>
-                                        <span class="help-meta-sep">·</span>
-                                        <span class="help-meta-item">
-                                            <IconEye :size="12" stroke-width="2" />
-                                            {{ a.views }}
-                                        </span>
-                                        <span class="help-meta-spacer" />
-                                        <span class="badge badge-sm" :class="a.is_public ? 'badge-active' : 'badge-inactive'">
-                                            <component :is="a.is_public ? IconWorld : IconLock" :size="11" stroke-width="2" />
-                                            {{ a.is_public ? 'Public' : 'Internal' }}
-                                        </span>
-                                    </footer>
-                                </article>
-                            </div>
+                        <!--
+                          Flat table view. The previous category-grouped
+                          card grid had a "category title stuck" bug where
+                          a header from a hidden group could still render
+                          when the filter narrowed. A single flat table
+                          removes that whole class of bug — the sidebar
+                          rail is now the only place categories cluster.
+                        -->
+                        <div class="help-table-wrap">
+                            <table class="data-table help-table">
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Category</th>
+                                        <th>Visibility</th>
+                                        <th>Author</th>
+                                        <th>Updated</th>
+                                        <th class="num">Views</th>
+                                        <th class="actions" />
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="a in visibleArticles" :key="a.id">
+                                        <td>
+                                            <Link :href="`/help/${a.slug}`" class="help-row-title">{{ a.title }}</Link>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-info badge-sm">{{ a.category }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-sm" :class="a.is_public ? 'badge-active' : 'badge-inactive'">
+                                                <component :is="a.is_public ? IconWorld : IconLock" :size="11" stroke-width="2" />
+                                                {{ a.is_public ? 'Public' : 'Internal' }}
+                                            </span>
+                                        </td>
+                                        <td>{{ a.author ?? 'Unknown' }}</td>
+                                        <td>{{ a.updated_at }}</td>
+                                        <td class="num">
+                                            <span class="help-views-cell">
+                                                <IconEye :size="12" stroke-width="2" />
+                                                {{ a.views }}
+                                            </span>
+                                        </td>
+                                        <td class="actions">
+                                            <Menu as="div" class="dd-menu">
+                                                <MenuButton class="icon-btn" aria-label="Article actions">
+                                                    <IconDots :size="16" stroke-width="1.75" />
+                                                </MenuButton>
+                                                <MenuItems class="dd-popover right-align">
+                                                    <MenuItem v-slot="{ active }">
+                                                        <button type="button" :class="['dd-option', { active }]" @click="openEdit(a)">Edit</button>
+                                                    </MenuItem>
+                                                    <MenuItem v-slot="{ active }">
+                                                        <button type="button" :class="['dd-option', { active }]" @click="quickUnpublish(a)">Unpublish</button>
+                                                    </MenuItem>
+                                                    <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
+                                                    <MenuItem v-slot="{ active }">
+                                                        <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDelete(a)">Delete</button>
+                                                    </MenuItem>
+                                                </MenuItems>
+                                            </Menu>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </template>
                 </section>

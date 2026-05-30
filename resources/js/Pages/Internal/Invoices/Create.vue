@@ -17,8 +17,6 @@ import {
     IconBuilding,
     IconAdjustments,
     IconAlertCircle,
-    IconRotateClockwise,
-    IconBriefcase,
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
@@ -68,7 +66,7 @@ const initialForm = (() => {
         return {
             customer_id: props.invoice.customer_id ?? null,
             billing_entity_id: props.invoice.billing_entity_id ?? null,
-            type: props.invoice.type ?? 'subscription',
+            type: props.invoice.type ?? 'service',
             issue_date: props.invoice.issue_date ?? props.today,
             due_date: props.invoice.due_date ?? props.default_due_date,
             vat_rate: Number(props.invoice.vat_rate ?? 20),
@@ -89,7 +87,7 @@ const initialForm = (() => {
     return {
         customer_id: props.preselected_customer_id ?? null,
         billing_entity_id: null,
-        type: 'subscription',
+        type: 'service',
         issue_date: props.today,
         due_date: props.default_due_date,
         vat_rate: 20,
@@ -660,24 +658,14 @@ function handleDiscard() {
                             <div class="h-title">Settings</div>
                         </header>
                         <div class="cfg-body">
-                            <div class="type-toggle">
-                                <button
-                                    type="button"
-                                    :class="['type-opt', { active: form.type === 'subscription' }]"
-                                    @click="form.type = 'subscription'"
-                                >
-                                    <IconRotateClockwise :size="15" stroke-width="1.75" />
-                                    Subscription
-                                </button>
-                                <button
-                                    type="button"
-                                    :class="['type-opt', { active: form.type === 'service' }]"
-                                    @click="form.type = 'service'"
-                                >
-                                    <IconBriefcase :size="15" stroke-width="1.75" />
-                                    Service
-                                </button>
-                            </div>
+                            <!--
+                              The Subscription/Service toggle was removed once
+                              line items started carrying product links — the
+                              distinction stopped affecting any downstream
+                              report. form.type still ships as 'service' so the
+                              column is non-null on insert; the controller
+                              accepts it transparently.
+                            -->
 
                             <div class="set-row">
                                 <div>

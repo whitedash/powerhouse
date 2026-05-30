@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DashboardController extends Controller
 {
@@ -96,6 +97,67 @@ class DashboardController extends Controller
             // when the operator picks a customer. Loaded once at
             // page level instead of an extra fetch per customer pick.
             'contacts_by_customer' => $this->buildContactsByCustomer(),
+        ]);
+    }
+
+    /**
+     * Lightweight CSV export of the dashboard headline numbers. Streamed
+     * via response()->streamDownload() so we don't materialise the whole
+     * file in memory — even for a thin report, sticking to the streaming
+     * pattern means a heavier export later can swap in without changing
+     * the route signature.
+     */
+    public function export(Request $request): StreamedResponse
+    {
+        Gate::authorize('viewAny', Customer::class);
+
+        $now = now();
+        $monthStart = $now->copy()->startOfMonth();
+        $stats = $this->buildStats($now);
+        $thisMonth = $this->buildThisMonth(
+            $monthStart,
+            $monthStart->copy()->subMonthNoOverflow(),
+            $monthStart->copy()->subMonthNoOverflow()->endOfMonth(),
+        );
+        $products = $this->buildProducts();
+
+        $filename = 'powerhouse-report-'.$now->format('Y-m-d').'.csv';
+
+        return response()->streamDownload(function () use ($now, $stats, $thisMonth, $products) {
+            $out = fopen('php://output', 'w');
+
+            fputcsv($out, ['Report generated', $now->format('Y-m-d H:i T')]);
+            fputcsv($out, []);
+
+            fputcsv($out, ['Headline']);
+            fputcsv($out, ['Total customers', $stats['total_customers'] ?? 0]);
+            fputcsv($out, ['MRR (£)', number_format((float) ($stats['mrr'] ?? 0), 2, '.', '')]);
+            fputcsv($out, ['ARR (£)', number_format((float) ($stats['mrr'] ?? 0) * 12, 2, '.', '')]);
+            fputcsv($out, ['Pending invoices (count)', $stats['pending_invoices_count'] ?? 0]);
+            fputcsv($out, ['Pending invoices (£)', number_format((float) ($stats['pending_invoices_amount'] ?? 0), 2, '.', '')]);
+            fputcsv($out, ['Open tickets', $stats['open_tickets_count'] ?? 0]);
+            fputcsv($out, ['SLA-breached tickets', $stats['overdue_sla_count'] ?? 0]);
+            fputcsv($out, []);
+
+            fputcsv($out, ['This month']);
+            fputcsv($out, ['New customers', $thisMonth['new_customers'] ?? 0]);
+            fputcsv($out, ['Churned customers', $thisMonth['churned_customers'] ?? 0]);
+            fputcsv($out, ['Revenue collected (£)', number_format((float) ($thisMonth['revenue_collected'] ?? 0), 2, '.', '')]);
+            fputcsv($out, []);
+
+            fputcsv($out, ['Active by product']);
+            fputcsv($out, ['Product', 'Active customers', 'MRR (£)']);
+            foreach ($products as $p) {
+                fputcsv($out, [
+                    $p['name'] ?? '',
+                    $p['customer_count'] ?? 0,
+                    number_format((float) ($p['mrr'] ?? 0), 2, '.', ''),
+                ]);
+            }
+
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
         ]);
     }
 
