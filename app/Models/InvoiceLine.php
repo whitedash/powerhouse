@@ -9,6 +9,8 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $invoice_id
+ * @property int|null $product_id
+ * @property int|null $plan_id
  * @property string $description
  * @property string|null $note
  * @property string $quantity
@@ -18,11 +20,15 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Invoice|null $invoice
+ * @property-read Product|null $product
+ * @property-read ProductPlan|null $plan
  */
 class InvoiceLine extends Model
 {
     protected $fillable = [
         'invoice_id',
+        'product_id',
+        'plan_id',
         'description',
         'note',
         'quantity',
@@ -44,5 +50,15 @@ class InvoiceLine extends Model
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(ProductPlan::class);
     }
 }

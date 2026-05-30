@@ -37,9 +37,17 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Customer|null $customer
+ * @property bool $is_recurring
+ * @property int|null $recurring_interval_count
+ * @property string|null $recurring_interval_unit
+ * @property Carbon|null $recurring_next_date
+ * @property Carbon|null $recurring_ends_at
+ * @property int|null $parent_invoice_id
  * @property-read BillingEntity|null $billingEntity
  * @property-read User|null $createdBy
  * @property-read Collection<int, InvoiceLine> $lines
+ * @property-read Invoice|null $parentInvoice
+ * @property-read Collection<int, Invoice> $childInvoices
  */
 class Invoice extends Model
 {
@@ -68,6 +76,15 @@ class Invoice extends Model
         'reminders_paused',
         'qbo_invoice_id',
         'created_by',
+        // Recurring template fields. is_recurring marks this invoice
+        // as a template that auto-clones into draft children at the
+        // set interval.
+        'is_recurring',
+        'recurring_interval_count',
+        'recurring_interval_unit',
+        'recurring_next_date',
+        'recurring_ends_at',
+        'parent_invoice_id',
     ];
 
     protected function casts(): array
@@ -85,6 +102,10 @@ class Invoice extends Model
             'last_reminder_sent_at' => 'datetime',
             'next_reminder_at' => 'datetime',
             'reminders_paused' => 'boolean',
+            'is_recurring' => 'boolean',
+            'recurring_interval_count' => 'integer',
+            'recurring_next_date' => 'date',
+            'recurring_ends_at' => 'date',
         ];
     }
 
@@ -106,5 +127,24 @@ class Invoice extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(InvoiceLine::class)->orderBy('sort_order');
+    }
+
+    /**
+     * The recurring template this invoice was generated from. Children
+     * created by invoices:generate-recurring carry this back-pointer
+     * so the detail page can render a "generated from" breadcrumb.
+     */
+    public function parentInvoice(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_invoice_id');
+    }
+
+    /**
+     * Children spawned from this recurring template. Lets the recurring
+     * info card on the detail page list "5 child invoices generated".
+     */
+    public function childInvoices(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_invoice_id');
     }
 }

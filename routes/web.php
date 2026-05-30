@@ -159,6 +159,9 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::post('/invoices/{id}/send-reminder', [InternalInvoiceController::class, 'sendReminder'])->name('internal.invoices.send-reminder');
     Route::post('/invoices/{id}/pause-reminders', [InternalInvoiceController::class, 'pauseReminders'])->name('internal.invoices.pause-reminders');
     Route::post('/invoices/{id}/resume-reminders', [InternalInvoiceController::class, 'resumeReminders'])->name('internal.invoices.resume-reminders');
+    // Cancels a recurring template. Doesn't void the row — just stops
+    // the artisan generator from cloning it again.
+    Route::post('/invoices/{id}/stop-recurring', [InternalInvoiceController::class, 'stopRecurring'])->name('internal.invoices.stop-recurring');
     Route::get('/domains', [InternalDomainController::class, 'index'])->name('internal.domains.index');
     Route::get('/analytics', [InternalAnalyticsController::class, 'index'])->name('internal.analytics.index');
 

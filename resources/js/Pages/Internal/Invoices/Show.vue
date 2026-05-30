@@ -18,6 +18,8 @@ import {
     IconFilePlus,
     IconClock,
     IconAlertCircle,
+    IconRefresh,
+    IconX,
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -237,6 +239,12 @@ function resumeReminders() {
     router.post(`/invoices/${inv.value.id}/resume-reminders`, {}, { preserveScroll: true });
 }
 
+// Stop the recurring schedule. preserveScroll keeps the user in
+// place — the right-side card just rerenders without is_recurring.
+function stopRecurring() {
+    router.post(`/invoices/${inv.value.id}/stop-recurring`, {}, { preserveScroll: true });
+}
+
 function downloadPdf() {
     window.open(`/invoices/${inv.value.id}/pdf`, '_blank', 'noopener');
 }
@@ -416,6 +424,12 @@ const icons = {
                                 <tr v-for="line in invoice.lines" :key="line.id">
                                     <td>
                                         {{ line.description }}
+                                        <span
+                                            v-if="line.product_name"
+                                            class="line-product-badge"
+                                            :style="{ background: line.product_colour || '#64748B' }"
+                                            :title="line.plan_name ? `Plan: ${line.plan_name}` : line.product_name"
+                                        >{{ line.product_name }}<template v-if="line.plan_name"> · {{ line.plan_name }}</template></span>
                                         <div v-if="line.note" class="note">{{ line.note }}</div>
                                     </td>
                                     <td class="num">{{ formatQuantity(line.quantity) }}</td>
@@ -637,6 +651,44 @@ const icons = {
                                     class="ghost-link"
                                     @click="pauseReminders"
                                 >Pause auto-reminders</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Card: Recurring schedule -->
+                    <section v-if="invoice.is_recurring || invoice.parent_invoice" class="card recurring-card">
+                        <header class="card-header">
+                            <div class="h-icon"><IconRefresh :size="16" stroke-width="1.75" /></div>
+                            <div>
+                                <h3>Recurring</h3>
+                                <div class="sub">
+                                    <template v-if="invoice.is_recurring">Auto-generating drafts</template>
+                                    <template v-else>Generated from a template</template>
+                                </div>
+                            </div>
+                        </header>
+                        <div v-if="invoice.is_recurring" class="recurring-card-body">
+                            <div class="inv-stat-row">
+                                <span class="k">Every</span>
+                                <span class="v">{{ invoice.recurring_interval_count }} {{ invoice.recurring_interval_unit }}{{ invoice.recurring_interval_count === 1 ? '' : 's' }}</span>
+                            </div>
+                            <div v-if="invoice.recurring_next_date" class="inv-stat-row">
+                                <span class="k">Next</span>
+                                <span class="v">{{ formatDate(invoice.recurring_next_date) }}</span>
+                            </div>
+                            <div v-if="invoice.recurring_ends_at" class="inv-stat-row">
+                                <span class="k">Ends</span>
+                                <span class="v">{{ formatDate(invoice.recurring_ends_at) }}</span>
+                            </div>
+                            <button type="button" class="btn btn-ghost danger" style="margin-top: 10px;" @click="stopRecurring">
+                                <IconX :size="14" stroke-width="2" />
+                                Stop recurring
+                            </button>
+                        </div>
+                        <div v-else class="recurring-card-body">
+                            <div class="inv-stat-row">
+                                <span class="k">Parent</span>
+                                <Link :href="`/invoices/${invoice.parent_invoice.id}`" class="v" style="color: var(--accent);">{{ invoice.parent_invoice.number }}</Link>
                             </div>
                         </div>
                     </section>

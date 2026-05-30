@@ -470,7 +470,10 @@ function handleVoid() {
                                  service is now a backend concern only. -->
                             <td>
                                 <Link :href="`/invoices/${inv.id}`" style="color: inherit; text-decoration: none;">
-                                    <div class="inv-num">{{ inv.number }}</div>
+                                    <div class="inv-num">
+                                        {{ inv.number }}
+                                        <span v-if="inv.is_recurring" class="badge badge-info badge-sm" title="Recurring invoice">↻ Recurring</span>
+                                    </div>
                                     <div class="inv-line">{{ inv.description }}</div>
                                 </Link>
                             </td>

@@ -12,6 +12,8 @@ defineProps({
     payment_terms: { type: Array, default: () => [] },
     types: { type: Array, default: () => [] },
     preselected_customer_id: { type: Number, default: null },
+    products: { type: Array, default: () => [] },
+    product_plans: { type: Object, default: () => ({}) },
 });
 </script>
 

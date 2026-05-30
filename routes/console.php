@@ -17,3 +17,12 @@ Schedule::command('invoices:send-reminders')
     ->timezone('Europe/London')
     ->withoutOverlapping()
     ->runInBackground();
+
+// Daily sweep that clones due recurring-invoice templates into draft
+// children. Runs earlier than the reminder pass so brand-new drafts
+// are already visible by the time the morning team logs in.
+Schedule::command('invoices:generate-recurring')
+    ->dailyAt('07:00')
+    ->timezone('Europe/London')
+    ->withoutOverlapping()
+    ->runInBackground();

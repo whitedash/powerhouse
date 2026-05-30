@@ -7,24 +7,39 @@ const props = defineProps({
         required: true,
         // Shape: { count: Number, unit: 'day' | 'week' | 'month' | 'year' | 'one_time' }
     },
+    // Optional whitelist — when set, restricts the unit dropdown
+    // and presets to the supplied subset. Used by the recurring
+    // invoice picker, which only supports week / month / year.
+    allowedUnits: {
+        type: Array,
+        default: null,
+    },
 });
 
 const emit = defineEmits(['update:modelValue']);
 
-const UNITS = [
+const ALL_UNITS = [
     { value: 'day', label: 'Day(s)' },
     { value: 'week', label: 'Week(s)' },
     { value: 'month', label: 'Month(s)' },
     { value: 'year', label: 'Year(s)' },
     { value: 'one_time', label: 'One time' },
 ];
+const UNITS = computed(() => {
+    if (! props.allowedUnits || ! props.allowedUnits.length) return ALL_UNITS;
+    return ALL_UNITS.filter((u) => props.allowedUnits.includes(u.value));
+});
 
-const PRESETS = [
+const ALL_PRESETS = [
     { key: 'monthly',  label: 'Monthly',   count: 1,  unit: 'month' },
     { key: 'quarterly', label: 'Quarterly', count: 3,  unit: 'month' },
     { key: 'biannual', label: 'Bi-annual', count: 6,  unit: 'month' },
     { key: 'annual',   label: 'Annual',    count: 12, unit: 'month' },
 ];
+const PRESETS = computed(() => {
+    if (! props.allowedUnits || ! props.allowedUnits.length) return ALL_PRESETS;
+    return ALL_PRESETS.filter((p) => props.allowedUnits.includes(p.unit));
+});
 
 function update(patch) {
     emit('update:modelValue', { ...props.modelValue, ...patch });

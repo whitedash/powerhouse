@@ -10,6 +10,8 @@ use App\Models\BillingEntity;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
+use App\Models\Product;
+use App\Models\ProductPlan;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -129,6 +131,7 @@ class InvoiceController extends Controller
                 'description' => $firstLine?->description ?: 'No items',
                 'days_overdue' => $daysOverdue !== null ? (int) max(1, $daysOverdue) : null,
                 'is_due_today' => (bool) $isDueToday,
+                'is_recurring' => (bool) $invoice->is_recurring,
             ];
         });
 
@@ -191,6 +194,7 @@ class InvoiceController extends Controller
             'preselected_customer_id' => $request->query('customer_id')
                 ? (int) $request->query('customer_id')
                 : null,
+            ...$this->productPicker(),
         ]);
     }
 
@@ -233,10 +237,16 @@ class InvoiceController extends Controller
                 'due_date' => $invoice->due_date?->toDateString(),
                 'vat_rate' => (float) $invoice->vat_rate,
                 'notes' => $invoice->notes,
+                'is_recurring' => (bool) $invoice->is_recurring,
+                'recurring_interval_count' => $invoice->recurring_interval_count,
+                'recurring_interval_unit' => $invoice->recurring_interval_unit,
+                'recurring_ends_at' => $invoice->recurring_ends_at?->toDateString(),
                 'lines' => $invoice->lines->map(fn ($l) => [
                     'id' => $l->id,
                     'description' => $l->description,
                     'note' => $l->note,
+                    'product_id' => $l->product_id,
+                    'plan_id' => $l->plan_id,
                     'quantity' => (float) $l->quantity,
                     'unit_price' => (float) $l->unit_price,
                     'sort_order' => (int) $l->sort_order,
@@ -257,7 +267,42 @@ class InvoiceController extends Controller
             'payment_terms' => ['Net 7', 'Net 14', 'Net 30', 'Due on receipt'],
             'types' => self::TYPES,
             'preselected_customer_id' => $invoice->customer_id,
+            ...$this->productPicker(),
         ]);
+    }
+
+    /**
+     * Shared payload for the create + edit screens: every active
+     * product, and the active plans for each product keyed by
+     * product_id. The Create/Edit Vue uses `product_plans[productId]`
+     * to populate the per-line plan dropdown reactively when the
+     * line's product changes.
+     *
+     * @return array<string, mixed>
+     */
+    private function productPicker(): array
+    {
+        return [
+            'products' => Product::where('is_active', true)
+                ->orderBy('sort_order')
+                ->get(['id', 'name', 'slug', 'icon_colour'])
+                ->map(fn (Product $p): array => [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'slug' => $p->slug,
+                    'icon_colour' => $p->icon_colour,
+                ])
+                ->all(),
+            'product_plans' => ProductPlan::where('is_active', true)
+                ->orderBy('sort_order')
+                ->get(['id', 'product_id', 'name'])
+                ->groupBy('product_id')
+                ->map(fn ($plans) => $plans->map(fn (ProductPlan $p) => [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                ])->values()->all())
+                ->all(),
+        ];
     }
 
     public function update(int $id, StoreInvoiceRequest $request): RedirectResponse
@@ -278,6 +323,24 @@ class InvoiceController extends Controller
             $vatAmount = round($subtotal * ($vatRate / 100), 2);
             $total = round($subtotal + $vatAmount, 2);
 
+            // Recurring header update. Toggling on for the first time
+            // computes recurring_next_date from issue_date; toggling
+            // off clears the schedule. Toggling on for an already-
+            // recurring invoice preserves the existing next_date so
+            // the cadence doesn't reset every time someone edits.
+            $isRecurring = (bool) ($data['is_recurring'] ?? false);
+            $recurringNext = $invoice->recurring_next_date;
+            if ($isRecurring && ! $invoice->is_recurring) {
+                $recurringNext = $this->nextRecurringDate(
+                    Carbon::parse($data['issue_date']),
+                    (int) $data['recurring_interval_count'],
+                    (string) $data['recurring_interval_unit'],
+                );
+            }
+            if (! $isRecurring) {
+                $recurringNext = null;
+            }
+
             $invoice->update([
                 'customer_id' => $data['customer_id'],
                 'billing_entity_id' => $data['billing_entity_id'],
@@ -289,6 +352,11 @@ class InvoiceController extends Controller
                 'issue_date' => $data['issue_date'],
                 'due_date' => $data['due_date'],
                 'notes' => $data['notes'] ?? null,
+                'is_recurring' => $isRecurring,
+                'recurring_interval_count' => $isRecurring ? (int) $data['recurring_interval_count'] : null,
+                'recurring_interval_unit' => $isRecurring ? $data['recurring_interval_unit'] : null,
+                'recurring_next_date' => $recurringNext,
+                'recurring_ends_at' => $isRecurring ? ($data['recurring_ends_at'] ?? null) : null,
             ]);
 
             // Sync lines: keep submitted IDs, delete the rest.
@@ -303,6 +371,8 @@ class InvoiceController extends Controller
             foreach ($data['lines'] as $i => $line) {
                 $attributes = [
                     'invoice_id' => $invoice->id,
+                    'product_id' => $line['product_id'] ?? null,
+                    'plan_id' => $line['plan_id'] ?? null,
                     'description' => $line['description'],
                     'note' => $line['note'] ?? null,
                     'quantity' => (float) $line['quantity'],
@@ -445,6 +515,20 @@ class InvoiceController extends Controller
             $vatAmount = round($subtotal * ($vatRate / 100), 2);
             $total = round($subtotal + $vatAmount, 2);
 
+            // Recurring header. The first "next date" lands one
+            // interval out from the issue date — the parent invoice
+            // itself is the first cycle's bill, the artisan job
+            // generates from there.
+            $isRecurring = (bool) ($data['is_recurring'] ?? false);
+            $recurringNext = null;
+            if ($isRecurring) {
+                $recurringNext = $this->nextRecurringDate(
+                    Carbon::parse($data['issue_date']),
+                    (int) $data['recurring_interval_count'],
+                    (string) $data['recurring_interval_unit'],
+                );
+            }
+
             $invoice = Invoice::create([
                 'number' => $number,
                 'customer_id' => $data['customer_id'],
@@ -461,11 +545,18 @@ class InvoiceController extends Controller
                 'notes' => $data['notes'] ?? null,
                 'sent_at' => $sendAfter ? now() : null,
                 'created_by' => $request->user()->id,
+                'is_recurring' => $isRecurring,
+                'recurring_interval_count' => $isRecurring ? (int) $data['recurring_interval_count'] : null,
+                'recurring_interval_unit' => $isRecurring ? $data['recurring_interval_unit'] : null,
+                'recurring_next_date' => $recurringNext,
+                'recurring_ends_at' => $isRecurring ? ($data['recurring_ends_at'] ?? null) : null,
             ]);
 
             foreach ($data['lines'] as $i => $line) {
                 InvoiceLine::create([
                     'invoice_id' => $invoice->id,
+                    'product_id' => $line['product_id'] ?? null,
+                    'plan_id' => $line['plan_id'] ?? null,
                     'description' => $line['description'],
                     'note' => $line['note'] ?? null,
                     'quantity' => (float) $line['quantity'],
@@ -504,7 +595,10 @@ class InvoiceController extends Controller
             'customer.primaryContact:id,customer_id,email',
             'billingEntity',
             'lines' => fn ($q) => $q->orderBy('sort_order'),
+            'lines.product:id,name,slug,icon_colour',
+            'lines.plan:id,name',
             'createdBy:id,name,role',
+            'parentInvoice:id,number',
         ])->findOrFail($id);
 
         Gate::authorize('view', $invoice);
@@ -600,7 +694,23 @@ class InvoiceController extends Controller
                     'unit_price' => (float) $l->unit_price,
                     'amount' => (float) $l->amount,
                     'sort_order' => (int) $l->sort_order,
+                    'product_id' => $l->product_id,
+                    'product_name' => $l->product?->name,
+                    'product_slug' => $l->product?->slug,
+                    'product_colour' => $l->product?->icon_colour,
+                    'plan_id' => $l->plan_id,
+                    'plan_name' => $l->plan?->name,
                 ])->values(),
+
+                'is_recurring' => (bool) $invoice->is_recurring,
+                'recurring_interval_count' => $invoice->recurring_interval_count,
+                'recurring_interval_unit' => $invoice->recurring_interval_unit,
+                'recurring_next_date' => $invoice->recurring_next_date?->toDateString(),
+                'recurring_ends_at' => $invoice->recurring_ends_at?->toDateString(),
+                'parent_invoice' => $invoice->parentInvoice ? [
+                    'id' => $invoice->parentInvoice->id,
+                    'number' => $invoice->parentInvoice->number,
+                ] : null,
 
                 'created_by' => $invoice->createdBy
                     ? ['name' => $invoice->createdBy->name, 'role' => $invoice->createdBy->role]
@@ -863,5 +973,48 @@ class InvoiceController extends Controller
     {
         Cache::forget('nav.invoices_overdue');
         Cache::forget('nav.invoices_outstanding');
+    }
+
+    /**
+     * Advance a date by N units of week / month / year. Centralised so
+     * the store, update, and the artisan generator all roll the cadence
+     * the same way — there's no separate "increment" in the model layer.
+     */
+    private function nextRecurringDate(Carbon $from, int $count, string $unit): Carbon
+    {
+        return match ($unit) {
+            'week' => $from->copy()->addWeeks($count),
+            'month' => $from->copy()->addMonthsNoOverflow($count),
+            'year' => $from->copy()->addYearsNoOverflow($count),
+            default => $from->copy()->addMonth(),
+        };
+    }
+
+    /**
+     * Stop the recurring schedule on this invoice — keeps the rest of
+     * the row intact (status, amount, lines) so the historic record
+     * stays accurate. After this the artisan generator skips it.
+     */
+    public function stopRecurring(int $id, Request $request): RedirectResponse
+    {
+        $invoice = Invoice::findOrFail($id);
+        Gate::authorize('update', $invoice);
+
+        if (! $invoice->is_recurring) {
+            return back()->with('error', 'This invoice is not on a recurring schedule.');
+        }
+
+        DB::transaction(function () use ($invoice, $request) {
+            $invoice->update([
+                'is_recurring' => false,
+                'recurring_next_date' => null,
+            ]);
+
+            $this->logActivity($request, 'invoice.recurring_stopped', $invoice, after: [
+                'number' => $invoice->number,
+            ]);
+        });
+
+        return back()->with('success', "Recurring schedule stopped for {$invoice->number}.");
     }
 }

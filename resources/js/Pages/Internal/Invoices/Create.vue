@@ -21,6 +21,7 @@ import {
 import dayjs from 'dayjs';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import IntervalPicker from '@/Components/UI/IntervalPicker.vue';
 
 const props = defineProps({
     customers: { type: Array, default: () => [] },
@@ -34,6 +35,10 @@ const props = defineProps({
     preselected_customer_id: { type: Number, default: null },
     invoice: { type: Object, default: null },
     mode: { type: String, default: 'create' },
+    // Optional product attribution for line items + an indexed
+    // map of plans keyed by product_id for the dependent picker.
+    products: { type: Array, default: () => [] },
+    product_plans: { type: Object, default: () => ({}) },
 });
 
 const isEdit = computed(() => props.mode === 'edit' && props.invoice);
@@ -78,8 +83,14 @@ const initialForm = (() => {
                     note: l.note ?? '',
                     quantity: Number(l.quantity ?? 1),
                     unit_price: Number(l.unit_price ?? 0),
+                    product_id: l.product_id ?? null,
+                    plan_id: l.plan_id ?? null,
                 }))
-                : [{ description: '', note: '', quantity: 1, unit_price: 0 }],
+                : [{ description: '', note: '', quantity: 1, unit_price: 0, product_id: null, plan_id: null }],
+            is_recurring: !!props.invoice.is_recurring,
+            recurring_interval_count: props.invoice.recurring_interval_count ?? 1,
+            recurring_interval_unit: props.invoice.recurring_interval_unit ?? 'month',
+            recurring_ends_at: props.invoice.recurring_ends_at ?? '',
             send_after_create: false,
         };
     }
@@ -93,8 +104,12 @@ const initialForm = (() => {
         vat_rate: 20,
         notes: '',
         lines: [
-            { description: '', note: '', quantity: 1, unit_price: 0 },
+            { description: '', note: '', quantity: 1, unit_price: 0, product_id: null, plan_id: null },
         ],
+        is_recurring: false,
+        recurring_interval_count: 1,
+        recurring_interval_unit: 'month',
+        recurring_ends_at: '',
         send_after_create: false,
     };
 })();
@@ -185,13 +200,42 @@ function entityLegal(e) {
 /* ─── Line items ─── */
 function addLine() {
     if (form.lines.length >= MAX_LINES) return;
-    form.lines.push({ description: '', note: '', quantity: 1, unit_price: 0 });
+    form.lines.push({ description: '', note: '', quantity: 1, unit_price: 0, product_id: null, plan_id: null });
 }
 
 function removeLine(index) {
     if (form.lines.length <= 1) return;
     form.lines.splice(index, 1);
 }
+
+/* ─── Product / plan attribution ───
+ * Look up the active plans for a given product. The server keys the
+ * product_plans payload by product_id, so a simple index access does
+ * the work without a per-line filter.
+ */
+function getProductPlans(productId) {
+    if (productId == null) return [];
+    return props.product_plans?.[productId] ?? props.product_plans?.[String(productId)] ?? [];
+}
+function onProductSelected(index) {
+    // Changing product invalidates the previously picked plan —
+    // a Maavelus Pro plan doesn't survive a swap to MyOrderPad.
+    form.lines[index].plan_id = null;
+}
+
+/* ─── Recurring schedule ─── */
+const recurringInterval = computed({
+    get() {
+        return {
+            count: form.recurring_interval_count || 1,
+            unit: form.recurring_interval_unit || 'month',
+        };
+    },
+    set(v) {
+        form.recurring_interval_count = v?.count ?? 1;
+        form.recurring_interval_unit = v?.unit ?? 'month';
+    },
+});
 
 function lineAmount(line) {
     const q = Number(line.quantity || 0);
@@ -471,6 +515,28 @@ function handleDiscard() {
                                     placeholder="Add a note or billing period (optional)"
                                     maxlength="500"
                                 >
+                                <div v-if="products.length" class="li-product-row">
+                                    <select
+                                        v-model="line.product_id"
+                                        class="line-product"
+                                        @change="onProductSelected(idx)"
+                                    >
+                                        <option :value="null">No product</option>
+                                        <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }}</option>
+                                    </select>
+                                    <select
+                                        v-if="line.product_id && getProductPlans(line.product_id).length"
+                                        v-model="line.plan_id"
+                                        class="line-plan"
+                                    >
+                                        <option :value="null">No plan</option>
+                                        <option
+                                            v-for="plan in getProductPlans(line.product_id)"
+                                            :key="plan.id"
+                                            :value="plan.id"
+                                        >{{ plan.name }}</option>
+                                    </select>
+                                </div>
                             </div>
                             <div class="li-qty">
                                 <input
@@ -542,6 +608,37 @@ function handleDiscard() {
                             <div class="total-row grand">
                                 <span class="lbl">Total</span>
                                 <span class="val">{{ formatGBP(total) }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recurring schedule -->
+                    <div class="recurring-section">
+                        <label class="recurring-toggle-row">
+                            <span>
+                                <span class="meta-label">Recurring invoice</span>
+                                <span class="field-help">
+                                    A copy will be created automatically on each due date.
+                                </span>
+                            </span>
+                            <input type="checkbox" v-model="form.is_recurring">
+                        </label>
+                        <div v-if="form.is_recurring" class="recurring-fields">
+                            <div class="recurring-row">
+                                <div class="meta-label">Repeats every</div>
+                                <IntervalPicker
+                                    v-model="recurringInterval"
+                                    :allowed-units="['week', 'month', 'year']"
+                                />
+                            </div>
+                            <div class="recurring-row">
+                                <div class="meta-label">Ends on <span class="muted">(optional)</span></div>
+                                <input
+                                    v-model="form.recurring_ends_at"
+                                    type="date"
+                                    class="field-input"
+                                    :min="form.issue_date"
+                                >
                             </div>
                         </div>
                     </div>
