@@ -36,6 +36,7 @@ import {
     IconTicket,
     IconUser,
     IconLoader2,
+    IconWorld,
 } from '@tabler/icons-vue';
 import ToastContainer from '@/Components/UI/ToastContainer.vue';
 
@@ -185,6 +186,7 @@ const sections = computed(() => {
                 { key: 'customers',     label: 'Customers',     href: '/customers',  icon: IconUsers },
                 { key: 'invoices',      label: 'Invoices',      href: '/invoices',   icon: IconReceipt,    badge: invoicesBadge.value },
                 { key: 'subscriptions', label: 'Subscriptions', href: '/subscriptions', icon: IconCreditCard },
+                { key: 'domains',       label: 'Domains',       href: '/domains',    icon: IconWorld },
                 { key: 'analytics',     label: 'Analytics',     href: '/analytics',  icon: IconChartLine },
                 { key: 'referrers',     label: 'Referrers',     href: '/referrers',  icon: IconUsersGroup },
                 { key: 'provisioning',  label: 'Provisioning',  href: '/provisioning', icon: IconLayoutGrid },

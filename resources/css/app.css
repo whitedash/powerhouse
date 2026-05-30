@@ -10164,3 +10164,205 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     color: var(--accent);
     text-decoration: underline;
 }
+
+/* === Domains === */
+/* Scoped to .domains so only the Domains index picks these up. The page
+   reuses the global .summary-strip / .stat-pill / .filter-bar / .table-card
+   / .tbl / .warn-pill / .badge-* / .dd-menu / .slide-over / .tbl-foot /
+   .pg-btn primitives — only the domain-specific cell chrome lives here. */
+.domains .cf-warn {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--warning-bg);
+    border: 1px solid #FDE68A;
+    border-radius: var(--radius-md);
+    color: #92400E;
+    font: 500 12.5px/1.4 'Inter', sans-serif;
+}
+.domains .cf-warn svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+/* Domain cell */
+.domains .dm-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.domains .dm-mono {
+    font: 600 13px/1.3 'JetBrains Mono', monospace;
+    color: var(--text-primary);
+    letter-spacing: -.005em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.domains .dm-cf {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(243, 128, 32, .12);
+    color: #C2410C;
+    font: 700 9.5px/1.4 'JetBrains Mono', monospace;
+    letter-spacing: .04em;
+    flex-shrink: 0;
+}
+.domains .dm-proxied {
+    color: #F38020;
+    font-size: 12px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+/* Customer cell */
+.domains .dm-cust {
+    font: 500 13px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -.005em;
+}
+.domains .dm-cust:hover { color: var(--accent); text-decoration: underline; }
+
+/* Registrar cell */
+.domains .dm-reg {
+    font: 500 12.5px/1.3 'Inter', sans-serif;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+/* Muted helper text inside table */
+.domains .muted { color: var(--text-tertiary); }
+.domains .muted.small {
+    font: 400 12px/1.3 'Inter', sans-serif;
+    color: var(--text-tertiary);
+}
+
+/* Empty state (table + DNS slide-over) */
+.domains .dm-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--text-tertiary);
+    font: 400 13px/1.5 'Inter', sans-serif;
+}
+.domains .dm-empty svg { color: var(--text-tertiary); margin-bottom: 4px; }
+.domains .dm-empty h3 {
+    font: 600 14px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+    margin: 0;
+}
+.domains .dm-empty p { margin: 0; }
+.domains .dm-empty.small {
+    padding: 28px 16px;
+    font: 400 12.5px/1.5 'Inter', sans-serif;
+}
+
+/* DNS records table inside the slide-over */
+.domains .dns-tbl {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #fff;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+.domains .dns-tbl thead th {
+    text-align: left;
+    padding: 9px 12px;
+    background: var(--neutral-bg);
+    border-bottom: 1px solid var(--border-soft);
+    font: 500 10px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+}
+.domains .dns-tbl tbody td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: middle;
+    font: 400 12.5px/1.4 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.domains .dns-tbl tbody tr:last-child td { border-bottom: 0; }
+.domains .dns-tbl tbody tr:nth-child(even) td { background: #FAFBFC; }
+.domains .dns-tbl .dns-type {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font: 600 10.5px/1.3 'JetBrains Mono', monospace;
+    letter-spacing: .02em;
+    background: var(--neutral-bg);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+.domains .dns-tbl .dns-type.a     { background: var(--info-bg); color: #1D4ED8; border-color: transparent; }
+.domains .dns-tbl .dns-type.aaaa  { background: var(--info-bg); color: #1D4ED8; border-color: transparent; }
+.domains .dns-tbl .dns-type.cname { background: var(--success-bg); color: #047857; border-color: transparent; }
+.domains .dns-tbl .dns-type.mx    { background: rgba(245,158,11,.16); color: #92400E; border-color: transparent; }
+.domains .dns-tbl .dns-type.txt   { background: var(--neutral-bg); color: var(--text-secondary); }
+.domains .dns-tbl .dns-type.ns    { background: rgba(124, 58, 237, .12); color: #6D28D9; border-color: transparent; }
+.domains .dns-tbl .dns-name {
+    font: 500 12.5px/1.3 'JetBrains Mono', monospace;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}
+.domains .dns-tbl .dns-content {
+    font: 400 12px/1.4 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+    word-break: break-all;
+}
+.domains .dns-tbl .dns-ttl {
+    font-variant-numeric: tabular-nums;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+}
+.domains .dns-tbl .dns-proxy {
+    text-align: center;
+    color: var(--text-tertiary);
+}
+.domains .dns-tbl .dns-proxy.on { color: #F38020; }
+.domains .dns-tbl .dns-proxy svg { width: 15px; height: 15px; }
+
+/* DNS slide-over footer link */
+.domains .dns-foot {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: var(--neutral-bg);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font: 400 12px/1.3 'Inter', sans-serif;
+    color: var(--text-tertiary);
+}
+.domains .dns-foot a {
+    color: var(--accent);
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    text-decoration: none;
+}
+.domains .dns-foot a:hover { text-decoration: underline; }
+

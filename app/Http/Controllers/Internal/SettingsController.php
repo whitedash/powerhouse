@@ -13,6 +13,7 @@ use App\Models\Setting;
 use App\Models\SupportTicket;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\CloudflareService;
 use App\Services\ReminderTemplateService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -465,14 +466,18 @@ class SettingsController extends Controller
         }
 
         if ($name === 'cloudflare') {
-            $ok = ! empty(config('services.cloudflare.token'));
+            // Actually hit /user/tokens/verify rather than just
+            // checking the env var is non-empty — a typo'd token
+            // would otherwise be reported as healthy until the next
+            // domain refresh failed.
+            $ok = app(CloudflareService::class)->testConnection();
             $this->logActivity($request, 'settings.integration_tested', 'integration', 0, after: [
                 'name' => $name, 'ok' => $ok,
             ]);
 
             return back()->with(
                 $ok ? 'success' : 'error',
-                $ok ? 'Cloudflare connection looks healthy.' : 'Cloudflare API token is not set.',
+                $ok ? 'Cloudflare token verified.' : 'Cloudflare token missing or invalid.',
             );
         }
 

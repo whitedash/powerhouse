@@ -199,6 +199,19 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // the artisan generator from cloning it again.
     Route::post('/invoices/{id}/stop-recurring', [InternalInvoiceController::class, 'stopRecurring'])->name('internal.invoices.stop-recurring');
     Route::get('/domains', [InternalDomainController::class, 'index'])->name('internal.domains.index');
+    Route::post('/domains', [InternalDomainController::class, 'store'])->name('internal.domains.store');
+    Route::put('/domains/{id}', [InternalDomainController::class, 'update'])
+        ->whereNumber('id')
+        ->name('internal.domains.update');
+    Route::delete('/domains/{id}', [InternalDomainController::class, 'destroy'])
+        ->whereNumber('id')
+        ->name('internal.domains.destroy');
+    Route::post('/domains/{id}/check', [InternalDomainController::class, 'checkHealth'])
+        ->whereNumber('id')
+        ->name('internal.domains.check');
+    Route::get('/domains/{id}/dns', [InternalDomainController::class, 'dnsRecords'])
+        ->whereNumber('id')
+        ->name('internal.domains.dns');
     Route::get('/analytics', [InternalAnalyticsController::class, 'index'])->name('internal.analytics.index');
 
     // Product overview pages — one per product, navigated to from

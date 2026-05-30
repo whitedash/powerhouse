@@ -14,11 +14,17 @@ use Illuminate\Support\Carbon;
  * @property string|null $registrar
  * @property bool $is_in_cloudflare
  * @property bool $is_proxied
+ * @property Carbon|null $registered_at
+ * @property bool $auto_renew
+ * @property string $status
  * @property Carbon|null $expiry_date
  * @property Carbon|null $ssl_expiry_date
+ * @property string $ssl_status
+ * @property array<int, string>|null $nameservers
  * @property string|null $hosting_provider
  * @property Carbon|null $hosting_renewal_date
  * @property string|null $hosting_notes
+ * @property string|null $notes
  * @property Carbon|null $last_synced_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -33,11 +39,17 @@ class Domain extends Model
         'registrar',
         'is_in_cloudflare',
         'is_proxied',
+        'registered_at',
+        'auto_renew',
+        'status',
         'expiry_date',
         'ssl_expiry_date',
+        'ssl_status',
+        'nameservers',
         'hosting_provider',
         'hosting_renewal_date',
         'hosting_notes',
+        'notes',
         'last_synced_at',
     ];
 
@@ -46,10 +58,13 @@ class Domain extends Model
         return [
             'is_in_cloudflare' => 'boolean',
             'is_proxied' => 'boolean',
+            'auto_renew' => 'boolean',
+            'registered_at' => 'date',
             'expiry_date' => 'date',
             'ssl_expiry_date' => 'date',
             'hosting_renewal_date' => 'date',
             'last_synced_at' => 'datetime',
+            'nameservers' => 'array',
         ];
     }
 

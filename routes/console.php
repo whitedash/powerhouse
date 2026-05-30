@@ -47,3 +47,12 @@ Schedule::command('support:close-inactive')
     ->timezone('Europe/London')
     ->withoutOverlapping()
     ->runInBackground();
+
+// Refresh Cloudflare zone + SSL state and recompute domain status.
+// Runs before the morning invoice + reminder sweeps so the
+// dashboard "Domains expiring" KPI is current by 09:00.
+Schedule::command('domains:check-health')
+    ->dailyAt('06:00')
+    ->timezone('Europe/London')
+    ->withoutOverlapping()
+    ->runInBackground();
