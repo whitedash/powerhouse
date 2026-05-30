@@ -19,6 +19,7 @@ use App\Http\Controllers\Internal\ProductPlanController as InternalProductPlanCo
 use App\Http\Controllers\Internal\ProductPlanPriceController as InternalProductPlanPriceController;
 use App\Http\Controllers\Internal\ProvisioningController as InternalProvisioningController;
 use App\Http\Controllers\Internal\ReferrerController as InternalReferrerController;
+use App\Http\Controllers\Internal\SearchController as InternalSearchController;
 use App\Http\Controllers\Internal\SettingsController as InternalSettingsController;
 use App\Http\Controllers\Internal\SubscriptionController as InternalSubscriptionController;
 use App\Http\Controllers\Internal\SupportController as InternalSupportController;
@@ -54,6 +55,10 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         Route::get('/referrers/{id}', [InternalReferrerController::class, 'show'])
             ->whereNumber('id')
             ->name('internal.referrers.show');
+        // Global topbar search — JSON endpoint, queries multiple
+        // models with LIKE. Cheap enough at our scale to live under
+        // the same throttle as the list endpoints.
+        Route::get('/search', [InternalSearchController::class, 'search'])->name('internal.search');
     });
 
     // Mutations live outside the throttle group — bulk approvals can

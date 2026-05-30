@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
     Menu,
@@ -34,6 +34,8 @@ import {
     IconAlertTriangle,
     IconClock,
     IconTicket,
+    IconUser,
+    IconLoader2,
 } from '@tabler/icons-vue';
 import ToastContainer from '@/Components/UI/ToastContainer.vue';
 
@@ -206,6 +208,146 @@ const lastCrumbIndex = computed(() => visibleCrumbs.value.length - 1);
 function logout() {
     router.post('/logout');
 }
+
+/* ─────────────────────────────────────────────────────────────────
+ * GLOBAL SEARCH (⌘K)
+ *
+ * 300ms debounced fetch to /search. The endpoint returns a flat
+ * list of { type, icon, colour, title, sub, url } rows that the
+ * dropdown renders verbatim. We don't trust the icon string — it's
+ * an enum that maps to a component on the client side so the
+ * server can't push arbitrary components into the page.
+ * ──────────────────────────────────────────────────────────────── */
+const searchInput = ref(null);
+const searchQuery = ref('');
+const searchResults = ref([]);
+const searchLoading = ref(false);
+const showResults = ref(false);
+let searchTimer = null;
+
+// Map server-emitted icon string → Tabler component. Anything not
+// in the map falls back to a neutral marker so a typo doesn't crash
+// the dropdown render.
+const SEARCH_ICON_MAP = {
+    'building-store': IconBuildingStore,
+    receipt: IconReceipt,
+    user: IconUser,
+    headset: IconHeadset,
+    box: IconBox,
+};
+function searchIcon(name) {
+    return SEARCH_ICON_MAP[name] ?? IconSearch;
+}
+
+const SEARCH_TYPE_LABEL = {
+    customer: 'Customer',
+    invoice: 'Invoice',
+    contact: 'Contact',
+    ticket: 'Ticket',
+    product: 'Product',
+};
+
+async function runSearch() {
+    const q = searchQuery.value.trim();
+    if (q.length < 2) {
+        searchResults.value = [];
+        showResults.value = false;
+        searchLoading.value = false;
+
+        return;
+    }
+    searchLoading.value = true;
+    try {
+        const res = await fetch(`/search?q=${encodeURIComponent(q)}`, {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+        if (! res.ok) {
+            searchResults.value = [];
+            showResults.value = true;
+            searchLoading.value = false;
+
+            return;
+        }
+        const data = await res.json();
+        // Race-guard: discard if the user already typed past this
+        // query while we were waiting on the network.
+        if (data.query === searchQuery.value.trim()) {
+            searchResults.value = data.results ?? [];
+            showResults.value = true;
+        }
+    } catch (e) {
+        searchResults.value = [];
+        showResults.value = true;
+    } finally {
+        searchLoading.value = false;
+    }
+}
+
+function onSearch() {
+    clearTimeout(searchTimer);
+    if (searchQuery.value.trim().length < 2) {
+        searchResults.value = [];
+        showResults.value = false;
+        searchLoading.value = false;
+
+        return;
+    }
+    // Show the dropdown immediately with the loading state so the
+    // operator sees feedback before the request resolves.
+    showResults.value = true;
+    searchLoading.value = true;
+    searchTimer = setTimeout(runSearch, 300);
+}
+
+function pickResult(result) {
+    showResults.value = false;
+    searchQuery.value = '';
+    searchResults.value = [];
+    router.visit(result.url);
+}
+
+function closeSearchResults() {
+    showResults.value = false;
+}
+
+// ⌘K / Ctrl-K focuses the search input from anywhere on the page.
+// Esc closes the dropdown when it's open.
+function onKeydown(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInput.value?.focus();
+        searchInput.value?.select();
+
+        return;
+    }
+    if (e.key === 'Escape' && showResults.value) {
+        showResults.value = false;
+    }
+}
+
+// Click-outside-to-close. The wrapper carries the click so clicks
+// on results don't immediately dismiss before pickResult fires.
+function onDocClick(e) {
+    if (! showResults.value) return;
+    const wrapper = searchInput.value?.closest('.search-wrapper');
+    if (wrapper && ! wrapper.contains(e.target)) {
+        showResults.value = false;
+    }
+}
+
+onMounted(() => {
+    document.addEventListener('keydown', onKeydown);
+    document.addEventListener('click', onDocClick);
+});
+onBeforeUnmount(() => {
+    document.removeEventListener('keydown', onKeydown);
+    document.removeEventListener('click', onDocClick);
+    clearTimeout(searchTimer);
+});
 </script>
 
 <template>
@@ -287,10 +429,50 @@ function logout() {
                     <slot name="topbar-actions" />
                     <div v-if="$slots['topbar-actions']" class="divider-v" />
 
-                    <div class="topbar-search">
-                        <span class="search-icon"><IconSearch :size="18" stroke-width="1.75" /></span>
-                        <input placeholder="Search customers, invoices, products…">
-                        <span class="kbd">⌘K</span>
+                    <div class="search-wrapper">
+                        <div class="topbar-search">
+                            <span class="search-icon"><IconSearch :size="18" stroke-width="1.75" /></span>
+                            <input
+                                id="global-search"
+                                ref="searchInput"
+                                v-model="searchQuery"
+                                placeholder="Search customers, invoices, products…"
+                                autocomplete="off"
+                                @input="onSearch"
+                                @focus="searchQuery.length >= 2 && (showResults = true)"
+                            >
+                            <span class="kbd">⌘K</span>
+                        </div>
+                        <div v-if="showResults" class="search-results">
+                            <div v-if="searchLoading" class="search-loading">
+                                <IconLoader2 :size="14" stroke-width="2" class="search-spin" />
+                                Searching…
+                            </div>
+                            <template v-else>
+                                <button
+                                    v-for="(r, i) in searchResults"
+                                    :key="`${r.type}-${i}-${r.url}`"
+                                    type="button"
+                                    class="search-result-item"
+                                    @click="pickResult(r)"
+                                >
+                                    <span
+                                        class="search-result-icon"
+                                        :style="{ background: r.colour }"
+                                    >
+                                        <component :is="searchIcon(r.icon)" :size="14" stroke-width="1.75" />
+                                    </span>
+                                    <div class="search-result-body">
+                                        <div class="search-result-title">{{ r.title }}</div>
+                                        <div class="search-result-sub">{{ r.sub }}</div>
+                                    </div>
+                                    <span class="search-result-type">{{ SEARCH_TYPE_LABEL[r.type] ?? r.type }}</span>
+                                </button>
+                                <div v-if="searchResults.length === 0" class="search-empty">
+                                    No results for "{{ searchQuery }}"
+                                </div>
+                            </template>
+                        </div>
                     </div>
 
                     <Menu as="div" class="bell-menu">
