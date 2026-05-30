@@ -157,10 +157,28 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true, preserveSt
         <div class="projects-list">
             <!-- ─── Topbar actions ─── -->
             <div class="page-actions">
-                <label class="toggle" :class="{ on: assignedToMe }">
-                    <input type="checkbox" v-model="assignedToMe" />
-                    <span>My projects only</span>
-                </label>
+                <!--
+                    Dedicated .my-projects-toggle replaces the generic
+                    .toggle label-wrap that flex-collapsed (no nowrap on
+                    the wrapper + native checkbox rendering raw). Watcher
+                    on assignedToMe still drives the navigate() call, so
+                    clicking flips the value and the filter follows.
+                -->
+                <div
+                    class="my-projects-toggle"
+                    :class="{ active: assignedToMe }"
+                    role="switch"
+                    :aria-checked="assignedToMe"
+                    tabindex="0"
+                    @click="assignedToMe = ! assignedToMe"
+                    @keydown.space.prevent="assignedToMe = ! assignedToMe"
+                    @keydown.enter.prevent="assignedToMe = ! assignedToMe"
+                >
+                    <div class="mpt-switch">
+                        <div class="mpt-knob" />
+                    </div>
+                    <span class="mpt-label">My projects</span>
+                </div>
                 <button type="button" class="btn btn-primary" @click="openCreate">
                     <IconPlus :size="16" stroke-width="2" />
                     New project

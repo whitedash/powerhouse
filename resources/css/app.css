@@ -10646,6 +10646,57 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
 .projects-list .stat-pill .d.green { background: var(--success); }
 .projects-list .stat-pill .d.red   { background: var(--danger); }
 
+/* "My projects" toggle on the Projects index topbar.
+   Replaces the generic .toggle slider, which has no label
+   accommodation — wrapping a <span> next to a native checkbox
+   caused both the box and the text to render raw and flex-collapse.
+   This is a dedicated label-aware switch: the whole row is the
+   click target, white-space: nowrap stops the label folding,
+   flex-shrink: 0 on the switch keeps the track from squashing. */
+.my-projects-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    padding: 4px;
+    border-radius: var(--radius-md);
+    transition: background .15s;
+}
+.my-projects-toggle:hover { background: var(--neutral-bg); }
+.my-projects-toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+.my-projects-toggle .mpt-switch {
+    width: 36px;
+    height: 20px;
+    border-radius: 999px;
+    background: var(--border);
+    position: relative;
+    transition: background .2s;
+    flex-shrink: 0;
+}
+.my-projects-toggle.active .mpt-switch { background: var(--accent); }
+.my-projects-toggle .mpt-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .2);
+    transition: transform .2s;
+}
+.my-projects-toggle.active .mpt-knob { transform: translateX(16px); }
+.my-projects-toggle .mpt-label {
+    font: 500 13px/1 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.my-projects-toggle.active .mpt-label { color: var(--accent); }
+
 .projects-list .filter-bar {
     display: flex; align-items: center; gap: 12px;
     padding: 12px 14px;

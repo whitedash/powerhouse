@@ -205,6 +205,11 @@ class TaskController extends Controller
                 'customer_id' => $data['customer_id'] ?? null,
                 'contact_id' => $data['contact_id'] ?? null,
                 'parent_task_id' => $data['parent_task_id'] ?? null,
+                // Project + milestone — set by the kanban quick-add
+                // and the project Tasks-tab "+ Add task" affordance.
+                // CRM tasks (no project) leave both null.
+                'project_id' => $data['project_id'] ?? null,
+                'milestone_id' => $data['milestone_id'] ?? null,
                 'assigned_to' => $data['assigned_to'] ?? $userId,
                 'created_by' => $userId,
                 // 'todo' is the new "open" — the entry state for the
@@ -479,6 +484,13 @@ class TaskController extends Controller
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
             'due_at' => ['nullable', 'date'],
             'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:480'],
+            // PM Sprint 1 fields. Validation lists them so
+            // $request->validate() doesn't strip them from $data —
+            // without these, the kanban quick-add POSTs a project_id
+            // and the controller silently writes NULL, hiding the
+            // task from the project it was meant to belong to.
+            'project_id' => ['nullable', 'integer', 'exists:projects,id'],
+            'milestone_id' => ['nullable', 'integer', 'exists:milestones,id'],
         ];
     }
 
