@@ -59,7 +59,7 @@ return [
     'oauth_clients' => [
         'maavelus_id' => env('MAAVELUS_OAUTH_ID', '019e6f1a-c6b2-738b-a483-a7a51cb22742'),
         'maavelus_secret' => env('MAAVELUS_OAUTH_SECRET'),
-        'maavelus_redirect' => env('MAAVELUS_OAUTH_REDIRECT', 'https://maavelus.com/oauth/callback'),
+        'maavelus_redirect' => env('MAAVELUS_OAUTH_REDIRECT', 'https://restaurant.maavelus.co.uk/oauth/callback'),
 
         'myorderpad_id' => env('MYORDERPAD_OAUTH_ID', '019e6f1a-c841-7275-83b5-16f8b9697033'),
         'myorderpad_secret' => env('MYORDERPAD_OAUTH_SECRET'),

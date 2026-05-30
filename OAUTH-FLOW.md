@@ -11,7 +11,7 @@ Existing OAuth clients (Passport v12 UUIDs):
 | Name                          | client_id (UUID)                       | Redirect URI                          |
 |-------------------------------|----------------------------------------|---------------------------------------|
 | Whitedash Customer Portal     | `019e6f1a-c524-718f-83b5-001ad023f194` | `http://localhost:8000/account/oauth/callback` |
-| Maavelus Control Panel        | `019e6f1a-c6b2-738b-a483-a7a51cb22742` | `https://maavelus.com/oauth/callback` |
+| Maavelus Control Panel        | `019e6f1a-c6b2-738b-a483-a7a51cb22742` | `https://restaurant.maavelus.co.uk/oauth/callback` |
 | MyOrderPad                    | `019e6f1a-c841-7275-83b5-16f8b9697033` | `https://myorderpad.com/oauth/callback` |
 
 Secrets are server-side only — fetch from `.env`
@@ -180,14 +180,14 @@ the access token after Step 2 is what actually proves identity.
 
 ```sh
 # 1. Browser-driven authorize page
-open 'http://powerhouse.test/oauth/authorize?client_id=019e6f1a-c6b2-738b-a483-a7a51cb22742&redirect_uri=https%3A%2F%2Fmaavelus.com%2Foauth%2Fcallback&response_type=code&scope=profile+maavelus&state=test123&code_challenge=<S256_HASH>&code_challenge_method=S256'
+open 'http://powerhouse.test/oauth/authorize?client_id=019e6f1a-c6b2-738b-a483-a7a51cb22742&redirect_uri=https%3A%2F%2Frestaurant.maavelus.co.uk%2Foauth%2Fcallback&response_type=code&scope=profile+maavelus&state=test123&code_challenge=<S256_HASH>&code_challenge_method=S256'
 
 # 2. Exchange the returned ?code=… for a token (curl)
 curl -X POST http://powerhouse.test/oauth/token \
   -d 'grant_type=authorization_code' \
   -d 'client_id=019e6f1a-c6b2-738b-a483-a7a51cb22742' \
   -d 'client_secret=$MAAVELUS_OAUTH_SECRET' \
-  -d 'redirect_uri=https://maavelus.com/oauth/callback' \
+  -d 'redirect_uri=https://restaurant.maavelus.co.uk/oauth/callback' \
   -d 'code_verifier=<PKCE_VERIFIER>' \
   -d "code=$CODE"
 
