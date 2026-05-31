@@ -350,20 +350,23 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
 
     Route::get('/invoices/new', [InternalInvoiceController::class, 'create'])->name('internal.invoices.create');
     Route::post('/invoices', [InternalInvoiceController::class, 'store'])->name('internal.invoices.store');
-    Route::get('/invoices/{id}', [InternalInvoiceController::class, 'show'])->name('internal.invoices.show');
-    Route::get('/invoices/{id}/edit', [InternalInvoiceController::class, 'edit'])->name('internal.invoices.edit');
-    Route::put('/invoices/{id}', [InternalInvoiceController::class, 'update'])->name('internal.invoices.update');
-    Route::get('/invoices/{id}/pdf', [InternalInvoiceController::class, 'downloadPdf'])->name('internal.invoices.pdf');
-    Route::get('/invoices/{id}/preview-pdf', [InternalInvoiceController::class, 'previewPdf'])->name('internal.invoices.preview-pdf');
-    Route::post('/invoices/{id}/mark-paid', [InternalInvoiceController::class, 'markPaid'])->name('internal.invoices.mark-paid');
-    Route::post('/invoices/{id}/void', [InternalInvoiceController::class, 'voidInvoice'])->name('internal.invoices.void');
-    Route::post('/invoices/{id}/send', [InternalInvoiceController::class, 'sendInvoice'])->name('internal.invoices.send');
-    Route::post('/invoices/{id}/send-reminder', [InternalInvoiceController::class, 'sendReminder'])->name('internal.invoices.send-reminder');
-    Route::post('/invoices/{id}/pause-reminders', [InternalInvoiceController::class, 'pauseReminders'])->name('internal.invoices.pause-reminders');
-    Route::post('/invoices/{id}/resume-reminders', [InternalInvoiceController::class, 'resumeReminders'])->name('internal.invoices.resume-reminders');
+    // `{id}` is constrained to digits so literal segments (e.g.
+    // /invoices/new — declared above) and probes never fall through to
+    // show() and trip its `int $id` type hint with a 500. Bad IDs 404.
+    Route::get('/invoices/{id}', [InternalInvoiceController::class, 'show'])->whereNumber('id')->name('internal.invoices.show');
+    Route::get('/invoices/{id}/edit', [InternalInvoiceController::class, 'edit'])->whereNumber('id')->name('internal.invoices.edit');
+    Route::put('/invoices/{id}', [InternalInvoiceController::class, 'update'])->whereNumber('id')->name('internal.invoices.update');
+    Route::get('/invoices/{id}/pdf', [InternalInvoiceController::class, 'downloadPdf'])->whereNumber('id')->name('internal.invoices.pdf');
+    Route::get('/invoices/{id}/preview-pdf', [InternalInvoiceController::class, 'previewPdf'])->whereNumber('id')->name('internal.invoices.preview-pdf');
+    Route::post('/invoices/{id}/mark-paid', [InternalInvoiceController::class, 'markPaid'])->whereNumber('id')->name('internal.invoices.mark-paid');
+    Route::post('/invoices/{id}/void', [InternalInvoiceController::class, 'voidInvoice'])->whereNumber('id')->name('internal.invoices.void');
+    Route::post('/invoices/{id}/send', [InternalInvoiceController::class, 'sendInvoice'])->whereNumber('id')->name('internal.invoices.send');
+    Route::post('/invoices/{id}/send-reminder', [InternalInvoiceController::class, 'sendReminder'])->whereNumber('id')->name('internal.invoices.send-reminder');
+    Route::post('/invoices/{id}/pause-reminders', [InternalInvoiceController::class, 'pauseReminders'])->whereNumber('id')->name('internal.invoices.pause-reminders');
+    Route::post('/invoices/{id}/resume-reminders', [InternalInvoiceController::class, 'resumeReminders'])->whereNumber('id')->name('internal.invoices.resume-reminders');
     // Cancels a recurring template. Doesn't void the row — just stops
     // the artisan generator from cloning it again.
-    Route::post('/invoices/{id}/stop-recurring', [InternalInvoiceController::class, 'stopRecurring'])->name('internal.invoices.stop-recurring');
+    Route::post('/invoices/{id}/stop-recurring', [InternalInvoiceController::class, 'stopRecurring'])->whereNumber('id')->name('internal.invoices.stop-recurring');
     Route::get('/domains', [InternalDomainController::class, 'index'])->name('internal.domains.index');
     // WHOIS lookup — fires from the Add/Edit slide-over BEFORE the
     // domain row exists, so it has no {id} segment. Sits ahead of

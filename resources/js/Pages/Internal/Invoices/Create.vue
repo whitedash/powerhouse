@@ -577,7 +577,13 @@ function handleDiscard() {
                             <span class="x" />
                         </div>
 
-                        <div v-for="(line, idx) in form.lines" :key="idx" class="li-row">
+                        <!-- One container per line item: the grid row PLUS its
+                             optional discount sub-row. The v-for lives on this
+                             wrapper (not on .li-row) so `line` stays in scope for
+                             the discount controls below — .li-row is a fixed
+                             5-column grid and can't host the discount row. -->
+                        <div v-for="(line, idx) in form.lines" :key="idx" class="li-item">
+                        <div class="li-row">
                             <div class="li-desc">
                                 <input
                                     v-model="line.description"
@@ -688,6 +694,7 @@ function handleDiscard() {
                         <button v-else type="button" class="add-line-discount" @click="line.discount_type = 'percentage'">
                             + Discount
                         </button>
+                        </div>
 
                         <button
                             type="button"
