@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\ProductPlan;
 use App\Models\ProductPlanCategory;
 use App\Models\ProductPlanPrice;
+use App\Models\Supplier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -34,6 +35,7 @@ class ProductController extends Controller
                 'planCategories',
                 'plans' => fn ($q) => $q->with(['activePrices'])->orderBy('sort_order'),
                 'billingEntity:id,name',
+                'suppliers',
             ])
             ->get()
             ->map(fn (Product $p): array => [
@@ -52,6 +54,17 @@ class ProductController extends Controller
                 'sort_order' => $p->sort_order,
                 'active_customers' => (int) ($p->active_customers ?? 0),
                 'total_customers' => (int) ($p->total_customers ?? 0),
+                // Underlying cost lines — drive the margin summary on the
+                // product detail page. cost_per_unit is the raw interval
+                // cost; the Vue amortises it to a monthly figure.
+                'suppliers' => $p->suppliers->map(fn (Supplier $s): array => [
+                    'id' => $s->id,
+                    'name' => $s->name,
+                    'type' => $s->type,
+                    'cost_per_unit' => (float) $s->pivot->cost_per_unit,
+                    'billing_interval' => $s->pivot->billing_interval,
+                    'notes' => $s->pivot->notes,
+                ])->values()->all(),
                 'plan_categories' => $p->planCategories->map(fn (ProductPlanCategory $c): array => [
                     'id' => $c->id,
                     'name' => $c->name,
@@ -99,9 +112,16 @@ class ProductController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        // Active suppliers for the "link a cost" picker on the product
+        // detail page.
+        $suppliers = Supplier::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'type']);
+
         return Inertia::render('Internal/Settings/Products', [
             'products' => $products,
             'billing_entities' => $billingEntities,
+            'suppliers' => $suppliers,
         ]);
     }
 

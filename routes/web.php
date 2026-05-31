@@ -18,15 +18,16 @@ use App\Http\Controllers\Internal\LeadController as InternalLeadController;
 use App\Http\Controllers\Internal\MaavelusStatementController as InternalMaavelusStatementController;
 use App\Http\Controllers\Internal\MilestoneController as InternalMilestoneController;
 use App\Http\Controllers\Internal\MyAccountController as InternalMyAccountController;
-use App\Http\Controllers\Internal\NotificationController as InternalNotificationController;
 use App\Http\Controllers\Internal\MyWorkController as InternalMyWorkController;
 use App\Http\Controllers\Internal\NoteController as InternalNoteController;
+use App\Http\Controllers\Internal\NotificationController as InternalNotificationController;
 use App\Http\Controllers\Internal\PaymentScheduleController as InternalPaymentScheduleController;
 use App\Http\Controllers\Internal\ProductController as InternalProductController;
 use App\Http\Controllers\Internal\ProductOverviewController as InternalProductOverviewController;
 use App\Http\Controllers\Internal\ProductPlanCategoryController as InternalProductPlanCategoryController;
 use App\Http\Controllers\Internal\ProductPlanController as InternalProductPlanController;
 use App\Http\Controllers\Internal\ProductPlanPriceController as InternalProductPlanPriceController;
+use App\Http\Controllers\Internal\ProductSupplierController as InternalProductSupplierController;
 use App\Http\Controllers\Internal\ProjectController as InternalProjectController;
 use App\Http\Controllers\Internal\ProposalController as InternalProposalController;
 use App\Http\Controllers\Internal\ProvisioningController as InternalProvisioningController;
@@ -34,6 +35,7 @@ use App\Http\Controllers\Internal\ReferrerController as InternalReferrerControll
 use App\Http\Controllers\Internal\SearchController as InternalSearchController;
 use App\Http\Controllers\Internal\SettingsController as InternalSettingsController;
 use App\Http\Controllers\Internal\SubscriptionController as InternalSubscriptionController;
+use App\Http\Controllers\Internal\SupplierController as InternalSupplierController;
 use App\Http\Controllers\Internal\SupportController as InternalSupportController;
 use App\Http\Controllers\Internal\TaskController as InternalTaskController;
 use App\Http\Controllers\Internal\TimeEntryController as InternalTimeEntryController;
@@ -321,6 +323,18 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
             ->whereNumber('id')->name('receipt');
     });
 
+    // ─── Suppliers ───
+    // Vendor register. CRUD only; deletion is blocked server-side when
+    // expenses reference the supplier (deactivate instead).
+    Route::prefix('suppliers')->name('internal.suppliers.')->group(function () {
+        Route::get('/', [InternalSupplierController::class, 'index'])->name('index');
+        Route::post('/', [InternalSupplierController::class, 'store'])->name('store');
+        Route::put('/{id}', [InternalSupplierController::class, 'update'])
+            ->whereNumber('id')->name('update');
+        Route::delete('/{id}', [InternalSupplierController::class, 'destroy'])
+            ->whereNumber('id')->name('destroy');
+    });
+
     // My account — staff/super_admin self-service profile + password.
     // No role:super_admin gate; every staff member needs this.
     Route::get('/account', [InternalMyAccountController::class, 'show'])->name('internal.account.show');
@@ -491,6 +505,17 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         Route::post('/products/{id}/toggle', [InternalProductController::class, 'toggleActive'])->name('products.toggle');
         Route::post('/products/reorder', [InternalProductController::class, 'updateOrder'])->name('products.reorder');
         Route::get('/products/{id}/plans', [InternalProductController::class, 'plans'])->name('products.plans');
+
+        // Product cost lines — the product_suppliers pivot. Managed from
+        // the product detail page for margin tracking.
+        Route::get('/products/{id}/suppliers', [InternalProductSupplierController::class, 'index'])
+            ->whereNumber('id')->name('products.suppliers.index');
+        Route::post('/products/{id}/suppliers', [InternalProductSupplierController::class, 'store'])
+            ->whereNumber('id')->name('products.suppliers.store');
+        Route::put('/products/{id}/suppliers/{supplierId}', [InternalProductSupplierController::class, 'update'])
+            ->whereNumber('id')->whereNumber('supplierId')->name('products.suppliers.update');
+        Route::delete('/products/{id}/suppliers/{supplierId}', [InternalProductSupplierController::class, 'destroy'])
+            ->whereNumber('id')->whereNumber('supplierId')->name('products.suppliers.destroy');
 
         Route::post('/plans', [InternalProductPlanController::class, 'store'])->name('plans.store');
         Route::put('/plans/{id}', [InternalProductPlanController::class, 'update'])->name('plans.update');

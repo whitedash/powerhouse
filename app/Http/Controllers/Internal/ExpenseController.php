@@ -8,6 +8,7 @@ use App\Models\CommissionLedger;
 use App\Models\Customer;
 use App\Models\Expense;
 use App\Models\Project;
+use App\Models\Supplier;
 use App\Services\FileUploadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,6 +44,7 @@ class ExpenseController extends Controller
                 'createdBy:id,name',
                 'project:id,title',
                 'customer:id,name',
+                'supplier:id,name,type',
             ])
             ->when($request->string('category')->toString() !== '', fn ($q) => $q->where('category', $request->string('category')))
             ->when($request->string('status')->toString() !== '', fn ($q) => $q->where('status', $request->string('status')))
@@ -78,9 +80,16 @@ class ExpenseController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        // Active suppliers feed the expense form's supplier picker and
+        // drive the category/VAT auto-fill on the client side.
+        $suppliers = Supplier::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'type', 'default_expense_category', 'default_vat_rate']);
+
         return Inertia::render('Internal/Expenses/Index', [
             'expenses' => $expenses->through(fn (Expense $e): array => $this->map($e)),
             'summary' => $summary,
+            'suppliers' => $suppliers,
             'filters' => [
                 'category' => $request->string('category')->toString(),
                 'status' => $request->string('status')->toString(),
@@ -98,6 +107,18 @@ class ExpenseController extends Controller
     public function store(Request $request, FileUploadService $uploads): RedirectResponse
     {
         Gate::authorize('viewAny', Customer::class);
+
+        // When a supplier is chosen but no category was supplied, fall
+        // back to the supplier's default before validation runs so the
+        // stored row carries a sensible category.
+        if ($request->filled('supplier_id') && ! $request->filled('category')) {
+            // optional() keeps this null-safe at runtime (an invalid id
+            // is caught later by the exists rule) without the nullsafe
+            // operator larastan flags on find()'s non-null return type.
+            $request->merge([
+                'category' => optional(Supplier::find($request->integer('supplier_id')))->default_expense_category ?? 'other',
+            ]);
+        }
 
         $data = $this->validateRow($request);
 
@@ -263,7 +284,7 @@ class ExpenseController extends Controller
         return Expense::create([
             'category' => 'referral_commission',
             'description' => 'Referral commission — '.$referrerName.($customerName ? ' / '.$customerName : ''),
-            'supplier' => $referrerName,
+            'supplier_name' => $referrerName,
             'amount' => $entry->commission_amount,
             'vat_rate' => 0,
             'vat_amount' => 0,
@@ -290,7 +311,8 @@ class ExpenseController extends Controller
         $rules = [
             'category' => ['required', Rule::in(self::CATEGORIES)],
             'description' => 'required|string|max:255',
-            'supplier' => 'nullable|string|max:255',
+            'supplier_name' => 'nullable|string|max:255',
+            'supplier_id' => 'nullable|integer|exists:suppliers,id',
             'amount' => 'required|numeric|min:0',
             'vat_rate' => 'nullable|numeric|min:0|max:100',
             'expense_date' => 'required|date',
@@ -317,7 +339,10 @@ class ExpenseController extends Controller
             'id' => $e->id,
             'category' => $e->category,
             'description' => $e->description,
-            'supplier' => $e->supplier,
+            'supplier_id' => $e->supplier_id,
+            // Nullable belongsTo: branch with a truthy check (larastan
+            // types the relation non-null, so a nullsafe op is flagged).
+            'supplier_name' => $e->supplier ? $e->supplier->name : $e->supplier_name,
             'amount' => $e->amount,
             'vat_rate' => $e->vat_rate,
             'vat_amount' => $e->vat_amount,

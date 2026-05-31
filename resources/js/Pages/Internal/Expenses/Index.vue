@@ -18,7 +18,7 @@ import {
     IconReceipt2, IconCoins, IconDeviceDesktop, IconServer,
     IconSpeakerphone, IconBuilding, IconCar, IconTag, IconBox,
     IconAd, IconPaperclip, IconCircleCheck, IconCircleDashed,
-    IconDownload, IconAlertTriangle,
+    IconDownload, IconAlertTriangle, IconBuildingFactory2,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -29,6 +29,7 @@ const props = defineProps({
     filters: { type: Object, required: true },
     projects: { type: Array, default: () => [] },
     customers: { type: Array, default: () => [] },
+    suppliers: { type: Array, default: () => [] },
     categories: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
 });
@@ -82,7 +83,7 @@ const editingId = ref(null);
 const form = useForm({
     category: 'other',
     description: '',
-    supplier: '',
+    supplier_id: null,
     amount: '',
     vat_rate: 0,
     expense_date: new Date().toISOString().slice(0, 10),
@@ -105,7 +106,7 @@ function openEdit(e) {
     editingId.value = e.id;
     form.category = e.category;
     form.description = e.description;
-    form.supplier = e.supplier ?? '';
+    form.supplier_id = e.supplier_id ?? null;
     form.amount = e.amount;
     form.vat_rate = e.vat_rate;
     form.expense_date = e.expense_date_raw;
@@ -126,6 +127,23 @@ const vatAmountCalc = computed(() => {
     return Math.round(a * r) / 100;
 });
 const totalCalc = computed(() => Math.round((Number(form.amount || 0) + vatAmountCalc.value) * 100) / 100);
+
+/* When a supplier is picked, pull its defaults into the form: category
+ * (only if not already set), VAT rate, and description (only if empty). */
+function onSupplierSelected() {
+    const supplier = props.suppliers.find((s) => s.id === form.supplier_id);
+    if (! supplier) return;
+
+    if (! form.category || form.category === 'other') {
+        form.category = supplier.default_expense_category ?? form.category;
+    }
+    if (supplier.default_vat_rate !== null && supplier.default_vat_rate !== undefined) {
+        form.vat_rate = Number(supplier.default_vat_rate);
+    }
+    if (! form.description) {
+        form.description = supplier.name;
+    }
+}
 
 function submit() {
     if (editingId.value) {
@@ -253,7 +271,17 @@ function moneyGBP(value) {
                                     {{ categoryLabel(e.category) }}
                                 </span>
                             </td>
-                            <td>{{ e.supplier ?? '—' }}</td>
+                            <td>
+                                <Link v-if="e.supplier_id" :href="`/suppliers?search=${encodeURIComponent(e.supplier_name)}`" class="supplier-badge">
+                                    <IconBuildingFactory2 :size="13" stroke-width="2" />
+                                    {{ e.supplier_name }}
+                                </Link>
+                                <span v-else-if="e.supplier_name" class="supplier-badge plain">
+                                    <IconBuildingFactory2 :size="13" stroke-width="2" />
+                                    {{ e.supplier_name }}
+                                </span>
+                                <span v-else class="muted">—</span>
+                            </td>
                             <td class="num">{{ moneyGBP(e.amount) }}</td>
                             <td class="num muted small">{{ moneyGBP(e.vat_amount) }}</td>
                             <td class="num"><strong>{{ moneyGBP(e.total) }}</strong></td>
@@ -336,7 +364,14 @@ function moneyGBP(value) {
 
                         <div class="form-section">
                             <label class="form-label">Supplier</label>
-                            <input v-model="form.supplier" type="text" class="form-input" maxlength="255" placeholder="Vendor / payee name" />
+                            <select v-model="form.supplier_id" class="form-input" @change="onSupplierSelected">
+                                <option :value="null">Ad-hoc (no supplier)</option>
+                                <option v-for="s in suppliers" :key="s.id" :value="s.id">{{ s.name }}</option>
+                            </select>
+                            <p class="field-help">
+                                <Link href="/suppliers" target="_blank">Manage suppliers →</Link>
+                            </p>
+                            <p v-if="form.errors.supplier_id" class="form-error">{{ form.errors.supplier_id }}</p>
                         </div>
 
                         <div class="form-row-2">

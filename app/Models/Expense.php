@@ -10,7 +10,9 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $category
  * @property string $description
- * @property string|null $supplier
+ * @property string|null $supplier_name
+ * @property int|null $supplier_id
+ * @property string|null $qbo_bill_id
  * @property string $amount
  * @property string $vat_rate
  * @property string $vat_amount
@@ -31,6 +33,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Project|null $project
  * @property-read Customer|null $customer
+ * @property-read Supplier|null $supplier
  * @property-read CommissionLedger|null $commissionLedger
  * @property-read User $createdBy
  * @property-read User|null $approvedBy
@@ -40,7 +43,9 @@ class Expense extends Model
     protected $fillable = [
         'category',
         'description',
-        'supplier',
+        'supplier_name',
+        'supplier_id',
+        'qbo_bill_id',
         'amount',
         'vat_rate',
         'vat_amount',
@@ -96,6 +101,22 @@ class Expense extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    /**
+     * Display name for the payee: the linked supplier's name when an
+     * FK is set, otherwise the legacy/ad-hoc free-text field.
+     */
+    public function displaySupplierName(): ?string
+    {
+        // Nullable belongsTo — larastan types the relation non-null, so
+        // we branch with a truthy check rather than a nullsafe operator.
+        return $this->supplier ? $this->supplier->name : $this->supplier_name;
     }
 
     public function commissionLedger(): BelongsTo

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     Dialog,
     DialogPanel,
@@ -16,12 +16,16 @@ import {
     IconUsers,
     IconArrowRight,
     IconTag,
+    IconBuildingFactory2,
+    IconPencil,
+    IconTrash,
 } from '@tabler/icons-vue';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 
 const props = defineProps({
     products: { type: Array, default: () => [] },
+    suppliers: { type: Array, default: () => [] },
 });
 
 /* ─── Colour palette presets ─── */
@@ -146,6 +150,114 @@ const slugLocked = computed(() => (selectedProduct.value?.active_customers ?? 0)
 function goToPlans() {
     if (! selectedProduct.value) return;
     router.visit(`/settings/products/${selectedProduct.value.id}/plans`);
+}
+
+/* ───────────────────────────────────────────────────────────────
+ * Cost suppliers — the product_suppliers pivot + margin summary.
+ * ─────────────────────────────────────────────────────────────── */
+const INTERVAL_LABEL = { monthly: '/mo', quarterly: '/qtr', annually: '/yr', one_time: 'one-off' };
+
+function moneyGBP(value) {
+    return `£${Number(value || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/* Amortise a cost line to a per-month figure. One-off costs are not a
+ * recurring monthly burden, so they're excluded from the margin maths. */
+function monthlyCostOf(s) {
+    const c = Number(s.cost_per_unit || 0);
+    if (s.billing_interval === 'monthly') return c;
+    if (s.billing_interval === 'quarterly') return c / 3;
+    if (s.billing_interval === 'annually') return c / 12;
+
+    return 0;
+}
+
+const productSuppliers = computed(() => selectedProduct.value?.suppliers ?? []);
+
+const totalMonthlyCost = computed(() =>
+    productSuppliers.value.reduce((sum, s) => sum + monthlyCostOf(s), 0));
+
+/* Normalise any plan price to a monthly-equivalent revenue figure, then
+ * take the cheapest non-zero — the entry-level monthly revenue we
+ * compare the supplier cost against. */
+function priceToMonthly(p) {
+    const price = Number(p.price || 0);
+    const count = Number(p.interval_count || 1) || 1;
+    const unitMonths = { day: 1 / 30, week: 7 / 30, month: 1, year: 12 }[p.interval_unit] ?? 1;
+    const months = count * unitMonths;
+
+    return months > 0 ? price / months : 0;
+}
+
+const cheapestMonthlyRevenue = computed(() => {
+    const monthlies = (selectedProduct.value?.plans ?? [])
+        .flatMap((pl) => pl.prices ?? [])
+        .map(priceToMonthly)
+        .filter((v) => v > 0);
+
+    return monthlies.length ? Math.min(...monthlies) : 0;
+});
+
+const grossMargin = computed(() => cheapestMonthlyRevenue.value - totalMonthlyCost.value);
+const marginPct = computed(() => {
+    if (cheapestMonthlyRevenue.value <= 0) return null;
+
+    return Math.round((grossMargin.value / cheapestMonthlyRevenue.value) * 100);
+});
+
+/* ─── Add / edit supplier cost ─── */
+const showSupplierForm = ref(false);
+const editingSupplierId = ref(null);
+const supplierForm = useForm({
+    supplier_id: null,
+    cost_per_unit: '',
+    billing_interval: 'monthly',
+    notes: '',
+});
+
+/* Suppliers not yet linked to this product (for the add picker). */
+const availableSuppliers = computed(() => {
+    const linked = new Set(productSuppliers.value.map((s) => s.id));
+
+    return props.suppliers.filter((s) => !linked.has(s.id));
+});
+
+function openAddSupplier() {
+    editingSupplierId.value = null;
+    supplierForm.reset();
+    supplierForm.clearErrors();
+    showSupplierForm.value = true;
+}
+function openEditSupplier(s) {
+    editingSupplierId.value = s.id;
+    supplierForm.supplier_id = s.id;
+    supplierForm.cost_per_unit = s.cost_per_unit;
+    supplierForm.billing_interval = s.billing_interval;
+    supplierForm.notes = s.notes ?? '';
+    supplierForm.clearErrors();
+    showSupplierForm.value = true;
+}
+function submitSupplier() {
+    if (! selectedProduct.value) return;
+    const base = `/settings/products/${selectedProduct.value.id}/suppliers`;
+    const opts = { preserveScroll: true, onSuccess: () => { showSupplierForm.value = false; } };
+
+    if (editingSupplierId.value) {
+        supplierForm.put(`${base}/${editingSupplierId.value}`, opts);
+    } else {
+        supplierForm.post(base, opts);
+    }
+}
+
+const showRemoveSupplier = ref(false);
+const supplierToRemove = ref(null);
+function askRemoveSupplier(s) { supplierToRemove.value = s; showRemoveSupplier.value = true; }
+function confirmRemoveSupplier() {
+    if (! selectedProduct.value || ! supplierToRemove.value) return;
+    router.delete(`/settings/products/${selectedProduct.value.id}/suppliers/${supplierToRemove.value.id}`, {
+        preserveScroll: true,
+        onFinish: () => { showRemoveSupplier.value = false; supplierToRemove.value = null; },
+    });
 }
 </script>
 
@@ -418,6 +530,63 @@ function goToPlans() {
                         </div>
                         <IconArrowRight :size="16" stroke-width="1.75" class="plc-arrow" />
                     </button>
+
+                    <!-- COST SUPPLIERS -->
+                    <div class="sec-label">Cost suppliers</div>
+                    <div class="cost-suppliers">
+                        <div class="cs-head">
+                            <p class="cs-sub">Track the underlying costs for margin calculation.</p>
+                            <button type="button" class="btn btn-ghost btn-sm" @click="openAddSupplier">
+                                <IconPlus :size="14" stroke-width="1.75" />
+                                Add supplier
+                            </button>
+                        </div>
+
+                        <div v-if="productSuppliers.length > 0" class="cs-rows">
+                            <div v-for="s in productSuppliers" :key="s.id" class="cs-row">
+                                <div class="cs-left">
+                                    <div class="cs-icon"><IconBuildingFactory2 :size="16" stroke-width="1.75" /></div>
+                                    <div class="cs-meta">
+                                        <Link :href="`/suppliers?search=${encodeURIComponent(s.name)}`" class="cs-name">{{ s.name }}</Link>
+                                        <div v-if="s.notes" class="cs-notes">{{ s.notes }}</div>
+                                    </div>
+                                </div>
+                                <div class="cs-right">
+                                    <span class="cs-cost">{{ moneyGBP(s.cost_per_unit) }}<span class="cs-int">{{ INTERVAL_LABEL[s.billing_interval] }}</span></span>
+                                    <button type="button" class="icon-btn xs" title="Edit" @click="openEditSupplier(s)">
+                                        <IconPencil :size="14" stroke-width="1.75" />
+                                    </button>
+                                    <button type="button" class="icon-btn xs danger" title="Remove" @click="askRemoveSupplier(s)">
+                                        <IconTrash :size="14" stroke-width="1.75" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- MARGIN SUMMARY -->
+                        <div v-if="productSuppliers.length > 0" class="cs-margin">
+                            <div class="csm-row">
+                                <span class="k">Monthly revenue</span>
+                                <span class="v">{{ cheapestMonthlyRevenue > 0 ? moneyGBP(cheapestMonthlyRevenue) + '/mo' : '— no monthly plan' }}</span>
+                            </div>
+                            <div class="csm-row">
+                                <span class="k">Monthly cost</span>
+                                <span class="v neg">−{{ moneyGBP(totalMonthlyCost) }}/mo</span>
+                            </div>
+                            <div class="csm-row total">
+                                <span class="k">Gross margin</span>
+                                <span class="v" :class="grossMargin >= 0 ? 'pos' : 'neg'">
+                                    {{ moneyGBP(grossMargin) }}/mo
+                                    <span v-if="marginPct !== null" class="csm-pct">({{ marginPct }}%)</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- EMPTY STATE -->
+                        <div v-else class="cs-empty">
+                            No supplier costs linked. Add suppliers to track your margin.
+                        </div>
+                    </div>
                 </form>
             </section>
 
@@ -563,6 +732,72 @@ function goToPlans() {
                 </TransitionChild>
             </Dialog>
         </TransitionRoot>
+
+        <!-- ═══ Add/Edit supplier cost slide-over ═══ -->
+        <Teleport to="body">
+            <div v-if="showSupplierForm" class="slide-over-overlay" @click.self="showSupplierForm = false">
+                <div class="slide-over product-supplier-form" style="width: 460px;">
+                    <div class="slide-over-head">
+                        <h2>{{ editingSupplierId ? 'Edit supplier cost' : 'Add supplier cost' }}</h2>
+                        <button type="button" class="icon-btn" @click="showSupplierForm = false">
+                            <IconX :size="18" stroke-width="2" />
+                        </button>
+                    </div>
+                    <form class="slide-over-body" @submit.prevent="submitSupplier">
+                        <div class="form-section">
+                            <label class="form-label">Supplier <span class="req">*</span></label>
+                            <select v-if="!editingSupplierId" v-model="supplierForm.supplier_id" class="form-input" required>
+                                <option :value="null" disabled>Select a supplier…</option>
+                                <option v-for="s in availableSuppliers" :key="s.id" :value="s.id">{{ s.name }}</option>
+                            </select>
+                            <input v-else type="text" class="form-input" :value="productSuppliers.find((x) => x.id === editingSupplierId)?.name" readonly disabled />
+                            <p v-if="!editingSupplierId && availableSuppliers.length === 0" class="field-help">
+                                All active suppliers are already linked. <Link href="/suppliers" target="_blank">Create one →</Link>
+                            </p>
+                            <p v-if="supplierForm.errors.supplier_id" class="form-error">{{ supplierForm.errors.supplier_id }}</p>
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-section">
+                                <label class="form-label">Cost per unit (£) <span class="req">*</span></label>
+                                <input v-model="supplierForm.cost_per_unit" type="number" min="0" step="0.01" class="form-input" required />
+                                <p v-if="supplierForm.errors.cost_per_unit" class="form-error">{{ supplierForm.errors.cost_per_unit }}</p>
+                            </div>
+                            <div class="form-section">
+                                <label class="form-label">Billing interval</label>
+                                <select v-model="supplierForm.billing_interval" class="form-input">
+                                    <option value="monthly">Monthly</option>
+                                    <option value="quarterly">Quarterly</option>
+                                    <option value="annually">Annually</option>
+                                    <option value="one_time">One-time</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <label class="form-label">Notes</label>
+                            <textarea v-model="supplierForm.notes" class="form-input" rows="2" maxlength="500"></textarea>
+                            <p v-if="supplierForm.errors.notes" class="form-error">{{ supplierForm.errors.notes }}</p>
+                        </div>
+                    </form>
+                    <div class="slide-over-foot">
+                        <button type="button" class="btn btn-ghost" @click="showSupplierForm = false">Cancel</button>
+                        <button type="button" class="btn btn-primary" :disabled="supplierForm.processing" @click="submitSupplier">
+                            {{ supplierForm.processing ? 'Saving…' : (editingSupplierId ? 'Save' : 'Add cost') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
+
+        <ConfirmModal
+            v-model:show="showRemoveSupplier"
+            variant="danger"
+            title="Remove supplier cost?"
+            :message="`${supplierToRemove?.name ?? 'This supplier'} will be unlinked from this product. The supplier record itself is not deleted.`"
+            confirm-label="Remove"
+            @confirm="confirmRemoveSupplier"
+        />
 
         <ConfirmModal
             v-model:show="showSwitchModal"

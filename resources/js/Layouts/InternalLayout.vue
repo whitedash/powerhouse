@@ -47,6 +47,7 @@ import {
     IconBolt,
     IconFlag,
     IconCheck,
+    IconBuildingFactory2,
 } from '@tabler/icons-vue';
 import ToastContainer from '@/Components/UI/ToastContainer.vue';
 
@@ -252,6 +253,7 @@ const sections = computed(() => {
                     label: 'Operations',
                     icon: IconSettings2,
                     children: [
+                        { key: 'suppliers',    label: 'Suppliers',    href: '/suppliers',    icon: IconBuildingFactory2 },
                         { key: 'domains',      label: 'Domains',      href: '/domains',      icon: IconWorld },
                         { key: 'provisioning', label: 'Provisioning', href: '/provisioning', icon: IconLayoutGrid },
                         { key: 'forms',        label: 'Forms',        href: '/forms',        icon: IconForms },

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
@@ -18,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property bool $is_active
  * @property bool $is_coming_soon
  * @property int $sort_order
+ * @property string|null $qbo_item_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read BillingEntity|null $billingEntity
@@ -27,6 +29,8 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, ProductPlan> $plans
  * @property-read Collection<int, ProductPlan> $activePlans
  * @property-read Collection<int, ProductPlanCategory> $planCategories
+ * @property-read Collection<int, Supplier> $suppliers
+ * @property-read ProductSupplier $pivot
  */
 class Product extends Model
 {
@@ -41,6 +45,7 @@ class Product extends Model
         'is_active',
         'is_coming_soon',
         'sort_order',
+        'qbo_item_id',
     ];
 
     protected function casts(): array
@@ -87,5 +92,14 @@ class Product extends Model
     public function planCategories(): HasMany
     {
         return $this->hasMany(ProductPlanCategory::class)->orderBy('sort_order');
+    }
+
+    public function suppliers(): BelongsToMany
+    {
+        return $this->belongsToMany(Supplier::class, 'product_suppliers')
+            ->using(ProductSupplier::class)
+            ->withPivot(['cost_per_unit', 'billing_interval', 'notes', 'sort_order'])
+            ->withTimestamps()
+            ->orderBy('product_suppliers.sort_order');
     }
 }

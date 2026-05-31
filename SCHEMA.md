@@ -20,6 +20,8 @@ channel_detail VARCHAR(255) nullable
   -- Free-text follow-up (campaign name, platform, event, etc.).
 assigned_to BIGINT FK users nullable,
 referred_by BIGINT FK referrers nullable,
+qbo_customer_id VARCHAR(100) nullable UNIQUE
+  -- QuickBooks Online customer id. Populated by a future QBO sync.
 archived_at nullable, created_at, updated_at
 
 ## contacts
@@ -46,7 +48,10 @@ billing_entity_id FK billing_entities nullable (SET NULL)
   -- Default billing entity for invoices that include this product;
   -- null = universal (operator picks the entity per invoice).
 icon_colour, is_active BOOLEAN, is_coming_soon BOOLEAN,
-sort_order INT, created_at, updated_at
+sort_order INT,
+qbo_item_id VARCHAR(100) nullable UNIQUE
+  -- QuickBooks Online item id. Populated by a future QBO sync.
+created_at, updated_at
 
 ## product_plan_categories
 id, product_id FK CASCADE,
@@ -206,7 +211,15 @@ created_at, updated_at
 id,
 category ENUM(referral_commission|software|hosting|travel|
   office|marketing|advertising|equipment|other) DEFAULT 'other',
-description VARCHAR(255), supplier VARCHAR(255) nullable,
+description VARCHAR(255),
+supplier_name VARCHAR(255) nullable
+  -- Legacy / ad-hoc free-text payee. Renamed from `supplier` in the
+  -- Suppliers sprint. Fallback when supplier_id is null.
+supplier_id FK suppliers nullable (SET NULL)
+  -- Links to the supplier register. When set, the supplier's name is
+  -- the display payee; supplier_name is the fallback.
+qbo_bill_id VARCHAR(100) nullable UNIQUE
+  -- QuickBooks Online bill id. Populated by a future QBO sync.
 amount DECIMAL(10,2)
   -- Net amount before VAT.
 vat_rate DECIMAL(5,2) DEFAULT 0,
@@ -233,6 +246,50 @@ paid_at TIMESTAMP nullable,
 created_at, updated_at
 INDEX (category, status, expense_date) expenses_filter_idx
 INDEX (commission_ledger_id) expenses_commission_idx
+
+## suppliers (Suppliers sprint)
+id, name VARCHAR(255),
+type ENUM(software|hosting|marketing|domain_registrar|finance|
+  utilities|professional_services|other) DEFAULT 'other',
+contact_name VARCHAR(255) nullable,
+email VARCHAR(255) nullable,
+phone VARCHAR(50) nullable,
+website VARCHAR(500) nullable,
+address TEXT nullable,
+account_number VARCHAR(100) nullable
+  -- Our account reference with this supplier.
+payment_terms VARCHAR(100) nullable
+  -- e.g. "Net 30", "Monthly direct debit".
+default_expense_category VARCHAR(50) nullable
+  -- Mirrors the expenses.category enum; auto-fills the expense form.
+default_vat_rate DECIMAL(5,2) DEFAULT 20.00,
+notes TEXT nullable,
+is_active BOOLEAN DEFAULT true,
+qbo_vendor_id VARCHAR(100) nullable UNIQUE,
+qbo_sync_status ENUM(not_synced|synced|error|excluded)
+  DEFAULT 'not_synced',
+qbo_synced_at TIMESTAMP nullable,
+qbo_sync_error TEXT nullable
+  -- QBO columns are populated by a future QuickBooks sync sprint.
+created_by BIGINT FK users (RESTRICT),
+created_at, updated_at
+INDEX (type, is_active) suppliers_type_active_idx
+INDEX (name) suppliers_name_idx
+
+## product_suppliers (Suppliers sprint)
+product_id FK products CASCADE,
+supplier_id FK suppliers CASCADE,
+cost_per_unit DECIMAL(10,2) DEFAULT 0,
+billing_interval ENUM(monthly|quarterly|annually|one_time)
+  DEFAULT 'monthly',
+notes TEXT nullable,
+sort_order INT DEFAULT 0,
+created_at, updated_at
+PRIMARY KEY (product_id, supplier_id)
+INDEX (supplier_id) product_suppliers_supplier_idx
+  -- Cost lines behind a product, for margin reporting. Pivot model
+  -- App\Models\ProductSupplier. Monthly cost is amortised
+  -- (annually/12, quarterly/3); one_time excluded from margin.
 
 ## proposals (Proposals sprint)
 id,
