@@ -50,6 +50,22 @@ Schedule::command('support:close-inactive')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Auto-suspend customer products with invoices overdue beyond the
+// configured threshold (Settings → Billing). Runs after the 09:00
+// reminder sweep so a final-notice sent this morning is already on
+// record before the suspension gate checks for it.
+Schedule::command('invoices:process-suspensions')
+    ->dailyAt('10:00')
+    ->timezone('Europe/London')
+    ->withoutOverlapping()
+    ->runInBackground();
+
+// Re-attempt failed product webhooks whose backoff window has elapsed.
+// The retry policy itself lives in WebhookDispatcher; this drives cadence.
+Schedule::command('webhooks:retry-failed')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();
+
 // Refresh Cloudflare zone + SSL state and recompute domain status.
 // Runs before the morning invoice + reminder sweeps so the
 // dashboard "Domains expiring" KPI is current by 09:00.

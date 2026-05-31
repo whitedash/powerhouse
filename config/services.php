@@ -57,7 +57,10 @@ return [
      */
     'products' => [
         'maavelus_url' => env('MAAVELUS_APP_URL', 'https://restaurant.maavelus.co.uk'),
+        // HMAC-SHA256 shared secret for outbound webhooks to Maavelus.
+        'maavelus_secret' => env('MAAVELUS_WEBHOOK_SECRET'),
         'myorderpad_url' => env('MYORDERPAD_APP_URL', 'https://app.myorderpad.co.uk'),
+        'myorderpad_secret' => env('MYORDERPAD_WEBHOOK_SECRET'),
     ],
 
     /*

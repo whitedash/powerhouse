@@ -312,6 +312,10 @@ class CustomerController extends Controller
                     : null,
                 'archived_at' => $customer->archived_at?->toIso8601String(),
                 'created_at' => $customer->created_at?->toIso8601String(),
+                // Auto-suspension exemption (super_admin toggle on the
+                // overview tab).
+                'exempt_from_auto_suspend' => $customer->exempt_from_auto_suspend,
+                'exempt_reason' => $customer->exempt_reason,
 
                 'contacts' => $customer->contacts->map(fn (Contact $c) => [
                     'id' => $c->id,
@@ -336,6 +340,9 @@ class CustomerController extends Controller
                     'icon_colour' => $cp->product?->icon_colour,
                     'pb_class' => self::PRODUCT_SLUG_TO_PB[$cp->product?->slug] ?? 'teal',
                     'status' => $cp->status,
+                    'suspension_reason' => $cp->suspension_reason,
+                    'suspended_at' => $cp->suspended_at?->toIso8601String(),
+                    'suspended_by_system' => $cp->suspended_by_system,
                     'plan' => $cp->plan,
                     'price_monthly' => (float) ($cp->price_monthly ?? 0),
                     'interval_count' => $cp->interval_count,
@@ -899,6 +906,41 @@ class CustomerController extends Controller
         Cache::forget('dash.total_customers');
 
         return back()->with('success', 'Product subscription suspended.');
+    }
+
+    /**
+     * Toggle whether this customer is exempt from the auto-suspension
+     * sweep. super_admin only (gated on the route). The reason is kept
+     * for the audit trail and surfaced in the customer header.
+     */
+    public function toggleExemption(int $id, Request $request): RedirectResponse
+    {
+        $customer = Customer::findOrFail($id);
+        Gate::authorize('update', $customer);
+
+        $data = $request->validate([
+            'exempt' => ['required', 'boolean'],
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        DB::transaction(function () use ($customer, $data, $request): void {
+            $before = ['exempt_from_auto_suspend' => $customer->exempt_from_auto_suspend];
+
+            $customer->update([
+                'exempt_from_auto_suspend' => $data['exempt'],
+                // Clear the reason when removing the exemption.
+                'exempt_reason' => $data['exempt'] ? ($data['reason'] ?? null) : null,
+            ]);
+
+            $this->logActivity($request, 'customer.suspension_exemption_changed', $customer, $before, [
+                'exempt_from_auto_suspend' => $data['exempt'],
+                'reason' => $data['exempt'] ? ($data['reason'] ?? null) : null,
+            ]);
+        });
+
+        return back()->with('success', $data['exempt']
+            ? 'Customer exempted from auto-suspension.'
+            : 'Auto-suspension exemption removed.');
     }
 
     /**

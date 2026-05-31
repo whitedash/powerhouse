@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\DeliverWebhook;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
 use App\Models\Customer;
@@ -13,6 +14,7 @@ use App\Models\Setting;
 use App\Models\SupportTicket;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\WebhookDelivery;
 use App\Services\CloudflareService;
 use App\Services\ReminderTemplateService;
 use Illuminate\Http\JsonResponse;
@@ -48,6 +50,24 @@ class SettingsController extends Controller
         // Support auto-close window in days. The
         // support:close-inactive command reads from this. 0 disables.
         'support.auto_close_days' => 7,
+    ];
+
+    /**
+     * Defaults for the Billing automation panel. Read by the
+     * invoices:process-suspensions sweep.
+     *
+     * @var array<string, bool|int>
+     */
+    private const BILLING_DEFAULTS = [
+        // Days an invoice must be overdue before its products are
+        // auto-suspended. 0 disables auto-suspension entirely.
+        'billing.auto_suspend_days' => 15,
+        // Hours that must elapse after a final-notice reminder before
+        // suspension fires.
+        'billing.suspension_grace_hours' => 24,
+        // Whether a payment auto-reinstates suspended products
+        // (consumed by the Stripe sprint — stored now as a stub).
+        'billing.auto_reinstate' => true,
     ];
 
     /* ─────────────────────────────────────────────────────────────────────
@@ -322,6 +342,75 @@ class SettingsController extends Controller
     }
 
     /* ─────────────────────────────────────────────────────────────────────
+     * BILLING AUTOMATION
+     * ─────────────────────────────────────────────────────────────── */
+
+    public function billing(): Response
+    {
+        $stored = Setting::query()
+            ->whereIn('key', array_keys(self::BILLING_DEFAULTS))
+            ->pluck('value', 'key')
+            ->all();
+
+        $values = [];
+        foreach (self::BILLING_DEFAULTS as $key => $default) {
+            $raw = $stored[$key] ?? null;
+            $values[$key] = $raw === null ? $default : $this->decodeSettingValue($raw, $default);
+        }
+
+        return Inertia::render('Internal/Settings/Billing', [
+            'values' => $values,
+        ]);
+    }
+
+    public function billingUpdate(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'auto_suspend_days' => ['required', 'integer', 'min:0', 'max:365'],
+            'suspension_grace_hours' => ['required', 'integer', 'min:0', 'max:720'],
+            'auto_reinstate' => ['required', 'boolean'],
+        ]);
+
+        DB::transaction(function () use ($data, $request) {
+            Setting::setValue('billing.auto_suspend_days', (int) $data['auto_suspend_days']);
+            Setting::setValue('billing.suspension_grace_hours', (int) $data['suspension_grace_hours']);
+            Setting::setValue('billing.auto_reinstate', (bool) $data['auto_reinstate']);
+
+            $this->logActivity($request, 'settings.billing_updated', 'settings', 0, after: [
+                'auto_suspend_days' => (int) $data['auto_suspend_days'],
+                'suspension_grace_hours' => (int) $data['suspension_grace_hours'],
+                'auto_reinstate' => (bool) $data['auto_reinstate'],
+            ]);
+        });
+
+        return back()->with('success', 'Billing automation settings updated.');
+    }
+
+    /**
+     * Re-queue a single webhook delivery from the Integrations log.
+     * Resets it to pending and clears the backoff so the next job (or
+     * sweep) picks it up immediately. Works for failed and abandoned rows.
+     */
+    public function retryWebhookDelivery(int $id, Request $request): RedirectResponse
+    {
+        $delivery = WebhookDelivery::findOrFail($id);
+
+        $delivery->update([
+            'status' => 'pending',
+            'next_retry_at' => null,
+        ]);
+
+        DeliverWebhook::dispatch($delivery);
+
+        $this->logActivity($request, 'webhook.retried', 'webhook_delivery', $delivery->id, after: [
+            'event_type' => $delivery->event_type,
+            'product_slug' => $delivery->product_slug,
+        ]);
+
+        return back()->with('success', 'Webhook delivery re-queued.');
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────
      * REMINDER TEMPLATES
      *
      * Five tier-keyed email templates rendered by the
@@ -454,6 +543,22 @@ class SettingsController extends Controller
                     'testable' => false,
                 ],
             ],
+            // Recent outbound product webhooks for the delivery log.
+            'webhook_deliveries' => WebhookDelivery::query()
+                ->orderByDesc('id')
+                ->limit(50)
+                ->get()
+                ->map(fn (WebhookDelivery $d): array => [
+                    'id' => $d->id,
+                    'event_type' => $d->event_type,
+                    'product_slug' => $d->product_slug,
+                    'status' => $d->status,
+                    'http_status' => $d->http_status,
+                    'attempts' => $d->attempts,
+                    'max_attempts' => $d->max_attempts,
+                    'created_at' => $d->created_at?->diffForHumans(),
+                    'can_retry' => in_array($d->status, ['failed', 'abandoned'], true),
+                ])->all(),
         ]);
     }
 

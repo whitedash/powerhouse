@@ -34,8 +34,16 @@ use Illuminate\Support\Carbon;
  * @property int|null $oauth_client_id
  * @property int|null $wp_user_id
  * @property array<string, mixed>|null $config
+ * @property string|null $suspension_reason
+ * @property Carbon|null $suspended_at
+ * @property int|null $suspended_by
+ * @property string|null $reinstatement_reason
+ * @property Carbon|null $reinstated_at
+ * @property int|null $reinstated_by
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read bool $is_suspended
+ * @property-read bool $suspended_by_system
  * @property-read float $effective_price
  * @property-read float $mrr_contribution
  * @property-read float $arr_contribution
@@ -75,6 +83,12 @@ class CustomerProduct extends Model
         'oauth_client_id',
         'wp_user_id',
         'config',
+        'suspension_reason',
+        'suspended_at',
+        'suspended_by',
+        'reinstatement_reason',
+        'reinstated_at',
+        'reinstated_by',
     ];
 
     protected function casts(): array
@@ -92,7 +106,27 @@ class CustomerProduct extends Model
             'cancels_at' => 'date',
             'cancelled_at' => 'datetime',
             'config' => 'array',
+            'suspended_at' => 'datetime',
+            'reinstated_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Convenience flag mirroring the status enum — keeps templates and
+     * webhook payloads from string-comparing 'suspended' everywhere.
+     */
+    public function getIsSuspendedAttribute(): bool
+    {
+        return $this->status === 'suspended';
+    }
+
+    /**
+     * True when this product was suspended by the auto-suspension sweep
+     * (suspended_at set, no acting user) rather than by a staff member.
+     */
+    public function getSuspendedBySystemAttribute(): bool
+    {
+        return $this->suspended_by === null && $this->suspended_at !== null;
     }
 
     public function customer(): BelongsTo

@@ -22,6 +22,10 @@ assigned_to BIGINT FK users nullable,
 referred_by BIGINT FK referrers nullable,
 qbo_customer_id VARCHAR(100) nullable UNIQUE
   -- QuickBooks Online customer id. Populated by a future QBO sync.
+exempt_from_auto_suspend BOOLEAN NOT NULL DEFAULT false
+  -- When true the invoices:process-suspensions sweep skips this
+  -- customer (Webhooks + Auto-Suspension sprint).
+exempt_reason VARCHAR(500) nullable
 archived_at nullable, created_at, updated_at
 
 ## contacts
@@ -104,7 +108,17 @@ cancels_at DATE nullable,
 cancelled_at nullable,
 oauth_client_id BIGINT nullable,
 wp_user_id BIGINT nullable,
-config JSON nullable, created_at, updated_at
+config JSON nullable,
+-- Suspension audit trail (Webhooks + Auto-Suspension sprint).
+-- suspended_by/reinstated_by NULL = action taken by the system
+-- (auto-suspend sweep / auto-reinstate) rather than a staff user.
+suspension_reason ENUM(non_payment|manual|trial_ended|fraud|other) nullable,
+suspended_at TIMESTAMP nullable,
+suspended_by BIGINT FK users nullable (SET NULL),
+reinstatement_reason TEXT nullable,
+reinstated_at TIMESTAMP nullable,
+reinstated_by BIGINT FK users nullable (SET NULL),
+created_at, updated_at
 INDEXES: (customer_id, product_id), status, next_billing_date
 
 ## billing_entities

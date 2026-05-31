@@ -7,6 +7,7 @@ use App\Http\Controllers\Internal\ContactController as InternalContactController
 use App\Http\Controllers\Internal\ContractController as InternalContractController;
 use App\Http\Controllers\Internal\CustomerController as InternalCustomerController;
 use App\Http\Controllers\Internal\CustomerGroupController as InternalCustomerGroupController;
+use App\Http\Controllers\Internal\CustomerProductController as InternalCustomerProductController;
 use App\Http\Controllers\Internal\DashboardController as InternalDashboardController;
 use App\Http\Controllers\Internal\DomainController as InternalDomainController;
 use App\Http\Controllers\Internal\ExpenseController as InternalExpenseController;
@@ -40,6 +41,7 @@ use App\Http\Controllers\Internal\SupportController as InternalSupportController
 use App\Http\Controllers\Internal\TaskController as InternalTaskController;
 use App\Http\Controllers\Internal\TimeEntryController as InternalTimeEntryController;
 use App\Http\Controllers\Internal\WorkflowController as InternalWorkflowController;
+use App\Http\Controllers\OAuth\SuspensionController as OAuthSuspensionController;
 use App\Http\Controllers\OAuth\UserInfoController as OAuthUserInfoController;
 use App\Http\Controllers\Portal\AccountController as PortalAccountController;
 use App\Http\Controllers\Portal\AuthController as PortalAuthController;
@@ -376,6 +378,21 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::post('/customers/{id}/products', [InternalCustomerController::class, 'enableProduct'])->name('internal.customers.products.enable');
     Route::post('/customers/{id}/products/{productId}/suspend', [InternalCustomerController::class, 'suspendProduct'])->name('internal.customers.products.suspend');
 
+    // Reasoned suspend / reinstate of a single subscription (fires the
+    // product webhook + records who acted). Operates on the CustomerProduct id.
+    Route::post('/customer-products/{id}/suspend', [InternalCustomerProductController::class, 'suspend'])
+        ->whereNumber('id')->name('internal.customer-products.suspend');
+    Route::post('/customer-products/{id}/reinstate', [InternalCustomerProductController::class, 'reinstate'])
+        ->whereNumber('id')->name('internal.customer-products.reinstate');
+
+    // Toggle a customer's auto-suspension exemption (super_admin only).
+    Route::post('/customers/{id}/exemption', [InternalCustomerController::class, 'toggleExemption'])
+        ->whereNumber('id')->middleware('role:super_admin')->name('internal.customers.exemption');
+
+    // Manual re-queue of a failed/abandoned webhook delivery.
+    Route::post('/webhooks/deliveries/{id}/retry', [InternalSettingsController::class, 'retryWebhookDelivery'])
+        ->whereNumber('id')->name('internal.webhooks.deliveries.retry');
+
     Route::get('/invoices/new', [InternalInvoiceController::class, 'create'])->name('internal.invoices.create');
     Route::post('/invoices', [InternalInvoiceController::class, 'store'])->name('internal.invoices.store');
     // `{id}` is constrained to digits so literal segments (e.g.
@@ -465,6 +482,9 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         // Notifications
         Route::get('/notifications', [InternalSettingsController::class, 'notifications'])->name('notifications');
         Route::post('/notifications', [InternalSettingsController::class, 'notificationsUpdate'])->name('notifications.update');
+        // Billing automation — auto-suspension thresholds.
+        Route::get('/billing', [InternalSettingsController::class, 'billing'])->name('billing');
+        Route::post('/billing', [InternalSettingsController::class, 'billingUpdate'])->name('billing.update');
         // Reminder templates — edit subject/body per escalation tier
         // and preview against the most recent invoice.
         Route::get('/reminder-templates', [InternalSettingsController::class, 'reminderTemplates'])->name('reminder-templates');
@@ -598,6 +618,13 @@ Route::middleware(['auth:api', 'throttle:60,1'])
         Route::get('/userinfo', [OAuthUserInfoController::class, 'me'])->name('userinfo');
         Route::get('/products', [OAuthUserInfoController::class, 'products'])->name('products');
     });
+
+// Branded suspension page. The authorize-route middleware renders this
+// inline when a customer is suspended; this named route is the direct
+// deep-link (portal session required, not a token).
+Route::get('/oauth/suspended', [OAuthSuspensionController::class, 'show'])
+    ->middleware(['web', 'auth.portal'])
+    ->name('oauth.suspended');
 
 /*
 |--------------------------------------------------------------------------

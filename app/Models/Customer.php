@@ -30,6 +30,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $archived_at
  * @property Carbon|null $portal_last_login_at
  * @property int $portal_login_count
+ * @property bool $exempt_from_auto_suspend
+ * @property string|null $exempt_reason
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read User|null $assignedTo
@@ -73,6 +75,10 @@ class Customer extends Model
         // that belongs to this customer; bumped in Portal\AuthController::login().
         'portal_last_login_at',
         'portal_login_count',
+        // Auto-suspension exemption — when true the ProcessSuspensions
+        // sweep skips this customer entirely.
+        'exempt_from_auto_suspend',
+        'exempt_reason',
     ];
 
     protected function casts(): array
@@ -82,6 +88,7 @@ class Customer extends Model
             'archived_at' => 'datetime',
             'portal_last_login_at' => 'datetime',
             'portal_login_count' => 'integer',
+            'exempt_from_auto_suspend' => 'boolean',
         ];
     }
 

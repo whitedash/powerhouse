@@ -974,23 +974,25 @@ function submitEnableProduct() {
     });
 }
 
-/* ─── Suspend product confirm modal ─── */
+const isAdmin = computed(() => page.props.auth?.user?.role === 'super_admin');
+
+/* ─── Suspend product modal (reason + note) ─── */
 const showSuspendModal = ref(false);
 const suspendTarget = ref(null);
-const suspendProcessing = ref(false);
+const suspendForm = useForm({ reason: 'manual', note: '' });
 
 function askSuspend(p) {
     suspendTarget.value = p;
+    suspendForm.reset();
+    suspendForm.clearErrors();
     showSuspendModal.value = true;
 }
 
 function handleSuspend() {
     if (! suspendTarget.value) return;
-    suspendProcessing.value = true;
-    router.post(`/customers/${props.customer.id}/products/${suspendTarget.value.id}/suspend`, {}, {
+    suspendForm.post(`/customer-products/${suspendTarget.value.id}/suspend`, {
         preserveScroll: true,
-        onFinish: () => {
-            suspendProcessing.value = false;
+        onSuccess: () => {
             showSuspendModal.value = false;
             suspendTarget.value = null;
         },
@@ -999,8 +1001,45 @@ function handleSuspend() {
 
 const suspendMessage = computed(() => {
     if (! suspendTarget.value) return '';
-    return `This will suspend ${suspendTarget.value.name} for ${props.customer.name}. Their access will be removed immediately.`;
+    return `This will suspend ${suspendTarget.value.name} for ${props.customer.name}. Their access will be removed immediately and the product notified.`;
 });
+
+/* ─── Reinstate product ─── */
+function reinstateProduct(p) {
+    router.post(`/customer-products/${p.id}/reinstate`, {}, { preserveScroll: true });
+}
+
+/* ─── Auto-suspension exemption (super_admin) ─── */
+const showExemptModal = ref(false);
+const exemptForm = useForm({ exempt: true, reason: '' });
+
+function toggleExemption() {
+    if (props.customer.exempt_from_auto_suspend) {
+        // Removing exemption — no reason needed, fire immediately.
+        router.post(`/customers/${props.customer.id}/exemption`, { exempt: false, reason: '' }, { preserveScroll: true });
+
+        return;
+    }
+    // Marking exempt — collect a reason first.
+    exemptForm.reset();
+    exemptForm.exempt = true;
+    exemptForm.clearErrors();
+    showExemptModal.value = true;
+}
+
+function submitExemption() {
+    exemptForm.post(`/customers/${props.customer.id}/exemption`, {
+        preserveScroll: true,
+        onSuccess: () => { showExemptModal.value = false; },
+    });
+}
+
+const SUSPEND_REASONS = [
+    { value: 'manual', label: 'Manual' },
+    { value: 'non_payment', label: 'Non-payment' },
+    { value: 'fraud', label: 'Fraud' },
+    { value: 'other', label: 'Other' },
+];
 
 // Task completion + outcome flow lives further up in the CRM activities
 // block — completingTaskId is gone, replaced by completingActivity +
@@ -1408,7 +1447,7 @@ const contractDeleteMessage = computed(() =>
                                     <span class="badge" :class="{ 'badge-active': p.status === 'active', 'badge-trial': p.status === 'trial', 'badge-inactive': ['suspended', 'cancelled'].includes(p.status) }">
                                         {{ p.status }}
                                     </span>
-                                    <Menu v-if="['active', 'trial'].includes(p.status)" as="div" class="dd-menu">
+                                    <Menu v-if="['active', 'trial', 'suspended'].includes(p.status)" as="div" class="dd-menu">
                                         <MenuButton class="icon-btn" aria-label="Product actions">
                                             <IconDots :size="16" stroke-width="1.75" />
                                         </MenuButton>
@@ -1419,7 +1458,12 @@ const contractDeleteMessage = computed(() =>
                                                 </button>
                                             </MenuItem>
                                             <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
-                                            <MenuItem v-slot="{ active }">
+                                            <MenuItem v-if="p.status === 'suspended'" v-slot="{ active }">
+                                                <button type="button" :class="['dd-option', { active }]" @click="reinstateProduct(p)">
+                                                    Reinstate product
+                                                </button>
+                                            </MenuItem>
+                                            <MenuItem v-else v-slot="{ active }">
                                                 <button type="button" :class="['dd-option', { active }]" style="color: var(--warning);" @click="askSuspend(p)">
                                                     Suspend product
                                                 </button>
@@ -1794,6 +1838,19 @@ const contractDeleteMessage = computed(() =>
                                 Add a referrer in Settings → Referrers first.
                             </span>
                         </div>
+
+                        <!-- Auto-suspension exemption (super_admin only) -->
+                        <div v-if="isAdmin" class="exemption-row">
+                            <div class="exemption-info">
+                                <span class="exemption-label">Auto-suspension</span>
+                                <span v-if="customer.exempt_from_auto_suspend" class="badge badge-pending badge-sm">Exempt</span>
+                                <span v-else class="badge badge-inactive badge-sm">Active</span>
+                                <span v-if="customer.exempt_from_auto_suspend && customer.exempt_reason" class="exemption-reason">{{ customer.exempt_reason }}</span>
+                            </div>
+                            <button type="button" class="ghost-link" @click="toggleExemption">
+                                {{ customer.exempt_from_auto_suspend ? 'Remove exemption' : 'Mark as exempt' }}
+                            </button>
+                        </div>
                     </section>
 
                     <!-- Domains -->
@@ -1942,12 +1999,18 @@ const contractDeleteMessage = computed(() =>
                             </div>
                             <div class="prod-actions">
                                 <span class="badge" :class="{ 'badge-active': p.status === 'active', 'badge-trial': p.status === 'trial', 'badge-inactive': ['suspended', 'cancelled'].includes(p.status) }">{{ p.status }}</span>
-                                <Menu v-if="['active', 'trial'].includes(p.status)" as="div" class="dd-menu">
+                                <span v-if="p.status === 'suspended' && p.suspended_by_system" class="badge badge-pending badge-sm" title="Auto-suspended for non-payment">Auto</span>
+                                <Menu v-if="['active', 'trial', 'suspended'].includes(p.status)" as="div" class="dd-menu">
                                     <MenuButton class="icon-btn" aria-label="Product actions">
                                         <IconDots :size="16" stroke-width="1.75" />
                                     </MenuButton>
                                     <MenuItems class="dd-popover right-align">
-                                        <MenuItem v-slot="{ active }">
+                                        <MenuItem v-if="p.status === 'suspended'" v-slot="{ active }">
+                                            <button type="button" :class="['dd-option', { active }]" @click="reinstateProduct(p)">
+                                                Reinstate product
+                                            </button>
+                                        </MenuItem>
+                                        <MenuItem v-else v-slot="{ active }">
                                             <button type="button" :class="['dd-option', { active }]" style="color: var(--warning);" @click="askSuspend(p)">
                                                 Suspend product
                                             </button>
@@ -2874,10 +2937,34 @@ const contractDeleteMessage = computed(() =>
             :title="suspendTarget ? `Suspend ${suspendTarget.name}?` : 'Suspend product?'"
             :message="suspendMessage"
             confirm-label="Suspend"
-            variant="warning"
-            :loading="suspendProcessing"
+            variant="danger"
             @confirm="handleSuspend"
-        />
+        >
+            <div class="suspend-fields">
+                <label class="field-label">Reason</label>
+                <select v-model="suspendForm.reason" class="field-input">
+                    <option v-for="r in SUSPEND_REASONS" :key="r.value" :value="r.value">{{ r.label }}</option>
+                </select>
+                <label class="field-label" style="margin-top: 10px;">Note (optional)</label>
+                <textarea v-model="suspendForm.note" class="field-input" rows="2" maxlength="500" placeholder="Internal note for the audit log"></textarea>
+                <p v-if="suspendForm.errors.reason" class="field-err">{{ suspendForm.errors.reason }}</p>
+            </div>
+        </ConfirmModal>
+
+        <!-- Auto-suspension exemption reason modal -->
+        <ConfirmModal
+            v-model:show="showExemptModal"
+            title="Exempt from auto-suspension?"
+            message="This customer will be skipped by the automatic suspension sweep. Add a reason for the audit trail."
+            confirm-label="Mark as exempt"
+            variant="warning"
+            @confirm="submitExemption"
+        >
+            <div class="suspend-fields">
+                <label class="field-label">Reason</label>
+                <input v-model="exemptForm.reason" type="text" class="field-input" maxlength="500" placeholder="e.g. Strategic account — handled manually" />
+            </div>
+        </ConfirmModal>
 
         <!-- Add/Edit contact slide-over -->
         <TransitionRoot as="template" :show="showAddContact || showEditContact">

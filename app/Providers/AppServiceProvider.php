@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Http\Middleware\CheckProductSuspension;
 use App\Http\Middleware\RequirePkce;
 use App\Listeners\DetectMassExport;
 use App\Listeners\LogSecurityEvent;
@@ -54,10 +55,16 @@ class AppServiceProvider extends ServiceProvider
         // which boots before AppServiceProvider. We walk the resolved route
         // collection and attach RequirePkce to the named Passport authorize
         // route. Implicit grant is NOT enabled (no Passport::enableImplicitGrant()).
+        //
+        // CheckProductSuspension rides the same route: a suspended customer
+        // is shown the branded suspension page instead of the consent screen.
+        // It returns $next($request) untouched when not suspended, so the
+        // normal OAuth handshake is never disturbed.
         $route = $this->app['router']->getRoutes()->getByName('passport.authorizations.authorize');
 
         if ($route) {
             $route->middleware(RequirePkce::class);
+            $route->middleware(CheckProductSuspension::class);
         }
     }
 

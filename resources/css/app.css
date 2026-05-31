@@ -13080,3 +13080,152 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
 .notif-pref-label { font: 500 13.5px/1.3 'Inter', sans-serif; color: var(--text-primary); }
 .notif-pref-sub { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 2px; }
 .notif-toggle { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+
+/* ─────────────────────────────────────────────────────────────────
+ * Suspension page (Public/Suspended.vue) — branded, self-contained.
+ * Namespaced under .suspension-page; tokens only.
+ * ─────────────────────────────────────────────────────────────── */
+.suspension-page {
+    min-height: 100vh;
+    display: grid; place-items: center;
+    padding: 24px;
+    background: var(--neutral-bg);
+    font-family: 'Inter', sans-serif;
+}
+.suspension-page .sp-card {
+    width: 100%; max-width: 460px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg, 12px);
+    box-shadow: var(--shadow-md);
+    padding: 32px 30px 24px;
+}
+.suspension-page .sp-head {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 12px;
+    text-align: center;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-soft);
+    margin-bottom: 20px;
+}
+.suspension-page .sp-logo {
+    width: 48px; height: 48px;
+    border-radius: var(--radius-md);
+    display: grid; place-items: center;
+    color: #fff;
+    font: 700 20px/1 'Inter', sans-serif;
+}
+.suspension-page .sp-product { font: 600 17px/1.2 'Inter', sans-serif; color: var(--text-primary); }
+.suspension-page .sp-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: var(--danger-bg);
+    border: 1px solid #FECACA;
+    color: #B91C1C;
+    font: 600 12.5px/1 'Inter', sans-serif;
+}
+.suspension-page .sp-reason {
+    font: 400 14px/1.55 'Inter', sans-serif;
+    color: var(--text-secondary);
+    margin-bottom: 18px;
+}
+.suspension-page .sp-invoices {
+    display: flex; flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: 14px;
+}
+.suspension-page .sp-inv-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    font: 400 13px/1.3 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.suspension-page .sp-inv-row:last-child { border-bottom: 0; }
+.suspension-page .sp-inv-num { font-weight: 600; color: var(--text-primary); font-family: 'JetBrains Mono', monospace; font-size: 12.5px; }
+.suspension-page .sp-inv-due { flex: 1; }
+.suspension-page .sp-inv-amt { font-weight: 600; color: var(--text-primary); }
+.suspension-page .sp-inv-row.overdue .sp-inv-due { color: var(--warning); }
+.suspension-page .sp-inv-row.overdue-bad .sp-inv-due,
+.suspension-page .sp-inv-row.overdue-bad .sp-inv-amt { color: var(--danger); }
+.suspension-page .sp-total {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--danger-bg);
+    border: 1px solid #FECACA;
+    border-radius: var(--radius-md);
+    margin-bottom: 20px;
+}
+.suspension-page .sp-total-label { font: 600 13px/1 'Inter', sans-serif; color: var(--text-primary); }
+.suspension-page .sp-total-amt { font: 700 22px/1 'Inter', sans-serif; color: var(--danger); letter-spacing: -.01em; }
+.suspension-page .sp-payment { margin-bottom: 20px; }
+.suspension-page .sp-payment-placeholder {
+    padding: 14px 16px;
+    background: var(--neutral-bg);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+}
+.suspension-page .sp-payment-placeholder p { font: 400 13px/1.5 'Inter', sans-serif; color: var(--text-secondary); }
+.suspension-page .sp-payment-placeholder p + p { margin-top: 8px; }
+.suspension-page .sp-pay-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 100%;
+    padding: 12px 16px;
+    border: 0; border-radius: var(--radius-md);
+    background: var(--accent);
+    color: #111827;
+    font: 600 14px/1 'Inter', sans-serif;
+    cursor: pointer;
+    text-decoration: none;
+}
+.suspension-page .sp-pay-btn.as-link { margin-bottom: 16px; }
+.suspension-page .sp-contact {
+    text-align: center;
+    padding-top: 18px;
+    border-top: 1px solid var(--border-soft);
+}
+.suspension-page .sp-contact p { font: 400 13px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-bottom: 8px; }
+.suspension-page .sp-contact-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--info);
+    font: 600 13.5px/1 'Inter', sans-serif;
+    text-decoration: none;
+}
+.suspension-page .sp-contact-link:hover { text-decoration: underline; }
+.suspension-page .sp-footer {
+    text-align: center;
+    margin-top: 22px;
+    font: 400 11.5px/1.4 'Inter', sans-serif;
+    color: var(--text-tertiary);
+}
+
+/* Webhook delivery log (Settings/Integrations.vue) */
+.webhook-log { margin-bottom: 8px; }
+.webhook-log .wh-event {
+    font: 500 12px/1.3 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+    background: var(--neutral-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 1px 6px;
+    white-space: nowrap;
+}
+
+/* Auto-suspension exemption row (Customers/Show.vue overview) */
+.exemption-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-soft);
+}
+.exemption-row .exemption-info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.exemption-row .exemption-label { font: 600 12.5px/1.2 'Inter', sans-serif; color: var(--text-primary); }
+.exemption-row .exemption-reason { font: 400 11.5px/1.3 'Inter', sans-serif; color: var(--text-tertiary); flex-basis: 100%; }
+
+/* Suspend / exemption modal field group (ConfirmModal slot) */
+.suspend-fields { text-align: left; margin-top: 4px; }
+.suspend-fields .field-label { display: block; font: 500 12px/1.2 'Inter', sans-serif; color: var(--text-secondary); margin-bottom: 5px; }
