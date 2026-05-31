@@ -32,6 +32,26 @@ both **global**. Do not redefine them per-namespace unless you need
 genuinely different values — a missing namespaced copy used to leave
 pages with zero padding.
 
+### NAMESPACING RULE (mandatory)
+Any CSS rule that overrides a shared primitive (`.card-*`, `.form-*`,
+`.table-*`, `.badge-*`, `.btn-*`) MUST be scoped to a page or
+component namespace.
+
+WRONG:
+```css
+.form-section { border-top: 1px... }
+```
+
+RIGHT:
+```css
+.slide-over-wide .form-section {
+  border-top: 1px...
+}
+```
+
+If you find yourself writing an unscoped override of a shared
+primitive, stop and add the page namespace first.
+
 ## New page checklist
 Before committing any new Vue page, verify visually:
 - [ ] All cards have background + border
