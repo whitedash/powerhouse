@@ -10,6 +10,7 @@ use App\Models\Lead;
 use App\Models\Note;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -155,7 +156,7 @@ class LeadController extends Controller
 
         $data = $this->validateRow($request);
 
-        DB::transaction(function () use ($data, $request) {
+        $lead = DB::transaction(function () use ($data, $request) {
             $lead = Lead::create([
                 ...$data,
                 'created_by' => $request->user()->id,
@@ -165,7 +166,11 @@ class LeadController extends Controller
                 'name' => $lead->name,
                 'source' => $lead->source,
             ]);
+
+            return $lead;
         });
+
+        app(NotificationService::class)->notifyLeadAssigned($lead, $request->user());
 
         return back()->with('success', 'Lead added.');
     }
@@ -182,9 +187,14 @@ class LeadController extends Controller
         $data = $this->validateRow($request);
 
         $before = $lead->only(['first_name', 'last_name', 'status', 'assigned_to']);
+        $previousAssignee = $lead->assigned_to;
         $lead->update($data);
 
         $this->log($request, 'lead.updated', $lead->id, before: $before, after: $lead->only(['first_name', 'last_name', 'status', 'assigned_to']));
+
+        if ($lead->assigned_to !== $previousAssignee) {
+            app(NotificationService::class)->notifyLeadAssigned($lead, $request->user());
+        }
 
         return back()->with('success', 'Lead updated.');
     }

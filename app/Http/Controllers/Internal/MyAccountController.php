@@ -25,6 +25,25 @@ use Inertia\Response;
  */
 class MyAccountController extends Controller
 {
+    /**
+     * Canonical notification types + their default opt-in. New users
+     * (and any type a user has never toggled) inherit these. Most
+     * default on; invoice_overdue is opt-in. The account form renders
+     * a row per key here, so adding a type is a one-line change.
+     *
+     * @var array<string, bool>
+     */
+    public const DEFAULT_NOTIFICATION_PREFS = [
+        'task_assigned' => true,
+        'task_due_soon' => true,
+        'milestone_completed' => true,
+        'project_overdue' => true,
+        'lead_assigned' => true,
+        'support_ticket_assigned' => true,
+        'proposal_accepted' => true,
+        'invoice_overdue' => false,
+    ];
+
     public function show(): Response
     {
         $user = Auth::user();
@@ -39,7 +58,48 @@ class MyAccountController extends Controller
                 'created_at' => $user->created_at?->toIso8601String(),
                 'last_login_at' => $user->last_login_at?->diffForHumans(),
             ],
+            // Stored prefs over the defaults, so the form always renders
+            // the full set even before the user has saved once.
+            'notification_preferences' => array_merge(
+                self::DEFAULT_NOTIFICATION_PREFS,
+                $user->notification_preferences ?? [],
+            ),
         ]);
+    }
+
+    public function updateNotifications(Request $request): RedirectResponse
+    {
+        $user = Auth::user();
+
+        $request->validate([
+            'preferences' => ['required', 'array'],
+            'preferences.*' => ['boolean'],
+        ]);
+
+        /** @var array<string, mixed> $incoming */
+        $incoming = $request->input('preferences', []);
+
+        // Persist only known keys, coerced to bool — never trust the
+        // client to send the canonical set or correct types.
+        $prefs = [];
+        foreach (self::DEFAULT_NOTIFICATION_PREFS as $key => $default) {
+            $prefs[$key] = (bool) ($incoming[$key] ?? $default);
+        }
+
+        $user->update(['notification_preferences' => $prefs]);
+
+        ActivityLog::create([
+            'user_id' => $user->id,
+            'user_role' => $user->role,
+            'action' => 'account.notifications_updated',
+            'entity_type' => $user::class,
+            'entity_id' => $user->id,
+            'after' => $prefs,
+            'ip_address' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 500),
+        ]);
+
+        return back()->with('success', 'Notification preferences saved.');
     }
 
     public function update(Request $request): RedirectResponse

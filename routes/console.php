@@ -59,6 +59,16 @@ Schedule::command('domains:check-health')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Time-based notification sweep: overdue projects (notify lead) and
+// tasks due within 24h (notify assignee). Both checks are idempotent
+// per day, so a single 08:00 run covers them — the spec's separate
+// 08:00/09:00 split collapses safely into one command here.
+Schedule::command('notifications:check-overdue')
+    ->dailyAt('08:00')
+    ->timezone('Europe/London')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Warm the dashboard platform-health cache every 15 minutes so the
 // landing page never has to wait on the outbound probes itself.
 // Forget-then-build is intentional: we want to bust any stale row

@@ -4,13 +4,27 @@ import { Head, useForm } from '@inertiajs/vue3';
 import {
     IconUser,
     IconLock,
+    IconBell,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import PasswordStrengthMeter from '@/Components/UI/PasswordStrengthMeter.vue';
 
 const props = defineProps({
     user: { type: Object, required: true },
+    notification_preferences: { type: Object, default: () => ({}) },
 });
+
+// The rows rendered in the preferences card. invoice_overdue is a known
+// pref but has no UI here yet — it rides along in the form untouched.
+const NOTIF_TYPES = [
+    { key: 'task_assigned', label: 'Task assigned to me' },
+    { key: 'task_due_soon', label: 'Task due in 24 hours' },
+    { key: 'milestone_completed', label: 'Milestone completed' },
+    { key: 'project_overdue', label: 'Project overdue' },
+    { key: 'lead_assigned', label: 'Lead assigned to me' },
+    { key: 'support_ticket_assigned', label: 'Support ticket assigned to me' },
+    { key: 'proposal_accepted', label: 'Proposal accepted' },
+];
 
 const breadcrumbs = [{ label: 'My account' }];
 
@@ -54,6 +68,16 @@ function submitPassword() {
         preserveScroll: true,
         onSuccess: () => passwordForm.reset(),
     });
+}
+
+// Seed from the resolved prefs (defaults merged server-side), so every
+// key — including ones with no toggle here — is preserved on save.
+const notifForm = useForm({
+    preferences: { ...props.notification_preferences },
+});
+
+function submitNotifications() {
+    notifForm.put('/account/notifications', { preserveScroll: true });
 }
 </script>
 
@@ -159,6 +183,33 @@ function submitPassword() {
                     <div class="my-account-footer">
                         <button type="submit" class="btn btn-primary" :disabled="passwordForm.processing">
                             {{ passwordForm.processing ? 'Saving…' : 'Update password' }}
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Notification preferences -->
+            <section class="my-account-card">
+                <header class="my-account-card-header">
+                    <IconBell :size="18" stroke-width="1.75" />
+                    <h3>Notification preferences</h3>
+                </header>
+
+                <form class="my-account-form" @submit.prevent="submitNotifications">
+                    <div class="notif-prefs-grid">
+                        <label v-for="t in NOTIF_TYPES" :key="t.key" class="notif-pref-row">
+                            <span class="notif-pref-label">{{ t.label }}</span>
+                            <input
+                                v-model="notifForm.preferences[t.key]"
+                                type="checkbox"
+                                class="notif-toggle"
+                            >
+                        </label>
+                    </div>
+
+                    <div class="my-account-footer">
+                        <button type="submit" class="btn btn-primary" :disabled="notifForm.processing">
+                            {{ notifForm.processing ? 'Saving…' : 'Save preferences' }}
                         </button>
                     </div>
                 </form>

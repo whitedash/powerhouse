@@ -140,6 +140,28 @@ class HandleInertiaRequests extends Middleware
                     ])
                     ->all())
                 : [],
+            // In-app notifications for the bell dropdown — latest 15 for
+            // the staff (web-guard) user. Not cached: it's per-user and
+            // must reflect reads/new arrivals immediately. Portal requests
+            // resolve no web user, so this stays empty there.
+            'notifications' => fn () => $request->user()
+                ? $request->user()->notifications()->latest()->take(15)->get()
+                    ->map(fn ($n): array => [
+                        'id' => $n->id,
+                        'type' => $n->data['type'] ?? '',
+                        'title' => $n->data['title'] ?? '',
+                        'message' => $n->data['message'] ?? '',
+                        'url' => $n->data['url'] ?? null,
+                        'icon' => $n->data['icon'] ?? 'ti-bell',
+                        'colour' => $n->data['colour'] ?? 'var(--accent)',
+                        'read' => $n->read_at !== null,
+                        'time_ago' => $n->created_at->diffForHumans(),
+                    ])
+                    ->all()
+                : [],
+            'unread_count' => fn (): int => $request->user()
+                ? $request->user()->unreadNotifications()->count()
+                : 0,
         ]);
     }
 }

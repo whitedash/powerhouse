@@ -35,7 +35,6 @@ import {
     IconCircleCheck,
     IconAlertTriangle,
     IconClock,
-    IconTicket,
     IconUser,
     IconLoader2,
     IconWorld,
@@ -46,6 +45,8 @@ import {
     IconUserPlus,
     IconForms,
     IconBolt,
+    IconFlag,
+    IconCheck,
 } from '@tabler/icons-vue';
 import ToastContainer from '@/Components/UI/ToastContainer.vue';
 
@@ -97,52 +98,57 @@ const supportBadge = computed(() => {
 });
 
 /*
- * Bell-menu notifications. The same nav.* counts that drive the
- * sidebar badges drive this dropdown, so the operator can't see
- * 3 overdue invoices in the sidebar and a different number here.
- * Each entry carries a tabler icon, a tone (drives the chip colour),
- * a label, and an href to the filtered page that resolves it.
+ * Bell-menu notifications — real persistent notifications shared from
+ * HandleInertiaRequests (latest 15 + unread count). Clicking one marks
+ * it read and follows its url; "Mark all read" clears the badge.
  */
-const notifications = computed(() => {
-    const n = nav.value;
-    if (! n) return [];
-    const out = [];
-    if ((n.invoices_overdue ?? 0) > 0) {
-        out.push({
-            icon: IconReceipt,
-            tone: 'red',
-            label: `${n.invoices_overdue} overdue invoice${n.invoices_overdue === 1 ? '' : 's'}`,
-            href: '/invoices?status=overdue',
-        });
-    }
-    if ((n.invoices_outstanding ?? 0) > 0) {
-        out.push({
-            icon: IconClock,
-            tone: 'amber',
-            label: `${n.invoices_outstanding} outstanding invoice${n.invoices_outstanding === 1 ? '' : 's'}`,
-            href: '/invoices?status=sent',
-        });
-    }
-    if ((n.support_sla_breached ?? 0) > 0) {
-        out.push({
-            icon: IconAlertTriangle,
-            tone: 'red',
-            label: `${n.support_sla_breached} SLA breach${n.support_sla_breached === 1 ? '' : 'es'}`,
-            href: '/support?status=open',
-        });
-    }
-    if ((n.support_open ?? 0) > 0) {
-        out.push({
-            icon: IconTicket,
-            tone: 'blue',
-            label: `${n.support_open} open ticket${n.support_open === 1 ? '' : 's'}`,
-            href: '/support',
-        });
-    }
+const notifications = computed(() => page.props.notifications ?? []);
+const unreadCount = computed(() => page.props.unread_count ?? 0);
 
-    return out;
-});
-const notifTotal = computed(() => notifications.value.length);
+function markAllRead() {
+    router.post('/notifications/read-all', {}, { preserveState: true, preserveScroll: true, replace: true });
+}
+function markRead(id) {
+    router.post(`/notifications/${id}/read`, {}, { preserveState: true, preserveScroll: true, replace: true });
+}
+function openNotification(n) {
+    // Mark-read and navigate can't both be live Inertia visits at once —
+    // the second cancels the first. So when there's a destination we mark
+    // read, then follow through on finish; otherwise just mark read.
+    if (n.url) {
+        if (n.read) {
+            router.visit(n.url);
+        } else {
+            router.post(`/notifications/${n.id}/read`, {}, {
+                preserveState: true,
+                preserveScroll: true,
+                onFinish: () => router.visit(n.url),
+            });
+        }
+    } else if (! n.read) {
+        markRead(n.id);
+    }
+}
+
+/*
+ * The server stores a tabler icon NAME on each notification (e.g.
+ * 'ti-checkbox'); resolve it to the imported component here — same
+ * server-emits-a-name, client-maps-to-a-component pattern as
+ * PRODUCT_ICONS / SEARCH_ICON_MAP. Unknown names fall back to the bell.
+ */
+const NOTIF_ICONS = {
+    'ti-checkbox': IconCheckbox,
+    'ti-clock': IconClock,
+    'ti-flag': IconFlag,
+    'ti-alert-triangle': IconAlertTriangle,
+    'ti-user-plus': IconUserPlus,
+    'ti-headset': IconHeadset,
+    'ti-check': IconCheck,
+    'ti-bell': IconBell,
+};
+function notifIcon(name) {
+    return NOTIF_ICONS[name] ?? IconBell;
+}
 
 /*
  * Sidebar Products are server-driven (HandleInertiaRequests.share()
@@ -584,32 +590,45 @@ onBeforeUnmount(() => {
                     <Menu as="div" class="bell-menu">
                         <MenuButton class="bell-btn" aria-label="Notifications">
                             <IconBell :size="20" stroke-width="1.75" />
-                            <span v-if="notifTotal > 0" class="bell-dot" />
+                            <span v-if="unreadCount > 0" class="bell-badge">
+                                {{ unreadCount > 9 ? '9+' : unreadCount }}
+                            </span>
                         </MenuButton>
                         <MenuItems class="bell-popover">
                             <div class="bell-popover-head">
                                 <span>Notifications</span>
-                                <span v-if="notifTotal > 0" class="bell-popover-count">{{ notifTotal }}</span>
+                                <button
+                                    v-if="unreadCount > 0"
+                                    type="button"
+                                    class="bell-mark-all"
+                                    @click="markAllRead"
+                                >Mark all read</button>
                             </div>
                             <div v-if="notifications.length" class="bell-popover-list">
-                                <Link
-                                    v-for="(n, i) in notifications"
-                                    :key="i"
-                                    :href="n.href"
-                                    class="bell-row"
+                                <div
+                                    v-for="n in notifications"
+                                    :key="n.id"
+                                    class="notif-item"
+                                    :class="{ unread: !n.read }"
+                                    @click="openNotification(n)"
                                 >
-                                    <span class="bell-row-icon" :class="n.tone">
-                                        <component :is="n.icon" :size="14" stroke-width="2" />
+                                    <span class="notif-icon" :style="{ background: n.colour + '22', color: n.colour }">
+                                        <component :is="notifIcon(n.icon)" :size="15" stroke-width="2" />
                                     </span>
-                                    <span class="bell-row-text">{{ n.label }}</span>
-                                </Link>
+                                    <div class="notif-body">
+                                        <div class="notif-title" :class="{ strong: !n.read }">{{ n.title }}</div>
+                                        <div class="notif-message">{{ n.message }}</div>
+                                        <div class="notif-time">{{ n.time_ago }}</div>
+                                    </div>
+                                    <span v-if="!n.read" class="notif-dot" />
+                                </div>
                             </div>
                             <div v-else class="bell-popover-empty">
                                 <IconCircleCheck :size="22" stroke-width="2" />
-                                <span>All caught up</span>
+                                <span>All caught up ✓</span>
                             </div>
-                            <Link href="/analytics" class="bell-popover-foot">
-                                View activity
+                            <Link href="/notifications" class="bell-popover-foot">
+                                View all
                             </Link>
                         </MenuItems>
                     </Menu>

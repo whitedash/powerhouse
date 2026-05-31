@@ -18,6 +18,7 @@ use App\Http\Controllers\Internal\LeadController as InternalLeadController;
 use App\Http\Controllers\Internal\MaavelusStatementController as InternalMaavelusStatementController;
 use App\Http\Controllers\Internal\MilestoneController as InternalMilestoneController;
 use App\Http\Controllers\Internal\MyAccountController as InternalMyAccountController;
+use App\Http\Controllers\Internal\NotificationController as InternalNotificationController;
 use App\Http\Controllers\Internal\MyWorkController as InternalMyWorkController;
 use App\Http\Controllers\Internal\NoteController as InternalNoteController;
 use App\Http\Controllers\Internal\PaymentScheduleController as InternalPaymentScheduleController;
@@ -325,6 +326,19 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::get('/account', [InternalMyAccountController::class, 'show'])->name('internal.account.show');
     Route::put('/account', [InternalMyAccountController::class, 'update'])->name('internal.account.update');
     Route::put('/account/password', [InternalMyAccountController::class, 'updatePassword'])->name('internal.account.password');
+    Route::put('/account/notifications', [InternalMyAccountController::class, 'updateNotifications'])->name('internal.account.notifications');
+
+    // In-app notifications — bell dropdown + full-page list. read-all is
+    // declared before the {id} routes so it can never be swallowed by the
+    // UUID param. {id} is a notifications-table UUID.
+    Route::get('/notifications', [InternalNotificationController::class, 'index'])->name('internal.notifications.index');
+    Route::post('/notifications/read-all', [InternalNotificationController::class, 'markAllRead'])->name('internal.notifications.read-all');
+    Route::post('/notifications/{id}/read', [InternalNotificationController::class, 'markRead'])
+        ->where('id', '[a-zA-Z0-9-]+')
+        ->name('internal.notifications.read');
+    Route::delete('/notifications/{id}', [InternalNotificationController::class, 'destroy'])
+        ->where('id', '[a-zA-Z0-9-]+')
+        ->name('internal.notifications.destroy');
     Route::delete('/customers/{id}/archive', [InternalCustomerController::class, 'archive'])->name('internal.customers.archive');
 
     // Portal access — issue or rotate portal credentials for a customer.

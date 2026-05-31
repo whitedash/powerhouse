@@ -19,6 +19,7 @@ use Laravel\Passport\HasApiTokens;
  * @property string $password
  * @property string $role
  * @property string|null $avatar_colour
+ * @property array<string, bool>|null $notification_preferences
  * @property string|null $two_factor_secret
  * @property Carbon|null $two_factor_confirmed_at
  * @property Carbon|null $last_login_at
@@ -43,6 +44,7 @@ class User extends Authenticatable implements OAuthenticatable
         'password',
         'role',
         'avatar_colour',
+        'notification_preferences',
     ];
 
     protected $hidden = [
@@ -58,7 +60,22 @@ class User extends Authenticatable implements OAuthenticatable
             'two_factor_secret' => 'encrypted',
             'two_factor_confirmed_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'notification_preferences' => 'array',
         ];
+    }
+
+    /**
+     * Whether this user wants in-app notifications of the given type.
+     * A type the user has never toggled defaults to ON (true), so new
+     * notification types light up for everyone until they opt out — the
+     * one exception (invoice_overdue defaulting off) is seeded by the
+     * account preferences form, not assumed here.
+     */
+    public function wantsNotification(string $type): bool
+    {
+        $prefs = $this->notification_preferences ?? [];
+
+        return $prefs[$type] ?? true;
     }
 
     public function referrer(): HasOne

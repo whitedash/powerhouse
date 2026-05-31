@@ -10,6 +10,7 @@ use App\Models\SupportMessage;
 use App\Models\SupportTicket;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -228,6 +229,8 @@ class SupportController extends Controller
 
         $this->forgetNavCaches();
 
+        app(NotificationService::class)->notifySupportAssigned($ticket, $request->user());
+
         return redirect()
             ->route('internal.support.show', $ticket->id)
             ->with('success', "Ticket #{$ticket->id} created.");
@@ -362,6 +365,8 @@ class SupportController extends Controller
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
+        $previousAssignee = $ticket->assigned_to;
+
         DB::transaction(function () use ($ticket, $data, $request) {
             $before = ['status' => $ticket->status, 'assigned_to' => $ticket->assigned_to];
 
@@ -390,6 +395,10 @@ class SupportController extends Controller
         });
 
         $this->forgetNavCaches();
+
+        if ($ticket->assigned_to !== $previousAssignee) {
+            app(NotificationService::class)->notifySupportAssigned($ticket, $request->user());
+        }
 
         return back()->with('success', 'Ticket updated.');
     }

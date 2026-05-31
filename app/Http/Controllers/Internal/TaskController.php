@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Milestone;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -230,6 +231,10 @@ class TaskController extends Controller
             return $task;
         });
 
+        // Notify the assignee when a task lands on someone else's plate.
+        // The service no-ops on self-assignment and on the opted-out.
+        app(NotificationService::class)->notifyTaskAssigned($task, $request->user());
+
         return back()->with('success', $this->createdMessage($task));
     }
 
@@ -251,6 +256,7 @@ class TaskController extends Controller
         $this->guardContactBelongsToCustomer($data);
 
         $before = $task->only(['title', 'type', 'priority', 'description', 'due_at', 'duration_minutes']);
+        $previousAssignee = $task->assigned_to;
 
         DB::transaction(function () use ($task, $data) {
             $task->fill([
@@ -267,6 +273,12 @@ class TaskController extends Controller
         });
 
         $this->logActivity($request, 'task.updated', $task, before: $before, after: $task->only(['title', 'type', 'priority', 'description', 'due_at', 'duration_minutes']));
+
+        // Only notify when the assignee actually changed — a plain edit
+        // (title, due date, …) shouldn't re-ping the same person.
+        if ($task->assigned_to !== $previousAssignee) {
+            app(NotificationService::class)->notifyTaskAssigned($task, $user);
+        }
 
         return back()->with('success', 'Activity updated.');
     }
@@ -383,8 +395,9 @@ class TaskController extends Controller
         ]);
 
         $oldStatus = $task->status;
+        $completedMilestone = null;
 
-        DB::transaction(function () use ($task, $data) {
+        DB::transaction(function () use ($task, $data, &$completedMilestone) {
             $task->update([
                 'status' => $data['status'],
                 'completed_at' => $data['status'] === 'complete' ? now() : null,
@@ -396,9 +409,16 @@ class TaskController extends Controller
             ]);
 
             if ($data['status'] === 'complete' && $task->milestone_id !== null) {
-                $this->checkMilestoneCompletion($task->milestone_id);
+                $completedMilestone = $this->checkMilestoneCompletion($task->milestone_id);
             }
         });
+
+        // Fan out the milestone-completed notification after the
+        // transaction commits — keep the write transaction short and
+        // don't hold it open across the recipient loop.
+        if ($completedMilestone !== null) {
+            app(NotificationService::class)->notifyMilestoneCompleted($completedMilestone);
+        }
 
         $this->logActivity($request, 'task.status_changed', $task, after: [
             'from' => $oldStatus,
@@ -435,6 +455,15 @@ class TaskController extends Controller
             'items.*.milestone_id' => 'nullable|integer|exists:milestones,id',
         ]);
 
+        $taskIds = array_map(static fn (array $i): int => (int) $i['id'], $data['items']);
+
+        // Milestones the moved tasks belonged to BEFORE the move — moving
+        // the last open task out can leave the remainder all-complete.
+        $affectedMilestoneIds = Task::whereIn('id', $taskIds)
+            ->whereNotNull('milestone_id')
+            ->pluck('milestone_id')
+            ->all();
+
         DB::transaction(function () use ($data) {
             foreach ($data['items'] as $item) {
                 Task::where('id', $item['id'])
@@ -451,15 +480,38 @@ class TaskController extends Controller
             }
         });
 
+        // …plus the milestones they belong to AFTER the move (a completed
+        // task dropped into an otherwise-done milestone completes it).
+        $affectedMilestoneIds = array_values(array_unique(array_merge(
+            $affectedMilestoneIds,
+            Task::whereIn('id', $taskIds)->whereNotNull('milestone_id')->pluck('milestone_id')->all(),
+        )));
+
+        $completedMilestones = [];
+        DB::transaction(function () use ($affectedMilestoneIds, &$completedMilestones) {
+            foreach ($affectedMilestoneIds as $milestoneId) {
+                $milestone = $this->checkMilestoneCompletion((int) $milestoneId);
+                if ($milestone !== null) {
+                    $completedMilestones[] = $milestone;
+                }
+            }
+        });
+
+        foreach ($completedMilestones as $milestone) {
+            app(NotificationService::class)->notifyMilestoneCompleted($milestone);
+        }
+
         return response()->json(['ok' => true]);
     }
 
     /**
      * Roll the parent milestone to completed when every one of its
-     * tasks is done. Idempotent — calling this on an already-
-     * completed milestone is a no-op.
+     * tasks is done. Idempotent — calling this on an already-completed
+     * milestone is a no-op. Returns the milestone ONLY when this call
+     * is the one that completed it, so the caller can fire the
+     * milestone-completed notification exactly once.
      */
-    private function checkMilestoneCompletion(int $milestoneId): void
+    private function checkMilestoneCompletion(int $milestoneId): ?Milestone
     {
         $milestone = Milestone::findOrFail($milestoneId);
         $total = Task::where('milestone_id', $milestoneId)->count();
@@ -472,7 +524,11 @@ class TaskController extends Controller
                 'status' => 'completed',
                 'completed_at' => now(),
             ]);
+
+            return $milestone;
         }
+
+        return null;
     }
 
     /**

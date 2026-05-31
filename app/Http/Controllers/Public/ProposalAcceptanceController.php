@@ -12,6 +12,7 @@ use App\Models\PaymentSchedule;
 use App\Models\PaymentScheduleItem;
 use App\Models\Proposal;
 use App\Models\ProposalLine;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -149,7 +150,9 @@ class ProposalAcceptanceController extends Controller
             ]);
         });
 
-        // TODO: notify staff via email; email the accepted PDF to customer.
+        // In-app notification to the proposal's author. (Email + the
+        // accepted-PDF-to-customer handoff still pending the Postmark sprint.)
+        app(NotificationService::class)->notifyProposalAccepted($proposal);
 
         return Inertia::render('Public/ProposalAccepted', [
             'reference' => $proposal->reference,
