@@ -9,7 +9,6 @@ use App\Models\Invoice;
 use App\Models\PortalUser;
 use App\Models\SupportTicket;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -33,12 +32,13 @@ class DashboardController extends Controller
 
         $activeProducts = CustomerProduct::where('customer_id', $customer->id)
             ->whereIn('status', ['active', 'trial'])
-            ->with(['product:id,name,slug,icon_colour', 'productPlan:id,name', 'planPrice:id,plan_id,price,interval_unit,interval_count'])
+            ->with(['product:id,name,slug,icon_colour,description', 'productPlan:id,name', 'planPrice:id,plan_id,price,interval_unit,interval_count'])
             ->get()
             ->map(fn (CustomerProduct $cp): array => [
                 'id' => $cp->id,
                 'product_name' => $cp->product?->name,
                 'product_slug' => $cp->product?->slug,
+                'product_description' => $cp->product?->description,
                 'icon_colour' => $cp->product?->icon_colour,
                 'plan_name' => $cp->productPlan ? $cp->productPlan->name : 'Custom',
                 'price' => round((float) ($cp->planPrice ? $cp->planPrice->price : ($cp->price_monthly ?? 0)), 2),
@@ -46,45 +46,29 @@ class DashboardController extends Controller
                 'mrr' => round($cp->mrr_contribution, 2),
                 'status' => $cp->status,
                 'next_billing_date' => $cp->next_billing_date?->format('j M Y'),
-                // SSO open URL. Consumer apps detect `sso=1` and
-                // bounce the browser through /oauth/authorize. The
-                // customer_id hint isn't trusted — it just speeds up
-                // the consumer's "who is this?" lookup, the token
-                // exchange is what actually proves identity.
+                // Plain SSO entry point (browser-driven `?sso=1`
+                // bounce). Retained as a fallback for products that
+                // ship without a server-side token exchange endpoint.
                 'sso_url' => $this->resolveSsoUrl($cp->product?->slug, $customer->id),
+                // sso_enabled = the consumer app exposes a
+                // /wp-json/{vendor}/v1/sso endpoint that accepts a
+                // freshly-minted Passport token and returns a
+                // one-time login URL. When true, the Dashboard.vue
+                // "Open" button POSTs to /portal/launch/{slug}
+                // (token-mint flow). When false, it falls back to
+                // sso_url / the subscriptions page.
+                'sso_enabled' => $this->productHasSso($cp->product?->slug),
+                // Direct URL surfaced as `launch_url` for UI clarity
+                // — same value as sso_url today; kept under the new
+                // name so the Vue layer can phase out sso_url next
+                // sprint without breaking the API shape now.
+                'launch_url' => $this->getProductUrl($cp->product?->slug),
             ])
             ->all();
 
-        // Connected apps — distinct OAuth clients holding non-revoked
-        // tokens for any portal_user on this customer. We aggregate
-        // across portal users so a single account view shows what
-        // any user under the company has authorised.
-        $portalUserIds = PortalUser::where('customer_id', $customer->id)->pluck('id')->all();
-
-        $connectedApps = DB::table('oauth_access_tokens as t')
-            ->join('oauth_clients as c', 'c.id', '=', 't.client_id')
-            ->whereIn('t.user_id', $portalUserIds)
-            ->where('t.revoked', false)
-            ->where(function ($q) {
-                $q->whereNull('t.expires_at')
-                    ->orWhere('t.expires_at', '>', now());
-            })
-            ->select(
-                't.client_id',
-                'c.name as client_name',
-                DB::raw('MAX(t.created_at) as last_authorized_at'),
-                DB::raw('COUNT(*) as token_count'),
-            )
-            ->groupBy('t.client_id', 'c.name')
-            ->orderByDesc('last_authorized_at')
-            ->get()
-            ->map(fn ($row): array => [
-                'client_id' => $row->client_id,
-                'name' => $row->client_name,
-                'last_authorized_at' => $row->last_authorized_at,
-                'token_count' => (int) $row->token_count,
-            ])
-            ->all();
+        // The connected-apps roll-up moved to /portal/security so we
+        // skip the join here. Dashboard is the launching surface; the
+        // Security page owns token management.
 
         $recentInvoices = Invoice::where('customer_id', $customer->id)
             ->with('billingEntity:id,name')
@@ -124,7 +108,6 @@ class DashboardController extends Controller
                 'contact_name' => $customer->primaryContact?->name,
             ],
             'active_products' => $activeProducts,
-            'connected_apps' => $connectedApps,
             'recent_invoices' => $recentInvoices,
             'invoices_paid_count' => $invoicesPaid,
             'outstanding_total' => round($outstandingTotal, 2),
@@ -143,19 +126,56 @@ class DashboardController extends Controller
      */
     private function resolveSsoUrl(?string $slug, int $customerId): ?string
     {
-        if ($slug === null || $slug === '') {
-            return null;
-        }
-
-        $base = match (true) {
-            str_starts_with($slug, 'maavelus') => 'https://restaurant.maavelus.co.uk',
-            $slug === 'myorderpad' => 'https://app.myorderpad.co.uk',
-            $slug === 'orderpad' => 'https://app.myorderpad.co.uk',
-            default => null,
-        };
+        $base = $this->getProductUrl($slug);
 
         return $base === null
             ? null
             : $base.'/?sso=1&customer_id='.$customerId;
+    }
+
+    /**
+     * Base URL for a consumer product. Pulled from config so a
+     * staging install can point Maavelus at a different hostname
+     * without code changes. Returns null for slugs we don't yet
+     * know how to launch — the UI then falls back to the legacy
+     * "Manage" link to /portal/subscriptions.
+     */
+    private function getProductUrl(?string $slug): ?string
+    {
+        if ($slug === null || $slug === '') {
+            return null;
+        }
+
+        return match (true) {
+            str_starts_with($slug, 'maavelus') => (string) config(
+                'services.products.maavelus_url',
+                'https://restaurant.maavelus.co.uk',
+            ),
+            in_array($slug, ['myorderpad', 'orderpad'], true) => (string) config(
+                'services.products.myorderpad_url',
+                'https://app.myorderpad.co.uk',
+            ),
+            default => null,
+        };
+    }
+
+    /**
+     * True when the consumer app exposes a token-exchange SSO
+     * endpoint we can POST to (see ProductLaunchController). Used
+     * by the Dashboard.vue Open button to decide whether to POST
+     * to /portal/launch/{slug} (server-mint flow) or follow the
+     * sso_url directly (legacy redirect).
+     */
+    private function productHasSso(?string $slug): bool
+    {
+        if ($slug === null || $slug === '') {
+            return false;
+        }
+
+        return in_array($slug, [
+            'maavelus',
+            'maavelus-hospitality',
+            'myorderpad',
+        ], true);
     }
 }

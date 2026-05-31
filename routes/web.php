@@ -44,7 +44,9 @@ use App\Http\Controllers\Portal\ConnectedAppController as PortalConnectedAppCont
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
 use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
 use App\Http\Controllers\Portal\PasswordController as PortalPasswordController;
+use App\Http\Controllers\Portal\ProductLaunchController as PortalProductLaunchController;
 use App\Http\Controllers\Portal\ProductsController as PortalProductsController;
+use App\Http\Controllers\Portal\SecurityController as PortalSecurityController;
 use App\Http\Controllers\Portal\SubscriptionController as PortalSubscriptionController;
 use App\Http\Controllers\Portal\SupportController as PortalSupportController;
 use App\Http\Controllers\Public\EmbedController as PublicEmbedController;
@@ -591,6 +593,21 @@ Route::prefix('portal')->middleware('auth.portal')->group(function () {
     Route::post('/connected-apps/{clientId}/revoke', [PortalConnectedAppController::class, 'revoke'])
         ->where('clientId', '[a-f0-9-]{36}')
         ->name('portal.connected-apps.revoke');
+
+    // Server-side SSO launcher — mints a per-launch token, hands it
+    // to the consumer app's exchange endpoint, redirects to the
+    // one-time URL we get back. Used by Dashboard "Open" button.
+    Route::post('/launch/{slug}', [PortalProductLaunchController::class, 'launch'])
+        ->where('slug', '[a-z0-9-]+')
+        ->name('portal.product.launch');
+
+    // Security page — password change form + per-token revoke list.
+    // The password endpoint already lives on AccountController so we
+    // reuse it; this page just renders the form against the same URL.
+    Route::get('/security', [PortalSecurityController::class, 'index'])->name('portal.security');
+    Route::delete('/security/tokens/{token}', [PortalSecurityController::class, 'revokeToken'])
+        ->where('token', '[a-zA-Z0-9]+')
+        ->name('portal.security.tokens.revoke');
 
     Route::get('/subscriptions', [PortalSubscriptionController::class, 'index'])->name('portal.subscriptions.index');
     Route::post('/subscriptions', [PortalSubscriptionController::class, 'store'])->name('portal.subscriptions.store');

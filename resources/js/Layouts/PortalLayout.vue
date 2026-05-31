@@ -52,6 +52,7 @@ const tabs = computed(() => [
     { key: 'invoices',      label: 'Invoices',      href: '/portal/invoices',      count: props.counts?.invoices },
     { key: 'support',       label: 'Support',       href: '/portal/support',       count: props.counts?.support },
     { key: 'account',       label: 'Account',       href: '/portal/account' },
+    { key: 'security',      label: 'Security',      href: '/portal/security' },
 ]);
 
 function logout() {

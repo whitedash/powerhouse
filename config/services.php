@@ -50,6 +50,17 @@ return [
     ],
 
     /*
+     * Public-facing URLs for the consumer products. Read by the
+     * portal dashboard launcher to build SSO redirect targets and
+     * by ProductLaunchController to POST token-exchange requests.
+     * Defaults mirror production; staging overrides via .env.
+     */
+    'products' => [
+        'maavelus_url' => env('MAAVELUS_APP_URL', 'https://restaurant.maavelus.co.uk'),
+        'myorderpad_url' => env('MYORDERPAD_APP_URL', 'https://app.myorderpad.co.uk'),
+    ],
+
+    /*
      * OAuth client IDs for the products that consume Powerhouse SSO.
      * The IDs are UUIDs (Passport v12+ schema). Defaults match the
      * seed data already in oauth_clients on local; production reads

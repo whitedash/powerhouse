@@ -10,16 +10,12 @@ import {
     IconReceipt,
     IconExternalLink,
     IconCircleCheck,
-    IconShieldLock,
-    IconX,
 } from '@tabler/icons-vue';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
-import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 
 const props = defineProps({
     customer: { type: Object, required: true },
     active_products: { type: Array, default: () => [] },
-    connected_apps: { type: Array, default: () => [] },
     recent_invoices: { type: Array, default: () => [] },
     invoices_paid_count: { type: Number, default: 0 },
     outstanding_total: { type: Number, default: 0 },
@@ -56,30 +52,29 @@ function gbp(n) {
     return `£${Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/* ─── Connected apps revoke ─── */
-const confirmRevoke = ref(false);
-const revokeTarget = ref(null);
-function askRevoke(app) {
-    revokeTarget.value = app;
-    confirmRevoke.value = true;
-}
-function doRevoke() {
-    if (!revokeTarget.value) return;
-    router.post(`/portal/connected-apps/${revokeTarget.value.client_id}/revoke`, {}, {
-        preserveScroll: true,
-        onFinish: () => { confirmRevoke.value = false; revokeTarget.value = null; },
-    });
-}
+/* ─── SSO launch ─── */
+// One launch at a time per click. Setting to the product id while
+// the request is in flight drives the button's :disabled + "Opening…"
+// label; cleared on response (success path redirects away anyway).
+const launchingId = ref(null);
 
-function fmtRelative(iso) {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    const diff = (Date.now() - d.getTime()) / 1000;
-    if (diff < 60) return 'just now';
-    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
-    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
-    if (diff < 86400 * 30) return Math.floor(diff / 86400) + 'd ago';
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+function launchProduct(product) {
+    if (!product.sso_enabled) {
+        // sso_enabled false but the button still rendered — this
+        // can only happen if the rendered DOM is out of sync with
+        // the data. Fall back to the legacy link rather than POST.
+        if (product.sso_url) window.location.href = product.sso_url;
+        return;
+    }
+
+    launchingId.value = product.id;
+    router.post(`/portal/launch/${product.product_slug}`, {}, {
+        // preserveState so the rest of the dashboard data stays put
+        // if the controller surfaces an inline error (back()->with()).
+        preserveState: true,
+        preserveScroll: true,
+        onFinish: () => { launchingId.value = null; },
+    });
 }
 
 function badgeClassForInvoice(status) {
@@ -182,56 +177,51 @@ function invoiceLabel(status) {
                     </span>
                 </div>
                 <div class="pc-card-foot">
-                    <!-- SSO "Open" link goes to the consumer app's SSO
-                         entry point (?sso=1&customer_id=…). The product
-                         detects the hint and starts the OAuth flow back
-                         against Powerhouse. We only show it when we
-                         actually know the consumer URL — others fall
-                         back to the legacy "Manage" link. -->
-                    <a v-if="p.sso_url" :href="p.sso_url" class="btn btn-primary btn-block">
+                    <!--
+                      Open button — two paths:
+
+                      1. sso_enabled = true → server-side token mint.
+                         POST /portal/launch/{slug}. Backend mints a
+                         Passport token, calls the consumer's
+                         /wp-json/maavelus/v1/sso, then Inertia::location()
+                         redirects us to the one-time URL it returns.
+
+                      2. sso_enabled = false but sso_url present →
+                         legacy ?sso=1 hint. The consumer detects
+                         it and starts its own OAuth dance.
+
+                      No path either → fall back to the Manage link.
+                    -->
+                    <button
+                        v-if="p.sso_enabled"
+                        type="button"
+                        class="btn btn-primary btn-block"
+                        :disabled="launchingId === p.id"
+                        @click="launchProduct(p)"
+                    >
+                        <IconExternalLink :size="14" stroke-width="1.75" />
+                        {{ launchingId === p.id
+                            ? 'Opening…'
+                            : `Open ${p.product_name}` }}
+                    </button>
+                    <a
+                        v-else-if="p.sso_url"
+                        :href="p.sso_url"
+                        class="btn btn-primary btn-block"
+                    >
                         Open {{ p.product_name }}
                         <IconExternalLink :size="14" stroke-width="1.75" />
                     </a>
-                    <Link href="/portal/subscriptions" :class="['btn', p.sso_url ? 'btn-ghost btn-block btn-sm' : 'btn-secondary btn-block']">
+                    <Link
+                        href="/portal/subscriptions"
+                        :class="['btn', (p.sso_enabled || p.sso_url) ? 'btn-ghost btn-block btn-sm' : 'btn-secondary btn-block']"
+                    >
                         Manage {{ p.product_name }}
-                        <IconExternalLink v-if="!p.sso_url" :size="14" stroke-width="1.75" />
+                        <IconExternalLink v-if="!(p.sso_enabled || p.sso_url)" :size="14" stroke-width="1.75" />
                     </Link>
                 </div>
             </article>
         </div>
-
-        <!-- Connected applications (OAuth grants) -->
-        <template v-if="connected_apps.length > 0">
-            <div class="portal-section-head" style="margin-top: 32px;">
-                <div class="col-l">
-                    <h2><IconShieldLock :size="18" stroke-width="2" style="vertical-align: -3px;" /> Connected applications</h2>
-                    <div class="desc">Apps you've authorised to access your Powerhouse account.</div>
-                </div>
-            </div>
-            <div class="card">
-                <div v-for="app in connected_apps" :key="app.client_id" class="connected-app-row">
-                    <div class="ca-meta">
-                        <div class="ca-name">{{ app.name }}</div>
-                        <div class="ca-sub muted small">
-                            Last authorised {{ fmtRelative(app.last_authorized_at) }}
-                            · {{ app.token_count }} active token{{ app.token_count === 1 ? '' : 's' }}
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-ghost btn-sm" @click="askRevoke(app)">
-                        <IconX :size="13" stroke-width="2" /> Revoke
-                    </button>
-                </div>
-            </div>
-        </template>
-
-        <ConfirmModal
-            v-model:show="confirmRevoke"
-            variant="danger"
-            :title="`Revoke access for ${revokeTarget?.name}?`"
-            message="The app will be signed out of your account immediately. You can re-authorise it later by signing in again from the product."
-            confirm-label="Revoke access"
-            @confirm="doRevoke"
-        />
 
         <!-- Invoices preview -->
         <div class="portal-section-head">

@@ -12517,24 +12517,102 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
 .row-menu button.danger { color: var(--danger, #ef4444); }
 .row-menu button.danger:hover { background: #fef2f2; }
 
-/* ─────────────────────────────────────────────────────────────
-   Portal — Connected applications (OAuth SSO sprint)
-   ───────────────────────────────────────────────────────────── */
-.connected-app-row {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 14px;
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--border-soft);
-}
-.connected-app-row:last-child { border-bottom: 0; }
-.connected-app-row .ca-meta { display: flex; flex-direction: column; gap: 2px; }
-.connected-app-row .ca-name {
-    font: 600 14px/1.3 'Inter', sans-serif;
-    color: var(--text-primary);
-}
-.connected-app-row .ca-sub { font-size: 12.5px; }
-
 /* Portal product card — promote SSO Open to primary, demote Manage. */
 .portal-product-card .pc-card-foot {
     display: flex; flex-direction: column; gap: 6px;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Portal — Security page (password + connected app tokens)
+   ───────────────────────────────────────────────────────────── */
+.portal-security {
+    display: flex; flex-direction: column; gap: 20px;
+    padding: 24px 0;
+}
+.portal-security-head {
+    display: flex; align-items: flex-start; gap: 14px;
+    margin-bottom: 4px;
+}
+.portal-security-head h1 {
+    margin: 0; font: 600 22px/1.2 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+.portal-security-head p { margin: 4px 0 0; }
+
+.portal-security-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 20px 22px;
+}
+.portal-security-card-head {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border-soft);
+    margin-bottom: 14px;
+}
+.portal-security-card-head h2 {
+    margin: 0; font: 600 15px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+
+/* Password form layout */
+.portal-security-form {
+    display: flex; flex-direction: column; gap: 12px;
+    max-width: 420px;
+}
+.portal-security-form .form-row label {
+    display: block;
+    margin-bottom: 6px;
+    font: 500 12.5px/1.2 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.portal-security-form .form-row input {
+    width: 100%; padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font: 400 13.5px/1.4 'Inter', sans-serif;
+}
+.portal-security-form .form-row input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+}
+.portal-security-form .has-err { border-color: var(--danger); }
+.portal-security-form .err {
+    font-size: 12px; color: var(--danger);
+    margin-top: 4px;
+}
+.portal-security-form-foot {
+    margin-top: 4px;
+    display: flex; justify-content: flex-end;
+}
+
+/* Connected-token rows */
+.portal-security-empty {
+    padding: 16px 0;
+    font: 400 13.5px/1.5 'Inter', sans-serif;
+}
+.portal-security-token-list {
+    display: flex; flex-direction: column;
+}
+.portal-security-token-row {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border-soft);
+}
+.portal-security-token-row:last-child { border-bottom: 0; }
+.portal-security-token-row .ptr-meta {
+    display: flex; flex-direction: column; gap: 2px;
+    min-width: 0;
+}
+.portal-security-token-row .ptr-name {
+    font: 600 14px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+.portal-security-token-row .ptr-dates {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 2px;
 }

@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Laravel\Passport\Contracts\OAuthenticatable;
+use Laravel\Passport\HasApiTokens;
 
 /**
  * @property int $id
@@ -23,9 +25,14 @@ use Illuminate\Support\Carbon;
  * @property-read Customer|null $customer
  * @property-read Contact|null $contact
  */
-class PortalUser extends Authenticatable
+class PortalUser extends Authenticatable implements OAuthenticatable
 {
-    use Notifiable;
+    // HasApiTokens enables $portalUser->createToken(...) for the
+    // server-side SSO launch flow (Portal\ProductLaunchController).
+    // The Passport guard is configured to authenticate portal_users,
+    // so a personal access token minted here is verified by the
+    // same provider on the way back in via /oauth/userinfo.
+    use HasApiTokens, Notifiable;
 
     protected $fillable = [
         'customer_id',
