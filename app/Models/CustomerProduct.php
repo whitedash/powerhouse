@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
  * @property int $product_id
  * @property int|null $plan_id
  * @property int|null $plan_price_id
+ * @property string|null $label
  * @property int|null $billing_entity_id
  * @property string|null $stripe_subscription_id
  * @property string|null $stripe_price_id
@@ -62,6 +63,7 @@ class CustomerProduct extends Model
         'product_id',
         'plan_id',
         'plan_price_id',
+        'label',
         'billing_entity_id',
         'stripe_subscription_id',
         'stripe_price_id',

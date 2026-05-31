@@ -2288,6 +2288,26 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
 }
 .ent-opt:hover { border-color: #CBD5E1; }
 .ent-opt.selected { border: 1.5px solid var(--accent); background: var(--warning-bg); padding: 11.5px 13.5px; }
+/* "(N active)" badge on a product the customer already subscribes to —
+ * signals staff they're adding another instance, not editing. */
+.ent-count-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    font: 600 10px/1.6 'Inter', sans-serif;
+    vertical-align: middle;
+}
+/* "optional" qualifier next to a slide-over field heading. */
+h3 .opt {
+    margin-left: 6px;
+    font: 400 11px/1 'Inter', sans-serif;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-tertiary);
+}
 .radio {
     width: 18px; height: 18px;
     border-radius: 50%;
@@ -7629,6 +7649,15 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
     gap: 6px 14px;
     margin-top: 6px;
 }
+/* Per-subscription instance label (e.g. "Main website") shown under the
+ * product/plan name when multiple instances of a product exist. */
+.cp-label {
+    margin-top: 2px;
+    font: 500 12.5px/1.3 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.cp-label::before { content: '“'; }
+.cp-label::after { content: '”'; }
 .cp-date {
     display: inline-flex;
     align-items: center;

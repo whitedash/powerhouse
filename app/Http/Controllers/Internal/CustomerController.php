@@ -353,6 +353,9 @@ class CustomerController extends Controller
                     'suspended_at' => $cp->suspended_at?->toIso8601String(),
                     'suspended_by_system' => $cp->suspended_by_system,
                     'plan' => $cp->plan,
+                    // Optional per-instance label — distinguishes multiple
+                    // subscriptions of the same product.
+                    'label' => $cp->label,
                     'price_monthly' => (float) ($cp->price_monthly ?? 0),
                     'interval_count' => $cp->interval_count,
                     'interval_unit' => $cp->interval_unit,
@@ -377,7 +380,15 @@ class CustomerController extends Controller
                     ->get()
                     ->map(fn (CustomerProduct $cp): array => [
                         'id' => $cp->id,
-                        'label' => $cp->product->name.' — '.$cp->productPlan->name,
+                        // Product · Plan · instance label · price, so staff
+                        // can tell several instances of the same product
+                        // apart in the website hosting-plan picker.
+                        'label' => implode(' · ', array_filter([
+                            $cp->product->name,
+                            $cp->productPlan->name,
+                            $cp->label,
+                            $cp->price_monthly !== null ? '£'.number_format((float) $cp->price_monthly, 2).'/mo' : null,
+                        ])),
                     ])->values(),
 
                 'mrr' => $mrr,
@@ -634,15 +645,15 @@ class CustomerController extends Controller
                 ->orWhere('is_coming_soon', true)
                 ->orderBy('sort_order')
                 ->get(['id', 'slug', 'name', 'icon_colour', 'is_coming_soon']),
-            // Active products this customer does NOT already have on an
-            // active/trial subscription — the Enable Product slide-over
-            // should not surface a product that's already running. Each
-            // product carries its activePlans so the slide-over can
-            // render a plan picker and auto-fill price.
+            // Every active product — a customer can run several
+            // subscriptions of the same product (e.g. one hosting plan
+            // per website), so the Enable Product slide-over always
+            // shows the full catalogue. Each product carries its
+            // activePlans so the slide-over can render a plan picker and
+            // auto-fill price; existing_counts (below) badges products
+            // the customer already has so staff know they're adding a
+            // new instance.
             'available_products' => Product::where('is_active', true)
-                ->whereNotIn('id', $customer->customerProducts
-                    ->whereIn('status', ['active', 'trial'])
-                    ->pluck('product_id'))
                 ->with([
                     'activePlans.activePrices',
                     'activePlans.category',
@@ -703,6 +714,14 @@ class CustomerController extends Controller
                     ];
                 })
                 ->values(),
+            // How many live (active/trial) subscriptions the customer
+            // already has per product — keyed product_id => count — so
+            // the Enable Product picker can badge "(2 active)".
+            'existing_counts' => CustomerProduct::where('customer_id', $customer->id)
+                ->whereIn('status', ['active', 'trial'])
+                ->selectRaw('product_id, COUNT(*) as aggregate')
+                ->groupBy('product_id')
+                ->pluck('aggregate', 'product_id'),
             'billing_entities' => BillingEntity::where('is_active', true)
                 ->get(['id', 'name']),
             'pipeline_stages' => self::PIPELINE_STAGES,
@@ -872,22 +891,17 @@ class CustomerController extends Controller
             'interval_unit' => ['nullable', 'in:day,week,month,year,one_time'],
             'billing_entity_id' => ['nullable', 'integer', 'exists:billing_entities,id'],
             'plan' => ['nullable', 'string', 'max:100'],
+            // Optional instance label — lets a customer run several
+            // subscriptions of the same product, told apart by label.
+            'label' => ['nullable', 'string', 'max:100'],
             'price_monthly' => ['nullable', 'numeric', 'min:0'],
             'status' => ['required', 'in:active,trial'],
             'trial_ends_at' => ['nullable', 'date', 'required_if:status,trial'],
         ]);
 
-        // Block double-enable — a customer can't run two active/trial
-        // subscriptions for the same product simultaneously. The product
-        // picker already filters this server-side, but the API is the
-        // authoritative boundary.
-        $alreadyActive = $customer->customerProducts()
-            ->where('product_id', $data['product_id'])
-            ->whereIn('status', ['active', 'trial'])
-            ->exists();
-        if ($alreadyActive) {
-            return back()->with('error', 'This product is already enabled for this customer.');
-        }
+        // Multiple subscriptions of the same product are allowed (one
+        // hosting plan per website, for instance), so there is no
+        // double-enable guard — each submit creates a new instance.
 
         // Resolution order:
         //   1. plan_price_id wins for price + interval (canonical).
@@ -918,6 +932,7 @@ class CustomerController extends Controller
                 'product_id' => $data['product_id'],
                 'plan_id' => $plan?->id,
                 'plan_price_id' => $planPrice?->id,
+                'label' => $data['label'] ?? null,
                 'billing_entity_id' => $data['billing_entity_id'] ?? null,
                 'plan' => $planName,
                 'price_monthly' => $price,

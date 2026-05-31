@@ -68,6 +68,7 @@ const props = defineProps({
     users: { type: Array, default: () => [] },
     all_products: { type: Array, default: () => [] },
     available_products: { type: Array, default: () => [] },
+    existing_counts: { type: Object, default: () => ({}) },
     billing_entities: { type: Array, default: () => [] },
     pipeline_stages: { type: Array, default: () => [] },
     contact_roles: { type: Array, default: () => [] },
@@ -910,6 +911,7 @@ const enableForm = useForm({
     interval_unit: 'month',
     billing_entity_id: null,
     plan: '',
+    label: '',
     price_monthly: null,
     status: 'active',
     trial_ends_at: '',
@@ -1548,6 +1550,7 @@ function confirmDeleteWebsite() {
                                 <div class="prod-logo" :class="pbClassForSlug(p.slug)">{{ p.name?.[0] || '?' }}</div>
                                 <div class="prod-meta">
                                     <div class="pname">{{ p.name }}<span class="role">· {{ p.plan || 'No plan' }}</span></div>
+                                    <div v-if="p.label" class="cp-label">{{ p.label }}</div>
                                     <div class="pdesc">
                                         <template v-if="p.price_monthly">{{ formatGBP(p.price_monthly) }}/mo</template>
                                         <template v-else>Pre-revenue</template>
@@ -2103,6 +2106,7 @@ function confirmDeleteWebsite() {
                             <div class="prod-logo" :class="pbClassForSlug(p.slug)">{{ p.name?.[0] || '?' }}</div>
                             <div class="prod-meta">
                                 <div class="pname">{{ p.name }}<span class="role">· {{ p.plan || 'No plan' }}</span></div>
+                                <div v-if="p.label" class="cp-label">{{ p.label }}</div>
                                 <div class="pdesc">
                                     <template v-if="p.price_monthly">{{ formatGBP(p.price_monthly) }}/mo</template>
                                     <template v-else>—</template>
@@ -2920,7 +2924,7 @@ function confirmDeleteWebsite() {
                                 <div class="form-section">
                                     <h3>Product</h3>
                                     <div v-if="! available_products.length" style="padding: 12px 14px; background: var(--neutral-bg); border-radius: var(--radius-md); color: var(--text-secondary); font: 400 13px/1.5 'Inter', sans-serif;">
-                                        All products are already enabled for this customer.
+                                        No active products. Add one in Settings → Products first.
                                     </div>
                                     <div v-else class="ent-grid">
                                         <button
@@ -2935,7 +2939,10 @@ function confirmDeleteWebsite() {
                                                 {{ p.name?.[0] || '?' }}
                                             </div>
                                             <div class="ent-meta">
-                                                <div class="nm">{{ p.name }}</div>
+                                                <div class="nm">
+                                                    {{ p.name }}
+                                                    <span v-if="existing_counts[p.id]" class="ent-count-badge">{{ existing_counts[p.id] }} active</span>
+                                                </div>
                                                 <div class="slug">{{ p.slug }}</div>
                                             </div>
                                         </button>
@@ -3162,6 +3169,22 @@ function confirmDeleteWebsite() {
                                         >
                                         <div class="field-help">Customer will be prompted to subscribe when the trial expires.</div>
                                         <div v-if="enableForm.errors.trial_ends_at" class="err">{{ enableForm.errors.trial_ends_at }}</div>
+                                    </div>
+                                </div>
+
+                                <div v-if="enableForm.product_id" class="form-section">
+                                    <h3>Label <span class="opt">optional</span></h3>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <input
+                                                v-model="enableForm.label"
+                                                type="text"
+                                                maxlength="100"
+                                                placeholder="e.g. Main website, Blog, Client A site"
+                                            >
+                                            <p class="field-help">Helps identify this subscription when a customer has multiple instances of the same product.</p>
+                                            <div v-if="enableForm.errors.label" class="err">{{ enableForm.errors.label }}</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
