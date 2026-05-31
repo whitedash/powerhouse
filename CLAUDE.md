@@ -124,3 +124,43 @@ keys; pair support keys.
 ## Restore to main rule
 Always restore to main branch before starting a new session
 unless explicitly told otherwise.
+
+## POWERHOUSE PROJECT SYNC
+
+Every sprint must sync with Powerhouse PM. Project identity lives in
+`.powerhouse.json` (gitignored, per-developer — copy
+`.powerhouse.json.example` and fill it in). Four artisan commands bridge
+Claude Code and Powerhouse: `task:sync`, `task:export`, `task:update`,
+`task:status`.
+
+### Session start (mandatory):
+  1. Check if .powerhouse.json exists:
+     cat .powerhouse.json
+  2. Check current task state:
+     php artisan task:status
+  3. If TASKS.md exists, sync new tasks:
+     php artisan task:sync --dry-run
+     (review output, then run again without --dry-run)
+  4. Never assume a task is "to do" — always check task:status first.
+     If it shows complete, skip it.
+
+### During sprint:
+  When starting a task:
+    php artisan task:update {id} in_progress
+  When completing a task:
+    php artisan task:update {id} complete
+  When blocked:
+    php artisan task:update {id} blocked --reason="describe the blocker"
+
+### Session end:
+  php artisan task:export
+  (updates SPRINT-STATUS.md)
+  git add SPRINT-STATUS.md && git commit -m "chore: update sprint status"
+
+### Rules:
+  - NEVER guess a project_id — always read from .powerhouse.json.
+  - If .powerhouse.json is missing: stop and ask the user to create it
+    before continuing.
+  - task:sync skips existing tasks (matched by title) — safe to re-run.
+  - Manual completions in the Powerhouse UI are respected on next
+    session start (task:status reads live state).

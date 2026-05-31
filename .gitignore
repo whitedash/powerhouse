@@ -29,3 +29,10 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Powerhouse ↔ Claude Code sync session files — per-developer, local only.
+# Committed references live in .powerhouse.json.example and TASKS.md.template.
+.powerhouse.json
+SPRINT-STATUS.md
+TASKS.md
+.claude/sprint-tasks.json

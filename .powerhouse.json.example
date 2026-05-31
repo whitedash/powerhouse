@@ -1,0 +1,14 @@
+{
+    "_help": {
+        "project_id": "Powerhouse project ID this checkout maps to. REQUIRED before task:sync/export/status will run. Copy this file to .powerhouse.json (gitignored) and fill it in.",
+        "project_name": "Human-readable project name. Display only — not used to resolve anything.",
+        "powerhouse_url": "Base URL of your Powerhouse instance. Informational only.",
+        "default_assignee_id": "User ID that task:sync assigns new tasks to. Falls back to 1 when unset.",
+        "active_milestone": "Milestone name task:sync uses when neither --milestone nor the TASKS.md 'milestone:' line is given. Use null for none."
+    },
+    "project_id": null,
+    "project_name": "Set this to your project name",
+    "powerhouse_url": "https://hub.whitedash.co.uk",
+    "default_assignee_id": 1,
+    "active_milestone": null
+}

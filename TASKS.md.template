@@ -1,0 +1,19 @@
+# Sprint: {Sprint name here}
+project_id: {from .powerhouse.json}
+milestone: {Milestone name}
+
+## Tasks
+- [ ] Task title here
+      type: task | priority: high | hours: 4
+- [ ] Another task
+      type: task | priority: medium | hours: 2
+- [ ] A call or meeting type
+      type: call | priority: low | hours: 1
+
+## Notes
+Add any context here for Claude Code.
+This section is ignored by task:sync.
+
+---
+Valid types: task, call, email, meeting, note
+Valid priorities: low, medium, high, urgent
