@@ -368,17 +368,16 @@ class CustomerController extends Controller
                 ])->values(),
 
                 // Hosting plans only — the website add/edit slide-over's
-                // plan picker. Filtered from the already-loaded
-                // customerProducts so it costs no extra query: live
-                // (active/trial) subscriptions whose product is flagged
-                // is_hosting.
-                'hosting_products' => $customer->customerProducts
-                    ->filter(fn (CustomerProduct $cp): bool => in_array($cp->status, ['active', 'trial'], true)
-                        && (bool) $cp->product?->is_hosting)
+                // plan picker. Live (active/trial) subscriptions whose
+                // plan is flagged is_hosting.
+                'hosting_products' => CustomerProduct::where('customer_id', $customer->id)
+                    ->whereIn('status', ['active', 'trial'])
+                    ->whereHas('productPlan', fn ($q) => $q->where('is_hosting', true))
+                    ->with(['product:id,name,slug', 'productPlan:id,name'])
+                    ->get()
                     ->map(fn (CustomerProduct $cp): array => [
                         'id' => $cp->id,
-                        'name' => $cp->product?->name,
-                        'plan' => $cp->plan,
+                        'label' => $cp->product->name.' — '.$cp->productPlan->name,
                     ])->values(),
 
                 'mrr' => $mrr,
@@ -534,7 +533,7 @@ class CustomerController extends Controller
                     // Domain
                     'domain_id' => $w->domain_id,
                     'domain_name' => $w->domain?->domain,
-                    'ssl_status' => $w->domain?->ssl_status,
+                    'ssl_status' => $this->resolveWebsiteSsl($w),
 
                     // Connections / cPanel
                     'customer_product_id' => $w->customer_product_id,
@@ -1301,5 +1300,89 @@ class CustomerController extends Controller
         }
 
         return 'healthy';
+    }
+
+    /**
+     * SSL state for a website card. A linked domain that has actually
+     * been health-checked already knows its cert state — normalise that
+     * vocabulary to the card's valid/expired language. Only when the
+     * domain has never been checked (none/null) do we fall back to a
+     * live TLS probe of the site, cached 6h so we don't reconnect on
+     * every page load.
+     */
+    private function resolveWebsiteSsl(Website $w): string
+    {
+        $normalised = match ($w->domain?->ssl_status) {
+            'active', 'expiring' => 'valid',
+            'expired' => 'expired',
+            default => null,
+        };
+
+        if ($normalised !== null) {
+            return $normalised;
+        }
+
+        // 'unknown' (not null) is returned/cached when the probe can't
+        // decide — Cache::remember re-runs its closure on a null hit, so
+        // a null here would re-probe (5s) on every page load.
+        return Cache::remember(
+            "website.ssl.{$w->id}",
+            now()->addHours(6),
+            fn (): string => $this->checkSslDirect($w->url),
+        );
+    }
+
+    /**
+     * Open a TLS connection to the site and read the leaf certificate's
+     * expiry. Returns 'valid' / 'expired', or 'unknown' when the host
+     * can't be reached or presents no certificate. Best-effort and
+     * bounded by a 5s timeout — never lets a dead host hang the request.
+     */
+    private function checkSslDirect(string $url): string
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+        if (! is_string($host) || $host === '') {
+            return 'unknown';
+        }
+
+        try {
+            $context = stream_context_create([
+                'ssl' => [
+                    'capture_peer_cert' => true,
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                ],
+            ]);
+
+            $socket = @stream_socket_client(
+                'ssl://'.$host.':443',
+                $errno,
+                $errstr,
+                5,
+                STREAM_CLIENT_CONNECT,
+                $context,
+            );
+
+            if ($socket === false) {
+                return 'unknown';
+            }
+
+            $params = stream_context_get_params($socket);
+            fclose($socket);
+
+            $cert = $params['options']['ssl']['peer_certificate'] ?? null;
+            if ($cert === null) {
+                return 'unknown';
+            }
+
+            $info = openssl_x509_parse($cert);
+            if (! is_array($info) || ! isset($info['validTo_time_t'])) {
+                return 'unknown';
+            }
+
+            return ((int) $info['validTo_time_t']) > now()->timestamp ? 'valid' : 'expired';
+        } catch (\Throwable) {
+            return 'unknown';
+        }
     }
 }

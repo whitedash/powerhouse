@@ -54,6 +54,15 @@ class PageSpeedService
             ? 0
             : (int) round(((float) ($desktop->json('lighthouseResult.categories.performance.score') ?? 0)) * 100);
 
+        // The other three Lighthouse categories are only requested for
+        // mobile. Null when the run didn't return them so the report
+        // modal can hide what's missing rather than show a false 0.
+        $categoryScore = function (string $category) use ($mobile): ?int {
+            $raw = $mobile->json("lighthouseResult.categories.{$category}.score");
+
+            return $raw === null ? null : (int) round(((float) $raw) * 100);
+        };
+
         $audits = $mobile->json('lighthouseResult.audits') ?? [];
 
         $lcp = $this->extractSeconds($audits['largest-contentful-paint']['displayValue'] ?? null);
@@ -64,6 +73,9 @@ class PageSpeedService
         $reportData = [
             'mobile' => [
                 'score' => $mobileScore,
+                'accessibility' => $categoryScore('accessibility'),
+                'seo' => $categoryScore('seo'),
+                'best_practices' => $categoryScore('best-practices'),
                 'lcp' => $lcp,
                 'cls' => $cls,
                 'fcp' => $fcp,
@@ -80,7 +92,7 @@ class PageSpeedService
                     'savings' => $a['displayValue'] ?? '',
                 ])
                 ->values()
-                ->take(5)
+                ->take(20)
                 ->all(),
         ];
 

@@ -200,24 +200,38 @@ function onDragOver(e) { e.preventDefault(); }
 
 function onDropMilestone(toKey) {
     if (! dragState.taskId) return;
+    const taskId = dragState.taskId;
     const target = toKey === 'unassigned' ? null : Number(toKey);
     // Snapshot the destination column as it is after the drop; we
     // ask the server to renumber sort_order on every card so the
     // local UI doesn't have to guess.
     const dest = (tasksByMilestone.value[toKey] ?? [])
-        .filter(t => t.id !== dragState.taskId);
+        .filter(t => t.id !== taskId);
     // Append for now — we don't yet support precise drop-position;
     // the operator can drag again to reorder within the column.
-    dest.push({ id: dragState.taskId });
+    dest.push({ id: taskId });
 
     const items = dest.map((t, i) => ({
         id: t.id, sort_order: i + 1, milestone_id: target,
     }));
+
+    // Optimistic move: re-point the task locally so the card jumps to
+    // its new column immediately. tasksByMilestone is computed off
+    // project.tasks, so mutating the task re-buckets it with no reload.
+    const task = props.project.tasks.find(t => t.id === taskId);
+    const prev = task ? { milestone_id: task.milestone_id, sort_order: task.sort_order } : null;
+    if (task) {
+        task.milestone_id = target;
+        task.sort_order = items.find(i => i.id === taskId)?.sort_order ?? task.sort_order;
+    }
+
+    dragState.taskId = null;
+    dragState.fromKey = null;
+
     // Reorder is a JSON endpoint — Inertia's router.post() would
-    // throw because the response is {"ok":true}, not an Inertia
-    // page. fetch() bypasses the Inertia adapter cleanly. We don't
-    // reload the page either: the local kanban state already
-    // reflects the move, and the server is just persisting it.
+    // throw because the response is {"ok":true}, not an Inertia page.
+    // fetch() bypasses the Inertia adapter cleanly. Revert the local
+    // move if the server rejects it.
     fetch('/tasks/reorder', {
         method: 'POST',
         headers: {
@@ -227,10 +241,14 @@ function onDropMilestone(toKey) {
             'X-Requested-With': 'XMLHttpRequest',
         },
         body: JSON.stringify({ items }),
+    }).then((res) => {
+        if (! res.ok) throw new Error('reorder failed');
+    }).catch(() => {
+        if (task && prev) {
+            task.milestone_id = prev.milestone_id;
+            task.sort_order = prev.sort_order;
+        }
     });
-
-    dragState.taskId = null;
-    dragState.fromKey = null;
 }
 
 function onDropStatus(toStatus) {
@@ -246,11 +264,21 @@ function onDropStatus(toStatus) {
         dragState.fromKey = null;
         return;
     }
+    const taskId = dragState.taskId;
+    // Optimistic move: flip the task's status locally so it lands in the
+    // target column instantly; tasksByStatus re-buckets off project.tasks.
+    const task = props.project.tasks.find(t => t.id === taskId);
+    const prevStatus = task ? task.status : null;
+    if (task) task.status = toStatus;
+
+    dragState.taskId = null;
+    dragState.fromKey = null;
+
     // Drag-drop status changes use fetch() — same reason as the
     // reorder endpoint: the controller switches to JSON when the
     // request looks XHR-shaped, and Inertia would otherwise reject
-    // a non-Inertia response.
-    fetch(`/tasks/${dragState.taskId}/status`, {
+    // a non-Inertia response. Revert locally if the server rejects.
+    fetch(`/tasks/${taskId}/status`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -259,9 +287,11 @@ function onDropStatus(toStatus) {
             'X-Requested-With': 'XMLHttpRequest',
         },
         body: JSON.stringify({ status: toStatus }),
+    }).then((res) => {
+        if (! res.ok) throw new Error('status change failed');
+    }).catch(() => {
+        if (task) task.status = prevStatus;
     });
-    dragState.taskId = null;
-    dragState.fromKey = null;
 }
 
 /* ─── Blocked-reason modal (replacement for window.prompt) ─── */
@@ -272,6 +302,13 @@ function confirmBlocked() {
     if (! blockedReason.value.trim() || ! blockedTaskId.value) return;
     const id = blockedTaskId.value;
     const reason = blockedReason.value.trim();
+    // Optimistic move into the Blocked column with its reason.
+    const task = props.project.tasks.find(t => t.id === id);
+    const prev = task ? { status: task.status, blocked_reason: task.blocked_reason } : null;
+    if (task) {
+        task.status = 'blocked';
+        task.blocked_reason = reason;
+    }
     // Same fetch path as the kanban drag handlers — the modal sits
     // on top of the same kanban, so any router.post() would refuse
     // the JSON response from updateStatus().
@@ -284,6 +321,13 @@ function confirmBlocked() {
             'X-Requested-With': 'XMLHttpRequest',
         },
         body: JSON.stringify({ status: 'blocked', blocked_reason: reason }),
+    }).then((res) => {
+        if (! res.ok) throw new Error('status change failed');
+    }).catch(() => {
+        if (task && prev) {
+            task.status = prev.status;
+            task.blocked_reason = prev.blocked_reason;
+        }
     }).finally(() => {
         showBlockedModal.value = false;
         blockedTaskId.value = null;

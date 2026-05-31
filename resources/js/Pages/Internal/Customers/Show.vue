@@ -55,8 +55,6 @@ import {
     IconUpload,
     IconDatabase,
     IconGauge,
-    IconBulb,
-    IconTrash,
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -1204,6 +1202,44 @@ function runPageSpeed(w) {
     });
 }
 
+/* ─── PageSpeed report modal ─── */
+const pageSpeedModal = ref(null); // the website whose report is open
+const pageSpeedStrategy = ref('mobile');
+function openPageSpeedModal(w) {
+    pageSpeedModal.value = w;
+    pageSpeedStrategy.value = 'mobile';
+}
+function closePageSpeedModal() { pageSpeedModal.value = null; }
+
+// Mobile is the richer run (all four categories + vitals + opportunities).
+const psMobile = computed(() => pageSpeedModal.value?.pagespeed_data?.mobile ?? null);
+const psOpportunities = computed(() => pageSpeedModal.value?.pagespeed_data?.opportunities ?? []);
+const psPerfScore = computed(() => {
+    const w = pageSpeedModal.value;
+    if (! w) return null;
+    return pageSpeedStrategy.value === 'desktop'
+        ? (w.pagespeed_data?.desktop?.score ?? w.pagespeed_desktop)
+        : (w.pagespeed_data?.mobile?.score ?? w.pagespeed_mobile);
+});
+
+// Colour band for a 0-100 Lighthouse score.
+function scoreBand(score) {
+    if (score === null || score === undefined) return 'cw-muted';
+    if (score >= 90) return 'good';
+    if (score >= 50) return 'needs-improvement';
+    return 'poor';
+}
+// Core Web Vitals pass thresholds (Google "good" bands).
+function vitalPass(metric, value) {
+    if (value === null || value === undefined) return null;
+    const v = Number(value);
+    if (metric === 'lcp') return v <= 2.5;
+    if (metric === 'cls') return v <= 0.1;
+    if (metric === 'fcp') return v <= 1.8;
+    if (metric === 'tbt') return v <= 200;
+    return null;
+}
+
 /* ─── Add / edit website slide-over ─── */
 const showWebsiteForm = ref(false);
 const editingWebsiteId = ref(null);
@@ -2153,12 +2189,12 @@ function confirmDeleteWebsite() {
                                 <MenuItems class="dd-popover right-align">
                                     <MenuItem v-slot="{ active }">
                                         <button type="button" :class="['dd-option', { active }]" @click="openEditWebsite(w)">
-                                            <IconPencil :size="14" stroke-width="1.75" /> Edit
+                                            Edit
                                         </button>
                                     </MenuItem>
                                     <MenuItem v-slot="{ active }">
                                         <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDeleteWebsite(w)">
-                                            <IconTrash :size="14" stroke-width="1.75" /> Delete
+                                            Delete
                                         </button>
                                     </MenuItem>
                                 </MenuItems>
@@ -2202,24 +2238,14 @@ function confirmDeleteWebsite() {
                                 </div>
                             </template>
                             <div v-else class="cw-muted">Not checked yet</div>
-                            <button type="button" class="ghost-link" :disabled="pagespeedId === w.id" @click="runPageSpeed(w)">
-                                <IconGauge :size="13" stroke-width="2" />
-                                {{ pagespeedId === w.id ? 'Running…' : 'Run PageSpeed check' }}
-                            </button>
-
-                            <div v-if="w.pagespeed_data?.opportunities?.length" class="ps-opportunities">
-                                <div class="ps-opp-title">
-                                    <IconBulb :size="13" stroke-width="2" />
-                                    Improvement opportunities
-                                </div>
-                                <div
-                                    v-for="opp in w.pagespeed_data.opportunities"
-                                    :key="opp.title"
-                                    class="ps-opp-row"
-                                >
-                                    <div class="ps-opp-name">{{ opp.title }}</div>
-                                    <div v-if="opp.savings" class="ps-opp-saving">{{ opp.savings }}</div>
-                                </div>
+                            <div class="cw-section-actions">
+                                <button type="button" class="ghost-link" :disabled="pagespeedId === w.id" @click="runPageSpeed(w)">
+                                    <IconGauge :size="13" stroke-width="2" />
+                                    {{ pagespeedId === w.id ? 'Running…' : 'Run PageSpeed check' }}
+                                </button>
+                                <button v-if="w.pagespeed_mobile !== null" type="button" class="ghost-link" @click="openPageSpeedModal(w)">
+                                    View full report →
+                                </button>
                             </div>
                         </div>
 
@@ -3867,7 +3893,7 @@ function confirmDeleteWebsite() {
                             <label class="form-label">Hosting plan</label>
                             <select v-model="websiteForm.customer_product_id" class="form-input">
                                 <option :value="null">— None —</option>
-                                <option v-for="p in (customer.hosting_products ?? [])" :key="p.id" :value="p.id">{{ p.name }}<template v-if="p.plan"> · {{ p.plan }}</template></option>
+                                <option v-for="p in (customer.hosting_products ?? [])" :key="p.id" :value="p.id">{{ p.label }}</option>
                             </select>
                         </div>
                         <div class="form-row-2">
@@ -3928,6 +3954,99 @@ function confirmDeleteWebsite() {
                         </button>
                     </div>
                 </aside>
+            </div>
+        </Teleport>
+
+        <!-- ═══ PageSpeed report modal ═══ -->
+        <Teleport to="body">
+            <div v-if="pageSpeedModal" class="ps-modal-overlay" @click.self="closePageSpeedModal">
+                <div class="ps-modal" role="dialog" aria-modal="true">
+                    <div class="ps-modal-head">
+                        <div class="ps-modal-headings">
+                            <h2 class="ps-modal-title">{{ pageSpeedModal.url }}</h2>
+                            <div class="ps-modal-sub">PageSpeed report · checked {{ pageSpeedModal.pagespeed_checked_at ?? '—' }}</div>
+                        </div>
+                        <button type="button" class="icon-btn" aria-label="Close" @click="closePageSpeedModal"><IconX :size="18" stroke-width="2" /></button>
+                    </div>
+
+                    <div class="ps-modal-body">
+                        <!-- Strategy toggle -->
+                        <div class="ps-strategy">
+                            <button type="button" :class="['ps-strategy-btn', { on: pageSpeedStrategy === 'mobile' }]" @click="pageSpeedStrategy = 'mobile'">Mobile</button>
+                            <button type="button" :class="['ps-strategy-btn', { on: pageSpeedStrategy === 'desktop' }]" @click="pageSpeedStrategy = 'desktop'">Desktop</button>
+                        </div>
+
+                        <!-- Category scores -->
+                        <div class="ps-modal-label">Scores</div>
+                        <div class="ps-badges">
+                            <div class="ps-badge">
+                                <span class="ps-badge-score" :class="scoreBand(psPerfScore)">{{ psPerfScore ?? '—' }}</span>
+                                <span class="ps-badge-label">Performance</span>
+                            </div>
+                            <template v-if="pageSpeedStrategy === 'mobile'">
+                                <div v-if="psMobile?.accessibility != null" class="ps-badge">
+                                    <span class="ps-badge-score" :class="scoreBand(psMobile.accessibility)">{{ psMobile.accessibility }}</span>
+                                    <span class="ps-badge-label">Accessibility</span>
+                                </div>
+                                <div v-if="psMobile?.seo != null" class="ps-badge">
+                                    <span class="ps-badge-score" :class="scoreBand(psMobile.seo)">{{ psMobile.seo }}</span>
+                                    <span class="ps-badge-label">SEO</span>
+                                </div>
+                                <div v-if="psMobile?.best_practices != null" class="ps-badge">
+                                    <span class="ps-badge-score" :class="scoreBand(psMobile.best_practices)">{{ psMobile.best_practices }}</span>
+                                    <span class="ps-badge-label">Best Practices</span>
+                                </div>
+                            </template>
+                        </div>
+                        <div v-if="pageSpeedStrategy === 'desktop'" class="ps-modal-note">Accessibility, SEO and Best Practices are only measured on the mobile run.</div>
+
+                        <!-- Core Web Vitals (mobile run) -->
+                        <div class="ps-modal-label">Core Web Vitals <span class="ps-modal-note-inline">mobile</span></div>
+                        <div class="ps-vitals">
+                            <div class="ps-vital">
+                                <span class="ps-vital-k">LCP</span>
+                                <span class="ps-vital-v">{{ psMobile?.lcp != null ? psMobile.lcp + 's' : '—' }}</span>
+                                <span v-if="vitalPass('lcp', psMobile?.lcp) !== null" class="ps-vital-flag" :class="vitalPass('lcp', psMobile?.lcp) ? 'pass' : 'fail'">{{ vitalPass('lcp', psMobile?.lcp) ? 'Pass' : 'Fail' }}</span>
+                            </div>
+                            <div class="ps-vital">
+                                <span class="ps-vital-k">CLS</span>
+                                <span class="ps-vital-v">{{ psMobile?.cls != null ? psMobile.cls : '—' }}</span>
+                                <span v-if="vitalPass('cls', psMobile?.cls) !== null" class="ps-vital-flag" :class="vitalPass('cls', psMobile?.cls) ? 'pass' : 'fail'">{{ vitalPass('cls', psMobile?.cls) ? 'Pass' : 'Fail' }}</span>
+                            </div>
+                            <div class="ps-vital">
+                                <span class="ps-vital-k">FCP</span>
+                                <span class="ps-vital-v">{{ psMobile?.fcp != null ? psMobile.fcp + 's' : '—' }}</span>
+                                <span v-if="vitalPass('fcp', psMobile?.fcp) !== null" class="ps-vital-flag" :class="vitalPass('fcp', psMobile?.fcp) ? 'pass' : 'fail'">{{ vitalPass('fcp', psMobile?.fcp) ? 'Pass' : 'Fail' }}</span>
+                            </div>
+                            <div class="ps-vital">
+                                <span class="ps-vital-k">TBT</span>
+                                <span class="ps-vital-v">{{ psMobile?.tbt != null ? psMobile.tbt + 'ms' : '—' }}</span>
+                                <span v-if="vitalPass('tbt', psMobile?.tbt) !== null" class="ps-vital-flag" :class="vitalPass('tbt', psMobile?.tbt) ? 'pass' : 'fail'">{{ vitalPass('tbt', psMobile?.tbt) ? 'Pass' : 'Fail' }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Opportunities -->
+                        <template v-if="psOpportunities.length">
+                            <div class="ps-modal-label">Improvement opportunities <span class="ps-modal-note-inline">mobile</span></div>
+                            <div class="ps-modal-opps">
+                                <div v-for="opp in psOpportunities" :key="opp.title" class="ps-modal-opp">
+                                    <div class="ps-modal-opp-main">
+                                        <div class="ps-modal-opp-title">{{ opp.title }}</div>
+                                        <div v-if="opp.description" class="ps-modal-opp-desc">{{ opp.description }}</div>
+                                    </div>
+                                    <div v-if="opp.savings" class="ps-modal-opp-saving">{{ opp.savings }}</div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="ps-modal-foot">
+                        <span class="ps-modal-credit">Powered by Google PageSpeed Insights</span>
+                        <button type="button" class="btn btn-primary btn-sm" :disabled="pagespeedId === pageSpeedModal.id" @click="runPageSpeed(pageSpeedModal)">
+                            {{ pagespeedId === pageSpeedModal.id ? 'Running…' : 'Run new check' }}
+                        </button>
+                    </div>
+                </div>
             </div>
         </Teleport>
 

@@ -12794,7 +12794,9 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
     position: absolute;
     right: 0; top: 100%;
     margin-top: 4px;
-    background: var(--surface);
+    /* --surface is undefined, which left this popover transparent —
+     * obvious once the kt-menu variant teleports over the kanban. */
+    background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 6px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -13277,56 +13279,109 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
 .cust-websites .cw-scores { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .cust-websites .cw-score {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    width: 52px; height: 52px; border-radius: 50%;
+    width: 80px; height: 80px; border-radius: 50%;
     border: 3px solid var(--border);
     flex-shrink: 0;
 }
 .cust-websites .cw-score.good { border-color: var(--success); }
 .cust-websites .cw-score.needs-improvement { border-color: var(--warning); }
 .cust-websites .cw-score.poor { border-color: var(--danger); }
-.cust-websites .cw-score-num { font: 700 16px/1 'Inter', sans-serif; color: var(--text-primary); }
-.cust-websites .cw-score-lbl { font: 500 8.5px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .04em; color: var(--text-tertiary); margin-top: 2px; }
+.cust-websites .cw-score-num { font: 700 22px/1 'Inter', sans-serif; color: var(--text-primary); }
+.cust-websites .cw-score-lbl { font: 500 9px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); margin-top: 4px; }
 .cust-websites .cw-vitals { display: flex; flex-direction: column; gap: 2px; font: 500 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); }
 .cust-websites .cw-section .ghost-link { margin-top: 8px; }
-/* PageSpeed improvement opportunities — top Lighthouse suggestions
- * rendered beneath the performance scores when a check has run. */
-.cust-websites .ps-opportunities {
-    border-top: 1px solid var(--border-soft);
-    padding-top: 12px;
-    margin-top: 12px;
-}
-.cust-websites .ps-opp-title {
-    font: 600 11px/1 'Inter', sans-serif;
-    text-transform: uppercase;
-    letter-spacing: .08em;
-    color: var(--text-tertiary);
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-.cust-websites .ps-opp-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 6px 0;
-    border-bottom: 1px solid var(--border-soft);
-    gap: 8px;
-}
-.cust-websites .ps-opp-row:last-child { border-bottom: none; }
-.cust-websites .ps-opp-name {
-    font: 400 12px/1.4 'Inter', sans-serif;
-    color: var(--text-secondary);
-    flex: 1;
-}
-.cust-websites .ps-opp-saving {
-    font: 500 11px/1 'Inter', sans-serif;
-    color: var(--success);
-    flex-shrink: 0;
-}
+.cust-websites .cw-section-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .cust-websites .cw-ssl { display: flex; align-items: center; gap: 6px; font: 500 12.5px/1.3 'Inter', sans-serif; color: var(--text-secondary); border-top: 1px solid var(--border-soft); padding-top: 10px; }
 .cust-websites .cw-ssl.ssl-bad { color: var(--danger); }
 .cust-websites .cw-actions { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--border-soft); padding-top: 10px; }
+
+/* ─── PageSpeed report modal ─── */
+.ps-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(15, 23, 42, .45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 120;
+    padding: 24px;
+    animation: fadeIn .15s ease;
+}
+.ps-modal {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    width: 600px; max-width: 100%;
+    max-height: 90vh;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+}
+.ps-modal-head {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+}
+.ps-modal-headings { flex: 1; min-width: 0; }
+.ps-modal-title {
+    margin: 0;
+    font: 600 15px/1.3 'Inter', sans-serif; color: var(--text-primary);
+    word-break: break-all;
+}
+.ps-modal-sub { font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 2px; }
+.ps-modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+.ps-modal-label {
+    font: 600 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--text-tertiary); margin: 18px 0 10px;
+}
+.ps-modal-label:first-child { margin-top: 0; }
+.ps-modal-note-inline { text-transform: none; letter-spacing: 0; color: var(--text-tertiary); font-weight: 400; margin-left: 4px; }
+.ps-modal-note { font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 8px; font-style: italic; }
+
+.ps-strategy { display: inline-flex; gap: 0; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.ps-strategy-btn {
+    padding: 6px 16px; background: transparent; border: 0; cursor: pointer;
+    font: 500 12.5px/1 'Inter', sans-serif; color: var(--text-secondary);
+}
+.ps-strategy-btn.on { background: var(--accent); color: #fff; }
+
+.ps-badges { display: flex; flex-wrap: wrap; gap: 12px; }
+.ps-badge { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 72px; }
+.ps-badge-score {
+    display: flex; align-items: center; justify-content: center;
+    width: 48px; height: 48px; border-radius: 50%;
+    border: 3px solid var(--border);
+    font: 700 16px/1 'Inter', sans-serif; color: var(--text-primary);
+}
+.ps-badge-score.good { border-color: var(--success); color: var(--success); }
+.ps-badge-score.needs-improvement { border-color: var(--warning); color: #B45309; }
+.ps-badge-score.poor { border-color: var(--danger); color: var(--danger); }
+.ps-badge-label { font: 500 10.5px/1.2 'Inter', sans-serif; color: var(--text-tertiary); text-align: center; }
+
+.ps-vitals { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.ps-vital {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; background: var(--neutral-bg); border-radius: var(--radius-md);
+    font: 400 13px/1 'Inter', sans-serif; color: var(--text-secondary);
+}
+.ps-vital-k { font-weight: 600; color: var(--text-primary); width: 34px; }
+.ps-vital-v { flex: 1; font-variant-numeric: tabular-nums; }
+.ps-vital-flag { font: 600 10px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .04em; padding: 3px 6px; border-radius: 4px; }
+.ps-vital-flag.pass { background: var(--success-bg, #ECFDF5); color: var(--success); }
+.ps-vital-flag.fail { background: var(--warning-bg, #FEF3C7); color: var(--danger); }
+
+.ps-modal-opps { display: flex; flex-direction: column; }
+.ps-modal-opp {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid var(--border-soft);
+}
+.ps-modal-opp:last-child { border-bottom: none; }
+.ps-modal-opp-main { flex: 1; min-width: 0; }
+.ps-modal-opp-title { font: 600 13px/1.4 'Inter', sans-serif; color: var(--text-primary); }
+.ps-modal-opp-desc { font: 400 13px/1.5 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 2px; }
+.ps-modal-opp-saving { font: 500 12px/1.3 'Inter', sans-serif; color: var(--success); flex-shrink: 0; white-space: nowrap; }
+
+.ps-modal-foot {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 20px; border-top: 1px solid var(--border);
+}
+.ps-modal-credit { font: 400 11.5px/1.3 'Inter', sans-serif; color: var(--text-tertiary); }
 
 /* Website add/edit slide-over */
 .website-form .wf-sec {
