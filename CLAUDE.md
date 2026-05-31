@@ -26,6 +26,22 @@ All UI must reference the CSS variables in resources/css/app.css.
 The 16 screen HTML files in /design are the source of truth
 for every layout, component, and interaction pattern.
 
+Card primitives: `.card-head` / `.card-body` (padded header with
+divider + padded body) and `.card-header` (icon + title row) are
+both **global**. Do not redefine them per-namespace unless you need
+genuinely different values — a missing namespaced copy used to leave
+pages with zero padding.
+
+## New page checklist
+Before committing any new Vue page, verify visually:
+- [ ] All cards have background + border
+- [ ] All right-column panels have card styling
+- [ ] Table rows have consistent spacing
+- [ ] Empty states are styled
+- [ ] Mobile: no overflow-x on body
+- [ ] Dropdowns: no overflow:hidden on parents
+- [ ] Run: npm run build — check for warnings
+
 ## Never do
 - Never add columns not in SCHEMA.md
 - Never use direct DB queries — Eloquent only

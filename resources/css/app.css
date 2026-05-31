@@ -11989,8 +11989,16 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
 
 /* ─── .leads-index pipeline view ─── */
 .leads-pipeline { margin-top: 16px; }
-.leads-index .kanban-board { gap: 12px; }
+.leads-index .kanban-board {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    overflow-x: auto;
+    align-items: flex-start;
+    padding-bottom: 16px;
+}
 .leads-index .kanban-column {
+    flex-shrink: 0;
     width: 240px;
     padding: 10px;
     background: #fff;
@@ -12660,3 +12668,38 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
     display: inline-flex; align-items: center; gap: 6px;
     margin-top: 2px;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Visual audit fixes (Leads sprint)
+   ═══════════════════════════════════════════════════════════════
+   GLOBAL .card-head / .card-body primitives.
+
+   These were only ever defined under .projects-show, so any page
+   using the .card-head/.card-body convention without a matching
+   namespace rule rendered with ZERO padding and no header divider.
+   The full-platform audit found this on:
+     • .lead-show     — Pipeline / Assignment / Source & history
+                        (and the left column) had flush, unpadded
+                        content. (Part 2 of this sprint.)
+     • .proposals-show — Status / Payment schedule / Linked card
+                        headers sat flush in the top-left corner.
+
+   Promoting them to global base rules fixes every affected page in
+   one place. Values mirror the .projects-show reference. The
+   existing .projects-show copies still win via higher specificity
+   (no visual change there). Pages built on the separate, already
+   global .card-header pattern are unaffected. */
+.card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-soft);
+}
+.card-head h3 {
+    margin: 0;
+    flex: 1;
+    font: 600 14px/1.2 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+.card-body { padding: 14px 16px; }
