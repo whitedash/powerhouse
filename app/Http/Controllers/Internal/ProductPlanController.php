@@ -153,6 +153,8 @@ class ProductPlanController extends Controller
             'features.*' => ['string', 'max:200'],
             'is_active' => ['boolean'],
             'is_public' => ['boolean'],
+            // Hosting flag — drives the website hosting-plan selector.
+            'is_hosting' => ['boolean'],
             'sort_order' => ['integer'],
             // initial_* fields are only honoured on create; the
             // controller drops them on update. Lets staff create a

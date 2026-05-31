@@ -158,6 +158,7 @@ const PLAN_DEFAULTS = {
     features: [],
     is_active: true,
     is_public: true,
+    is_hosting: false,
     sort_order: 0,
     initial_price: null,
     initial_interval_count: 1,
@@ -200,6 +201,7 @@ function openEditPlan(plan) {
         features: Array.isArray(plan.features) ? [...plan.features] : [],
         is_active: !! plan.is_active,
         is_public: !! plan.is_public,
+        is_hosting: !! plan.is_hosting,
         sort_order: Number(plan.sort_order ?? 0),
     });
     planForm.reset();
@@ -905,6 +907,13 @@ function back() {
                                                 <div class="sb">Expose on the public pricing API.</div>
                                             </div>
                                             <button type="button" class="toggle" :class="{ on: planForm.is_public }" aria-label="Toggle public" @click="planForm.is_public = ! planForm.is_public" />
+                                        </div>
+                                        <div class="set-row">
+                                            <div>
+                                                <div class="nm">Hosting plan</div>
+                                                <div class="sb">Website hosting plan selector will show this plan.</div>
+                                            </div>
+                                            <button type="button" class="toggle" :class="{ on: planForm.is_hosting }" aria-label="Toggle hosting plan" @click="planForm.is_hosting = ! planForm.is_hosting" />
                                         </div>
                                     </div>
                                 </div>

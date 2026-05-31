@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property array<int, string>|null $features
  * @property bool $is_active
  * @property bool $is_public
+ * @property bool $is_hosting
  * @property int $sort_order
  * @property int|null $disk_quota_gb
  * @property int|null $email_quota
@@ -45,6 +46,9 @@ class ProductPlan extends Model
         'features',
         'is_active',
         'is_public',
+        // Flags the plan as a website hosting plan — drives the hosting
+        // plan selector on the customer Websites tab.
+        'is_hosting',
         'sort_order',
         // Hosting allowances — nullable; only hosting plans use them.
         'disk_quota_gb',
@@ -58,6 +62,7 @@ class ProductPlan extends Model
             'features' => 'array',
             'is_active' => 'boolean',
             'is_public' => 'boolean',
+            'is_hosting' => 'boolean',
             'sort_order' => 'integer',
             'disk_quota_gb' => 'integer',
             'email_quota' => 'integer',

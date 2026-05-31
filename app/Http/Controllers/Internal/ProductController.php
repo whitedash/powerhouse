@@ -51,7 +51,6 @@ class ProductController extends Controller
                 'icon_colour' => $p->icon_colour,
                 'is_active' => $p->is_active,
                 'is_coming_soon' => $p->is_coming_soon,
-                'is_hosting' => $p->is_hosting,
                 'sort_order' => $p->sort_order,
                 'active_customers' => (int) ($p->active_customers ?? 0),
                 'total_customers' => (int) ($p->total_customers ?? 0),
@@ -81,6 +80,7 @@ class ProductController extends Controller
                     'features' => $plan->features ?? [],
                     'is_active' => $plan->is_active,
                     'is_public' => $plan->is_public,
+                    'is_hosting' => $plan->is_hosting,
                     'sort_order' => $plan->sort_order,
                     'active_customers' => CustomerProduct::where('plan_id', $plan->id)
                         ->whereIn('status', ['active', 'trial'])
@@ -182,6 +182,7 @@ class ProductController extends Controller
             'category_id' => $plan->category_id,
             'is_active' => $plan->is_active,
             'is_public' => $plan->is_public,
+            'is_hosting' => $plan->is_hosting,
             'sort_order' => $plan->sort_order,
             'active_customers' => CustomerProduct::where('plan_id', $plan->id)
                 ->whereIn('status', ['active', 'trial'])
@@ -226,7 +227,6 @@ class ProductController extends Controller
                 'icon_colour' => $data['icon_colour'],
                 'is_active' => $data['is_active'] ?? true,
                 'is_coming_soon' => $data['is_coming_soon'] ?? false,
-                'is_hosting' => $data['is_hosting'] ?? false,
                 'sort_order' => $data['sort_order'] ?? 0,
             ]);
 
@@ -268,7 +268,6 @@ class ProductController extends Controller
                 'icon_colour' => $data['icon_colour'],
                 'is_active' => $data['is_active'] ?? $product->is_active,
                 'is_coming_soon' => $data['is_coming_soon'] ?? $product->is_coming_soon,
-                'is_hosting' => $data['is_hosting'] ?? $product->is_hosting,
                 'sort_order' => $data['sort_order'] ?? $product->sort_order,
             ]);
 
@@ -353,8 +352,6 @@ class ProductController extends Controller
             'billing_entity_id' => ['nullable', 'integer', 'exists:billing_entities,id'],
             'is_active' => ['sometimes', 'boolean'],
             'is_coming_soon' => ['sometimes', 'boolean'],
-            // Hosting flag — drives the website hosting-plan selector.
-            'is_hosting' => ['sometimes', 'boolean'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
         ]);
     }
