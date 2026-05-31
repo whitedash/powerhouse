@@ -12336,13 +12336,27 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
 .sc-sub-spam      { background: #fee2e2; color: #b91c1c; }
 .sc-sub-error     { background: #fef3c7; color: #92400e; }
 
-/* Form / workflow builder slide-over */
+/* Form / workflow builder slide-over.
+ *
+ * These rules give the BUILDER its bordered, padded section stack.
+ * They are scoped to `.slide-over-wide` (the builder panel — only
+ * Forms/Index and Workflows/Index use it) because `.form-section` is
+ * a global primitive shared by every slide-over form. Left unscoped,
+ * the `border-top` + `padding: 18px 0` leaked into Leads, Projects,
+ * Invoices etc., drawing heavy separator lines and — because
+ * `:first-child` drops the border/padding — shoving the RIGHT column
+ * of every `.form-row-2` pair 18px below the left. Scoping fixes the
+ * separators, the 2-column misalignment, and the excess spacing in
+ * one move; the builder itself is unchanged. */
 .slide-over-wide { max-width: 720px; }
-.form-section {
+.slide-over-wide .form-section {
     padding: 18px 0;
     border-top: 1px solid var(--border);
 }
-.form-section:first-child { border-top: none; padding-top: 0; }
+.slide-over-wide .form-section:first-child { border-top: none; padding-top: 0; }
+/* Section head/title stay global — they're builder-only in practice
+ * but other forms (e.g. New customer) also use .form-section-title,
+ * and these rules carry no border/padding so they don't leak. */
 .form-section-head {
     display: flex; justify-content: space-between; align-items: center;
     margin-bottom: 10px;
