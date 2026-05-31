@@ -32,19 +32,25 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
         ]);
 
-        // Unauthenticated guests hitting an auth:portal route get
-        // bounced to /portal/login. The default Authenticate
-        // middleware reaches for route('login'), which we don't
-        // register — without this hook it falls back to '/login'
-        // (a 404). The closure runs for every guest redirect so
-        // we limit it to oauth + portal paths to avoid accidentally
-        // catching staff routes.
-        $middleware->redirectGuestsTo(function (Request $request): ?string {
+        // Unauthenticated guests get bounced to the right login.
+        //
+        // CRITICAL: this callback REPLACES Laravel's default
+        // route('login') fallback once registered — returning null
+        // here makes the exception handler emit an empty 401 (see
+        // vendor/laravel/framework/.../Foundation/Exceptions/Handler.php
+        // line 790-794) instead of redirecting. So every branch
+        // must return a concrete URL, never null.
+        //
+        // OAuth + portal paths land on /portal/login (customer
+        // session). Everything else — staff dashboard, admin, etc.
+        // — falls back to /login (the named 'login' route on the
+        // staff side).
+        $middleware->redirectGuestsTo(function (Request $request): string {
             if ($request->is('oauth/*') || $request->is('portal/*')) {
                 return route('portal.login');
             }
 
-            return null;
+            return route('login');
         });
 
         // Cross-origin public POST endpoints can't carry a CSRF
