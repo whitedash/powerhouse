@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
+use App\Mail\SupportTicketCreated;
+use App\Mail\SupportTicketReply;
 use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\CustomerProduct;
@@ -16,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -231,6 +234,13 @@ class SupportController extends Controller
 
         app(NotificationService::class)->notifySupportAssigned($ticket, $request->user());
 
+        // Confirm to the customer that the ticket was opened.
+        $ticket->loadMissing('customer.primaryContact');
+        $contactEmail = $ticket->customer?->primaryContact?->email;
+        if ($contactEmail) {
+            Mail::to($contactEmail)->send(new SupportTicketCreated($ticket));
+        }
+
         return redirect()
             ->route('internal.support.show', $ticket->id)
             ->with('success', "Ticket #{$ticket->id} created.");
@@ -238,15 +248,16 @@ class SupportController extends Controller
 
     public function reply(int $id, Request $request): RedirectResponse
     {
-        $ticket = SupportTicket::findOrFail($id);
+        $ticket = SupportTicket::with('customer.primaryContact')->findOrFail($id);
 
         $data = $request->validate([
             'message' => ['required', 'string', 'max:5000'],
             'status' => ['nullable', 'in:open,in_progress,awaiting_customer,resolved,closed'],
         ]);
 
-        DB::transaction(function () use ($ticket, $data, $request) {
-            SupportMessage::create([
+        $message = null;
+        DB::transaction(function () use ($ticket, $data, $request, &$message) {
+            $message = SupportMessage::create([
                 'ticket_id' => $ticket->id,
                 'sender_type' => 'staff',
                 'sender_id' => $request->user()?->id,
@@ -275,6 +286,13 @@ class SupportController extends Controller
         });
 
         $this->forgetNavCaches();
+
+        // Email the reply to the customer's primary contact, with a
+        // ticket-tagged Reply-To so their response threads back in.
+        $contactEmail = $ticket->customer?->primaryContact?->email;
+        if ($contactEmail && $message !== null) {
+            Mail::to($contactEmail)->send(new SupportTicketReply($ticket, $message));
+        }
 
         return back()->with('success', 'Reply sent.');
     }

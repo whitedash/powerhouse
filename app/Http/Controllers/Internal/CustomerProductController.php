@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
+use App\Mail\ReinstatementNotice;
 use App\Models\ActivityLog;
 use App\Models\CustomerProduct;
 use App\Services\WebhookDispatcher;
@@ -11,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 
 /**
@@ -64,7 +66,7 @@ class CustomerProductController extends Controller
 
     public function reinstate(int $id, Request $request, WebhookDispatcher $dispatcher): RedirectResponse
     {
-        $cp = CustomerProduct::with(['product', 'customer'])->findOrFail($id);
+        $cp = CustomerProduct::with(['product', 'customer.primaryContact'])->findOrFail($id);
         Gate::authorize('update', $cp->customer);
 
         $data = $request->validate([
@@ -99,6 +101,12 @@ class CustomerProductController extends Controller
 
         Cache::forget('dash.mrr');
         Cache::forget('dash.total_customers');
+
+        // Let the customer know access is back (outside the transaction).
+        $contactEmail = $cp->customer?->primaryContact?->email;
+        if ($contactEmail !== null) {
+            Mail::to($contactEmail)->send(new ReinstatementNotice($cp, $cp->customer));
+        }
 
         return back()->with('success', 'Product reinstated.');
     }

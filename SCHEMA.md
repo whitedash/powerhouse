@@ -482,7 +482,12 @@ sender_id BIGINT nullable,
 body TEXT, is_internal_note BOOLEAN DEFAULT false,
 ai_confidence DECIMAL(3,2) nullable,
 ai_model VARCHAR(100) nullable,
+message_id VARCHAR(255) nullable
+  -- Postmark Message-ID, for inbound In-Reply-To threading (Email sprint).
+source VARCHAR(50) nullable DEFAULT 'web'
+  -- web | email | api
 created_at, updated_at
+INDEX (message_id)
 
 ## support_knowledge_base
 id, title VARCHAR(255), slug VARCHAR(255) UNIQUE,

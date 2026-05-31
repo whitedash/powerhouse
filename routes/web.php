@@ -57,6 +57,7 @@ use App\Http\Controllers\Portal\SubscriptionController as PortalSubscriptionCont
 use App\Http\Controllers\Portal\SupportController as PortalSupportController;
 use App\Http\Controllers\Public\EmbedController as PublicEmbedController;
 use App\Http\Controllers\Public\FormController as PublicFormController;
+use App\Http\Controllers\Public\InboundEmailController as PublicInboundEmailController;
 use App\Http\Controllers\Public\ProposalAcceptanceController as PublicProposalAcceptanceController;
 use App\Http\Controllers\Public\WebhookController as PublicWebhookController;
 use App\Http\Controllers\Referrer\AccountController as ReferrerAccountController;
@@ -511,6 +512,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         // Integrations
         Route::get('/integrations', [InternalSettingsController::class, 'integrations'])->name('integrations');
         Route::get('/integrations/{name}/test', [InternalSettingsController::class, 'integrationTest'])->name('integrations.test');
+        Route::post('/integrations/test/email', [InternalSettingsController::class, 'testEmail'])->name('integrations.test-email');
 
         // Audit log
         Route::get('/audit-log', [InternalSettingsController::class, 'auditLog'])->name('audit-log');
@@ -613,6 +615,14 @@ Route::post('/webhooks/{slug}', [PublicWebhookController::class, 'receive'])
     ->where('slug', '[a-z0-9-]+')
     ->middleware(['form.webhook', 'throttle:120,1'])
     ->name('form.webhook.receive');
+
+// Postmark inbound email → support ticket. Two-path segment so it never
+// collides with the single-segment {slug} webhook above. Auth is the
+// shared inbound secret (checked in the controller); CSRF-exempt via the
+// webhooks/* rule in bootstrap/app.php.
+Route::post('/webhooks/email/inbound', [PublicInboundEmailController::class, 'receive'])
+    ->middleware('throttle:120,1')
+    ->name('email.inbound');
 
 /*
 |--------------------------------------------------------------------------

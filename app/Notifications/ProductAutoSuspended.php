@@ -25,7 +25,7 @@ class ProductAutoSuspended extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ! empty($notifiable->email) ? ['database', 'mail'] : ['database'];
     }
 
     /**
@@ -50,9 +50,13 @@ class ProductAutoSuspended extends Notification
         ];
     }
 
-    // TODO(Postmark): build the MailMessage and add 'mail' to via().
-    public function toMail(object $notifiable): ?MailMessage
+    public function toMail(object $notifiable): MailMessage
     {
-        return null;
+        $data = $this->toArray($notifiable);
+
+        return (new MailMessage())
+            ->subject($data['title'])
+            ->line($data['message'])
+            ->action('View', rtrim((string) config('app.url'), '/').($data['url'] ?? '/'));
     }
 }

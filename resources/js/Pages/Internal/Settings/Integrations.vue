@@ -1,6 +1,7 @@
 <script setup>
-import { Head, router } from '@inertiajs/vue3';
-import { IconExternalLink, IconRefresh } from '@tabler/icons-vue';
+import { ref } from 'vue';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { IconExternalLink, IconRefresh, IconMail } from '@tabler/icons-vue';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 
 defineProps({
@@ -10,6 +11,15 @@ defineProps({
 
 function testIntegration(key) {
     router.get(`/settings/integrations/${key}/test`, {}, { preserveScroll: true });
+}
+
+/* ─── Postmark test email ─── */
+const page = usePage();
+const testForm = useForm({
+    email: page.props.auth?.user?.email ?? '',
+});
+function sendTestEmail() {
+    testForm.post('/settings/integrations/test/email', { preserveScroll: true });
 }
 
 const STATUS_BADGE = {
@@ -74,6 +84,33 @@ function retryDelivery(id) {
                     <IconExternalLink :size="13" stroke-width="1.75" />
                 </button>
             </div>
+        </div>
+
+        <!-- ─── Postmark test email ─── -->
+        <div class="sec-label">Test email delivery</div>
+        <div style="padding: 16px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-md);">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                <IconMail :size="15" stroke-width="1.75" style="color: var(--text-secondary);" />
+                <span style="font: 600 14px/1.3 'Inter', sans-serif;">Postmark</span>
+            </div>
+            <p style="font: 400 12.5px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin: 0 0 12px;">
+                Send a test email to verify delivery is working.
+            </p>
+            <form style="display: flex; gap: 8px; align-items: flex-start;" @submit.prevent="sendTestEmail">
+                <div style="flex: 1;">
+                    <input
+                        v-model="testForm.email"
+                        type="email"
+                        class="field-input"
+                        placeholder="you@example.com"
+                        style="width: 100%;"
+                    >
+                    <div v-if="testForm.errors.email" class="field-err">{{ testForm.errors.email }}</div>
+                </div>
+                <button type="submit" class="btn btn-primary" :disabled="testForm.processing">
+                    {{ testForm.processing ? 'Sending…' : 'Send test' }}
+                </button>
+            </form>
         </div>
 
         <!-- ─── Webhook deliveries ─── -->

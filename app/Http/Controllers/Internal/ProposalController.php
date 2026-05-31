@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
+use App\Mail\ProposalSent;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
 use App\Models\Contract;
@@ -17,6 +18,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -371,9 +373,17 @@ class ProposalController extends Controller
             ]);
         });
 
-        // TODO: dispatch Postmark email with acceptance link.
+        // Email the proposal (PDF + acceptance link) outside the
+        // transaction so a Postmark hiccup can't undo the sent state.
+        $proposal->loadMissing('customer.primaryContact');
+        $recipient = $proposal->customer->primaryContact?->email;
+        if ($recipient) {
+            Mail::to($recipient)->send(new ProposalSent($proposal));
 
-        return back()->with('success', 'Proposal sent. Acceptance link generated.');
+            return back()->with('success', "Proposal sent to {$recipient}.");
+        }
+
+        return back()->with('success', 'Proposal sent. Acceptance link generated. No contact email on file — nothing was emailed.');
     }
 
     public function downloadPdf(int $id): StreamedResponse|\Illuminate\Http\Response

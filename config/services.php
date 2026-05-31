@@ -16,6 +16,11 @@ return [
 
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
+        'token' => env('POSTMARK_TOKEN'),
+        // Shared secret for the inbound-email webhook (Postmark sends it
+        // as a header / basic-auth value we compare with hash_equals).
+        'inbound_secret' => env('POSTMARK_INBOUND_SECRET'),
+        'support_inbound_email' => env('SUPPORT_INBOUND_EMAIL', 'support@whitedash.com'),
     ],
 
     'resend' => [

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Mail\PortalPasswordReset;
 use App\Models\ActivityLog;
 use App\Models\PortalUser;
 use Illuminate\Http\RedirectResponse;
@@ -11,6 +12,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
@@ -80,9 +82,10 @@ class PasswordController extends Controller
                 'email' => $email,
             ]));
 
-            // Postmark integration lives in a later sprint. For now
-            // we drop the URL into the log so a tester (or staff
-            // running an on-the-phone reset) can pull it.
+            // Email the secure reset link. We also keep the log line so a
+            // tester (or staff running an on-the-phone reset) can pull the
+            // URL when mail delivery isn't configured locally.
+            Mail::to($user->email)->send(new PortalPasswordReset($user, $resetUrl));
             Log::info('Portal password reset requested', [
                 'email' => $email,
                 'reset_url' => $resetUrl,

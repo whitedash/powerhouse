@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Internal\ProposalController;
+use App\Mail\ProposalAcceptedCustomer;
+use App\Mail\ProposalAcceptedStaff;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
 use App\Models\Invoice;
@@ -12,9 +14,12 @@ use App\Models\PaymentSchedule;
 use App\Models\PaymentScheduleItem;
 use App\Models\Proposal;
 use App\Models\ProposalLine;
+use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -150,9 +155,30 @@ class ProposalAcceptanceController extends Controller
             ]);
         });
 
-        // In-app notification to the proposal's author. (Email + the
-        // accepted-PDF-to-customer handoff still pending the Postmark sprint.)
+        // In-app notification to the proposal's author.
         app(NotificationService::class)->notifyProposalAccepted($proposal);
+
+        // Email both sides outside the transaction. Failures are swallowed
+        // so a Postmark blip never turns the customer's successful
+        // acceptance into an error page — the acceptance is already
+        // committed and audited above.
+        try {
+            $creator = User::find($proposal->created_by);
+            if ($creator?->email) {
+                Mail::to($creator->email)->send(new ProposalAcceptedStaff($proposal));
+            }
+
+            $proposal->loadMissing('customer.primaryContact');
+            $customerEmail = $proposal->customer->primaryContact?->email;
+            if ($customerEmail) {
+                Mail::to($customerEmail)->send(new ProposalAcceptedCustomer($proposal));
+            }
+        } catch (\Throwable $e) {
+            Log::error('Proposal acceptance email failed', [
+                'proposal_id' => $proposal->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return Inertia::render('Public/ProposalAccepted', [
             'reference' => $proposal->reference,

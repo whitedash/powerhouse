@@ -15,6 +15,8 @@ use Illuminate\Support\Carbon;
  * @property bool $is_internal_note
  * @property string|null $ai_confidence
  * @property string|null $ai_model
+ * @property string|null $message_id
+ * @property string|null $source
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read SupportTicket|null $ticket
@@ -30,6 +32,8 @@ class SupportMessage extends Model
         'is_internal_note',
         'ai_confidence',
         'ai_model',
+        'message_id',
+        'source',
     ];
 
     protected function casts(): array

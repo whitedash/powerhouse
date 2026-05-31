@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Mail\SuspensionNotice;
 use App\Models\ActivityLog;
 use App\Models\CustomerProduct;
 use App\Models\Invoice;
@@ -11,6 +12,7 @@ use App\Notifications\ProductAutoSuspended;
 use App\Services\WebhookDispatcher;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Auto-suspends a customer's active products when they carry overdue
@@ -44,7 +46,7 @@ class ProcessSuspensions extends Command
         // Group overdue-beyond-threshold invoices by customer.
         $overdueCustomers = Invoice::where('status', 'overdue')
             ->where('due_date', '<=', $cutoff)
-            ->with('customer')
+            ->with('customer.primaryContact')
             ->get()
             ->groupBy('customer_id');
 
@@ -122,6 +124,13 @@ class ProcessSuspensions extends Command
                         'user_agent' => 'invoices:process-suspensions',
                     ]);
                 });
+
+                // Tell the customer their account was suspended (outside
+                // the transaction; mail failure must not undo suspension).
+                $contactEmail = $customer?->primaryContact?->email;
+                if ($contactEmail !== null) {
+                    Mail::to($contactEmail)->send(new SuspensionNotice($cp, $customer));
+                }
 
                 $this->info('  SUSPENDED: '.($customer->name ?? '').' — '.($cp->product->name ?? ''));
                 $suspendedCount++;

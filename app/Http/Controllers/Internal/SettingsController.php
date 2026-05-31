@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\DeliverWebhook;
+use App\Mail\TestEmail;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
 use App\Models\Customer;
@@ -24,6 +25,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -632,6 +634,29 @@ class SettingsController extends Controller
         }
 
         return back()->with('error', "No connection test wired for {$name} yet.");
+    }
+
+    /**
+     * Fire a diagnostic email through the configured mailer to verify
+     * Postmark delivery end-to-end.
+     */
+    public function testEmail(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email:rfc'],
+        ]);
+
+        try {
+            Mail::to($data['email'])->send(new TestEmail($request->user()->name));
+
+            $this->logActivity($request, 'settings.test_email_sent', 'integration', 0, after: [
+                'to' => $data['email'],
+            ]);
+
+            return back()->with('success', 'Test email sent to '.$data['email'].'.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Test email failed: '.$e->getMessage());
+        }
     }
 
     /* ─────────────────────────────────────────────────────────────────────

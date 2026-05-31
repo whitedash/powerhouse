@@ -6,6 +6,7 @@ use App\Events\PaginatedListAccessed;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCustomerRequest;
 use App\Http\Requests\UpdateCustomerRequest;
+use App\Mail\PortalInvite;
 use App\Models\AccountGroup;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
@@ -34,6 +35,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -1074,10 +1076,15 @@ class CustomerController extends Controller
             return $portalUser;
         });
 
+        // Email the invite + temp password to the contact. The flash
+        // still carries the credentials so staff can also share them
+        // out-of-band if email delivery is delayed.
+        Mail::to($contact->email)->send(new PortalInvite($customer, $contact, $tempPassword));
+
         return back()->with('portal_invite', [
             'email' => $portalUser->email,
             'password' => $tempPassword,
-            'message' => "Portal invite ready. Share these credentials with {$contact->display_name} through a trusted channel.",
+            'message' => "Portal invite emailed to {$contact->email}. Credentials are shown here too in case you'd rather share them through a trusted channel.",
         ]);
     }
 

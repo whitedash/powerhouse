@@ -6,6 +6,9 @@ use App\Console\Commands\SendInvoiceReminders;
 use App\Events\PaginatedListAccessed;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreInvoiceRequest;
+use App\Mail\InvoiceReminder;
+use App\Mail\InvoiceSent;
+use App\Mail\PaymentReceived;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
 use App\Models\Customer;
@@ -13,15 +16,15 @@ use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Product;
 use App\Models\ProductPlan;
+use App\Services\InvoicePdfService;
 use App\Services\ReminderTemplateService;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -487,7 +490,7 @@ class InvoiceController extends Controller
         $invoice = $this->loadInvoiceForPdf($id);
         $this->logActivity($request, 'invoice.pdf_downloaded', $invoice);
 
-        return $this->buildPdf($invoice)->download('invoice-'.$invoice->number.'.pdf');
+        return app(InvoicePdfService::class)->build($invoice)->download('invoice-'.$invoice->number.'.pdf');
     }
 
     public function previewPdf(int $id, Request $request): \Symfony\Component\HttpFoundation\Response
@@ -497,7 +500,7 @@ class InvoiceController extends Controller
 
         // ->stream() emits Content-Disposition: inline so the browser
         // opens the PDF in a new tab instead of forcing a download.
-        return $this->buildPdf($invoice)->stream('invoice-'.$invoice->number.'.pdf');
+        return app(InvoicePdfService::class)->build($invoice)->stream('invoice-'.$invoice->number.'.pdf');
     }
 
     private function loadInvoiceForPdf(int $id): Invoice
@@ -512,54 +515,6 @@ class InvoiceController extends Controller
         Gate::authorize('view', $invoice);
 
         return $invoice;
-    }
-
-    private function buildPdf(Invoice $invoice): \Barryvdh\DomPDF\PDF
-    {
-        return Pdf::loadView('pdf.invoice', [
-            'invoice' => $invoice,
-            'address' => $invoice->billingEntity->address ?? [],
-            'billing_email' => $invoice->customer?->primaryContact?->email,
-            'logo_path' => $this->resolveLogoPath($invoice),
-        ])
-            ->setPaper('a4', 'portrait')
-            // 96 DPI gives dompdf a larger pixel canvas (794×1123 vs the
-            // default 595×842 at 72 DPI), which reduces rounding clip on
-            // wide columns. defaultFont must match what the blade declares.
-            ->setOptions([
-                'dpi' => 96,
-                'defaultFont' => 'Arial',
-                'isRemoteEnabled' => false,
-                'isPhpEnabled' => false,
-            ]);
-    }
-
-    /**
-     * Build a base64 data URL for the entity logo.
-     *
-     * dompdf's default `chroot` is the dompdf vendor directory, so any
-     * absolute filesystem path outside it (e.g. our storage/app/private
-     * uploads) is silently rejected — the <img> just doesn't render.
-     * Embedding as a data: URL sidesteps the chroot entirely.
-     *
-     * Returns null on missing path or missing file — the Blade then
-     * falls back to the gold "W" brand mark.
-     */
-    private function resolveLogoPath(Invoice $invoice): ?string
-    {
-        $path = $invoice->billingEntity?->logo_path;
-        if (! $path) {
-            return null;
-        }
-
-        $absolute = Storage::disk('private')->path($path);
-        if (! file_exists($absolute)) {
-            return null;
-        }
-
-        $mime = mime_content_type($absolute) ?: 'image/png';
-
-        return 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($absolute));
     }
 
     public function store(StoreInvoiceRequest $request): RedirectResponse
@@ -861,6 +816,14 @@ class InvoiceController extends Controller
         });
 
         if ($newStatus === 'paid') {
+            // Receipt to the customer once the balance is cleared. Eager-load
+            // the contact explicitly — preventLazyLoading() is on outside prod.
+            $invoice->load('customer.primaryContact', 'billingEntity');
+            $recipient = $invoice->customer?->primaryContact?->email;
+            if ($recipient) {
+                Mail::to($recipient)->send(new PaymentReceived($invoice));
+            }
+
             return back()->with('success', "Invoice {$invoice->number} fully paid (£".number_format($newTotalPaid, 2).').');
         }
 
@@ -897,12 +860,14 @@ class InvoiceController extends Controller
 
     public function sendInvoice(int $id, Request $request): RedirectResponse
     {
-        $invoice = Invoice::findOrFail($id);
+        $invoice = Invoice::with('customer.primaryContact', 'billingEntity')->findOrFail($id);
         Gate::authorize('send', $invoice);
 
         if ($invoice->status !== 'draft') {
             return back()->with('error', "Only draft invoices can be sent. Current status: {$invoice->status}.");
         }
+
+        $recipient = $invoice->customer?->primaryContact?->email;
 
         DB::transaction(function () use ($invoice, $request) {
             $invoice->update([
@@ -912,6 +877,7 @@ class InvoiceController extends Controller
 
             $this->logActivity($request, 'invoice.sent', $invoice, after: [
                 'number' => $invoice->number,
+                'email_sent' => true,
             ]);
 
             // Outstanding count changes (draft → sent moves the row into the
@@ -919,7 +885,16 @@ class InvoiceController extends Controller
             Cache::forget('nav.invoices_outstanding');
         });
 
-        return back()->with('success', 'Invoice marked as sent. Email delivery will be added in a future sprint.');
+        // Email outside the transaction so a Postmark hiccup can't roll
+        // back the status change. No contact email → status still flips,
+        // operator is told to add one.
+        if ($recipient) {
+            Mail::to($recipient)->send(new InvoiceSent($invoice));
+
+            return back()->with('success', "Invoice {$invoice->number} sent to {$recipient}.");
+        }
+
+        return back()->with('success', "Invoice {$invoice->number} marked as sent. No primary-contact email on file — nothing was emailed.");
     }
 
     public function sendReminder(int $id, Request $request, ReminderTemplateService $templates): RedirectResponse
@@ -984,17 +959,21 @@ class InvoiceController extends Controller
                 'email_ready' => $rendered !== null,
             ]);
 
-            // TODO: dispatch Postmark email here when the email sprint
-            // runs — the rendered subject + body are already ready for
-            // the mailable to consume.
-            // Mail::to($recipient)->send(new InvoiceReminderMail($invoice, $rendered));
         });
 
+        // Deliver outside the transaction. Only when we have both a
+        // template (tier resolved) and a real contact email.
         $name = $invoice->customer->name;
+        if ($template !== null && $contact?->email) {
+            Mail::to($contact->email)->send(new InvoiceReminder($invoice, $template));
+
+            return back()->with('success', "Reminder sent to {$contact->email}.");
+        }
 
         return back()->with(
             'success',
-            "Reminder logged for {$name}. Email delivery will be added in a future sprint.",
+            "Reminder logged for {$name}."
+            .($template === null ? ' No matching template tier — nothing emailed.' : ' No contact email on file — nothing emailed.'),
         );
     }
 

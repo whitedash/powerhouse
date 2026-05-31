@@ -2,12 +2,14 @@
 
 namespace App\Console\Commands;
 
+use App\Mail\InvoiceReminder;
 use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Services\ReminderTemplateService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class SendInvoiceReminders extends Command
@@ -136,11 +138,14 @@ class SendInvoiceReminders extends Command
                     'user_agent' => 'invoices:send-reminders',
                 ]);
 
-                // TODO: dispatch Postmark email here once the email sprint
-                // runs — the rendered subject + body are already on $rendered
-                // for the mailable to consume.
-                // Mail::to($recipient)->send(new InvoiceReminderMail($invoice, $rendered));
             });
+
+            // Deliver the email outside the transaction so a Postmark
+            // failure can't roll back the logged reminder + cadence bump.
+            // Requires a resolved template and a real contact email.
+            if ($template !== null && $contact && $contact->email) {
+                Mail::to($contact->email)->send(new InvoiceReminder($invoice, $template));
+            }
 
             $this->info("Reminder sent: {$invoice->number} ({$tier})");
             $processed++;
