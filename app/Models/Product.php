@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $icon_colour
  * @property bool $is_active
  * @property bool $is_coming_soon
+ * @property bool $is_hosting
  * @property int $sort_order
  * @property string|null $qbo_item_id
  * @property Carbon|null $created_at
@@ -44,6 +45,7 @@ class Product extends Model
         'icon_colour',
         'is_active',
         'is_coming_soon',
+        'is_hosting',
         'sort_order',
         'qbo_item_id',
     ];
@@ -53,6 +55,7 @@ class Product extends Model
         return [
             'is_active' => 'boolean',
             'is_coming_soon' => 'boolean',
+            'is_hosting' => 'boolean',
             'sort_order' => 'integer',
         ];
     }

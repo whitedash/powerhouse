@@ -14,7 +14,6 @@ import {
     IconDots,
     IconX,
     IconWorld,
-    IconRefresh,
     IconShieldCheck,
     IconCheck,
     IconAlertTriangle,
@@ -366,7 +365,6 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true }); }
                                         </MenuItem>
                                         <MenuItem v-slot="{ active }">
                                             <button type="button" :class="['dd-option', { active }]" @click="checkNow(d.id)">
-                                                <IconRefresh :size="13" stroke-width="1.75" />
                                                 Check health now
                                             </button>
                                         </MenuItem>

@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -169,12 +170,37 @@ class DomainController extends Controller
 
         $this->refreshDomainHealth($domain);
 
+        // refreshDomainHealth only touches SSL + Cloudflare. Registrar and
+        // expiry come from WHOIS — back-fill them here so "Check health
+        // now" populates a domain that was added without them. WHOIS is
+        // best-effort: a failed/empty lookup is logged and skipped, never
+        // blocking the health refresh.
+        if (! $domain->expiry_date || ! $domain->registrar) {
+            try {
+                $whois = app(WhoisService::class)->lookup($domain->domain);
+
+                $updates = [];
+                if (! $domain->registrar && ! empty($whois['registrar'])) {
+                    $updates['registrar'] = $whois['registrar'];
+                }
+                if (! $domain->expiry_date && ! empty($whois['expiry_date'])) {
+                    $updates['expiry_date'] = $whois['expiry_date'];
+                }
+
+                if ($updates !== []) {
+                    $domain->update($updates);
+                }
+            } catch (\Throwable $e) {
+                Log::info('WHOIS lookup failed during health check: '.$e->getMessage());
+            }
+        }
+
         $this->log($request, 'domain.health_checked', $domain->id, after: [
             'status' => $domain->status,
             'ssl_status' => $domain->ssl_status,
         ]);
 
-        return back()->with('success', 'Domain health refreshed.');
+        return back()->with('success', 'Domain health and WHOIS data refreshed.');
     }
 
     /**

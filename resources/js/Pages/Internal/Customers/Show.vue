@@ -55,6 +55,7 @@ import {
     IconUpload,
     IconDatabase,
     IconGauge,
+    IconBulb,
     IconTrash,
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
@@ -2205,6 +2206,21 @@ function confirmDeleteWebsite() {
                                 <IconGauge :size="13" stroke-width="2" />
                                 {{ pagespeedId === w.id ? 'Running…' : 'Run PageSpeed check' }}
                             </button>
+
+                            <div v-if="w.pagespeed_data?.opportunities?.length" class="ps-opportunities">
+                                <div class="ps-opp-title">
+                                    <IconBulb :size="13" stroke-width="2" />
+                                    Improvement opportunities
+                                </div>
+                                <div
+                                    v-for="opp in w.pagespeed_data.opportunities"
+                                    :key="opp.title"
+                                    class="ps-opp-row"
+                                >
+                                    <div class="ps-opp-name">{{ opp.title }}</div>
+                                    <div v-if="opp.savings" class="ps-opp-saving">{{ opp.savings }}</div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- SSL / domain -->
@@ -3822,8 +3838,9 @@ function confirmDeleteWebsite() {
 
         <!-- ═══ Add/Edit website slide-over ═══ -->
         <Teleport to="body">
-            <div v-if="showWebsiteForm" class="slide-over-overlay" @click.self="showWebsiteForm = false">
-                <div class="slide-over website-form" style="width: 560px;">
+            <div v-if="showWebsiteForm" class="slide-over">
+                <div class="slide-over-backdrop" @click="showWebsiteForm = false" />
+                <aside class="slide-over-panel website-form" style="width: 560px;" role="dialog" aria-modal="true">
                     <div class="slide-over-head">
                         <h2>{{ editingWebsiteId ? 'Edit website' : 'Add website' }}</h2>
                         <button type="button" class="icon-btn" @click="showWebsiteForm = false"><IconX :size="18" stroke-width="2" /></button>
@@ -3850,7 +3867,7 @@ function confirmDeleteWebsite() {
                             <label class="form-label">Hosting plan</label>
                             <select v-model="websiteForm.customer_product_id" class="form-input">
                                 <option :value="null">— None —</option>
-                                <option v-for="p in customer.products" :key="p.id" :value="p.id">{{ p.name }}<template v-if="p.plan"> · {{ p.plan }}</template></option>
+                                <option v-for="p in (customer.hosting_products ?? [])" :key="p.id" :value="p.id">{{ p.name }}<template v-if="p.plan"> · {{ p.plan }}</template></option>
                             </select>
                         </div>
                         <div class="form-row-2">
@@ -3910,7 +3927,7 @@ function confirmDeleteWebsite() {
                             {{ websiteForm.processing ? 'Saving…' : (editingWebsiteId ? 'Save' : 'Add website') }}
                         </button>
                     </div>
-                </div>
+                </aside>
             </div>
         </Teleport>
 

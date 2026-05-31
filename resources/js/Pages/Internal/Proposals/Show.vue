@@ -132,7 +132,6 @@ function triggerItem(itemId) {
                             <h1 class="doc-title">PROPOSAL</h1>
                             <div class="doc-ref"><strong>{{ proposal.reference }}</strong> · {{ proposal.created_at }}</div>
                         </div>
-                        <span class="badge" :class="STATUS_BADGE[proposal.status]">{{ proposal.status_label }}</span>
                     </div>
 
                     <div class="prepared-for">

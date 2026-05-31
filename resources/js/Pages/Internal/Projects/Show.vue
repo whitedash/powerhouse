@@ -372,14 +372,28 @@ function confirmDeleteEntry() {
  * open at a time.
  */
 const openTaskMenu = ref(null);
-function toggleTaskMenu(id) {
-    openTaskMenu.value = openTaskMenu.value === id ? null : id;
+// The kanban board is an overflow-x:auto scroller, which clips any
+// absolutely-positioned child. The menu is therefore teleported to
+// <body> and positioned with fixed coords captured from the ··· button
+// the moment it opens.
+const taskMenuPos = ref({ top: 0, left: 0 });
+function toggleTaskMenu(id, ev) {
+    if (openTaskMenu.value === id) {
+        openTaskMenu.value = null;
+
+        return;
+    }
+    const r = ev.currentTarget.getBoundingClientRect();
+    // Right-align the 176px popover under the button; never let it run
+    // off the left edge.
+    taskMenuPos.value = { top: r.bottom + 4, left: Math.max(8, r.right - 176) };
+    openTaskMenu.value = id;
 }
-// Auto-close when clicking elsewhere on the page.
+// Auto-close when clicking outside the button or the teleported menu.
 function closeTaskMenuOnOutside(e) {
     if (! openTaskMenu.value) return;
-    const el = e.target.closest('.kt-menu-wrap');
-    if (! el) openTaskMenu.value = null;
+    if (e.target.closest('.kt-menu-wrap') || e.target.closest('.kt-menu')) return;
+    openTaskMenu.value = null;
 }
 if (typeof window !== 'undefined') {
     window.addEventListener('click', closeTaskMenuOnOutside, true);
@@ -719,27 +733,30 @@ function actionLabel(action) {
                                 <button
                                     type="button"
                                     class="kt-menu-btn"
-                                    @click.prevent.stop="toggleTaskMenu(t.id)"
+                                    @click.prevent.stop="toggleTaskMenu(t.id, $event)"
                                 >
                                     <IconDots :size="14" stroke-width="2" />
                                 </button>
-                                <div
-                                    v-if="openTaskMenu === t.id"
-                                    class="row-menu kt-menu"
-                                    @click.stop
-                                >
-                                    <button type="button" @click="openEditTask(t)">
-                                        <IconEdit :size="13" stroke-width="2" /> Edit task
-                                    </button>
-                                    <div class="kt-menu-sub muted small">Change status</div>
-                                    <button type="button" @click="menuStatusChange(t.id, 'todo')">Todo</button>
-                                    <button type="button" @click="menuStatusChange(t.id, 'in_progress')">In progress</button>
-                                    <button type="button" @click="menuStatusChange(t.id, 'in_review')">In review</button>
-                                    <button type="button" @click="menuStatusChange(t.id, 'complete')">Complete</button>
-                                    <button type="button" class="danger" @click="askDeleteTask(t)">
-                                        <IconX :size="13" stroke-width="2" /> Delete
-                                    </button>
-                                </div>
+                                <Teleport to="body">
+                                    <div
+                                        v-if="openTaskMenu === t.id"
+                                        class="row-menu kt-menu"
+                                        :style="{ position: 'fixed', top: taskMenuPos.top + 'px', left: taskMenuPos.left + 'px', right: 'auto' }"
+                                        @click.stop
+                                    >
+                                        <button type="button" @click="openEditTask(t)">
+                                            <IconEdit :size="13" stroke-width="2" /> Edit task
+                                        </button>
+                                        <div class="kt-menu-sub muted small">Change status</div>
+                                        <button type="button" @click="menuStatusChange(t.id, 'todo')">Todo</button>
+                                        <button type="button" @click="menuStatusChange(t.id, 'in_progress')">In progress</button>
+                                        <button type="button" @click="menuStatusChange(t.id, 'in_review')">In review</button>
+                                        <button type="button" @click="menuStatusChange(t.id, 'complete')">Complete</button>
+                                        <button type="button" class="danger" @click="askDeleteTask(t)">
+                                            <IconX :size="13" stroke-width="2" /> Delete
+                                        </button>
+                                    </div>
+                                </Teleport>
                             </div>
                         </div>
                         <div class="kanban-add-wrap">
@@ -794,22 +811,29 @@ function actionLabel(action) {
                                         <span class="muted small">{{ statusLabel(t.status) }}</span>
                                     </div>
                                 </Link>
-                                <button type="button" class="kt-menu-btn" @click.prevent.stop="toggleTaskMenu(t.id)">
+                                <button type="button" class="kt-menu-btn" @click.prevent.stop="toggleTaskMenu(t.id, $event)">
                                     <IconDots :size="14" stroke-width="2" />
                                 </button>
-                                <div v-if="openTaskMenu === t.id" class="row-menu kt-menu" @click.stop>
-                                    <button type="button" @click="openEditTask(t)">
-                                        <IconEdit :size="13" stroke-width="2" /> Edit task
-                                    </button>
-                                    <div class="kt-menu-sub muted small">Change status</div>
-                                    <button type="button" @click="menuStatusChange(t.id, 'todo')">Todo</button>
-                                    <button type="button" @click="menuStatusChange(t.id, 'in_progress')">In progress</button>
-                                    <button type="button" @click="menuStatusChange(t.id, 'in_review')">In review</button>
-                                    <button type="button" @click="menuStatusChange(t.id, 'complete')">Complete</button>
-                                    <button type="button" class="danger" @click="askDeleteTask(t)">
-                                        <IconX :size="13" stroke-width="2" /> Delete
-                                    </button>
-                                </div>
+                                <Teleport to="body">
+                                    <div
+                                        v-if="openTaskMenu === t.id"
+                                        class="row-menu kt-menu"
+                                        :style="{ position: 'fixed', top: taskMenuPos.top + 'px', left: taskMenuPos.left + 'px', right: 'auto' }"
+                                        @click.stop
+                                    >
+                                        <button type="button" @click="openEditTask(t)">
+                                            <IconEdit :size="13" stroke-width="2" /> Edit task
+                                        </button>
+                                        <div class="kt-menu-sub muted small">Change status</div>
+                                        <button type="button" @click="menuStatusChange(t.id, 'todo')">Todo</button>
+                                        <button type="button" @click="menuStatusChange(t.id, 'in_progress')">In progress</button>
+                                        <button type="button" @click="menuStatusChange(t.id, 'in_review')">In review</button>
+                                        <button type="button" @click="menuStatusChange(t.id, 'complete')">Complete</button>
+                                        <button type="button" class="danger" @click="askDeleteTask(t)">
+                                            <IconX :size="13" stroke-width="2" /> Delete
+                                        </button>
+                                    </div>
+                                </Teleport>
                             </div>
                         </div>
                         <div class="kanban-add-wrap">
@@ -873,17 +897,24 @@ function actionLabel(action) {
                                         {{ t.blocked_reason }}
                                     </div>
                                 </Link>
-                                <button type="button" class="kt-menu-btn" @click.prevent.stop="toggleTaskMenu(t.id)">
+                                <button type="button" class="kt-menu-btn" @click.prevent.stop="toggleTaskMenu(t.id, $event)">
                                     <IconDots :size="14" stroke-width="2" />
                                 </button>
-                                <div v-if="openTaskMenu === t.id" class="row-menu kt-menu" @click.stop>
-                                    <button type="button" @click="openEditTask(t)">
-                                        <IconEdit :size="13" stroke-width="2" /> Edit task
-                                    </button>
-                                    <button type="button" class="danger" @click="askDeleteTask(t)">
-                                        <IconX :size="13" stroke-width="2" /> Delete
-                                    </button>
-                                </div>
+                                <Teleport to="body">
+                                    <div
+                                        v-if="openTaskMenu === t.id"
+                                        class="row-menu kt-menu"
+                                        :style="{ position: 'fixed', top: taskMenuPos.top + 'px', left: taskMenuPos.left + 'px', right: 'auto' }"
+                                        @click.stop
+                                    >
+                                        <button type="button" @click="openEditTask(t)">
+                                            <IconEdit :size="13" stroke-width="2" /> Edit task
+                                        </button>
+                                        <button type="button" class="danger" @click="askDeleteTask(t)">
+                                            <IconX :size="13" stroke-width="2" /> Delete
+                                        </button>
+                                    </div>
+                                </Teleport>
                             </div>
                         </div>
                     </div>
@@ -1186,10 +1217,19 @@ function actionLabel(action) {
                             <input v-model="logForm.description" type="text" class="form-input" />
                         </div>
                         <div class="form-section">
-                            <label class="toggle" :class="{ on: logForm.is_billable }">
-                                <input type="checkbox" v-model="logForm.is_billable" />
-                                <span>Billable</span>
-                            </label>
+                            <div class="set-row">
+                                <div>
+                                    <div class="nm">Billable</div>
+                                    <div class="sb">Counts toward invoiceable hours.</div>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="toggle"
+                                    :class="{ on: logForm.is_billable }"
+                                    aria-label="Toggle billable"
+                                    @click="logForm.is_billable = !logForm.is_billable"
+                                />
+                            </div>
                         </div>
                         <div v-if="logForm.is_billable" class="form-section">
                             <label class="form-label">Hourly rate override (£)</label>

@@ -367,6 +367,20 @@ class CustomerController extends Controller
                         : null,
                 ])->values(),
 
+                // Hosting plans only — the website add/edit slide-over's
+                // plan picker. Filtered from the already-loaded
+                // customerProducts so it costs no extra query: live
+                // (active/trial) subscriptions whose product is flagged
+                // is_hosting.
+                'hosting_products' => $customer->customerProducts
+                    ->filter(fn (CustomerProduct $cp): bool => in_array($cp->status, ['active', 'trial'], true)
+                        && (bool) $cp->product?->is_hosting)
+                    ->map(fn (CustomerProduct $cp): array => [
+                        'id' => $cp->id,
+                        'name' => $cp->product?->name,
+                        'plan' => $cp->plan,
+                    ])->values(),
+
                 'mrr' => $mrr,
                 'total_spend' => $totalSpend,
                 'open_invoices' => $openInvoiceCount,
@@ -508,6 +522,10 @@ class CustomerController extends Controller
                     'pagespeed_lcp' => $w->pagespeed_lcp !== null ? (float) $w->pagespeed_lcp : null,
                     'pagespeed_cls' => $w->pagespeed_cls !== null ? (float) $w->pagespeed_cls : null,
                     'pagespeed_checked_at' => $w->pagespeed_checked_at?->diffForHumans(),
+                    // Top improvement suggestions (Lighthouse opportunities)
+                    // captured on the last check — rendered as a panel under
+                    // the performance scores. Null until the first run.
+                    'pagespeed_data' => $w->pagespeed_data,
 
                     // WordPress (future)
                     'wp_version' => $w->wp_version,

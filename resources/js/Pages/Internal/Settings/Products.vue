@@ -57,6 +57,7 @@ function buildDefaults(p) {
         icon_colour: p?.icon_colour ?? '#0D9488',
         is_active: p?.is_active ?? true,
         is_coming_soon: p?.is_coming_soon ?? false,
+        is_hosting: p?.is_hosting ?? false,
         sort_order: p?.sort_order ?? 0,
     };
 }
@@ -472,6 +473,24 @@ function confirmRemoveSupplier() {
                         </div>
                     </div>
 
+                    <!-- PRODUCT TYPE -->
+                    <div class="sec-label">Product type</div>
+                    <div class="status-rows">
+                        <div class="set-row">
+                            <div>
+                                <div class="nm">Hosting product</div>
+                                <div class="sb">When enabled, this product appears in the website hosting plan selector.</div>
+                            </div>
+                            <button
+                                type="button"
+                                class="toggle"
+                                :class="{ on: form.is_hosting }"
+                                aria-label="Toggle hosting product"
+                                @click="form.is_hosting = !form.is_hosting"
+                            />
+                        </div>
+                    </div>
+
                     <!-- STATS -->
                     <div class="sec-label">Stats</div>
                     <div class="stats-card">
@@ -715,6 +734,23 @@ function confirmRemoveSupplier() {
                                             :class="{ on: createForm.is_coming_soon }"
                                             aria-label="Toggle coming soon"
                                             @click="createForm.is_coming_soon = !createForm.is_coming_soon"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div class="sec-label">Product type</div>
+                                <div class="status-rows">
+                                    <div class="set-row">
+                                        <div>
+                                            <div class="nm">Hosting product</div>
+                                            <div class="sb">When enabled, this product appears in the website hosting plan selector.</div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            class="toggle"
+                                            :class="{ on: createForm.is_hosting }"
+                                            aria-label="Toggle hosting product"
+                                            @click="createForm.is_hosting = !createForm.is_hosting"
                                         />
                                     </div>
                                 </div>
