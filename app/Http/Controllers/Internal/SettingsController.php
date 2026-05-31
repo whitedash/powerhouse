@@ -16,7 +16,9 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\WebhookDelivery;
 use App\Services\CloudflareService;
+use App\Services\PageSpeedService;
 use App\Services\ReminderTemplateService;
+use App\Services\WhmService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -542,6 +544,25 @@ class SettingsController extends Controller
                     'connected' => ! empty(config('services.quickbooks.client_id')),
                     'testable' => false,
                 ],
+                [
+                    'key' => 'whm',
+                    'name' => 'WHM / cPanel (040hosting.eu)',
+                    'description' => 'Hosting usage, account suspension and provisioning.',
+                    'colour' => '#FF6C2C',
+                    'initials' => 'WHM',
+                    'connected' => ! empty(config('services.cpanel.whm_token')),
+                    'testable' => true,
+                    'server' => config('services.cpanel.whm_server'),
+                ],
+                [
+                    'key' => 'pagespeed',
+                    'name' => 'Google PageSpeed Insights',
+                    'description' => 'Lighthouse performance + Core Web Vitals.',
+                    'colour' => '#4285F4',
+                    'initials' => 'PSI',
+                    'connected' => ! empty(config('services.cpanel.pagespeed_key')),
+                    'testable' => true,
+                ],
             ],
             // Recent outbound product webhooks for the delivery log.
             'webhook_deliveries' => WebhookDelivery::query()
@@ -566,7 +587,7 @@ class SettingsController extends Controller
     {
         // The name comes straight from the URL — allow-list it before
         // doing anything else.
-        if (! in_array($name, ['cloudflare', 'postmark', 'stripe', 'quickbooks'], true)) {
+        if (! in_array($name, ['cloudflare', 'postmark', 'stripe', 'quickbooks', 'whm', 'pagespeed'], true)) {
             abort(404);
         }
 
@@ -583,6 +604,30 @@ class SettingsController extends Controller
             return back()->with(
                 $ok ? 'success' : 'error',
                 $ok ? 'Cloudflare token verified.' : 'Cloudflare token missing or invalid.',
+            );
+        }
+
+        if ($name === 'whm') {
+            $ok = app(WhmService::class)->testConnection();
+            $this->logActivity($request, 'settings.integration_tested', 'integration', 0, after: [
+                'name' => $name, 'ok' => $ok,
+            ]);
+
+            return back()->with(
+                $ok ? 'success' : 'error',
+                $ok ? 'WHM connection verified.' : 'WHM token missing or invalid.',
+            );
+        }
+
+        if ($name === 'pagespeed') {
+            $ok = app(PageSpeedService::class)->testConnection();
+            $this->logActivity($request, 'settings.integration_tested', 'integration', 0, after: [
+                'name' => $name, 'ok' => $ok,
+            ]);
+
+            return back()->with(
+                $ok ? 'success' : 'error',
+                $ok ? 'PageSpeed API key valid.' : 'PageSpeed API key missing or invalid.',
             );
         }
 

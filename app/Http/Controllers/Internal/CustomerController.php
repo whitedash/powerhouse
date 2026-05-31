@@ -27,6 +27,7 @@ use App\Models\Proposal;
 use App\Models\Referrer;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\Website;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -248,6 +249,12 @@ class CustomerController extends Controller
             // Proposals tab — slim payload mapped below. Newest first
             // so the operator sees the most recent quote at a glance.
             'proposals' => fn ($q) => $q->orderByDesc('created_at'),
+            // Websites tab — hosting/PageSpeed telemetry. The domain +
+            // hosting-plan relations feed the SSL line and quota labels.
+            'websites' => fn ($q) => $q->with([
+                'domain:id,domain,ssl_status,expiry_date',
+                'customerProduct.productPlan:id,name,disk_quota_gb,email_quota,bandwidth_quota_gb',
+            ])->orderBy('name'),
         ])->findOrFail($id);
 
         Gate::authorize('view', $customer);
@@ -470,6 +477,54 @@ class CustomerController extends Controller
                     'ssl_expiry_date' => $d->ssl_expiry_date?->toDateString(),
                     'is_in_cloudflare' => (bool) $d->is_in_cloudflare,
                     'status' => $this->domainStatus($d),
+                ])->values(),
+
+                'websites' => $customer->websites->map(fn (Website $w): array => [
+                    'id' => $w->id,
+                    'name' => $w->name,
+                    'url' => $w->url,
+                    'status' => $w->status,
+                    'health_status' => $w->health_status,
+
+                    // Hosting plan
+                    'plan_name' => $w->customerProduct?->productPlan?->name,
+                    'disk_quota_gb' => $w->customerProduct?->productPlan?->disk_quota_gb,
+
+                    // Usage
+                    'disk_used_mb' => $w->disk_used_mb,
+                    'disk_quota_mb' => $w->disk_quota_mb,
+                    'disk_percent' => $w->disk_percent,
+                    'email_accounts_count' => $w->email_accounts_count,
+                    'email_accounts_quota' => $w->email_accounts_quota,
+                    'bandwidth_used_mb' => $w->bandwidth_used_mb,
+                    'usage_checked_at' => $w->usage_checked_at?->diffForHumans(),
+
+                    // Performance
+                    'pagespeed_mobile' => $w->pagespeed_mobile,
+                    'pagespeed_desktop' => $w->pagespeed_desktop,
+                    'pagespeed_grade' => $w->pagespeed_grade,
+                    'pagespeed_lcp' => $w->pagespeed_lcp !== null ? (float) $w->pagespeed_lcp : null,
+                    'pagespeed_cls' => $w->pagespeed_cls !== null ? (float) $w->pagespeed_cls : null,
+                    'pagespeed_checked_at' => $w->pagespeed_checked_at?->diffForHumans(),
+
+                    // WordPress (future)
+                    'wp_version' => $w->wp_version,
+                    'plugins_outdated' => $w->plugins_outdated,
+
+                    // Domain
+                    'domain_id' => $w->domain_id,
+                    'domain_name' => $w->domain?->domain,
+                    'ssl_status' => $w->domain?->ssl_status,
+
+                    // Connections / cPanel
+                    'customer_product_id' => $w->customer_product_id,
+                    'project_id' => $w->project_id,
+                    'cpanel_username' => $w->cpanel_username,
+                    'cpanel_server' => $w->cpanel_server,
+                    'has_cpanel' => ! empty($w->cpanel_username),
+                    'whm_managed' => $w->whm_managed,
+                    'ga4_property_id' => $w->ga4_property_id,
+                    'notes' => $w->notes,
                 ])->values(),
 
                 'contracts_count' => $customer->contracts->count(),

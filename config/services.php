@@ -64,6 +64,18 @@ return [
     ],
 
     /*
+     * cPanel / WHM (040hosting.eu reseller) + Google PageSpeed Insights.
+     * One global WHM root token drives suspend/unsuspend across accounts;
+     * per-site cPanel tokens live on the websites table (encrypted). The
+     * PageSpeed key is a plain Google API key (no OAuth).
+     */
+    'cpanel' => [
+        'whm_server' => env('WHM_SERVER', '040hosting.eu'),
+        'whm_token' => env('WHM_API_TOKEN'),
+        'pagespeed_key' => env('PAGESPEED_API_KEY'),
+    ],
+
+    /*
      * OAuth client IDs for the products that consume Powerhouse SSO.
      * The IDs are UUIDs (Passport v12+ schema). Defaults match the
      * seed data already in oauth_clients on local; production reads

@@ -66,6 +66,23 @@ Schedule::command('webhooks:retry-failed')
     ->everyFifteenMinutes()
     ->withoutOverlapping();
 
+// Refresh cPanel usage (disk/email/bandwidth) for managed websites and
+// raise disk warnings. Every 6 hours so the dashboard disk KPIs stay
+// reasonably fresh without hammering the shared host.
+Schedule::command('websites:sync-hosting')
+    ->everySixHours()
+    ->timezone('Europe/London')
+    ->withoutOverlapping()
+    ->runInBackground();
+
+// Weekly PageSpeed sweep — Monday 06:00, ahead of the working week so
+// fresh scores are on the dashboard when the team logs in.
+Schedule::command('websites:check-pagespeed')
+    ->weeklyOn(1, '06:00')
+    ->timezone('Europe/London')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Refresh Cloudflare zone + SSL state and recompute domain status.
 // Runs before the morning invoice + reminder sweeps so the
 // dashboard "Domains expiring" KPI is current by 09:00.

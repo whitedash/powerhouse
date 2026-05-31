@@ -20,6 +20,9 @@ use Illuminate\Support\Carbon;
  * @property bool $is_active
  * @property bool $is_public
  * @property int $sort_order
+ * @property int|null $disk_quota_gb
+ * @property int|null $email_quota
+ * @property int|null $bandwidth_quota_gb
  * @property int $active_count
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -43,6 +46,10 @@ class ProductPlan extends Model
         'is_active',
         'is_public',
         'sort_order',
+        // Hosting allowances — nullable; only hosting plans use them.
+        'disk_quota_gb',
+        'email_quota',
+        'bandwidth_quota_gb',
     ];
 
     protected function casts(): array
@@ -52,6 +59,9 @@ class ProductPlan extends Model
             'is_active' => 'boolean',
             'is_public' => 'boolean',
             'sort_order' => 'integer',
+            'disk_quota_gb' => 'integer',
+            'email_quota' => 'integer',
+            'bandwidth_quota_gb' => 'integer',
         ];
     }
 

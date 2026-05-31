@@ -42,6 +42,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, CustomerProduct> $customerProducts
  * @property-read Collection<int, Invoice> $invoices
  * @property-read Collection<int, Domain> $domains
+ * @property-read Collection<int, Website> $websites
  * @property-read Collection<int, Contract> $contracts
  * @property-read Collection<int, SupportTicket> $supportTickets
  * @property-read Collection<int, Note> $notes
@@ -130,6 +131,11 @@ class Customer extends Model
     public function domains(): HasMany
     {
         return $this->hasMany(Domain::class);
+    }
+
+    public function websites(): HasMany
+    {
+        return $this->hasMany(Website::class);
     }
 
     public function contracts(): HasMany

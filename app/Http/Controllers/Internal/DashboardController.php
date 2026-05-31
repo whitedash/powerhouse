@@ -16,6 +16,7 @@ use App\Models\Referrer;
 use App\Models\SupportTicket;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\Website;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -411,6 +412,43 @@ class DashboardController extends Controller
                     ]);
                 });
         }
+
+        // Website disk pressure — red at ≥90%, amber at ≥80%. Capped at 2
+        // so hosting noise doesn't crowd out invoices/tickets.
+        Website::where('status', 'active')
+            ->whereNotNull('disk_used_mb')
+            ->whereRaw('disk_used_mb / NULLIF(disk_quota_mb, 0) >= 0.8')
+            ->with('customer:id,name')
+            ->take(2)
+            ->get()
+            ->each(function (Website $w) use ($items) {
+                $items->push([
+                    'type' => 'website',
+                    'priority' => ($w->disk_percent ?? 0) >= 90 ? 'red' : 'amber',
+                    'title' => 'Disk '.$w->disk_percent.'%: '.$w->url,
+                    'sub' => $w->customer->name ?? '—',
+                    'action' => 'View →',
+                    'href' => '/customers/'.$w->customer_id,
+                ]);
+            });
+
+        // Poor PageSpeed — amber. Capped at 2.
+        Website::where('status', 'active')
+            ->whereNotNull('pagespeed_mobile')
+            ->where('pagespeed_mobile', '<', 50)
+            ->with('customer:id,name')
+            ->take(2)
+            ->get()
+            ->each(function (Website $w) use ($items) {
+                $items->push([
+                    'type' => 'website',
+                    'priority' => 'amber',
+                    'title' => 'Poor performance: '.$w->url,
+                    'sub' => ($w->customer->name ?? '—').' · Score: '.$w->pagespeed_mobile,
+                    'action' => 'View →',
+                    'href' => '/customers/'.$w->customer_id,
+                ]);
+            });
 
         // Stable sort: red before amber, original push order preserved
         // within each priority. values() resets the keys so Inertia

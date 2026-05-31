@@ -53,6 +53,9 @@ import {
     IconPin,
     IconFileText,
     IconUpload,
+    IconDatabase,
+    IconGauge,
+    IconTrash,
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -161,6 +164,7 @@ const tabs = computed(() => [
     { key: 'overview',   label: 'Overview' },
     { key: 'invoices',   label: 'Invoices',   count: props.customer.invoices.length },
     { key: 'products',   label: 'Products',   count: props.customer.products.length },
+    { key: 'websites',   label: 'Websites',   count: (props.customer.websites ?? []).length },
     { key: 'contracts',  label: 'Contracts',  count: contracts.value.length },
     { key: 'proposals',  label: 'Proposals',  count: (props.customer.proposals ?? []).length },
     { key: 'projects',   label: 'Projects',   count: (props.customer.projects ?? []).length },
@@ -1169,6 +1173,98 @@ const contractDeleteMessage = computed(() =>
         ? `"${contractDeleteTarget.value.title}" and its attached PDF (if any) will be permanently removed.`
         : '',
 );
+
+/* ─────────────────────────────────────────────────────────────────
+ * Websites tab — cPanel / WHM / PageSpeed.
+ * ─────────────────────────────────────────────────────────────── */
+const HEALTH_DOT = { healthy: 'green', warning: 'amber', critical: 'red' };
+
+function gbFromMb(mb) {
+    if (mb === null || mb === undefined) return null;
+    return (mb / 1024).toFixed(1);
+}
+
+/* Per-site spinner flags so each card's buttons spin independently. */
+const syncingId = ref(null);
+const pagespeedId = ref(null);
+
+function syncHosting(w) {
+    syncingId.value = w.id;
+    router.post(`/websites/${w.id}/sync-hosting`, {}, {
+        preserveScroll: true,
+        onFinish: () => { syncingId.value = null; },
+    });
+}
+function runPageSpeed(w) {
+    pagespeedId.value = w.id;
+    router.post(`/websites/${w.id}/check-pagespeed`, {}, {
+        preserveScroll: true,
+        onFinish: () => { pagespeedId.value = null; },
+    });
+}
+
+/* ─── Add / edit website slide-over ─── */
+const showWebsiteForm = ref(false);
+const editingWebsiteId = ref(null);
+const websiteForm = useForm({
+    customer_id: props.customer.id,
+    name: '',
+    url: '',
+    customer_product_id: null,
+    domain_id: null,
+    project_id: null,
+    cpanel_username: '',
+    cpanel_token: '',
+    cpanel_server: '040hosting.eu',
+    whm_managed: false,
+    ga4_property_id: '',
+    notes: '',
+});
+
+function openCreateWebsite() {
+    editingWebsiteId.value = null;
+    websiteForm.reset();
+    websiteForm.customer_id = props.customer.id;
+    websiteForm.cpanel_server = '040hosting.eu';
+    websiteForm.clearErrors();
+    showWebsiteForm.value = true;
+}
+function openEditWebsite(w) {
+    editingWebsiteId.value = w.id;
+    websiteForm.customer_id = props.customer.id;
+    websiteForm.name = w.name;
+    websiteForm.url = w.url;
+    websiteForm.customer_product_id = w.customer_product_id ?? null;
+    websiteForm.domain_id = w.domain_id ?? null;
+    websiteForm.project_id = w.project_id ?? null;
+    websiteForm.cpanel_username = w.cpanel_username ?? '';
+    websiteForm.cpanel_token = ''; // never round-tripped; blank = keep
+    websiteForm.cpanel_server = w.cpanel_server ?? '040hosting.eu';
+    websiteForm.whm_managed = w.whm_managed;
+    websiteForm.ga4_property_id = w.ga4_property_id ?? '';
+    websiteForm.notes = w.notes ?? '';
+    websiteForm.clearErrors();
+    showWebsiteForm.value = true;
+}
+function submitWebsite() {
+    const opts = { preserveScroll: true, onSuccess: () => { showWebsiteForm.value = false; } };
+    if (editingWebsiteId.value) {
+        websiteForm.put(`/websites/${editingWebsiteId.value}`, opts);
+    } else {
+        websiteForm.post('/websites', opts);
+    }
+}
+
+const showWebsiteDelete = ref(false);
+const websiteDeleteTarget = ref(null);
+function askDeleteWebsite(w) { websiteDeleteTarget.value = w; showWebsiteDelete.value = true; }
+function confirmDeleteWebsite() {
+    if (! websiteDeleteTarget.value) return;
+    router.delete(`/websites/${websiteDeleteTarget.value.id}`, {
+        preserveScroll: true,
+        onFinish: () => { showWebsiteDelete.value = false; websiteDeleteTarget.value = null; },
+    });
+}
 </script>
 
 <template>
@@ -2029,6 +2125,115 @@ const contractDeleteMessage = computed(() =>
                         </button>
                     </div>
                 </section>
+            </div>
+
+            <!-- ═══ WEBSITES TAB ═══ -->
+            <div v-else-if="activeTab === 'websites'" class="cust-websites" style="margin: 0 -24px -24px; padding: 24px;">
+                <div class="cw-head">
+                    <h2 class="cw-title">Websites</h2>
+                    <button type="button" class="btn btn-primary btn-sm" @click="openCreateWebsite">
+                        <IconPlus :size="14" stroke-width="1.75" />
+                        Add website
+                    </button>
+                </div>
+
+                <div v-if="(customer.websites ?? []).length" class="cw-grid">
+                    <div v-for="w in customer.websites" :key="w.id" class="cw-card">
+                        <!-- Header -->
+                        <div class="cw-card-head">
+                            <span class="cw-dot" :class="HEALTH_DOT[w.health_status]" :title="w.health_status"></span>
+                            <div class="cw-id">
+                                <div class="cw-name">{{ w.name }}</div>
+                                <a :href="w.url" target="_blank" rel="noopener" class="cw-url">{{ w.url }}</a>
+                            </div>
+                            <span v-if="w.status === 'suspended'" class="badge badge-overdue badge-sm">Suspended</span>
+                            <Menu as="div" class="dd-menu">
+                                <MenuButton class="icon-btn" aria-label="Website actions"><IconDots :size="16" stroke-width="1.75" /></MenuButton>
+                                <MenuItems class="dd-popover right-align">
+                                    <MenuItem v-slot="{ active }">
+                                        <button type="button" :class="['dd-option', { active }]" @click="openEditWebsite(w)">
+                                            <IconPencil :size="14" stroke-width="1.75" /> Edit
+                                        </button>
+                                    </MenuItem>
+                                    <MenuItem v-slot="{ active }">
+                                        <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDeleteWebsite(w)">
+                                            <IconTrash :size="14" stroke-width="1.75" /> Delete
+                                        </button>
+                                    </MenuItem>
+                                </MenuItems>
+                            </Menu>
+                        </div>
+                        <div v-if="w.plan_name" class="cw-plan">{{ w.plan_name }}</div>
+
+                        <!-- Hosting usage -->
+                        <div class="cw-section">
+                            <div class="cw-section-label"><IconDatabase :size="13" stroke-width="2" /> Disk</div>
+                            <template v-if="w.disk_percent !== null">
+                                <div class="cw-bar"><span class="cw-bar-fill" :class="w.disk_percent >= 90 ? 'red' : (w.disk_percent >= 80 ? 'amber' : 'green')" :style="{ width: Math.min(w.disk_percent, 100) + '%' }"></span></div>
+                                <div class="cw-bar-meta">{{ gbFromMb(w.disk_used_mb) }} / {{ gbFromMb(w.disk_quota_mb) }} GB · {{ w.disk_percent }}%</div>
+                            </template>
+                            <div v-else class="cw-muted">No usage data yet</div>
+                        </div>
+
+                        <div class="cw-row2">
+                            <div class="cw-stat"><IconMail :size="13" stroke-width="2" /> {{ w.email_accounts_count ?? '—' }}<span v-if="w.email_accounts_quota"> / {{ w.email_accounts_quota }}</span> email</div>
+                            <div class="cw-stat"><IconActivity :size="13" stroke-width="2" /> {{ w.bandwidth_used_mb !== null ? gbFromMb(w.bandwidth_used_mb) + ' GB' : '—' }} bw</div>
+                        </div>
+
+                        <!-- Performance -->
+                        <div class="cw-section">
+                            <div class="cw-section-label"><IconGauge :size="13" stroke-width="2" /> Performance</div>
+                            <template v-if="w.pagespeed_mobile !== null">
+                                <div class="cw-scores">
+                                    <div class="cw-score" :class="w.pagespeed_grade">
+                                        <span class="cw-score-num">{{ w.pagespeed_mobile }}</span>
+                                        <span class="cw-score-lbl">Mobile</span>
+                                    </div>
+                                    <div class="cw-score" :class="w.pagespeed_desktop >= 90 ? 'good' : (w.pagespeed_desktop >= 50 ? 'needs-improvement' : 'poor')">
+                                        <span class="cw-score-num">{{ w.pagespeed_desktop }}</span>
+                                        <span class="cw-score-lbl">Desktop</span>
+                                    </div>
+                                    <div class="cw-vitals">
+                                        <span v-if="w.pagespeed_lcp">LCP {{ w.pagespeed_lcp }}s</span>
+                                        <span v-if="w.pagespeed_cls !== null">CLS {{ w.pagespeed_cls }}</span>
+                                        <span class="cw-muted">{{ w.pagespeed_checked_at ? 'Checked ' + w.pagespeed_checked_at : '' }}</span>
+                                    </div>
+                                </div>
+                            </template>
+                            <div v-else class="cw-muted">Not checked yet</div>
+                            <button type="button" class="ghost-link" :disabled="pagespeedId === w.id" @click="runPageSpeed(w)">
+                                <IconGauge :size="13" stroke-width="2" />
+                                {{ pagespeedId === w.id ? 'Running…' : 'Run PageSpeed check' }}
+                            </button>
+                        </div>
+
+                        <!-- SSL / domain -->
+                        <div class="cw-ssl" :class="{ 'ssl-bad': w.ssl_status && w.ssl_status !== 'valid' }">
+                            <IconWorld :size="13" stroke-width="2" />
+                            <span v-if="w.domain_name">SSL: {{ w.ssl_status ?? 'unknown' }} · {{ w.domain_name }}</span>
+                            <span v-else class="cw-muted">No domain linked</span>
+                        </div>
+
+                        <!-- Footer actions -->
+                        <div class="cw-actions">
+                            <button v-if="w.has_cpanel" type="button" class="btn btn-ghost btn-sm" :disabled="syncingId === w.id" @click="syncHosting(w)">
+                                <IconRefresh :size="14" stroke-width="1.75" />
+                                {{ syncingId === w.id ? 'Syncing…' : 'Sync hosting now' }}
+                            </button>
+                            <span v-else class="cw-muted" style="font-size: 12px;">No cPanel configured</span>
+                            <span v-if="w.usage_checked_at" class="cw-muted" style="font-size: 11.5px; margin-left: auto;">Synced {{ w.usage_checked_at }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else class="tab-empty">
+                    <h3>No websites yet</h3>
+                    <p>Add a website to track hosting usage, SSL, and PageSpeed performance.</p>
+                    <button type="button" class="btn btn-primary btn-sm" style="margin-top: 12px;" @click="openCreateWebsite">
+                        <IconPlus :size="14" stroke-width="1.75" />
+                        Add website
+                    </button>
+                </div>
             </div>
 
             <!-- ═══ CONTRACTS TAB ═══ -->
@@ -3613,6 +3818,109 @@ const contractDeleteMessage = computed(() =>
             variant="danger"
             :loading="contractDeleteProcessing"
             @confirm="performDeleteContract"
+        />
+
+        <!-- ═══ Add/Edit website slide-over ═══ -->
+        <Teleport to="body">
+            <div v-if="showWebsiteForm" class="slide-over-overlay" @click.self="showWebsiteForm = false">
+                <div class="slide-over website-form" style="width: 560px;">
+                    <div class="slide-over-head">
+                        <h2>{{ editingWebsiteId ? 'Edit website' : 'Add website' }}</h2>
+                        <button type="button" class="icon-btn" @click="showWebsiteForm = false"><IconX :size="18" stroke-width="2" /></button>
+                    </div>
+                    <form class="slide-over-body" @submit.prevent="submitWebsite">
+                        <div class="wf-sec">Basic</div>
+                        <div class="form-section">
+                            <label class="form-label">Name <span class="req">*</span></label>
+                            <input v-model="websiteForm.name" type="text" class="form-input" required maxlength="255" placeholder="e.g. Main website" />
+                            <p v-if="websiteForm.errors.name" class="form-error">{{ websiteForm.errors.name }}</p>
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">URL <span class="req">*</span></label>
+                            <input v-model="websiteForm.url" type="url" class="form-input" required maxlength="500" placeholder="https://example.co.uk" />
+                            <p v-if="websiteForm.errors.url" class="form-error">{{ websiteForm.errors.url }}</p>
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Customer</label>
+                            <input type="text" class="form-input" :value="customer.name" readonly disabled />
+                        </div>
+
+                        <div class="wf-sec">Connections</div>
+                        <div class="form-section">
+                            <label class="form-label">Hosting plan</label>
+                            <select v-model="websiteForm.customer_product_id" class="form-input">
+                                <option :value="null">— None —</option>
+                                <option v-for="p in customer.products" :key="p.id" :value="p.id">{{ p.name }}<template v-if="p.plan"> · {{ p.plan }}</template></option>
+                            </select>
+                        </div>
+                        <div class="form-row-2">
+                            <div class="form-section">
+                                <label class="form-label">Domain</label>
+                                <select v-model="websiteForm.domain_id" class="form-input">
+                                    <option :value="null">— None —</option>
+                                    <option v-for="d in customer.domains" :key="d.id" :value="d.id">{{ d.domain }}</option>
+                                </select>
+                            </div>
+                            <div class="form-section">
+                                <label class="form-label">Project</label>
+                                <select v-model="websiteForm.project_id" class="form-input">
+                                    <option :value="null">— None —</option>
+                                    <option v-for="pr in (customer.projects ?? [])" :key="pr.id" :value="pr.id">{{ pr.title }}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="wf-sec">cPanel access <span class="wf-sec-note">Tokens are stored encrypted.</span></div>
+                        <div class="form-section">
+                            <label class="form-label">cPanel username</label>
+                            <input v-model="websiteForm.cpanel_username" type="text" class="form-input" maxlength="100" autocomplete="off" />
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">cPanel API token</label>
+                            <input v-model="websiteForm.cpanel_token" type="password" class="form-input" maxlength="1000" autocomplete="new-password" :placeholder="editingWebsiteId ? 'Leave blank to keep existing' : ''" />
+                        </div>
+                        <div class="form-row-2">
+                            <div class="form-section">
+                                <label class="form-label">cPanel server</label>
+                                <input v-model="websiteForm.cpanel_server" type="text" class="form-input" maxlength="255" />
+                            </div>
+                            <div class="form-section">
+                                <label class="reimburse-row" style="margin-top: 26px;">
+                                    <input type="checkbox" v-model="websiteForm.whm_managed" />
+                                    <span>WHM managed</span>
+                                </label>
+                                <p class="field-help">Enable to allow automatic suspension via WHM.</p>
+                            </div>
+                        </div>
+
+                        <div class="wf-sec">Analytics</div>
+                        <div class="form-section">
+                            <label class="form-label">GA4 Property ID</label>
+                            <input v-model="websiteForm.ga4_property_id" type="text" class="form-input" maxlength="50" placeholder="G-XXXXXXXXXX" />
+                        </div>
+
+                        <div class="form-section">
+                            <label class="form-label">Notes</label>
+                            <textarea v-model="websiteForm.notes" class="form-input" rows="2" maxlength="2000"></textarea>
+                        </div>
+                    </form>
+                    <div class="slide-over-foot">
+                        <button type="button" class="btn btn-ghost" @click="showWebsiteForm = false">Cancel</button>
+                        <button type="button" class="btn btn-primary" :disabled="websiteForm.processing" @click="submitWebsite">
+                            {{ websiteForm.processing ? 'Saving…' : (editingWebsiteId ? 'Save' : 'Add website') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
+
+        <ConfirmModal
+            v-model:show="showWebsiteDelete"
+            variant="danger"
+            :title="websiteDeleteTarget ? `Delete ${websiteDeleteTarget.name}?` : 'Delete website?'"
+            message="This website record will be permanently removed from Powerhouse. The cPanel account itself is not affected."
+            confirm-label="Delete website"
+            @confirm="confirmDeleteWebsite"
         />
     </InternalLayout>
 </template>

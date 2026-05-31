@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\DeliverWebhook;
 use App\Models\CustomerProduct;
 use App\Models\WebhookDelivery;
+use App\Models\Website;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -174,6 +175,8 @@ class WebhookDispatcher
             'reason' => $cp->suspension_reason,
             'suspended_at' => $cp->suspended_at?->toISOString(),
         ]);
+
+        $this->suspendWhmAccounts($cp);
     }
 
     public function dispatchReinstatement(CustomerProduct $cp): void
@@ -185,6 +188,62 @@ class WebhookDispatcher
             'plan' => $cp->productPlan?->name,
             'reinstated_at' => $cp->reinstated_at?->toISOString(),
         ]);
+
+        $this->unsuspendWhmAccounts($cp);
+    }
+
+    /**
+     * Suspend the cPanel accounts of any WHM-managed websites tied to this
+     * subscription. Centralised here so both the manual suspend
+     * (CustomerProductController) and the auto-suspend sweep
+     * (ProcessSuspensions) trigger it via the single dispatch point —
+     * never both, so suspendacct isn't called twice. WHM failures are
+     * logged but never bubble up: losing the server call must not roll
+     * back the subscription suspension or the product webhook.
+     */
+    private function suspendWhmAccounts(CustomerProduct $cp): void
+    {
+        $websites = Website::where('customer_product_id', $cp->id)
+            ->where('whm_managed', true)
+            ->whereNotNull('cpanel_username')
+            ->get();
+
+        foreach ($websites as $website) {
+            try {
+                $ok = app(WhmService::class)->suspendAccount(
+                    (string) $website->cpanel_username,
+                    'Non-payment — auto-suspended by Powerhouse',
+                );
+                if ($ok) {
+                    $website->update(['status' => 'suspended']);
+                }
+            } catch (\Throwable $e) {
+                Log::error('WHM suspend failed', [
+                    'website_id' => $website->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    private function unsuspendWhmAccounts(CustomerProduct $cp): void
+    {
+        $websites = Website::where('customer_product_id', $cp->id)
+            ->where('whm_managed', true)
+            ->whereNotNull('cpanel_username')
+            ->get();
+
+        foreach ($websites as $website) {
+            try {
+                app(WhmService::class)->unsuspendAccount((string) $website->cpanel_username);
+                $website->update(['status' => 'active']);
+            } catch (\Throwable $e) {
+                Log::error('WHM unsuspend failed', [
+                    'website_id' => $website->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     public function dispatchActivation(CustomerProduct $cp): void

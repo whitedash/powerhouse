@@ -73,6 +73,10 @@ features JSON nullable,
 is_active BOOLEAN DEFAULT true,
 is_public BOOLEAN DEFAULT true,
 sort_order INT DEFAULT 0,
+disk_quota_gb SMALLINT UNSIGNED nullable,
+email_quota SMALLINT UNSIGNED nullable,
+bandwidth_quota_gb SMALLINT UNSIGNED nullable,
+  -- Hosting allowances (Websites sprint). Nullable; only hosting plans.
 created_at, updated_at
 INDEXES: (product_id, is_active, sort_order)
 
@@ -403,6 +407,51 @@ hosting_provider VARCHAR(100) nullable,
 hosting_renewal_date DATE nullable,
 hosting_notes TEXT nullable,
 last_synced_at nullable, created_at, updated_at
+
+## websites (Websites sprint — cPanel/WHM/PageSpeed)
+id,
+customer_id FK customers (RESTRICT),
+name VARCHAR(255), url VARCHAR(500),
+customer_product_id FK customer_products nullable (SET NULL)
+  -- the hosting plan this site is on
+domain_id FK domains nullable (SET NULL),
+project_id FK projects nullable (SET NULL),
+-- cPanel access (per site)
+cpanel_username VARCHAR(100) nullable,
+cpanel_token TEXT nullable (encrypted)
+  -- Laravel encrypted cast; never stored plaintext.
+cpanel_server VARCHAR(255) nullable DEFAULT '040hosting.eu',
+whm_managed BOOLEAN DEFAULT false
+  -- true = WHM may auto-suspend this account.
+-- Hosting usage (cPanel UAPI)
+disk_used_mb INT UNSIGNED nullable, disk_quota_mb INT UNSIGNED nullable,
+email_accounts_count SMALLINT UNSIGNED nullable,
+email_accounts_quota SMALLINT UNSIGNED nullable,
+bandwidth_used_mb INT UNSIGNED nullable,
+bandwidth_quota_mb INT UNSIGNED nullable,
+usage_checked_at TIMESTAMP nullable,
+-- WordPress (MainWP, future)
+mainwp_site_id INT UNSIGNED nullable,
+wp_version VARCHAR(20) nullable, php_version VARCHAR(20) nullable,
+plugins_total SMALLINT UNSIGNED DEFAULT 0,
+plugins_outdated SMALLINT UNSIGNED DEFAULT 0,
+themes_outdated SMALLINT UNSIGNED DEFAULT 0,
+last_backup_at TIMESTAMP nullable,
+-- PageSpeed (Google PSI)
+pagespeed_mobile TINYINT UNSIGNED nullable,
+pagespeed_desktop TINYINT UNSIGNED nullable,
+pagespeed_lcp DECIMAL(5,2) nullable, pagespeed_cls DECIMAL(5,3) nullable,
+pagespeed_fcp DECIMAL(5,2) nullable, pagespeed_tbt INT UNSIGNED nullable,
+pagespeed_data JSON nullable, pagespeed_checked_at TIMESTAMP nullable,
+-- Analytics (GA4, future)
+ga4_property_id VARCHAR(50) nullable,
+monthly_visitors INT UNSIGNED nullable,
+analytics_updated_at TIMESTAMP nullable,
+status ENUM(active|suspended|migrating|cancelled) DEFAULT active,
+notes TEXT nullable,
+created_by FK users (RESTRICT), created_at, updated_at
+INDEX (customer_id, status), (cpanel_username),
+  (pagespeed_checked_at), (usage_checked_at)
 
 ## contracts
 id, customer_id FK, created_by FK users,

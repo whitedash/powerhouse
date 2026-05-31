@@ -40,6 +40,7 @@ use App\Http\Controllers\Internal\SupplierController as InternalSupplierControll
 use App\Http\Controllers\Internal\SupportController as InternalSupportController;
 use App\Http\Controllers\Internal\TaskController as InternalTaskController;
 use App\Http\Controllers\Internal\TimeEntryController as InternalTimeEntryController;
+use App\Http\Controllers\Internal\WebsiteController as InternalWebsiteController;
 use App\Http\Controllers\Internal\WorkflowController as InternalWorkflowController;
 use App\Http\Controllers\OAuth\SuspensionController as OAuthSuspensionController;
 use App\Http\Controllers\OAuth\UserInfoController as OAuthUserInfoController;
@@ -392,6 +393,18 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // Manual re-queue of a failed/abandoned webhook delivery.
     Route::post('/webhooks/deliveries/{id}/retry', [InternalSettingsController::class, 'retryWebhookDelivery'])
         ->whereNumber('id')->name('internal.webhooks.deliveries.retry');
+
+    // ─── Websites (cPanel / WHM / PageSpeed) ───
+    // Managed from the customer detail Websites tab.
+    Route::post('/websites', [InternalWebsiteController::class, 'store'])->name('internal.websites.store');
+    Route::put('/websites/{id}', [InternalWebsiteController::class, 'update'])
+        ->whereNumber('id')->name('internal.websites.update');
+    Route::delete('/websites/{id}', [InternalWebsiteController::class, 'destroy'])
+        ->whereNumber('id')->name('internal.websites.destroy');
+    Route::post('/websites/{id}/sync-hosting', [InternalWebsiteController::class, 'syncHosting'])
+        ->whereNumber('id')->name('internal.websites.sync-hosting');
+    Route::post('/websites/{id}/check-pagespeed', [InternalWebsiteController::class, 'checkPageSpeed'])
+        ->whereNumber('id')->name('internal.websites.check-pagespeed');
 
     Route::get('/invoices/new', [InternalInvoiceController::class, 'create'])->name('internal.invoices.create');
     Route::post('/invoices', [InternalInvoiceController::class, 'store'])->name('internal.invoices.store');
