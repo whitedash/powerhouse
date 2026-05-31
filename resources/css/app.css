@@ -3518,6 +3518,50 @@ tr.row-void .inv-num { color: var(--text-tertiary); }
 .nav-item.nav-sub:hover { color: #fff; }
 .nav-item.nav-sub svg { width: 16px; height: 16px; }
 
+/* ─── Collapsible sidebar groups (Clients / Billing / Operations) ─── */
+.nav-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    transition: background .12s, color .12s;
+    text-align: left;
+    color: rgba(255, 255, 255, .7);
+    font: 500 13.5px/1.2 'Inter', sans-serif;
+    letter-spacing: -.005em;
+}
+.nav-group-header:hover {
+    background: rgba(255, 255, 255, .06);
+    color: #fff;
+}
+.nav-group-left {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+.nav-group-header svg { width: 18px; height: 18px; flex-shrink: 0; }
+.nav-chevron {
+    width: 14px;
+    height: 14px;
+    color: rgba(255, 255, 255, .35);
+    flex-shrink: 0;
+}
+.nav-group-children {
+    margin-left: 12px;
+    border-left: 1px solid rgba(255, 255, 255, .08);
+    padding-left: 8px;
+    margin-bottom: 2px;
+}
+.nav-group-children .nav-item {
+    padding: 6px 10px;
+    font-size: 13px;
+}
+
 /* ─── Settings · Products page (extends .billing-entities namespace) ─── */
 .billing-entities .colour-row {
     display: flex;

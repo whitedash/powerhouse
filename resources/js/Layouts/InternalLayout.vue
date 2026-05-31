@@ -28,6 +28,8 @@ import {
     IconSearch,
     IconBell,
     IconChevronDown,
+    IconChevronRight,
+    IconSettings2,
     IconLogout,
     IconUserCircle,
     IconCircleCheck,
@@ -169,6 +171,29 @@ const productItems = computed(() => {
 
 const hasMaavelus = computed(() => (page.props.nav_products ?? []).some((p) => p.slug === 'maavelus'));
 
+/*
+ * Collapsible nav groups (Clients / Billing / Operations). Expand
+ * state is persisted in localStorage so it survives Inertia
+ * navigations and full reloads. A group is *always* shown expanded
+ * when the current page (activeNav) is one of its children, so the
+ * operator never lands on a page whose nav entry is hidden — the
+ * persisted flag only governs groups you're not currently inside.
+ */
+const expandedGroups = ref(JSON.parse(localStorage.getItem('nav_groups') ?? '{}'));
+
+const toggleGroup = (key) => {
+    expandedGroups.value[key] = ! expandedGroups.value[key];
+    localStorage.setItem('nav_groups', JSON.stringify(expandedGroups.value));
+};
+
+const isGroupExpanded = (key, children) => {
+    if (children.includes(props.activeNav)) {
+        return true;
+    }
+
+    return expandedGroups.value[key] ?? false;
+};
+
 const sections = computed(() => {
     const products = [...productItems.value];
     // Statements is a sub-item under Maavelus — only surface it if
@@ -193,16 +218,41 @@ const sections = computed(() => {
                 { key: 'my-work',       label: 'My Work',       href: '/my-work',    icon: IconCheckbox },
                 { key: 'projects',      label: 'Projects',      href: '/projects',   icon: IconLayoutKanban },
                 { key: 'leads',         label: 'Leads',         href: '/leads',      icon: IconUserPlus },
-                { key: 'forms',         label: 'Forms',         href: '/forms',      icon: IconForms },
-                { key: 'workflows',     label: 'Workflows',     href: '/workflows',  icon: IconBolt },
-                { key: 'customers',     label: 'Customers',     href: '/customers',  icon: IconUsers },
-                { key: 'invoices',      label: 'Invoices',      href: '/invoices',   icon: IconReceipt,    badge: invoicesBadge.value },
-                { key: 'proposals',     label: 'Proposals',     href: '/proposals',  icon: IconFileDescription },
-                { key: 'subscriptions', label: 'Subscriptions', href: '/subscriptions', icon: IconCreditCard },
-                { key: 'domains',       label: 'Domains',       href: '/domains',    icon: IconWorld },
+                {
+                    type: 'group',
+                    key: 'clients',
+                    label: 'Clients',
+                    icon: IconUsers,
+                    children: [
+                        { key: 'customers', label: 'Customers', href: '/customers', icon: IconUsers },
+                        { key: 'referrers', label: 'Referrers', href: '/referrers', icon: IconUsersGroup },
+                    ],
+                },
+                {
+                    type: 'group',
+                    key: 'billing',
+                    label: 'Billing',
+                    icon: IconReceipt,
+                    children: [
+                        { key: 'invoices',      label: 'Invoices',      href: '/invoices',      icon: IconReceipt,          badge: invoicesBadge.value },
+                        { key: 'proposals',     label: 'Proposals',     href: '/proposals',     icon: IconFileDescription },
+                        { key: 'subscriptions', label: 'Subscriptions', href: '/subscriptions', icon: IconCreditCard },
+                        { key: 'expenses',      label: 'Expenses',      href: '/expenses',      icon: IconReceipt2 },
+                    ],
+                },
+                {
+                    type: 'group',
+                    key: 'operations',
+                    label: 'Operations',
+                    icon: IconSettings2,
+                    children: [
+                        { key: 'domains',      label: 'Domains',      href: '/domains',      icon: IconWorld },
+                        { key: 'provisioning', label: 'Provisioning', href: '/provisioning', icon: IconLayoutGrid },
+                        { key: 'forms',        label: 'Forms',        href: '/forms',        icon: IconForms },
+                        { key: 'workflows',    label: 'Workflows',    href: '/workflows',    icon: IconBolt },
+                    ],
+                },
                 { key: 'analytics',     label: 'Analytics',     href: '/analytics',  icon: IconChartLine },
-                { key: 'referrers',     label: 'Referrers',     href: '/referrers',  icon: IconUsersGroup },
-                { key: 'provisioning',  label: 'Provisioning',  href: '/provisioning', icon: IconLayoutGrid },
             ],
         },
         ...(products.length > 0 ? [{ label: 'Products', items: products }] : []),
@@ -210,7 +260,6 @@ const sections = computed(() => {
             label: 'Account',
             items: [
                 { key: 'support',  label: 'Support',     href: '/support',  icon: IconHeadset,   badge: supportBadge.value },
-                { key: 'expenses', label: 'Expenses',    href: '/expenses', icon: IconReceipt2 },
                 { key: 'settings', label: 'Settings',    href: '/settings', icon: IconSettings },
                 { key: 'help',     label: 'Help & docs', href: '/help',     icon: IconHelpCircle },
             ],
@@ -379,21 +428,62 @@ onBeforeUnmount(() => {
 
             <template v-for="section in sections" :key="section.label">
                 <div class="nav-section">{{ section.label }}</div>
-                <Link
-                    v-for="item in section.items"
-                    :key="item.key"
-                    :href="item.href"
-                    class="nav-item"
-                    :class="{ active: activeNav === item.key, 'nav-sub': item.sub }"
-                >
-                    <component :is="item.icon" :size="item.sub ? 16 : 18" stroke-width="1.75" />
-                    <span>{{ item.label }}</span>
-                    <span
-                        v-if="item.badge"
-                        class="count"
-                        :class="item.badge.cls"
-                    >{{ item.badge.count }}</span>
-                </Link>
+                <template v-for="item in section.items" :key="item.key">
+                    <!-- Collapsible group (Clients / Billing / Operations) -->
+                    <template v-if="item.type === 'group'">
+                        <button
+                            type="button"
+                            class="nav-group-header"
+                            @click="toggleGroup(item.key)"
+                        >
+                            <span class="nav-group-left">
+                                <component :is="item.icon" :size="18" stroke-width="1.75" />
+                                <span class="nav-label">{{ item.label }}</span>
+                            </span>
+                            <component
+                                :is="isGroupExpanded(item.key, item.children.map(c => c.key)) ? IconChevronDown : IconChevronRight"
+                                class="nav-chevron"
+                                :size="14"
+                                stroke-width="2"
+                            />
+                        </button>
+                        <div
+                            v-show="isGroupExpanded(item.key, item.children.map(c => c.key))"
+                            class="nav-group-children"
+                        >
+                            <Link
+                                v-for="child in item.children"
+                                :key="child.key"
+                                :href="child.href"
+                                class="nav-item"
+                                :class="{ active: activeNav === child.key }"
+                            >
+                                <component :is="child.icon" :size="18" stroke-width="1.75" />
+                                <span>{{ child.label }}</span>
+                                <span
+                                    v-if="child.badge"
+                                    class="count"
+                                    :class="child.badge.cls"
+                                >{{ child.badge.count }}</span>
+                            </Link>
+                        </div>
+                    </template>
+                    <!-- Plain nav item -->
+                    <Link
+                        v-else
+                        :href="item.href"
+                        class="nav-item"
+                        :class="{ active: activeNav === item.key, 'nav-sub': item.sub }"
+                    >
+                        <component :is="item.icon" :size="item.sub ? 16 : 18" stroke-width="1.75" />
+                        <span>{{ item.label }}</span>
+                        <span
+                            v-if="item.badge"
+                            class="count"
+                            :class="item.badge.cls"
+                        >{{ item.badge.count }}</span>
+                    </Link>
+                </template>
             </template>
 
             <div class="sidebar-spacer" />
