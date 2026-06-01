@@ -30,6 +30,7 @@ use App\Http\Controllers\Internal\ProductPlanController as InternalProductPlanCo
 use App\Http\Controllers\Internal\ProductPlanPriceController as InternalProductPlanPriceController;
 use App\Http\Controllers\Internal\ProductSupplierController as InternalProductSupplierController;
 use App\Http\Controllers\Internal\ProjectController as InternalProjectController;
+use App\Http\Controllers\Internal\ProjectFileController as InternalProjectFileController;
 use App\Http\Controllers\Internal\ProposalController as InternalProposalController;
 use App\Http\Controllers\Internal\ProvisioningController as InternalProvisioningController;
 use App\Http\Controllers\Internal\ReferrerController as InternalReferrerController;
@@ -209,6 +210,16 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         // selection is always "from one project".
         Route::post('/{id}/invoice', [InternalProjectController::class, 'generateInvoice'])
             ->whereNumber('id')->name('invoice.generate');
+
+        // Project files — upload (scanned async), secure download, delete.
+        // The /files/{fileId} paths are two-segment so they never collide
+        // with the numeric /{id} project routes above.
+        Route::post('/{id}/files', [InternalProjectFileController::class, 'upload'])
+            ->whereNumber('id')->name('files.upload');
+        Route::get('/files/{fileId}/download', [InternalProjectFileController::class, 'download'])
+            ->whereNumber('fileId')->name('files.download');
+        Route::delete('/files/{fileId}', [InternalProjectFileController::class, 'destroy'])
+            ->whereNumber('fileId')->name('files.destroy');
     });
 
     Route::prefix('milestones')->name('internal.milestones.')->group(function () {

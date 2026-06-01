@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -18,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Task $task
  * @property-read User|null $uploadedBy
+ * @property-read string $formatted_size
  */
 class TaskAttachment extends Model
 {
@@ -45,5 +47,14 @@ class TaskAttachment extends Model
     public function uploadedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    /**
+     * Human-readable size — shares ProjectFile's formatter so the
+     * unified project Files tab renders task attachments identically.
+     */
+    protected function formattedSize(): Attribute
+    {
+        return Attribute::get(fn (): string => ProjectFile::humanSize($this->size_bytes));
     }
 }

@@ -8,12 +8,16 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Project;
+use App\Models\ProjectFile;
+use App\Models\Setting;
+use App\Models\TaskAttachment;
 use App\Models\TimeEntry;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -178,11 +182,83 @@ class ProjectController extends Controller
             ->take(50)
             ->get();
 
+        // Unified Files tab — project-level files plus any files attached
+        // to this project's tasks, merged and newest-first.
+        $projectFiles = ProjectFile::where('project_id', $id)
+            ->with(['uploadedBy:id,name', 'task:id,title'])
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn (ProjectFile $f): array => [
+                'id' => $f->id,
+                'source' => 'project',
+                'task_id' => $f->task_id,
+                'task_title' => $f->task?->title,
+                'filename' => $f->filename,
+                'mime_type' => $f->mime_type,
+                'size' => $f->formatted_size,
+                'size_bytes' => $f->size_bytes,
+                'type_icon' => $f->type_icon,
+                'scan_status' => $f->scan_status,
+                'is_downloadable' => $f->is_downloadable,
+                'description' => $f->description,
+                'uploaded_by' => $f->uploadedBy?->name,
+                'uploaded_at' => $f->created_at?->diffForHumans(),
+                'uploaded_at_full' => $f->created_at?->format('d M Y H:i'),
+                'download_url' => route('internal.projects.files.download', $f->id),
+            ]);
+
+        $taskFiles = collect();
+        if (Schema::hasTable('task_attachments')) {
+            $taskFiles = TaskAttachment::whereHas('task', fn ($q) => $q->where('project_id', $id))
+                ->with(['uploadedBy:id,name', 'task:id,title'])
+                ->orderByDesc('created_at')
+                ->get()
+                ->map(fn (TaskAttachment $f): array => [
+                    // Prefix avoids id collision with project_files rows in
+                    // the merged list (these are read-only here — no delete).
+                    'id' => 'ta_'.$f->id,
+                    'source' => 'task',
+                    'task_id' => $f->task_id,
+                    'task_title' => $f->task->title,
+                    'filename' => $f->filename,
+                    'mime_type' => $f->mime_type,
+                    'size' => $f->formatted_size,
+                    'size_bytes' => $f->size_bytes,
+                    'type_icon' => ProjectFile::iconKeyFor($f->mime_type),
+                    // task_attachments predate scanning — treated as clean.
+                    'scan_status' => 'clean',
+                    'is_downloadable' => true,
+                    'description' => null,
+                    'uploaded_by' => $f->uploadedBy?->name,
+                    'uploaded_at' => $f->created_at?->diffForHumans(),
+                    'uploaded_at_full' => $f->created_at?->format('d M Y H:i'),
+                    'download_url' => route('internal.tasks.attachments.download', $f->id),
+                ]);
+        }
+
+        $files = $projectFiles->concat($taskFiles)
+            ->sortByDesc('uploaded_at_full')
+            ->values();
+
+        $fileSummary = [
+            'total' => $files->count(),
+            'pending' => $files->where('scan_status', 'pending')->count(),
+            'infected' => $files->where('scan_status', 'infected')->count(),
+        ];
+
+        $clamOut = [];
+        $clamCode = 0;
+        exec('which clamdscan 2>/dev/null', $clamOut, $clamCode);
+
         return Inertia::render('Internal/Projects/Show', [
             'project' => $this->mapProjectDetail($project),
             'time_summary' => $timeSummary,
             'staff' => $staff,
             'billing_entities' => $billingEntities,
+            'files' => $files,
+            'file_summary' => $fileSummary,
+            'file_max_mb' => (int) Setting::getValue('file.max_size_mb', 10),
+            'clamav_available' => $clamCode === 0,
             'activity' => $activity->map(fn (ActivityLog $a): array => [
                 'id' => $a->id,
                 'action' => $a->action,
