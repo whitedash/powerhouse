@@ -158,6 +158,12 @@ payment_method ENUM(bank_transfer|card|direct_debit|other) nullable,
 payment_reference VARCHAR(255) nullable,
 notes TEXT nullable, pdf_path VARCHAR(500) nullable,
 sent_at nullable, qbo_invoice_id VARCHAR(100) nullable,
+stripe_payment_intent_id VARCHAR(100) nullable,
+stripe_checkout_session_id VARCHAR(100) nullable,
+stripe_payment_link VARCHAR(500) nullable,
+  -- Stripe hosted-checkout link + ids (Stripe payments sprint).
+paid_via ENUM(manual|stripe|bank) nullable
+  -- Settlement channel; distinct from payment_method (manual instrument).
 reminder_count INT UNSIGNED DEFAULT 0,
 last_reminder_sent_at nullable,
 next_reminder_at nullable,

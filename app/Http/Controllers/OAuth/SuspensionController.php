@@ -112,8 +112,8 @@ class SuspensionController extends Controller
             ])->values()->all(),
             'total_outstanding' => $totalOutstanding,
             'support_email' => config('mail.from.address'),
-            // Flipped on once the Stripe sprint ships the pay button.
-            'stripe_enabled' => false,
+            // Stripe pay button activates once a secret is configured.
+            'stripe_enabled' => (bool) config('services.stripe.secret'),
         ]);
     }
 

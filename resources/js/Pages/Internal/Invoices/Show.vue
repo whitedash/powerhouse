@@ -19,6 +19,9 @@ import {
     IconClock,
     IconRefresh,
     IconX,
+    IconBrandStripe,
+    IconExternalLink,
+    IconCopy,
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -265,6 +268,23 @@ function gotoCustomer() {
 
 function gotoEdit() {
     router.visit(`/invoices/${inv.value.id}/edit`);
+}
+
+/* ─── Stripe payment link ─── */
+const canCreatePaymentLink = computed(() =>
+    inv.value.stripe_enabled
+    && ['sent', 'overdue', 'partially_paid'].includes(inv.value.status),
+);
+function createPaymentLink() {
+    router.post(`/invoices/${inv.value.id}/payment-link`, {}, { preserveScroll: true });
+}
+const linkCopied = ref(false);
+function copyLink() {
+    if (! inv.value.stripe_payment_link) return;
+    navigator.clipboard.writeText(inv.value.stripe_payment_link).then(() => {
+        linkCopied.value = true;
+        setTimeout(() => { linkCopied.value = false; }, 2000);
+    });
 }
 
 /* ─── Activity row icon / colour mapping ─── */
@@ -585,6 +605,34 @@ const icons = {
                                 <button type="button" class="btn btn-primary" @click="scrollToRecord">
                                     <IconCheck :size="15" stroke-width="1.75" />
                                     Mark as paid
+                                </button>
+                                <button
+                                    v-if="canCreatePaymentLink && ! invoice.stripe_payment_link"
+                                    type="button"
+                                    class="btn btn-secondary"
+                                    @click="createPaymentLink"
+                                >
+                                    <IconBrandStripe :size="15" stroke-width="1.75" />
+                                    Create payment link
+                                </button>
+                                <a
+                                    v-if="invoice.stripe_payment_link"
+                                    :href="invoice.stripe_payment_link"
+                                    target="_blank"
+                                    rel="noopener"
+                                    class="btn btn-secondary"
+                                >
+                                    <IconExternalLink :size="15" stroke-width="1.75" />
+                                    Open payment link
+                                </a>
+                                <button
+                                    v-if="invoice.stripe_payment_link"
+                                    type="button"
+                                    class="btn btn-ghost"
+                                    @click="copyLink"
+                                >
+                                    <IconCopy :size="15" stroke-width="1.75" />
+                                    {{ linkCopied ? 'Copied!' : 'Copy payment link' }}
                                 </button>
                                 <button
                                     type="button"

@@ -11,7 +11,7 @@
  * once the Stripe sprint ships (stripe_enabled flips to true then).
  */
 import { computed } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { IconAlertTriangle, IconMail } from '@tabler/icons-vue';
 
 const props = defineProps({
@@ -34,6 +34,13 @@ function initial(name) {
 
 const accent = computed(() => props.product?.icon_colour || '#0F172A');
 const productName = computed(() => props.product?.name || 'your account');
+
+// Pay everything owed in one Stripe checkout. The endpoint returns an
+// Inertia::location redirect to Stripe; the webhook clears the balance
+// and auto-reinstates the product.
+function payOutstanding() {
+    router.post('/portal/invoices/pay-outstanding');
+}
 </script>
 
 <template>
@@ -79,7 +86,7 @@ const productName = computed(() => props.product?.name || 'your account');
                 <div class="sp-payment">
                     <template v-if="stripe_enabled">
                         <!-- Wired up by the Stripe sprint. -->
-                        <button type="button" class="sp-pay-btn">Pay {{ money(total_outstanding) }} now →</button>
+                        <button type="button" class="sp-pay-btn" @click="payOutstanding">Pay {{ money(total_outstanding) }} now →</button>
                     </template>
                     <div v-else class="sp-payment-placeholder">
                         <p>To restore access, please pay the outstanding balance.</p>

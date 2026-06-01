@@ -18,12 +18,14 @@ use App\Models\Product;
 use App\Models\ProductPlan;
 use App\Services\InvoicePdfService;
 use App\Services\ReminderTemplateService;
+use App\Services\StripeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -666,6 +668,12 @@ class InvoiceController extends Controller
                 'paid_at' => $invoice->paid_at?->toIso8601String(),
                 'payment_method' => $invoice->payment_method,
                 'payment_reference' => $invoice->payment_reference,
+                'paid_via' => $invoice->paid_via,
+                // Stripe hosted-checkout link (null until created). stripe_enabled
+                // gates the "Create payment link" button so it's hidden when the
+                // platform has no Stripe secret configured.
+                'stripe_payment_link' => $invoice->stripe_payment_link,
+                'stripe_enabled' => (bool) config('services.stripe.secret'),
                 'notes' => $invoice->notes,
                 'pdf_path' => $invoice->pdf_path,
                 'sent_at' => $invoice->sent_at?->toIso8601String(),
@@ -830,6 +838,38 @@ class InvoiceController extends Controller
         $remaining = number_format($invoiceTotal - $newTotalPaid, 2);
 
         return back()->with('success', "Payment recorded. £{$remaining} outstanding on invoice {$invoice->number}.");
+    }
+
+    /**
+     * Create a Stripe hosted-checkout link for an unpaid invoice. The link
+     * is persisted on the invoice (StripeService) so staff can re-open or
+     * copy it; payment is confirmed asynchronously by the webhook.
+     */
+    public function createPaymentLink(int $id, Request $request): RedirectResponse
+    {
+        $invoice = Invoice::findOrFail($id);
+        Gate::authorize('update', $invoice);
+
+        if (! in_array($invoice->status, ['sent', 'overdue', 'partially_paid'], true)) {
+            return back()->with('error', 'Payment links can only be created for unpaid invoices.');
+        }
+
+        try {
+            app(StripeService::class)->createCheckoutSession($invoice);
+        } catch (\Throwable $e) {
+            Log::error('Stripe payment link creation failed', [
+                'invoice_id' => $invoice->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Could not create payment link. Check Stripe configuration.');
+        }
+
+        $this->logActivity($request, 'invoice.payment_link_created', $invoice, after: [
+            'number' => $invoice->number,
+        ]);
+
+        return back()->with('success', 'Payment link created.');
     }
 
     public function voidInvoice(int $id, Request $request): RedirectResponse

@@ -4,14 +4,18 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\PortalUser;
+use App\Services\StripeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class InvoiceController extends Controller
 {
@@ -34,6 +38,7 @@ class InvoiceController extends Controller
                 'issue_date' => $inv->issue_date?->format('j M Y'),
                 'due_date' => $inv->due_date?->format('j M Y'),
                 'total' => round((float) $inv->total, 2),
+                'outstanding' => round((float) $inv->total - (float) $inv->amount_paid, 2),
                 'status' => $inv->status,
                 'is_overdue' => $inv->status === 'overdue',
             ]);
@@ -53,7 +58,79 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function downloadPdf(int $id, Request $request): \Symfony\Component\HttpFoundation\Response
+    /**
+     * Start a Stripe checkout for a single invoice. Scoped to the portal
+     * user's own customer (never trust the route id alone). Redirects the
+     * browser to the hosted checkout via Inertia::location.
+     */
+    public function pay(int $id, Request $request): HttpResponse
+    {
+        /** @var PortalUser|null $portalUser */
+        $portalUser = Auth::guard('portal')->user();
+        abort_unless($portalUser instanceof PortalUser, 401);
+
+        $invoice = Invoice::where('customer_id', $portalUser->customer_id)
+            ->whereIn('status', ['sent', 'overdue', 'partially_paid'])
+            ->findOrFail($id);
+
+        try {
+            $session = app(StripeService::class)->createCheckoutSession(
+                $invoice,
+                url('/portal/invoices?payment=success'),
+                url('/portal/invoices?payment=cancelled'),
+            );
+        } catch (\Throwable $e) {
+            Log::error('Portal Stripe checkout failed', [
+                'invoice_id' => $invoice->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Payment could not be initiated. Please contact support.');
+        }
+
+        return Inertia::location($session->url);
+    }
+
+    /**
+     * Start a single Stripe checkout covering every outstanding invoice
+     * for the portal user's customer (the "pay everything" flow).
+     */
+    public function payOutstanding(Request $request): HttpResponse
+    {
+        /** @var PortalUser|null $portalUser */
+        $portalUser = Auth::guard('portal')->user();
+        abort_unless($portalUser instanceof PortalUser, 401);
+
+        $invoices = Invoice::where('customer_id', $portalUser->customer_id)
+            ->whereIn('status', ['sent', 'overdue', 'partially_paid'])
+            ->get();
+
+        if ($invoices->isEmpty()) {
+            return back()->with('error', 'No outstanding invoices to pay.');
+        }
+
+        $customer = Customer::findOrFail($portalUser->customer_id);
+
+        try {
+            $session = app(StripeService::class)->createOutstandingCheckoutSession(
+                $customer,
+                $invoices,
+                url('/portal/invoices?payment=success'),
+                url('/portal/invoices?payment=cancelled'),
+            );
+        } catch (\Throwable $e) {
+            Log::error('Portal Stripe pay-outstanding failed', [
+                'customer_id' => $customer->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Payment could not be initiated. Please contact support.');
+        }
+
+        return Inertia::location($session->url);
+    }
+
+    public function downloadPdf(int $id, Request $request): HttpResponse
     {
         [$invoice, $portalUser] = $this->loadInvoiceForPdf($id);
         $this->logActivity($request, 'invoice.pdf_downloaded', $invoice, $portalUser);
@@ -61,7 +138,7 @@ class InvoiceController extends Controller
         return $this->buildPdf($invoice)->download('invoice-'.$invoice->number.'.pdf');
     }
 
-    public function previewPdf(int $id, Request $request): \Symfony\Component\HttpFoundation\Response
+    public function previewPdf(int $id, Request $request): HttpResponse
     {
         [$invoice, $portalUser] = $this->loadInvoiceForPdf($id);
         $this->logActivity($request, 'invoice.pdf_previewed', $invoice, $portalUser);

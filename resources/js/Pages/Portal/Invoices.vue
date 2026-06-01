@@ -1,10 +1,11 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import {
     IconDownload,
     IconReceipt,
     IconAlertCircle,
+    IconCreditCard,
 } from '@tabler/icons-vue';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
 
@@ -12,6 +13,12 @@ const props = defineProps({
     invoices: { type: Object, required: true },
     summary: { type: Object, default: () => ({ total_outstanding: 0, overdue_count: 0 }) },
 });
+
+const PAYABLE = ['sent', 'overdue', 'partially_paid'];
+function payNow(id) {
+    // POST returns an Inertia::location redirect to Stripe hosted checkout.
+    router.post(`/portal/invoices/${id}/pay`);
+}
 
 const counts = computed(() => ({
     invoices: props.summary.overdue_count || undefined,
@@ -81,6 +88,15 @@ function statusBadge(status) {
                         <span class="badge badge-sm" :class="statusBadge(inv.status).cls">
                             {{ statusBadge(inv.status).label }}
                         </span>
+                        <button
+                            v-if="PAYABLE.includes(inv.status)"
+                            type="button"
+                            class="btn btn-primary btn-sm"
+                            @click.stop.prevent="payNow(inv.id)"
+                        >
+                            <IconCreditCard :size="13" stroke-width="1.75" />
+                            Pay {{ gbp(inv.outstanding ?? inv.total) }}
+                        </button>
                         <a
                             :href="`/portal/invoices/${inv.id}/pdf`"
                             class="ghost-link muted"
