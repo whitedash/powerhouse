@@ -25,7 +25,9 @@ class SecurityHeaders
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.bunny.net",
             "style-src 'self' 'unsafe-inline' https://fonts.bunny.net",
-            "font-src 'self' https://fonts.bunny.net",
+            // data: allows FullCalendar v6's bundled icon font, which it
+            // embeds as a base64 data: URI for the ‹ › nav glyphs.
+            "font-src 'self' https://fonts.bunny.net data:",
             "img-src 'self' data: blob:",
             "connect-src 'self'",
             "frame-ancestors 'none'",

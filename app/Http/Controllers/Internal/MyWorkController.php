@@ -151,8 +151,8 @@ class MyWorkController extends Controller
     {
         $user = $request->user();
 
-        $start = Carbon::parse($request->string('start')->toString() ?: now()->startOfMonth()->toDateString());
-        $end = Carbon::parse($request->string('end')->toString() ?: now()->endOfMonth()->toDateString());
+        $start = $this->parseRangeDate($request->string('start')->toString(), now()->startOfMonth());
+        $end = $this->parseRangeDate($request->string('end')->toString(), now()->endOfMonth());
 
         $tasks = Task::where('assigned_to', $user->id)
             ->whereNotIn('status', ['complete', 'cancelled'])
@@ -199,6 +199,32 @@ class MyWorkController extends Controller
             'events' => $tasks->concat($gcalEvents)->values(),
             'google_connected' => $user->google_sync_enabled,
         ]);
+    }
+
+    /**
+     * Parse a FullCalendar range bound into a Carbon instance.
+     *
+     * FullCalendar sends ISO-8601 with a literal "+" timezone offset
+     * (e.g. 2026-06-01T00:00:00+01:00). PHP's query-string parser
+     * decodes that "+" as a space, yielding "2026-06-01T00:00:00 01:00"
+     * which Carbon::parse() rejects ("Double time specification") — the
+     * cause of the calendar 500. ISO datetimes contain no other spaces,
+     * so restoring the "+" is safe. Any still-unparseable value (or an
+     * empty param) falls back to the supplied default.
+     */
+    private function parseRangeDate(string $value, Carbon $fallback): Carbon
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return $fallback;
+        }
+
+        try {
+            return Carbon::parse(str_replace(' ', '+', $value));
+        } catch (\Throwable) {
+            return $fallback;
+        }
     }
 
     /**
