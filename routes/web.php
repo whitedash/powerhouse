@@ -457,6 +457,8 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         ->whereNumber('id')->name('internal.websites.sync-hosting');
     Route::post('/websites/{id}/check-pagespeed', [InternalWebsiteController::class, 'checkPageSpeed'])
         ->whereNumber('id')->name('internal.websites.check-pagespeed');
+    Route::post('/websites/{id}/sync-wordpress', [InternalWebsiteController::class, 'syncWordPress'])
+        ->whereNumber('id')->name('internal.websites.sync-wordpress');
 
     Route::get('/invoices/new', [InternalInvoiceController::class, 'create'])->name('internal.invoices.create');
     Route::post('/invoices', [InternalInvoiceController::class, 'store'])->name('internal.invoices.store');

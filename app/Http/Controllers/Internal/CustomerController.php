@@ -543,9 +543,14 @@ class CustomerController extends Controller
                     // the performance scores. Null until the first run.
                     'pagespeed_data' => $w->pagespeed_data,
 
-                    // WordPress (future)
+                    // WordPress (MainWP)
                     'wp_version' => $w->wp_version,
+                    'php_version' => $w->php_version,
+                    'plugins_total' => $w->plugins_total,
                     'plugins_outdated' => $w->plugins_outdated,
+                    'themes_outdated' => $w->themes_outdated,
+                    'last_backup_at' => $w->last_backup_at?->diffForHumans(),
+                    'mainwp_site_id' => $w->mainwp_site_id,
 
                     // Domain
                     'domain_id' => $w->domain_id,

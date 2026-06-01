@@ -81,6 +81,21 @@ return [
     ],
 
     /*
+     * MainWP dashboard (self-hosted WP install that aggregates all the
+     * managed child sites). WooCommerce-style auth: consumer key + secret
+     * passed as query params on the /wp-json/mainwp/v2 REST API. The
+     * websites:sync-wordpress sweep pulls WP/PHP versions, plugin/theme
+     * update counts and last-backup timestamps from here. `enabled` gates
+     * the sweep + manual sync so a missing key is a graceful no-op.
+     */
+    'mainwp' => [
+        'url' => env('MAINWP_URL'),
+        'consumer_key' => env('MAINWP_CONSUMER_KEY'),
+        'consumer_secret' => env('MAINWP_CONSUMER_SECRET'),
+        'enabled' => ! empty(env('MAINWP_CONSUMER_KEY')),
+    ],
+
+    /*
      * OAuth client IDs for the products that consume Powerhouse SSO.
      * The IDs are UUIDs (Passport v12+ schema). Defaults match the
      * seed data already in oauth_clients on local; production reads

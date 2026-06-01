@@ -58,6 +58,7 @@ import {
     IconUpload,
     IconDatabase,
     IconGauge,
+    IconBrandWordpress,
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -1217,12 +1218,20 @@ function gbFromMb(mb) {
 /* Per-site spinner flags so each card's buttons spin independently. */
 const syncingId = ref(null);
 const pagespeedId = ref(null);
+const wpSyncingId = ref(null);
 
 function syncHosting(w) {
     syncingId.value = w.id;
     router.post(`/websites/${w.id}/sync-hosting`, {}, {
         preserveScroll: true,
         onFinish: () => { syncingId.value = null; },
+    });
+}
+function syncWordPress(w) {
+    wpSyncingId.value = w.id;
+    router.post(`/websites/${w.id}/sync-wordpress`, {}, {
+        preserveScroll: true,
+        onFinish: () => { wpSyncingId.value = null; },
     });
 }
 function runPageSpeed(w) {
@@ -2314,6 +2323,30 @@ function confirmDeleteWebsite() {
                                 <button v-if="w.pagespeed_mobile !== null" type="button" class="ghost-link" @click="openPageSpeedModal(w)">
                                     View full report →
                                 </button>
+                            </div>
+                        </div>
+
+                        <!-- WordPress (MainWP) -->
+                        <div v-if="w.wp_version || w.mainwp_site_id" class="cw-section">
+                            <div class="cw-section-label"><IconBrandWordpress :size="13" stroke-width="2" /> WordPress</div>
+                            <template v-if="w.wp_version">
+                                <div class="cw-wp-row">
+                                    <span class="cw-wp-chip">WP {{ w.wp_version }}</span>
+                                    <span v-if="w.php_version" class="cw-wp-chip">PHP {{ w.php_version }}</span>
+                                    <span class="badge badge-sm" :class="w.plugins_outdated > 0 ? 'badge-pending' : 'badge-active'">
+                                        {{ w.plugins_outdated > 0 ? w.plugins_outdated + ' plugin updates' : 'Plugins up to date' }}
+                                    </span>
+                                    <span v-if="w.themes_outdated > 0" class="badge badge-sm badge-pending">{{ w.themes_outdated }} theme updates</span>
+                                </div>
+                                <div v-if="w.last_backup_at" class="cw-wp-backup">Last backup: {{ w.last_backup_at }}</div>
+                            </template>
+                            <div v-else class="cw-muted">Not synced yet</div>
+                            <div class="cw-section-actions">
+                                <button v-if="w.mainwp_site_id" type="button" class="ghost-link" :disabled="wpSyncingId === w.id" @click="syncWordPress(w)">
+                                    <IconRefresh :size="13" stroke-width="2" />
+                                    {{ wpSyncingId === w.id ? 'Syncing…' : 'Sync WordPress' }}
+                                </button>
+                                <span v-else class="cw-muted">Not linked to MainWP</span>
                             </div>
                         </div>
 

@@ -14270,6 +14270,9 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
 .cust-websites .cw-vitals { display: flex; flex-direction: column; gap: 2px; font: 500 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); }
 .cust-websites .cw-section .ghost-link { margin-top: 8px; }
 .cust-websites .cw-section-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.cust-websites .cw-wp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cust-websites .cw-wp-chip { font: 600 12px/1.2 'Inter', sans-serif; color: var(--text-secondary); background: var(--neutral-bg); border: 1px solid var(--border-soft); border-radius: 999px; padding: 3px 9px; }
+.cust-websites .cw-wp-backup { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 6px; }
 .cust-websites .cw-ssl { display: flex; align-items: center; gap: 6px; font: 500 12.5px/1.3 'Inter', sans-serif; color: var(--text-secondary); border-top: 1px solid var(--border-soft); padding-top: 10px; }
 .cust-websites .cw-ssl.ssl-bad { color: var(--danger); }
 .cust-websites .cw-actions { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--border-soft); padding-top: 10px; }

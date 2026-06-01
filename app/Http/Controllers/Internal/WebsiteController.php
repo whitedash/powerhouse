@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Website;
 use App\Services\CpanelService;
+use App\Services\MainWPService;
 use App\Services\PageSpeedService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -117,6 +118,35 @@ class WebsiteController extends Controller
             return back()->with('success', 'PageSpeed check complete. Score: '.$data['pagespeed_mobile'].'/100');
         } catch (\Throwable $e) {
             return back()->with('error', 'PageSpeed check failed: '.$e->getMessage());
+        }
+    }
+
+    public function syncWordPress(int $id): RedirectResponse
+    {
+        $website = Website::findOrFail($id);
+        Gate::authorize('update', $website->customer);
+
+        if (! $website->mainwp_site_id) {
+            return back()->with('error', 'This website is not linked to MainWP. Add the MainWP site ID to connect it.');
+        }
+
+        if (! config('services.mainwp.enabled')) {
+            return back()->with('error', 'MainWP is not configured in Settings → Integrations.');
+        }
+
+        try {
+            $mainwp = app(MainWPService::class);
+            $data = $mainwp->getSite($website->mainwp_site_id);
+
+            if (! $data) {
+                return back()->with('error', 'Site not found in MainWP.');
+            }
+
+            $website->update($mainwp->mapSiteData($data));
+
+            return back()->with('success', 'WordPress data updated.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'MainWP sync failed: '.$e->getMessage());
         }
     }
 

@@ -17,6 +17,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\WebhookDelivery;
 use App\Services\CloudflareService;
+use App\Services\MainWPService;
 use App\Services\PageSpeedService;
 use App\Services\ReminderTemplateService;
 use App\Services\WhmService;
@@ -565,6 +566,15 @@ class SettingsController extends Controller
                     'connected' => ! empty(config('services.cpanel.pagespeed_key')),
                     'testable' => true,
                 ],
+                [
+                    'key' => 'mainwp',
+                    'name' => 'MainWP',
+                    'description' => 'WordPress site management — versions, plugin updates, backups.',
+                    'colour' => '#1C7BBF',
+                    'initials' => 'MWP',
+                    'connected' => (bool) config('services.mainwp.enabled'),
+                    'testable' => true,
+                ],
             ],
             // Recent outbound product webhooks for the delivery log.
             'webhook_deliveries' => WebhookDelivery::query()
@@ -589,7 +599,7 @@ class SettingsController extends Controller
     {
         // The name comes straight from the URL — allow-list it before
         // doing anything else.
-        if (! in_array($name, ['cloudflare', 'postmark', 'stripe', 'quickbooks', 'whm', 'pagespeed'], true)) {
+        if (! in_array($name, ['cloudflare', 'postmark', 'stripe', 'quickbooks', 'whm', 'pagespeed', 'mainwp'], true)) {
             abort(404);
         }
 
@@ -630,6 +640,25 @@ class SettingsController extends Controller
             return back()->with(
                 $ok ? 'success' : 'error',
                 $ok ? 'PageSpeed API key valid.' : 'PageSpeed API key missing or invalid.',
+            );
+        }
+
+        if ($name === 'mainwp') {
+            $mainwp = app(MainWPService::class);
+            $ok = $mainwp->testConnection();
+            // Report the site count on success — it's the most useful
+            // signal that credentials + URL are wired correctly. Guard the
+            // second call so a flaky list endpoint doesn't turn a healthy
+            // test into an error.
+            $count = $ok ? rescue(fn (): int => count($mainwp->getSites()), 0, false) : 0;
+
+            $this->logActivity($request, 'settings.integration_tested', 'integration', 0, after: [
+                'name' => $name, 'ok' => $ok,
+            ]);
+
+            return back()->with(
+                $ok ? 'success' : 'error',
+                $ok ? "Connected — {$count} site".($count === 1 ? '' : 's').' found.' : 'Could not connect to MainWP.',
             );
         }
 

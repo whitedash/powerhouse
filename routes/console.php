@@ -83,6 +83,16 @@ Schedule::command('websites:check-pagespeed')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Daily WordPress telemetry sweep from MainWP — WP/PHP versions, plugin
+// and theme update counts, last-backup timestamps. 07:00 so fresh update
+// counts are on the dashboard before the team starts the day. No-ops
+// cleanly when MainWP isn't configured.
+Schedule::command('websites:sync-wordpress')
+    ->dailyAt('07:00')
+    ->timezone('Europe/London')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Refresh Cloudflare zone + SSL state and recompute domain status.
 // Runs before the morning invoice + reminder sweeps so the
 // dashboard "Domains expiring" KPI is current by 09:00.
