@@ -326,6 +326,12 @@ class CustomerController extends Controller
                 'exempt_from_auto_suspend' => $customer->exempt_from_auto_suspend,
                 'exempt_reason' => $customer->exempt_reason,
 
+                // GDPR state (super_admin GDPR panel). Formatted for
+                // display; null until a request/erasure/export happens.
+                'erasure_requested_at' => $customer->erasure_requested_at?->format('d M Y'),
+                'erasure_completed_at' => $customer->erasure_completed_at?->format('d M Y'),
+                'data_export_last_at' => $customer->data_export_last_at?->format('d M Y'),
+
                 'contacts' => $customer->contacts->map(fn (Contact $c) => [
                     'id' => $c->id,
                     'name' => $c->name,

@@ -26,6 +26,8 @@ import {
     IconExternalLink,
     IconPlus,
     IconDownload,
+    IconTrash,
+    IconShieldLock,
     IconSend,
     IconLink,
     IconMail,
@@ -1039,6 +1041,32 @@ function submitExemption() {
     });
 }
 
+/* ─── GDPR: erasure (Art. 17) — both steps go through ConfirmModal since
+ *    erasure is irreversible. Export (Art. 20) is a plain GET download. ─── */
+const showRequestErasure = ref(false);
+const showProcessErasure = ref(false);
+const gdprProcessing = ref(false);
+function confirmRequestErasure() {
+    gdprProcessing.value = true;
+    router.post(`/gdpr/customers/${props.customer.id}/request-erasure`, {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            gdprProcessing.value = false;
+            showRequestErasure.value = false;
+        },
+    });
+}
+function confirmProcessErasure() {
+    gdprProcessing.value = true;
+    router.post(`/gdpr/customers/${props.customer.id}/process-erasure`, {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            gdprProcessing.value = false;
+            showProcessErasure.value = false;
+        },
+    });
+}
+
 const SUSPEND_REASONS = [
     { value: 'manual', label: 'Manual' },
     { value: 'non_payment', label: 'Non-payment' },
@@ -1986,6 +2014,41 @@ function confirmDeleteWebsite() {
                             <button type="button" class="ghost-link" @click="toggleExemption">
                                 {{ customer.exempt_from_auto_suspend ? 'Remove exemption' : 'Mark as exempt' }}
                             </button>
+                        </div>
+
+                        <!-- GDPR (super_admin only) — erasure + data export -->
+                        <div v-if="isAdmin" class="gdpr-row">
+                            <div class="gdpr-info">
+                                <span class="gdpr-label"><IconShieldLock :size="13" stroke-width="1.75" /> GDPR</span>
+                                <span v-if="customer.erasure_completed_at" class="badge badge-inactive badge-sm">Erased {{ customer.erasure_completed_at }}</span>
+                                <span v-else-if="customer.erasure_requested_at" class="badge badge-pending badge-sm">Erasure requested {{ customer.erasure_requested_at }}</span>
+                                <span v-if="customer.data_export_last_at" class="gdpr-meta">Last export {{ customer.data_export_last_at }}</span>
+                            </div>
+                            <div class="gdpr-actions">
+                                <a
+                                    v-if="! customer.erasure_completed_at"
+                                    :href="`/gdpr/customers/${customer.id}/export`"
+                                    class="ghost-link"
+                                >
+                                    <IconDownload :size="14" stroke-width="1.75" /> Export data
+                                </a>
+                                <button
+                                    v-if="! customer.erasure_requested_at"
+                                    type="button"
+                                    class="ghost-link gdpr-danger"
+                                    @click="showRequestErasure = true"
+                                >
+                                    <IconTrash :size="14" stroke-width="1.75" /> Request erasure
+                                </button>
+                                <button
+                                    v-else-if="! customer.erasure_completed_at"
+                                    type="button"
+                                    class="ghost-link gdpr-danger"
+                                    @click="showProcessErasure = true"
+                                >
+                                    <IconTrash :size="14" stroke-width="1.75" /> Complete erasure
+                                </button>
+                            </div>
                         </div>
                     </section>
 
@@ -3235,6 +3298,28 @@ function confirmDeleteWebsite() {
                 <input v-model="exemptForm.reason" type="text" class="field-input" maxlength="500" placeholder="e.g. Strategic account — handled manually" />
             </div>
         </ConfirmModal>
+
+        <!-- GDPR: request erasure -->
+        <ConfirmModal
+            v-model:show="showRequestErasure"
+            title="Request erasure?"
+            message="This logs a right-to-erasure request for this customer. The data is not erased yet — complete erasure once all invoices are settled."
+            confirm-label="Log erasure request"
+            variant="warning"
+            :loading="gdprProcessing"
+            @confirm="confirmRequestErasure"
+        />
+
+        <!-- GDPR: process (complete) erasure -->
+        <ConfirmModal
+            v-model:show="showProcessErasure"
+            title="Complete erasure?"
+            message="This permanently anonymises the customer, their contacts, and removes portal access, notes and activities. Invoices are retained (anonymised) for legal compliance. This cannot be undone."
+            confirm-label="Erase customer data"
+            variant="danger"
+            :loading="gdprProcessing"
+            @confirm="confirmProcessErasure"
+        />
 
         <!-- Add/Edit contact slide-over -->
         <TransitionRoot as="template" :show="showAddContact || showEditContact">

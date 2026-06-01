@@ -12,6 +12,7 @@ use App\Http\Controllers\Internal\DashboardController as InternalDashboardContro
 use App\Http\Controllers\Internal\DomainController as InternalDomainController;
 use App\Http\Controllers\Internal\ExpenseController as InternalExpenseController;
 use App\Http\Controllers\Internal\FormBuilderController as InternalFormBuilderController;
+use App\Http\Controllers\Internal\GdprController as InternalGdprController;
 use App\Http\Controllers\Internal\HelpController as InternalHelpController;
 use App\Http\Controllers\Internal\ImpersonationController as InternalImpersonationController;
 use App\Http\Controllers\Internal\InvoiceController as InternalInvoiceController;
@@ -371,6 +372,17 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::middleware('role:super_admin')->group(function () {
         Route::post('/customers/{id}/referral', [InternalCustomerController::class, 'addReferral'])->name('internal.customers.referral.add');
         Route::delete('/customers/{id}/referral', [InternalCustomerController::class, 'removeReferral'])->name('internal.customers.referral.remove');
+    });
+
+    // GDPR tooling — right to erasure (Art. 17) + data portability (Art. 20).
+    // super_admin only: erasure is irreversible and the export is full PII.
+    Route::middleware('role:super_admin')->prefix('gdpr/customers')->name('internal.gdpr.')->group(function () {
+        Route::post('/{id}/request-erasure', [InternalGdprController::class, 'requestErasure'])
+            ->whereNumber('id')->name('request-erasure');
+        Route::post('/{id}/process-erasure', [InternalGdprController::class, 'processErasure'])
+            ->whereNumber('id')->name('process-erasure');
+        Route::get('/{id}/export', [InternalGdprController::class, 'exportData'])
+            ->whereNumber('id')->name('export');
     });
 
     // Product subscriptions on a customer — enabling a new product creates
