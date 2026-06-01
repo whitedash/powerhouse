@@ -115,6 +115,15 @@ class Project extends Model
     }
 
     /**
+     * Project-level files (and task-attached files that carry a task_id).
+     * Surfaced together with task_attachments in the project Files tab.
+     */
+    public function files(): HasMany
+    {
+        return $this->hasMany(ProjectFile::class);
+    }
+
+    /**
      * Project-wide completion percentage, computed across all tasks
      * regardless of milestone. Returns 0 for empty projects so the
      * UI never has to special-case missing data.

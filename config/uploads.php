@@ -13,6 +13,7 @@ return [
         'import' => 10 * 1024 * 1024,    // 10 MB
         'receipt' => 5 * 1024 * 1024,    // 5 MB — PDF or photo
         'task_attachment' => 10 * 1024 * 1024, // 10 MB — docs, sheets, images, archives
+        'project_file' => 10 * 1024 * 1024,    // 10 MB — project files (overridable per upload via Setting)
         'default' => 5 * 1024 * 1024,    // 5 MB
     ],
 
@@ -52,6 +53,25 @@ return [
         // are allow-listed too — without them a legitimate .docx is rejected
         // because the real-bytes check disagrees with the client MIME.
         'task_attachment' => [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'application/zip',
+            'application/x-zip-compressed',
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+            'image/webp',
+            'text/plain',
+            'text/csv',
+        ],
+        // Project files accept the same set as task attachments. zip MIMEs
+        // are allow-listed because OOXML files sniff as application/zip.
+        'project_file' => [
             'application/pdf',
             'application/msword',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

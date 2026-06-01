@@ -16,6 +16,10 @@ import {
     IconX, IconArchive, IconEdit, IconDots, IconPlus,
     IconClock, IconReceipt, IconAlertTriangle, IconCirclePlus,
     IconLayoutColumns, IconList, IconHistory,
+    IconUpload, IconTrash, IconSearch, IconFiles, IconFile,
+    IconFileTypePdf, IconFileTypeDoc, IconFileTypeXls, IconFileTypePpt,
+    IconPhoto, IconFileZip, IconFileText, IconLoader2, IconCheckbox,
+    IconVirus, IconCircleCheck,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -26,6 +30,10 @@ const props = defineProps({
     staff: { type: Array, default: () => [] },
     billing_entities: { type: Array, default: () => [] },
     activity: { type: Array, default: () => [] },
+    files: { type: Array, default: () => [] },
+    file_summary: { type: Object, default: () => ({ total: 0, pending: 0, infected: 0 }) },
+    file_max_mb: { type: Number, default: 10 },
+    clamav_available: { type: Boolean, default: false },
 });
 
 /* ─── Tabs ─── */
@@ -35,6 +43,7 @@ const TABS = [
     { key: 'board',    label: 'Board' },
     { key: 'tasks',    label: 'Tasks' },
     { key: 'time',     label: 'Time' },
+    { key: 'files',    label: 'Files' },
     { key: 'activity', label: 'Activity' },
 ];
 
@@ -56,6 +65,61 @@ function priorityLabel(p) { return PRIORITY_LABEL[p] ?? p; }
 function initials(name) {
     return (name || '').split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase();
 }
+
+/* ─── Files tab ─── */
+const FILE_ICON = {
+    pdf: IconFileTypePdf, doc: IconFileTypeDoc, xls: IconFileTypeXls,
+    ppt: IconFileTypePpt, image: IconPhoto, zip: IconFileZip,
+    text: IconFileText, file: IconFile,
+};
+function fileIcon(key) { return FILE_ICON[key] ?? IconFile; }
+
+const uploading = ref(false);
+const fileSearch = ref('');
+const isDragging = ref(false);
+
+const filteredFiles = computed(() => props.files.filter((f) =>
+    !fileSearch.value
+    || f.filename.toLowerCase().includes(fileSearch.value.toLowerCase())
+    || (f.task_title || '').toLowerCase().includes(fileSearch.value.toLowerCase()),
+));
+
+function uploadFiles(event) {
+    const list = event.target?.files || event.dataTransfer?.files;
+    if (!list?.length) return;
+    uploading.value = true;
+    const formData = new FormData();
+    Array.from(list).forEach((f) => formData.append('files[]', f));
+    router.post(`/projects/${props.project.id}/files`, formData, {
+        forceFormData: true,
+        preserveScroll: true,
+        onFinish: () => {
+            uploading.value = false;
+            if (event.target) event.target.value = '';
+        },
+    });
+}
+
+const showDeleteFileModal = ref(false);
+const fileToDelete = ref(null);
+function askDeleteFile(id) {
+    fileToDelete.value = id;
+    showDeleteFileModal.value = true;
+}
+function performDeleteFile() {
+    if (fileToDelete.value === null) return;
+    router.delete(`/projects/files/${fileToDelete.value}`, {
+        preserveScroll: true,
+        onFinish: () => {
+            showDeleteFileModal.value = false;
+            fileToDelete.value = null;
+        },
+    });
+}
+
+function fileDragOver() { isDragging.value = true; }
+function fileDragLeave() { isDragging.value = false; }
+function fileDrop(e) { isDragging.value = false; uploadFiles(e); }
 
 /* ─── Archive confirm ─── */
 const showArchiveConfirm = ref(false);
@@ -620,7 +684,11 @@ function actionLabel(action) {
                     class="tab"
                     :class="{ active: activeTab === t.key }"
                     @click="activeTab = t.key"
-                >{{ t.label }}</button>
+                >
+                    {{ t.label }}
+                    <span v-if="t.key === 'files' && file_summary.total" class="count">{{ file_summary.total }}</span>
+                    <span v-if="t.key === 'files' && file_summary.infected" class="tab-danger-dot" title="Infected files detected" />
+                </button>
             </nav>
 
             <!-- ─── OVERVIEW TAB ─── -->
@@ -1098,6 +1166,125 @@ function actionLabel(action) {
                 </div>
             </div>
 
+            <!-- ─── FILES TAB ─── -->
+            <div v-else-if="activeTab === 'files'" class="project-files">
+                <!-- Toolbar -->
+                <div class="pf-toolbar">
+                    <div class="pf-search">
+                        <IconSearch :size="16" stroke-width="1.75" />
+                        <input v-model="fileSearch" type="text" placeholder="Search files…">
+                    </div>
+                    <label class="btn btn-primary btn-sm pf-upload-label" :class="{ 'is-disabled': uploading }">
+                        <IconUpload :size="14" stroke-width="1.75" />
+                        Upload files
+                        <input type="file" hidden multiple :disabled="uploading" @change="uploadFiles">
+                    </label>
+                </div>
+
+                <!-- Infected warning -->
+                <div v-if="file_summary.infected" class="file-infected-banner">
+                    <IconAlertTriangle :size="16" stroke-width="1.75" />
+                    {{ file_summary.infected }} malicious file(s) detected and blocked. Contact your administrator.
+                </div>
+
+                <!-- Upload drop zone -->
+                <label
+                    class="file-upload-zone"
+                    :class="{ dragging: isDragging }"
+                    @dragover.prevent="fileDragOver"
+                    @dragleave.prevent="fileDragLeave"
+                    @drop.prevent="fileDrop"
+                >
+                    <input type="file" hidden multiple :disabled="uploading" @change="uploadFiles">
+                    <IconUpload :size="22" stroke-width="1.5" />
+                    <div v-if="uploading" class="pf-uploading"><IconLoader2 :size="16" stroke-width="1.75" class="spin" /> Uploading…</div>
+                    <div v-else>Drag &amp; drop files here, or click to browse</div>
+                    <div class="file-upload-hint">
+                        Max {{ file_max_mb }}MB per file. PDF, Word, Excel, images, ZIP.
+                        <template v-if="! clamav_available"> · Malware scanning inactive on this server.</template>
+                    </div>
+                </label>
+
+                <!-- Files table -->
+                <div v-if="filteredFiles.length" class="table-card">
+                    <table class="tbl">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Task</th>
+                                <th>Size</th>
+                                <th>Uploaded by</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th />
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="file in filteredFiles"
+                                :key="file.id"
+                                class="file-row"
+                                :class="{
+                                    'file-row--infected': file.scan_status === 'infected',
+                                    'file-row--pending': file.scan_status === 'pending',
+                                }"
+                            >
+                                <td>
+                                    <div class="file-icon-name">
+                                        <component :is="fileIcon(file.type_icon)" :size="20" stroke-width="1.75" class="file-type-icon" />
+                                        <div>
+                                            <a v-if="file.is_downloadable" :href="file.download_url" class="file-name" target="_blank" rel="noopener">{{ file.filename }}</a>
+                                            <span v-else class="file-name file-name--blocked">{{ file.filename }}</span>
+                                            <span v-if="file.description" class="file-desc">{{ file.description }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span v-if="file.task_title" class="file-task">
+                                        <IconCheckbox :size="13" stroke-width="1.75" />
+                                        {{ file.task_title }}
+                                    </span>
+                                    <span v-else class="muted">Project</span>
+                                </td>
+                                <td class="muted">{{ file.size }}</td>
+                                <td class="muted">{{ file.uploaded_by }}</td>
+                                <td class="muted" :title="file.uploaded_at_full">{{ file.uploaded_at }}</td>
+                                <td>
+                                    <span v-if="file.scan_status === 'pending'" class="badge badge-pending">
+                                        <IconLoader2 :size="11" stroke-width="2" class="spin" /> Scanning
+                                    </span>
+                                    <span v-else-if="file.scan_status === 'infected'" class="badge badge-overdue">
+                                        <IconVirus :size="11" stroke-width="2" /> Blocked
+                                    </span>
+                                    <span v-else-if="file.scan_status === 'clean'" class="badge badge-active">
+                                        <IconCircleCheck :size="11" stroke-width="2" /> Clean
+                                    </span>
+                                    <span v-else class="badge badge-inactive">{{ file.scan_status }}</span>
+                                </td>
+                                <td>
+                                    <button
+                                        v-if="file.source === 'project'"
+                                        type="button"
+                                        class="icon-btn pf-delete"
+                                        title="Delete file"
+                                        @click="askDeleteFile(file.id)"
+                                    >
+                                        <IconTrash :size="15" stroke-width="1.75" />
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty state -->
+                <div v-else class="file-empty">
+                    <IconFiles :size="36" stroke-width="1.5" />
+                    <p>{{ fileSearch ? 'No files match your search.' : 'No files yet.' }}</p>
+                    <p v-if="! fileSearch" class="muted">Upload files to this project or attach them to individual tasks.</p>
+                </div>
+            </div>
+
             <!-- ─── ACTIVITY TAB ─── -->
             <div v-else-if="activeTab === 'activity'" class="card">
                 <div class="card-head"><h3>Activity log</h3></div>
@@ -1342,6 +1529,16 @@ function actionLabel(action) {
             message="The project will be hidden from the list but its tasks and time entries are preserved. You can restore it later from the database."
             confirm-label="Archive project"
             @confirm="confirmArchive"
+        />
+
+        <!-- ─── Confirm delete file ─── -->
+        <ConfirmModal
+            v-model:show="showDeleteFileModal"
+            variant="danger"
+            title="Delete file?"
+            message="This file will be permanently removed from the project and from storage. This cannot be undone."
+            confirm-label="Delete file"
+            @confirm="performDeleteFile"
         />
 
         <!-- ─── Confirm delete time entry ─── -->
