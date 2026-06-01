@@ -11,7 +11,7 @@
  * between states without leaving the page; it posts to
  * /tasks/{id}/status the same as the project board does.
  */
-import { computed, reactive, ref } from 'vue';
+import { computed, nextTick, reactive, ref } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     IconPlus, IconAlertTriangle, IconCircleCheck, IconChevronDown,
@@ -181,6 +181,23 @@ function refetchCalendar() {
     calendarRef.value?.getApi()?.refetchEvents();
 }
 
+// FullCalendar mounts inside the hidden (v-show) calendar tab on initial
+// page load, so it measures zero dimensions and renders broken — squares
+// for the nav icons, collapsed grid, events not painted, "needs a second
+// click on Month". The moment the tab actually becomes visible we force a
+// re-measure (updateSize) and a refetch so it lays out correctly the first
+// time. nextTick waits for v-show to flip display:none → block.
+function switchTab(tab) {
+    activeTab.value = tab;
+    if (tab === 'calendar') {
+        nextTick(() => {
+            const api = calendarRef.value?.getApi();
+            api?.updateSize();
+            api?.refetchEvents();
+        });
+    }
+}
+
 /* ─── Event detail slide-over ─── */
 const selectedEvent = ref(null);
 const showEventDetail = ref(false);
@@ -341,10 +358,10 @@ function submitCreateTask() {
 
             <!-- ─── List / Calendar tabs ─── -->
             <nav class="mw-tabs">
-                <button type="button" class="mw-tab" :class="{ active: activeTab === 'list' }" @click="activeTab = 'list'">
+                <button type="button" class="mw-tab" :class="{ active: activeTab === 'list' }" @click="switchTab('list')">
                     <IconList :size="15" stroke-width="2" /> List
                 </button>
-                <button type="button" class="mw-tab" :class="{ active: activeTab === 'calendar' }" @click="activeTab = 'calendar'">
+                <button type="button" class="mw-tab" :class="{ active: activeTab === 'calendar' }" @click="switchTab('calendar')">
                     <IconCalendar :size="15" stroke-width="2" /> Calendar
                 </button>
             </nav>
