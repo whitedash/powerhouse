@@ -16,16 +16,28 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     IconPlus, IconAlertTriangle, IconCircleCheck, IconChevronDown,
     IconChevronUp, IconClock, IconEye, IconBan, IconCircle,
+    IconList, IconCalendar, IconBrandGoogle, IconMapPin, IconFolder,
+    IconVideo, IconX,
 } from '@tabler/icons-vue';
+import FullCalendar from '@fullcalendar/vue3';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import listPlugin from '@fullcalendar/list';
+import interactionPlugin from '@fullcalendar/interaction';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 
 const props = defineProps({
     grouped: { type: Object, required: true },
     my_projects: { type: Array, default: () => [] },
     total: { type: Number, default: 0 },
+    google_connected: { type: Boolean, default: false },
 });
 
 const page = usePage();
+
+/* ─── List / Calendar tab switch ─── */
+const activeTab = ref('list');
+const googleConnected = computed(() => props.google_connected);
 
 const me = computed(() => page.props.auth?.user?.name?.split(' ')[0] ?? 'there');
 
@@ -97,6 +109,198 @@ const sections = [
     { key: 'in_review',   label: 'Waiting for review', tone: 'neutral' },
     { key: 'upcoming',    label: 'Upcoming',         tone: 'neutral' },
 ];
+
+/* ─── Calendar ─── */
+const csrf = () => document.querySelector('meta[name=csrf-token]')?.content ?? '';
+
+// FullCalendar's event source — fetched per visible range. We normalise
+// both Powerhouse tasks and Google events into FullCalendar's event shape
+// here (colour → backgroundColor, everything else → extendedProps so the
+// detail panel can read source/type/location without auto-navigating on
+// the `url` field FullCalendar would otherwise hijack).
+const fetchCalendarEvents = async (info, successCallback, failureCallback) => {
+    try {
+        const res = await fetch(`/my-work/calendar?start=${info.startStr}&end=${info.endStr}`, {
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        if (! res.ok) throw new Error('calendar fetch failed');
+        const data = await res.json();
+        const events = (data.events || []).map((e) => ({
+            id: e.id,
+            title: e.title,
+            start: e.start,
+            end: e.end,
+            allDay: e.allDay ?? e.all_day ?? false,
+            backgroundColor: e.colour,
+            borderColor: e.colour,
+            editable: e.editable ?? false,
+            extendedProps: {
+                source: e.source,
+                type: e.type ?? null,
+                status: e.status ?? null,
+                priority: e.priority ?? null,
+                location: e.location ?? null,
+                project_id: e.project_id ?? null,
+                project_title: e.project_title ?? null,
+                description: e.description ?? null,
+                url: e.url ?? null,
+                html_link: e.html_link ?? null,
+            },
+        }));
+        successCallback(events);
+    } catch (err) {
+        failureCallback(err);
+    }
+};
+
+const calendarRef = ref(null);
+
+const calendarOptions = ref({
+    plugins: [dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin],
+    initialView: 'dayGridMonth',
+    headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'dayGridMonth,timeGridWeek,listWeek',
+    },
+    height: 'auto',
+    firstDay: 1, // Monday-first, matching the rest of the app
+    editable: true,
+    selectable: true,
+    dayMaxEvents: true,
+    events: fetchCalendarEvents,
+    eventClick: (info) => {
+        info.jsEvent.preventDefault();
+        openEventDetail(info.event);
+    },
+    eventDrop: (info) => updateTaskDate(info),
+    select: (info) => openCreateTask(info),
+});
+
+function refetchCalendar() {
+    calendarRef.value?.getApi()?.refetchEvents();
+}
+
+/* ─── Event detail slide-over ─── */
+const selectedEvent = ref(null);
+const showEventDetail = ref(false);
+
+function openEventDetail(event) {
+    selectedEvent.value = {
+        id: event.id,
+        title: event.title,
+        start: event.start,
+        end: event.end,
+        allDay: event.allDay,
+        source: event.extendedProps.source,
+        type: event.extendedProps.type,
+        location: event.extendedProps.location,
+        project: event.extendedProps.project_title,
+        url: event.extendedProps.url,
+        colour: event.backgroundColor,
+        gcal_link: event.extendedProps.html_link,
+    };
+    showEventDetail.value = true;
+}
+
+function formatEventDate(ev) {
+    if (! ev.start) return '';
+    const opts = ev.allDay
+        ? { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }
+        : { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' };
+    const start = new Date(ev.start).toLocaleDateString('en-GB', opts);
+    if (ev.allDay || ! ev.end) return start;
+    const end = new Date(ev.end).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    return `${start} – ${end}`;
+}
+
+/* ─── Drag-to-reschedule ─── */
+function updateTaskDate(info) {
+    const ev = info.event;
+    // Google events are read-only here; revert any drag of one.
+    if (ev.extendedProps.source !== 'powerhouse') {
+        info.revert();
+        return;
+    }
+    const id = String(ev.id).replace('task_', '');
+    fetch(`/tasks/${id}/reschedule`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': csrf(),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({
+            start: ev.start ? ev.start.toISOString() : null,
+            end: ev.end ? ev.end.toISOString() : null,
+            all_day: ev.allDay,
+        }),
+    }).then((res) => {
+        if (! res.ok) throw new Error('reschedule failed');
+    }).catch(() => info.revert());
+}
+
+/* ─── Create task from an empty slot ─── */
+const showCreateTask = ref(false);
+const createForm = useForm({
+    title: '',
+    type: 'task',
+    is_all_day: true,
+    due_at: '',
+    start_at: '',
+    end_at: '',
+    location: '',
+    assigned_to: page.props.auth?.user?.id,
+});
+
+function openCreateTask(info) {
+    const allDay = info.allDay ?? true;
+    createForm.reset();
+    createForm.assigned_to = page.props.auth?.user?.id;
+    createForm.is_all_day = allDay;
+    if (allDay) {
+        // info.startStr is YYYY-MM-DD for an all-day selection.
+        createForm.due_at = info.startStr.slice(0, 10);
+    } else {
+        createForm.start_at = toLocalInput(info.start);
+        createForm.end_at = toLocalInput(info.end);
+    }
+    showCreateTask.value = true;
+    // Clear the blue selection highlight on the grid.
+    calendarRef.value?.getApi()?.unselect();
+}
+
+// <input type="datetime-local"> wants "YYYY-MM-DDTHH:mm" in local time.
+function toLocalInput(date) {
+    if (! date) return '';
+    const d = new Date(date);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function submitCreateTask() {
+    if (! createForm.title.trim()) return;
+    createForm
+        .transform((d) => ({
+            title: d.title,
+            type: d.type,
+            assigned_to: d.assigned_to,
+            is_all_day: d.is_all_day,
+            due_at: d.is_all_day ? d.due_at : null,
+            start_at: d.is_all_day ? null : d.start_at,
+            end_at: d.is_all_day ? null : d.end_at,
+            location: d.location || null,
+        }))
+        .post('/tasks', {
+            preserveScroll: true,
+            onSuccess: () => {
+                showCreateTask.value = false;
+                createForm.reset();
+                refetchCalendar();
+            },
+        });
+}
 </script>
 
 <template>
@@ -135,6 +339,18 @@ const sections = [
                 </div>
             </div>
 
+            <!-- ─── List / Calendar tabs ─── -->
+            <nav class="mw-tabs">
+                <button type="button" class="mw-tab" :class="{ active: activeTab === 'list' }" @click="activeTab = 'list'">
+                    <IconList :size="15" stroke-width="2" /> List
+                </button>
+                <button type="button" class="mw-tab" :class="{ active: activeTab === 'calendar' }" @click="activeTab = 'calendar'">
+                    <IconCalendar :size="15" stroke-width="2" /> Calendar
+                </button>
+            </nav>
+
+            <!-- ════════ LIST TAB ════════ -->
+            <div v-show="activeTab === 'list'">
             <!-- ─── Sections ─── -->
             <div v-for="sec in sections" :key="sec.key">
                 <div v-if="grouped[sec.key].length > 0 || sec.key === 'today'" class="mw-section">
@@ -238,6 +454,143 @@ const sections = [
                     />
                     <button type="submit" class="btn btn-primary btn-sm" :disabled="!quickAdd.title.trim() || quickAdd.processing">Add</button>
                 </form>
+            </div>
+            </div><!-- /list tab -->
+
+            <!-- ════════ CALENDAR TAB ════════ -->
+            <div v-show="activeTab === 'calendar'" class="my-work-calendar">
+                <!-- Google Calendar connection banner -->
+                <div v-if="!googleConnected" class="gcal-connect-banner">
+                    <IconBrandGoogle :size="16" stroke-width="2" />
+                    <span>Connect Google Calendar to see all your events in one place.</span>
+                    <a href="/account/google/connect" class="btn btn-ghost btn-sm">Connect →</a>
+                </div>
+
+                <!-- Legend -->
+                <div class="cal-legend">
+                    <span class="cal-legend-item">
+                        <span class="cal-dot" style="background:#F59E0B"></span> Tasks
+                    </span>
+                    <span class="cal-legend-item">
+                        <span class="cal-dot" style="background:#8B5CF6"></span> Meetings
+                    </span>
+                    <span v-if="googleConnected" class="cal-legend-item">
+                        <span class="cal-dot" style="background:#4285F4"></span> Google Calendar
+                    </span>
+                </div>
+
+                <!-- FullCalendar -->
+                <div class="cal-wrapper">
+                    <FullCalendar ref="calendarRef" :options="calendarOptions" />
+                </div>
+            </div>
+
+            <!-- ─── Event detail slide-over ─── -->
+            <div v-if="showEventDetail" class="mw-slide-over">
+                <div class="mw-slide-backdrop" @click="showEventDetail = false"></div>
+                <div class="mw-slide-panel">
+                    <div class="mw-slide-head">
+                        <h2>{{ selectedEvent.title }}</h2>
+                        <button type="button" class="icon-btn" @click="showEventDetail = false">
+                            <IconX :size="18" stroke-width="2" />
+                        </button>
+                    </div>
+                    <div class="mw-slide-body">
+                        <div v-if="selectedEvent.type === 'meeting'" class="event-type-badge">
+                            <IconVideo :size="14" stroke-width="2" /> Meeting
+                        </div>
+
+                        <div v-if="selectedEvent.start" class="event-detail-row">
+                            <IconCalendar :size="15" stroke-width="2" />
+                            {{ formatEventDate(selectedEvent) }}
+                        </div>
+                        <div v-if="selectedEvent.location" class="event-detail-row">
+                            <IconMapPin :size="15" stroke-width="2" />
+                            {{ selectedEvent.location }}
+                        </div>
+                        <div v-if="selectedEvent.project" class="event-detail-row">
+                            <IconFolder :size="15" stroke-width="2" />
+                            {{ selectedEvent.project }}
+                        </div>
+
+                        <div class="event-actions">
+                            <a
+                                v-if="selectedEvent.url && selectedEvent.source === 'powerhouse'"
+                                :href="selectedEvent.url"
+                                class="btn btn-primary btn-sm"
+                            >Open task →</a>
+                            <a
+                                v-if="selectedEvent.gcal_link"
+                                :href="selectedEvent.gcal_link"
+                                target="_blank"
+                                rel="noopener"
+                                class="btn btn-ghost btn-sm"
+                            >
+                                <IconBrandGoogle :size="14" stroke-width="2" /> Open in Google Calendar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── Create task slide-over (from empty-slot click) ─── -->
+            <div v-if="showCreateTask" class="mw-slide-over">
+                <div class="mw-slide-backdrop" @click="showCreateTask = false"></div>
+                <div class="mw-slide-panel">
+                    <div class="mw-slide-head">
+                        <h2>New task</h2>
+                        <button type="button" class="icon-btn" @click="showCreateTask = false">
+                            <IconX :size="18" stroke-width="2" />
+                        </button>
+                    </div>
+                    <form class="mw-slide-body mw-create-form" @submit.prevent="submitCreateTask">
+                        <div class="form-field">
+                            <label>Title</label>
+                            <input v-model="createForm.title" type="text" maxlength="255" required autofocus />
+                            <div v-if="createForm.errors.title" class="err">{{ createForm.errors.title }}</div>
+                        </div>
+
+                        <div class="form-field">
+                            <label>Type</label>
+                            <select v-model="createForm.type">
+                                <option value="task">Task</option>
+                                <option value="meeting">Meeting</option>
+                                <option value="call">Call</option>
+                            </select>
+                        </div>
+
+                        <label class="mw-allday-row">
+                            <input v-model="createForm.is_all_day" type="checkbox" />
+                            All-day
+                        </label>
+
+                        <div v-if="createForm.is_all_day" class="form-field">
+                            <label>Date</label>
+                            <input v-model="createForm.due_at" type="date" required />
+                        </div>
+                        <template v-else>
+                            <div class="form-field">
+                                <label>Starts</label>
+                                <input v-model="createForm.start_at" type="datetime-local" required />
+                            </div>
+                            <div class="form-field">
+                                <label>Ends</label>
+                                <input v-model="createForm.end_at" type="datetime-local" />
+                            </div>
+                            <div class="form-field">
+                                <label>Location <span class="muted small">(optional)</span></label>
+                                <input v-model="createForm.location" type="text" maxlength="255" placeholder="Office or Zoom link" />
+                            </div>
+                        </template>
+
+                        <div class="mw-create-actions">
+                            <button type="button" class="btn btn-ghost btn-sm" @click="showCreateTask = false">Cancel</button>
+                            <button type="submit" class="btn btn-primary btn-sm" :disabled="!createForm.title.trim() || createForm.processing">
+                                {{ createForm.processing ? 'Creating…' : 'Create task' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </InternalLayout>

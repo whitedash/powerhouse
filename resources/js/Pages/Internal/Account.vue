@@ -5,6 +5,8 @@ import {
     IconUser,
     IconLock,
     IconBell,
+    IconCalendar,
+    IconCircleCheck,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import PasswordStrengthMeter from '@/Components/UI/PasswordStrengthMeter.vue';
@@ -12,6 +14,8 @@ import PasswordStrengthMeter from '@/Components/UI/PasswordStrengthMeter.vue';
 const props = defineProps({
     user: { type: Object, required: true },
     notification_preferences: { type: Object, default: () => ({}) },
+    google_connected: { type: Boolean, default: false },
+    google_calendar_id: { type: String, default: null },
 });
 
 // The rows rendered in the preferences card. invoice_overdue is a known
@@ -78,6 +82,12 @@ const notifForm = useForm({
 
 function submitNotifications() {
     notifForm.put('/account/notifications', { preserveScroll: true });
+}
+
+const googleForm = useForm({});
+
+function disconnectGoogle() {
+    googleForm.post('/account/google/disconnect', { preserveScroll: true });
 }
 </script>
 
@@ -213,6 +223,50 @@ function submitNotifications() {
                         </button>
                     </div>
                 </form>
+            </section>
+
+            <!-- Google Calendar -->
+            <section class="my-account-card">
+                <header class="my-account-card-header">
+                    <IconCalendar :size="18" stroke-width="1.75" />
+                    <h3>Google Calendar</h3>
+                </header>
+
+                <div class="my-account-form gcal-card-body">
+                    <template v-if="google_connected">
+                        <div class="gcal-status gcal-connected">
+                            <IconCircleCheck :size="18" stroke-width="2" />
+                            <div>
+                                <strong>Connected</strong>
+                                <div class="my-account-since">Calendar: {{ google_calendar_id || 'primary' }}</div>
+                            </div>
+                        </div>
+                        <p class="gcal-help">
+                            Tasks with due dates are automatically synced to your Google Calendar,
+                            and your Google events appear in My Work.
+                        </p>
+                        <div class="my-account-footer">
+                            <button
+                                type="button"
+                                class="btn btn-ghost danger"
+                                :disabled="googleForm.processing"
+                                @click="disconnectGoogle"
+                            >Disconnect</button>
+                        </div>
+                    </template>
+
+                    <template v-else>
+                        <p class="gcal-help">
+                            Connect your Google account to see Google Calendar events in My Work
+                            and sync your Powerhouse tasks both ways.
+                        </p>
+                        <div class="my-account-footer">
+                            <a href="/account/google/connect" class="btn btn-primary">
+                                Connect Google Calendar →
+                            </a>
+                        </div>
+                    </template>
+                </div>
             </section>
 
             <div v-if="user.last_login_at" class="my-account-last-login">

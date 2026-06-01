@@ -58,6 +58,8 @@ class MyAccountController extends Controller
                 'created_at' => $user->created_at?->toIso8601String(),
                 'last_login_at' => $user->last_login_at?->diffForHumans(),
             ],
+            'google_connected' => $user->google_sync_enabled,
+            'google_calendar_id' => $user->google_calendar_id,
             // Stored prefs over the defaults, so the form always renders
             // the full set even before the user has saved once.
             'notification_preferences' => array_merge(

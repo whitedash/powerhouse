@@ -5,14 +5,17 @@ namespace App\Http\Controllers\Internal;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Customer;
+use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Project;
 use App\Models\ProjectFile;
 use App\Models\Setting;
+use App\Models\Supplier;
 use App\Models\TaskAttachment;
 use App\Models\TimeEntry;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -161,6 +164,86 @@ class ProjectController extends Controller
             'billed_hours' => round(((int) TimeEntry::where('project_id', $id)->where('is_billable', true)->whereNotNull('invoice_id')->sum('minutes')) / 60, 2),
         ];
 
+        // ─── Cost tab — time costs + direct expenses vs budget ───
+        // Time entries query project_id directly (it's a real column,
+        // not a join through tasks); billable_amount honours the
+        // entry-or-project rate fallback on the model.
+        $costEntries = TimeEntry::where('project_id', $id)
+            ->with(['project:id,hourly_rate', 'task:id,title,project_id', 'user:id,name'])
+            ->get();
+
+        $timeCostBreakdown = $costEntries
+            ->groupBy('task_id')
+            ->map(function ($entries): array {
+                /** @var Collection<int, TimeEntry> $entries */
+                /** @var TimeEntry|null $first */
+                $first = $entries->first();
+                $billable = $entries->where('is_billable', true);
+                $nonBillable = $entries->where('is_billable', false);
+
+                return [
+                    // task/user FKs are NOT NULL on time_entries, so the
+                    // relations are always present once $first exists.
+                    'task_id' => $first?->task_id,
+                    'task_title' => $first?->task->title,
+                    'assignee' => $first?->user->name,
+                    'billable_hours' => round((float) $billable->sum(fn (TimeEntry $e): float => $e->hours), 2),
+                    'non_billable_hours' => round((float) $nonBillable->sum(fn (TimeEntry $e): float => $e->hours), 2),
+                    'cost' => round((float) $billable->sum(fn (TimeEntry $e): float => $e->billable_amount), 2),
+                ];
+            })
+            ->values();
+
+        $totalBillableHours = round((float) $costEntries->where('is_billable', true)->sum(fn (TimeEntry $e): float => $e->hours), 2);
+        $totalNonBillableHours = round((float) $costEntries->where('is_billable', false)->sum(fn (TimeEntry $e): float => $e->hours), 2);
+        $totalTimeCost = round((float) $costEntries->where('is_billable', true)->sum(fn (TimeEntry $e): float => $e->billable_amount), 2);
+
+        $projectExpenses = Expense::where('project_id', $id)
+            ->with('supplier:id,name')
+            ->orderByDesc('expense_date')
+            ->get()
+            ->map(fn (Expense $e): array => [
+                'id' => $e->id,
+                'description' => $e->description,
+                'category' => $e->category,
+                // Nullable belongsTo — branch with a truthy check, not a
+                // nullsafe op (larastan types the relation non-null).
+                'supplier_name' => $e->supplier ? $e->supplier->name : $e->supplier_name,
+                'amount' => $e->amount,
+                'total' => $e->total,
+                'vat_amount' => $e->vat_amount,
+                'expense_date' => $e->expense_date->format('d M Y'),
+                'status' => $e->status,
+            ]);
+
+        $totalExpenses = round((float) Expense::where('project_id', $id)->sum('total'), 2);
+
+        $totalCost = round($totalTimeCost + $totalExpenses, 2);
+        $budget = $project->budget !== null ? (float) $project->budget : 0.0;
+        $budgetUsedPercent = $budget > 0 ? min(100.0, round(($totalCost / $budget) * 100, 1)) : null;
+        $remaining = $budget > 0 ? round($budget - $totalCost, 2) : null;
+
+        $costs = [
+            'budget' => $project->budget,
+            'hourly_rate' => $project->hourly_rate,
+            'time_cost' => $totalTimeCost,
+            'expense_total' => $totalExpenses,
+            'total_cost' => $totalCost,
+            'remaining' => $remaining,
+            'budget_used_percent' => $budgetUsedPercent,
+            'billable_hours' => $totalBillableHours,
+            'non_billable_hours' => $totalNonBillableHours,
+            'time_breakdown' => $timeCostBreakdown,
+            'expenses' => $projectExpenses,
+            'over_budget' => $budget > 0 && $totalCost > $budget,
+        ];
+
+        // Active suppliers feed the Cost-tab "Add expense" slide-over
+        // (same shape the Expenses index passes to its form).
+        $suppliers = Supplier::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'default_expense_category', 'default_vat_rate']);
+
         $staff = User::whereIn('role', ['super_admin', 'staff'])
             ->orderBy('name')
             ->get(['id', 'name', 'avatar_colour']);
@@ -253,6 +336,8 @@ class ProjectController extends Controller
         return Inertia::render('Internal/Projects/Show', [
             'project' => $this->mapProjectDetail($project),
             'time_summary' => $timeSummary,
+            'costs' => $costs,
+            'suppliers' => $suppliers,
             'staff' => $staff,
             'billing_entities' => $billingEntities,
             'files' => $files,

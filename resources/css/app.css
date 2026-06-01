@@ -885,6 +885,78 @@ body {
 }
 .file-empty p { margin: 0; }
 
+/* ════ .project-cost (project detail Cost tab) ════ */
+.project-cost { padding: 20px 0; }
+.project-cost .text-right { text-align: right; }
+.project-cost .text-secondary { color: var(--text-secondary); }
+.project-cost .text-tertiary { color: var(--text-tertiary); }
+.project-cost .text-sm { font-size: 12px; }
+.project-cost .mono { font-family: 'JetBrains Mono', monospace; }
+.project-cost .btn-link {
+    border: 0; background: none; cursor: pointer; padding: 0;
+    color: var(--accent); font: 500 12px/1 'Inter', sans-serif;
+}
+.project-cost .btn-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text-tertiary);
+}
+.project-cost .btn-icon:hover { color: var(--accent); }
+
+.project-cost .cost-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+.project-cost .cost-stat-label {
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .07em;
+    color: var(--text-tertiary); margin-bottom: 6px;
+}
+.project-cost .cost-stat-value { font: 700 22px/1 'Inter', sans-serif; color: var(--text-primary); }
+.project-cost .cost-stat-sub { font: 400 11px/1 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 4px; }
+.project-cost .cost-stat-total .cost-stat-value { color: var(--accent); }
+.project-cost .cost-stat-total.over-budget .cost-stat-value { color: var(--danger); }
+
+.project-cost .budget-bar-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.project-cost .budget-bar { flex: 1; height: 8px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.project-cost .budget-bar-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width .3s; }
+.project-cost .budget-bar-fill.budget-bar-over { background: var(--danger); }
+.project-cost .budget-bar-label { font: 400 12px/1 'Inter', sans-serif; color: var(--text-tertiary); white-space: nowrap; }
+
+.project-cost .cost-section {
+    margin-bottom: 28px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+.project-cost .cost-section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+}
+.project-cost .cost-section-head h3 { font: 600 14px/1 'Inter', sans-serif; margin: 0; }
+.project-cost .cost-section-meta { font: 400 12px/1 'Inter', sans-serif; color: var(--text-secondary); }
+.project-cost .cost-table { width: 100%; border-collapse: collapse; }
+.project-cost .cost-table th {
+    font: 500 11px/1 'Inter', sans-serif;
+    text-transform: uppercase; letter-spacing: .06em;
+    color: var(--text-tertiary);
+    padding: 8px 16px; border-bottom: 1px solid var(--border); text-align: left;
+}
+.project-cost .cost-table td { padding: 10px 16px; border-bottom: 1px solid var(--border-soft); font-size: 13px; }
+.project-cost .cost-table-total td { font-weight: 600; border-top: 1px solid var(--border); border-bottom: none; background: var(--neutral-bg); }
+.project-cost .cost-empty { padding: 24px 16px; text-align: center; color: var(--text-tertiary); font-size: 13px; }
+.project-cost .cost-hint {
+    padding: 10px 16px; font-size: 12px; color: var(--text-tertiary);
+    border-top: 1px solid var(--border-soft);
+    display: flex; align-items: center; gap: 6px;
+}
+.project-cost .vat-note { font: 400 10px/1 'Inter', sans-serif; color: var(--text-tertiary); display: block; }
+
 /* Detail-page content grid (63/37) */
 .cust-detail-content {
     padding: 24px;
@@ -8386,6 +8458,15 @@ h3 .opt {
     margin-top: 4px;
 }
 
+/* Google Calendar connection card */
+.gcal-card-body { display: flex; flex-direction: column; gap: 12px; }
+.gcal-status { display: flex; align-items: center; gap: 10px; }
+.gcal-status.gcal-connected { color: var(--success); }
+.gcal-status strong { font: 600 14px/1.2 'Inter', sans-serif; color: var(--text-primary); }
+.gcal-help { font: 400 13px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin: 0; }
+.gcal-card-body .btn-ghost.danger { color: var(--danger); }
+.gcal-card-body .btn-ghost.danger:hover { background: var(--danger-bg); }
+
 /* User menu divider + danger flavour for Sign out */
 .user-menu-divider {
     height: 1px;
@@ -11404,6 +11485,112 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
     flex: 1; border: 0; outline: 0; height: 30px;
     font: 400 13px/1 'Inter', sans-serif;
 }
+
+/* ── List / Calendar tab switch ── */
+.my-work .mw-tabs {
+    display: flex; gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 18px;
+}
+.my-work .mw-tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px;
+    border: 0; background: none; cursor: pointer;
+    font: 500 13px/1 'Inter', sans-serif;
+    color: var(--text-secondary);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+.my-work .mw-tab:hover { color: var(--text-primary); }
+.my-work .mw-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Calendar tab ── */
+.my-work-calendar { padding: 4px 0 16px; }
+.my-work-calendar .gcal-connect-banner {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px;
+    background: #f0f4ff;
+    border: 1px solid #c7d2fe;
+    border-radius: var(--radius-md);
+    margin-bottom: 16px;
+    font-size: 13px; color: var(--text-secondary);
+}
+.my-work-calendar .gcal-connect-banner .btn { margin-left: auto; }
+.my-work-calendar .cal-legend { display: flex; gap: 16px; margin-bottom: 12px; }
+.my-work-calendar .cal-legend-item {
+    display: flex; align-items: center; gap: 6px;
+    font: 400 12px/1 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.my-work-calendar .cal-dot { width: 10px; height: 10px; border-radius: 50%; }
+.my-work-calendar .cal-wrapper {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+}
+/* FullCalendar theme → Powerhouse tokens */
+.my-work-calendar .fc { font-family: 'Inter', sans-serif; }
+.my-work-calendar .fc .fc-button-primary {
+    background: var(--accent); border-color: var(--accent);
+    text-transform: capitalize; font-size: 13px;
+}
+.my-work-calendar .fc .fc-button-primary:hover {
+    background: var(--accent-dark, #d97706); border-color: var(--accent-dark, #d97706);
+}
+.my-work-calendar .fc .fc-button-primary:not(:disabled):active,
+.my-work-calendar .fc .fc-button-primary:not(:disabled).fc-button-active {
+    background: var(--accent-dark, #d97706); border-color: var(--accent-dark, #d97706);
+}
+.my-work-calendar .fc .fc-button-primary:focus,
+.my-work-calendar .fc .fc-button-primary:focus-visible {
+    box-shadow: 0 0 0 3px var(--accent-soft, #fef9ec);
+}
+.my-work-calendar .fc .fc-toolbar-title { font-size: 17px; font-weight: 700; }
+.my-work-calendar .fc-day-today { background: var(--accent-soft, #fef9ec) !important; }
+.my-work-calendar .fc-event { cursor: pointer; font-size: 12px; }
+
+/* ── Event / create slide-over (calendar) ── */
+.my-work .mw-slide-over { position: fixed; inset: 0; z-index: 60; }
+.my-work .mw-slide-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, .35); }
+.my-work .mw-slide-panel {
+    position: absolute; top: 0; right: 0; bottom: 0;
+    width: 380px; max-width: 90vw;
+    background: var(--card-bg);
+    border-left: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+    display: flex; flex-direction: column;
+}
+.my-work .mw-slide-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 18px; border-bottom: 1px solid var(--border);
+}
+.my-work .mw-slide-head h2 { margin: 0; font: 600 16px/1.3 'Inter', sans-serif; }
+.my-work .mw-slide-body { padding: 18px; overflow-y: auto; }
+.my-work .event-type-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; margin-bottom: 12px;
+    background: #f3effe; color: #6d28d9;
+    border-radius: 999px; font: 500 12px/1 'Inter', sans-serif;
+}
+.my-work .event-detail-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-soft);
+    font: 400 14px/1.3 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.my-work .event-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.my-work .mw-create-form .form-field { margin-bottom: 12px; }
+.my-work .mw-create-form .form-field label { display: block; margin-bottom: 4px; font: 500 12px/1 'Inter', sans-serif; color: var(--text-secondary); }
+.my-work .mw-create-form .form-field input,
+.my-work .mw-create-form .form-field select {
+    width: 100%; height: 34px; padding: 0 10px;
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    font: 400 13px/1 'Inter', sans-serif;
+}
+.my-work .mw-allday-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font: 400 13px/1 'Inter', sans-serif; }
+.my-work .mw-create-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 
 .project-chip {
     display: inline-flex; align-items: center; gap: 4px;

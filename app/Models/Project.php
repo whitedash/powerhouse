@@ -35,6 +35,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Milestone> $milestones
  * @property-read Collection<int, Task> $tasks
  * @property-read Collection<int, TimeEntry> $timeEntries
+ * @property-read Collection<int, Expense> $expenses
  * @property-read int $progress
  * @property-read bool $is_overdue
  * @property-read int $total_billable_minutes
@@ -112,6 +113,16 @@ class Project extends Model
     public function timeEntries(): HasMany
     {
         return $this->hasMany(TimeEntry::class);
+    }
+
+    /**
+     * Direct expenses booked against this project — receipts, software,
+     * travel etc. Feeds the project Cost tab's budget-vs-actual view
+     * alongside time costs.
+     */
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
     }
 
     /**

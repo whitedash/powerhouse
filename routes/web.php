@@ -13,6 +13,7 @@ use App\Http\Controllers\Internal\DomainController as InternalDomainController;
 use App\Http\Controllers\Internal\ExpenseController as InternalExpenseController;
 use App\Http\Controllers\Internal\FormBuilderController as InternalFormBuilderController;
 use App\Http\Controllers\Internal\GdprController as InternalGdprController;
+use App\Http\Controllers\Internal\GoogleCalendarAuthController as InternalGoogleCalendarAuthController;
 use App\Http\Controllers\Internal\HelpController as InternalHelpController;
 use App\Http\Controllers\Internal\ImpersonationController as InternalImpersonationController;
 use App\Http\Controllers\Internal\InvoiceController as InternalInvoiceController;
@@ -240,6 +241,9 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         ->name('internal.tasks.reorder');
     Route::post('/tasks/{id}/status', [InternalTaskController::class, 'updateStatus'])
         ->whereNumber('id')->name('internal.tasks.status');
+    // Drag-to-reschedule from the MyWork calendar (JSON).
+    Route::post('/tasks/{id}/reschedule', [InternalTaskController::class, 'reschedule'])
+        ->whereNumber('id')->name('internal.tasks.reschedule');
 
     Route::prefix('time-entries')->name('internal.time-entries.')->group(function () {
         Route::post('/', [InternalTimeEntryController::class, 'store'])->name('store');
@@ -252,6 +256,9 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // Personal task dashboard — separate page, no per-user data leak
     // risk since the controller filters to auth()->id() unconditionally.
     Route::get('/my-work', [InternalMyWorkController::class, 'index'])->name('internal.my-work');
+    // JSON feed for the MyWork Calendar tab (FullCalendar fetches it
+    // directly; scoped to auth()->id() in the controller).
+    Route::get('/my-work/calendar', [InternalMyWorkController::class, 'calendar'])->name('internal.my-work.calendar');
 
     // ─── Leads ───
     // Standalone pipeline — leads live in their own table and
@@ -368,6 +375,11 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::put('/account', [InternalMyAccountController::class, 'update'])->name('internal.account.update');
     Route::put('/account/password', [InternalMyAccountController::class, 'updatePassword'])->name('internal.account.password');
     Route::put('/account/notifications', [InternalMyAccountController::class, 'updateNotifications'])->name('internal.account.notifications');
+
+    // Per-user Google Calendar connection (OAuth offline flow).
+    Route::get('/account/google/connect', [InternalGoogleCalendarAuthController::class, 'redirect'])->name('google.calendar.redirect');
+    Route::get('/account/google/callback', [InternalGoogleCalendarAuthController::class, 'callback'])->name('google.calendar.callback');
+    Route::post('/account/google/disconnect', [InternalGoogleCalendarAuthController::class, 'disconnect'])->name('google.calendar.disconnect');
 
     // In-app notifications — bell dropdown + full-page list. read-all is
     // declared before the {id} routes so it can never be swallowed by the

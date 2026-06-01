@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Internal;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\Task;
+use App\Services\GoogleCalendarService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -135,6 +137,67 @@ class MyWorkController extends Controller
             'grouped' => $grouped,
             'my_projects' => $myProjects,
             'total' => $mapped->count(),
+            'google_connected' => $request->user()->google_sync_enabled,
+        ]);
+    }
+
+    /**
+     * Calendar feed for the MyWork "Calendar" tab. Returns this user's
+     * open tasks (as events) merged with their Google Calendar events,
+     * scoped to the date range FullCalendar asks for. Always JSON —
+     * FullCalendar fetches it directly, not through Inertia.
+     */
+    public function calendar(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $start = Carbon::parse($request->string('start')->toString() ?: now()->startOfMonth()->toDateString());
+        $end = Carbon::parse($request->string('end')->toString() ?: now()->endOfMonth()->toDateString());
+
+        $tasks = Task::where('assigned_to', $user->id)
+            ->whereNotIn('status', ['complete', 'cancelled'])
+            ->where(function ($q) use ($start, $end): void {
+                $q->whereBetween('due_at', [$start, $end])
+                    ->orWhereBetween('start_at', [$start, $end]);
+            })
+            ->with('project:id,title,colour')
+            ->get()
+            ->map(fn (Task $t): array => [
+                'id' => 'task_'.$t->id,
+                'source' => 'powerhouse',
+                'title' => $t->title,
+                'start' => $t->is_all_day
+                    ? $t->due_at?->format('Y-m-d')
+                    : $t->start_at?->toIso8601String(),
+                'end' => $t->is_all_day
+                    ? null
+                    : $t->end_at?->toIso8601String(),
+                'allDay' => $t->is_all_day,
+                // Project colour anchors the event to its project; loose
+                // tasks fall back to amber, meetings to purple.
+                'colour' => $t->project !== null
+                    ? $t->project->colour
+                    : ($t->type === 'meeting' ? '#8B5CF6' : '#F59E0B'),
+                'type' => $t->type,
+                'status' => $t->status,
+                'priority' => $t->priority,
+                'location' => $t->location,
+                'project_id' => $t->project_id,
+                'project_title' => $t->project?->title,
+                'url' => $t->project_id
+                    ? '/projects/'.$t->project_id
+                    : '/activities/'.$t->id,
+                'editable' => true,
+            ]);
+
+        $gcalEvents = [];
+        if ($user->google_sync_enabled && $user->google_access_token !== null) {
+            $gcalEvents = (new GoogleCalendarService($user))->getEvents($start, $end);
+        }
+
+        return response()->json([
+            'events' => $tasks->concat($gcalEvents)->values(),
+            'google_connected' => $user->google_sync_enabled,
         ]);
     }
 

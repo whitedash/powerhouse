@@ -11,6 +11,7 @@ use App\Models\Task;
 use App\Models\TaskAttachment;
 use App\Models\User;
 use App\Services\FileUploadService;
+use App\Services\GoogleCalendarService;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -240,6 +241,9 @@ class TaskController extends Controller
                 // Notes are open-ended by design — no schedule.
                 'due_at' => $data['type'] === 'note' ? null : $this->parseDueAt($data['due_at'] ?? null),
                 'duration_minutes' => $data['duration_minutes'] ?? null,
+                // Calendar scheduling. Default to an all-day task; a
+                // timed event (meeting) carries explicit start/end.
+                ...$this->scheduleAttributes($data),
             ]);
 
             $this->logActivity($request, 'task.created', $task, after: [
@@ -253,6 +257,8 @@ class TaskController extends Controller
         // Notify the assignee when a task lands on someone else's plate.
         // The service no-ops on self-assignment and on the opted-out.
         app(NotificationService::class)->notifyTaskAssigned($task, $request->user());
+
+        $this->syncTaskToGoogle($request->user(), $task);
 
         return back()->with('success', $this->createdMessage($task));
     }
@@ -288,6 +294,7 @@ class TaskController extends Controller
                 'assigned_to' => $data['assigned_to'] ?? $task->assigned_to,
                 'due_at' => $data['type'] === 'note' ? null : $this->parseDueAt($data['due_at'] ?? null),
                 'duration_minutes' => $data['duration_minutes'] ?? null,
+                ...$this->scheduleAttributes($data),
             ])->save();
         });
 
@@ -298,6 +305,8 @@ class TaskController extends Controller
         if ($task->assigned_to !== $previousAssignee) {
             app(NotificationService::class)->notifyTaskAssigned($task, $user);
         }
+
+        $this->syncTaskToGoogle($user, $task);
 
         return back()->with('success', 'Activity updated.');
     }
@@ -336,7 +345,68 @@ class TaskController extends Controller
             ]);
         });
 
+        // Completed work leaves the calendar.
+        $this->removeTaskFromGoogle($user, $task);
+
         return back()->with('success', 'Activity completed.');
+    }
+
+    /**
+     * Drag-to-reschedule from the MyWork calendar. Moves a task to a new
+     * date/slot: an all-day drop updates due_at (kept at 09:00 for the
+     * list views); a timed drop sets start_at/end_at and aligns due_at.
+     * Returns JSON — FullCalendar's eventDrop calls it via fetch().
+     */
+    public function reschedule(int $id, Request $request): JsonResponse
+    {
+        $task = Task::findOrFail($id);
+        $user = $request->user();
+
+        // Same edit rule as update(): creator, assignee, or super_admin.
+        if ($task->created_by !== $user->id
+            && $task->assigned_to !== $user->id
+            && ! $user->isSuperAdmin()
+        ) {
+            abort(403, 'You can only reschedule tasks you own or are assigned to.');
+        }
+
+        $data = $request->validate([
+            'start' => ['required', 'date'],
+            'end' => ['nullable', 'date', 'after_or_equal:start'],
+            'all_day' => ['nullable', 'boolean'],
+        ]);
+
+        $allDay = ! array_key_exists('all_day', $data) || (bool) $data['all_day'];
+
+        DB::transaction(function () use ($task, $data, $allDay): void {
+            if ($allDay) {
+                $task->update([
+                    'is_all_day' => true,
+                    // 09:00 matches parseDueAt — a bare date shouldn't
+                    // read as "due at midnight" on the list views.
+                    'due_at' => Carbon::parse($data['start'])->setTime(9, 0),
+                    'start_at' => null,
+                    'end_at' => null,
+                ]);
+            } else {
+                $start = Carbon::parse($data['start']);
+                $task->update([
+                    'is_all_day' => false,
+                    'start_at' => $start,
+                    'end_at' => ! empty($data['end']) ? Carbon::parse($data['end']) : $start->copy()->addHour(),
+                    'due_at' => $start,
+                ]);
+            }
+        });
+
+        $this->syncTaskToGoogle($user, $task);
+
+        $this->logActivity($request, 'task.rescheduled', $task, after: [
+            'is_all_day' => $task->is_all_day,
+            'due_at' => $task->due_at?->toIso8601String(),
+        ]);
+
+        return response()->json(['ok' => true, 'task_id' => $task->id]);
     }
 
     /**
@@ -376,6 +446,9 @@ class TaskController extends Controller
         $task->delete();
 
         $this->logActivity($request, 'task.deleted', $task, before: $snapshot);
+
+        // $task still holds google_event_id in memory after delete().
+        $this->removeTaskFromGoogle($user, $task);
 
         return back()->with('success', 'Activity deleted.');
     }
@@ -591,6 +664,13 @@ class TaskController extends Controller
             app(NotificationService::class)->notifyMilestoneCompleted($completedMilestone);
         }
 
+        // Terminal states leave the calendar; everything else stays in sync.
+        if (in_array($data['status'], ['complete', 'cancelled'], true)) {
+            $this->removeTaskFromGoogle($user, $task);
+        } else {
+            $this->syncTaskToGoogle($user, $task);
+        }
+
         $this->logActivity($request, 'task.status_changed', $task, after: [
             'from' => $oldStatus,
             'to' => $data['status'],
@@ -730,6 +810,52 @@ class TaskController extends Controller
             // task from the project it was meant to belong to.
             'project_id' => ['nullable', 'integer', 'exists:projects,id'],
             'milestone_id' => ['nullable', 'integer', 'exists:milestones,id'],
+            // Calendar fields. is_all_day=false promotes the task to a
+            // timed event (meeting) that carries a real start/end slot.
+            'is_all_day' => ['nullable', 'boolean'],
+            'start_at' => ['nullable', 'date'],
+            'end_at' => ['nullable', 'date', 'after_or_equal:start_at'],
+            'location' => ['nullable', 'string', 'max:255'],
+        ];
+    }
+
+    /**
+     * Resolve the calendar-scheduling columns from request data. An
+     * all-day task (the default) has no timed slot; a timed event keeps
+     * start_at/end_at and mirrors start_at into due_at so the existing
+     * due-date surfaces (MyWork list, overdue logic) stay consistent.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function scheduleAttributes(array $data): array
+    {
+        // Notes never carry a schedule.
+        if (($data['type'] ?? null) === 'note') {
+            return ['is_all_day' => true, 'start_at' => null, 'end_at' => null, 'location' => $data['location'] ?? null];
+        }
+
+        $isAllDay = ! array_key_exists('is_all_day', $data) || (bool) $data['is_all_day'];
+
+        if ($isAllDay) {
+            return [
+                'is_all_day' => true,
+                'start_at' => null,
+                'end_at' => null,
+                'location' => $data['location'] ?? null,
+            ];
+        }
+
+        $start = ! empty($data['start_at']) ? Carbon::parse($data['start_at']) : null;
+        $end = ! empty($data['end_at']) ? Carbon::parse($data['end_at']) : $start?->copy()->addHour();
+
+        return [
+            'is_all_day' => false,
+            'start_at' => $start,
+            'end_at' => $end,
+            // Keep due_at aligned with the event start for the list views.
+            'due_at' => $start,
+            'location' => $data['location'] ?? null,
         ];
     }
 
@@ -800,6 +926,47 @@ class TaskController extends Controller
             'note' => 'Note added.',
             default => "Task created: {$task->title}",
         };
+    }
+
+    /**
+     * Mirror a scheduled task into the acting user's Google Calendar
+     * (create on first sync, update thereafter). No-ops for users who
+     * haven't connected Google and for tasks with no due_at (notes).
+     * The service swallows its own API errors, so a Google outage can
+     * never break the task write that triggered this.
+     */
+    private function syncTaskToGoogle(User $user, Task $task): void
+    {
+        if (! $user->google_sync_enabled || $user->google_access_token === null || $task->due_at === null) {
+            return;
+        }
+
+        $gcal = new GoogleCalendarService($user);
+
+        if ($task->google_event_id === null) {
+            $eventId = $gcal->createEvent($task);
+            if ($eventId !== null) {
+                $task->update(['google_event_id' => $eventId]);
+            }
+        } else {
+            $gcal->updateEvent($task);
+        }
+    }
+
+    /**
+     * Drop a task's mirrored Google event (on completion/cancellation/
+     * deletion) so a done task doesn't linger on the calendar.
+     */
+    private function removeTaskFromGoogle(User $user, Task $task): void
+    {
+        if ($task->google_event_id === null
+            || ! $user->google_sync_enabled
+            || $user->google_access_token === null
+        ) {
+            return;
+        }
+
+        (new GoogleCalendarService($user))->deleteEvent($task->google_event_id);
     }
 
     /**

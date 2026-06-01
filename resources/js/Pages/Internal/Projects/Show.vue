@@ -19,7 +19,7 @@ import {
     IconUpload, IconTrash, IconSearch, IconFiles, IconFile,
     IconFileTypePdf, IconFileTypeDoc, IconFileTypeXls, IconFileTypePpt,
     IconPhoto, IconFileZip, IconFileText, IconLoader2, IconCheckbox,
-    IconVirus, IconCircleCheck,
+    IconVirus, IconCircleCheck, IconInfoCircle, IconExternalLink,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -27,6 +27,8 @@ import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 const props = defineProps({
     project: { type: Object, required: true },
     time_summary: { type: Object, required: true },
+    costs: { type: Object, default: () => ({ time_breakdown: [], expenses: [] }) },
+    suppliers: { type: Array, default: () => [] },
     staff: { type: Array, default: () => [] },
     billing_entities: { type: Array, default: () => [] },
     activity: { type: Array, default: () => [] },
@@ -43,6 +45,7 @@ const TABS = [
     { key: 'board',    label: 'Board' },
     { key: 'tasks',    label: 'Tasks' },
     { key: 'time',     label: 'Time' },
+    { key: 'cost',     label: 'Cost' },
     { key: 'files',    label: 'Files' },
     { key: 'activity', label: 'Activity' },
 ];
@@ -60,6 +63,59 @@ const PRIORITY_LABEL = {
     low: 'Low', medium: 'Medium', high: 'High', urgent: 'Urgent',
 };
 function priorityLabel(p) { return PRIORITY_LABEL[p] ?? p; }
+
+/* ─── Cost tab ─── */
+const fmt = (val) => Number(val ?? 0).toLocaleString('en-GB', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+});
+
+const EXPENSE_CATEGORIES = [
+    'software', 'hosting', 'travel', 'office',
+    'marketing', 'advertising', 'equipment', 'other',
+];
+
+const expenseToday = new Date().toISOString().slice(0, 10);
+const showAddExpense = ref(false);
+const expenseForm = useForm({
+    description: '',
+    category: 'other',
+    supplier_id: '',
+    amount: '',
+    vat_rate: 20,
+    expense_date: expenseToday,
+    project_id: props.project.id,
+    receipt: null,
+});
+
+// Auto-fill category + VAT from the chosen supplier's defaults.
+function onExpenseSupplierChange() {
+    const s = props.suppliers.find((x) => x.id === Number(expenseForm.supplier_id));
+    if (! s) return;
+    if (s.default_expense_category) expenseForm.category = s.default_expense_category;
+    if (s.default_vat_rate !== null && s.default_vat_rate !== undefined) expenseForm.vat_rate = s.default_vat_rate;
+}
+
+function onExpenseReceipt(e) {
+    expenseForm.receipt = e.target.files?.[0] ?? null;
+}
+
+function submitExpense() {
+    expenseForm
+        .transform((d) => ({ ...d, supplier_id: d.supplier_id || null }))
+        .post('/expenses', {
+            preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () => {
+                showAddExpense.value = false;
+                expenseForm.reset();
+                expenseForm.project_id = props.project.id;
+                expenseForm.expense_date = expenseToday;
+                // Refresh just the cost payload so the new row + totals appear.
+                router.reload({ only: ['costs'] });
+            },
+        });
+}
 
 /* ─── Member helpers ─── */
 function initials(name) {
@@ -688,6 +744,7 @@ function actionLabel(action) {
                     {{ t.label }}
                     <span v-if="t.key === 'files' && file_summary.total" class="count">{{ file_summary.total }}</span>
                     <span v-if="t.key === 'files' && file_summary.infected" class="tab-danger-dot" title="Infected files detected" />
+                    <span v-if="t.key === 'cost' && costs.over_budget" class="tab-danger-dot" title="Over budget" />
                 </button>
             </nav>
 
@@ -1166,6 +1223,147 @@ function actionLabel(action) {
                 </div>
             </div>
 
+            <!-- ─── COST TAB ─── -->
+            <div v-else-if="activeTab === 'cost'" class="project-cost">
+                <!-- Overview cards -->
+                <div class="cost-overview">
+                    <div v-if="costs.budget" class="cost-stat">
+                        <div class="cost-stat-label">Budget</div>
+                        <div class="cost-stat-value">£{{ fmt(costs.budget) }}</div>
+                    </div>
+                    <div class="cost-stat">
+                        <div class="cost-stat-label">Time costs</div>
+                        <div class="cost-stat-value">£{{ fmt(costs.time_cost) }}</div>
+                        <div class="cost-stat-sub">{{ costs.billable_hours }}h billable</div>
+                    </div>
+                    <div class="cost-stat">
+                        <div class="cost-stat-label">Expenses</div>
+                        <div class="cost-stat-value">£{{ fmt(costs.expense_total) }}</div>
+                    </div>
+                    <div class="cost-stat cost-stat-total" :class="{ 'over-budget': costs.over_budget }">
+                        <div class="cost-stat-label">Total cost</div>
+                        <div class="cost-stat-value">£{{ fmt(costs.total_cost) }}</div>
+                        <div v-if="costs.remaining !== null" class="cost-stat-sub">
+                            {{ costs.remaining >= 0
+                                ? '£' + fmt(costs.remaining) + ' remaining'
+                                : '£' + fmt(Math.abs(costs.remaining)) + ' over budget' }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Budget progress bar -->
+                <div v-if="costs.budget" class="budget-bar-wrap">
+                    <div class="budget-bar">
+                        <div
+                            class="budget-bar-fill"
+                            :class="{ 'budget-bar-over': costs.over_budget }"
+                            :style="{ width: Math.min(100, costs.budget_used_percent) + '%' }"
+                        ></div>
+                    </div>
+                    <span class="budget-bar-label">{{ costs.budget_used_percent }}% of budget used</span>
+                </div>
+
+                <!-- Time costs -->
+                <div class="cost-section">
+                    <div class="cost-section-head">
+                        <h3>Time costs</h3>
+                        <div class="cost-section-meta">
+                            {{ costs.billable_hours }}h billable · £{{ fmt(costs.time_cost) }}
+                            <span v-if="costs.non_billable_hours" class="text-tertiary">
+                                · {{ costs.non_billable_hours }}h non-billable
+                            </span>
+                        </div>
+                    </div>
+
+                    <table v-if="costs.time_breakdown.length" class="cost-table">
+                        <thead>
+                            <tr>
+                                <th>Task</th>
+                                <th>Assignee</th>
+                                <th class="text-right">Billable hrs</th>
+                                <th class="text-right">Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="row in costs.time_breakdown" :key="row.task_id">
+                                <td>{{ row.task_title }}</td>
+                                <td class="text-secondary">{{ row.assignee ?? '—' }}</td>
+                                <td class="text-right mono">{{ row.billable_hours }}h</td>
+                                <td class="text-right mono">
+                                    <span v-if="row.cost > 0">£{{ fmt(row.cost) }}</span>
+                                    <span v-else class="text-tertiary">—</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr class="cost-table-total">
+                                <td colspan="2">Total</td>
+                                <td class="text-right mono">{{ costs.billable_hours }}h</td>
+                                <td class="text-right mono">£{{ fmt(costs.time_cost) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <div v-else class="cost-empty">No time logged on this project yet.</div>
+
+                    <div v-if="!costs.hourly_rate" class="cost-hint">
+                        <IconInfoCircle :size="14" stroke-width="2" />
+                        Set a project hourly rate to calculate time costs.
+                        <button type="button" class="btn-link" @click="openEdit">Edit project →</button>
+                    </div>
+                </div>
+
+                <!-- Expenses -->
+                <div class="cost-section">
+                    <div class="cost-section-head">
+                        <h3>Expenses</h3>
+                        <button type="button" class="btn btn-ghost btn-sm" @click="showAddExpense = true">
+                            <IconPlus :size="14" stroke-width="2" /> Add expense
+                        </button>
+                    </div>
+
+                    <table v-if="costs.expenses.length" class="cost-table">
+                        <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th>Supplier</th>
+                                <th>Date</th>
+                                <th class="text-right">Amount</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="exp in costs.expenses" :key="exp.id">
+                                <td>{{ exp.description }}</td>
+                                <td><span class="badge badge-inactive">{{ exp.category }}</span></td>
+                                <td class="text-secondary">{{ exp.supplier_name ?? '—' }}</td>
+                                <td class="text-tertiary text-sm">{{ exp.expense_date }}</td>
+                                <td class="text-right mono">
+                                    £{{ fmt(exp.total) }}
+                                    <span v-if="exp.vat_amount > 0" class="vat-note">incl. VAT</span>
+                                </td>
+                                <td>
+                                    <a href="/expenses" class="btn-icon" title="View in expenses">
+                                        <IconExternalLink :size="14" stroke-width="2" />
+                                    </a>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr class="cost-table-total">
+                                <td colspan="4">Total</td>
+                                <td class="text-right mono">£{{ fmt(costs.expense_total) }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <div v-else class="cost-empty">
+                        No expenses linked to this project.
+                        <button type="button" class="btn-link" @click="showAddExpense = true">Add one →</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- ─── FILES TAB ─── -->
             <div v-else-if="activeTab === 'files'" class="project-files">
                 <!-- Toolbar -->
@@ -1470,6 +1668,69 @@ function actionLabel(action) {
                     <div class="slide-over-foot">
                         <button type="button" class="btn btn-ghost" @click="showLogTime = false">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="logForm.processing || !logForm.task_id" @click="submitLogTime">Log time</button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
+
+        <!-- ─── Add expense slide-over (Cost tab) ─── -->
+        <Teleport to="body">
+            <div v-if="showAddExpense" class="slide-over-overlay" @click.self="showAddExpense = false">
+                <div class="slide-over" style="width: 480px;">
+                    <div class="slide-over-head">
+                        <h2>Add expense</h2>
+                        <button type="button" class="icon-btn" @click="showAddExpense = false">
+                            <IconX :size="18" stroke-width="2" />
+                        </button>
+                    </div>
+                    <form @submit.prevent="submitExpense" class="slide-over-body">
+                        <div class="form-section">
+                            <label class="form-label">Description</label>
+                            <input v-model="expenseForm.description" type="text" maxlength="255" class="form-input" required />
+                            <div v-if="expenseForm.errors.description" class="err">{{ expenseForm.errors.description }}</div>
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Category</label>
+                            <select v-model="expenseForm.category" class="form-input">
+                                <option v-for="c in EXPENSE_CATEGORIES" :key="c" :value="c">{{ c }}</option>
+                            </select>
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Supplier (optional)</label>
+                            <select v-model="expenseForm.supplier_id" class="form-input" @change="onExpenseSupplierChange">
+                                <option value="">None</option>
+                                <option v-for="s in suppliers" :key="s.id" :value="s.id">{{ s.name }}</option>
+                            </select>
+                        </div>
+                        <div class="form-row-2">
+                            <div class="form-section">
+                                <label class="form-label">Amount (£)</label>
+                                <input v-model="expenseForm.amount" type="number" min="0" step="0.01" class="form-input" required />
+                                <div v-if="expenseForm.errors.amount" class="err">{{ expenseForm.errors.amount }}</div>
+                            </div>
+                            <div class="form-section">
+                                <label class="form-label">VAT rate (%)</label>
+                                <input v-model="expenseForm.vat_rate" type="number" min="0" max="100" step="0.01" class="form-input" />
+                            </div>
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Date</label>
+                            <input v-model="expenseForm.expense_date" type="date" class="form-input" required />
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Receipt (optional)</label>
+                            <input type="file" accept=".pdf,.jpg,.jpeg,.png" class="form-input" @change="onExpenseReceipt" />
+                            <div v-if="expenseForm.errors.receipt" class="err">{{ expenseForm.errors.receipt }}</div>
+                        </div>
+                    </form>
+                    <div class="slide-over-foot">
+                        <button type="button" class="btn btn-ghost" @click="showAddExpense = false">Cancel</button>
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            :disabled="expenseForm.processing || !expenseForm.description.trim() || !expenseForm.amount"
+                            @click="submitExpense"
+                        >Add expense</button>
                     </div>
                 </div>
             </div>

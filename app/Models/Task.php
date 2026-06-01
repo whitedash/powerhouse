@@ -26,6 +26,11 @@ use Illuminate\Support\Carbon;
  * @property string $status
  * @property Carbon|null $due_date
  * @property Carbon|null $due_at
+ * @property Carbon|null $start_at
+ * @property Carbon|null $end_at
+ * @property string|null $location
+ * @property bool $is_all_day
+ * @property string|null $google_event_id
  * @property Carbon|null $completed_at
  * @property string|null $outcome
  * @property int|null $duration_minutes
@@ -75,6 +80,12 @@ class Task extends Model
         'status',
         'due_date',
         'due_at',
+        // Calendar sprint — timed events / meetings + Google sync.
+        'start_at',
+        'end_at',
+        'location',
+        'is_all_day',
+        'google_event_id',
         'completed_at',
         'outcome',
         'duration_minutes',
@@ -91,6 +102,9 @@ class Task extends Model
             // still reads it; due_at is the canonical schedule field.
             'due_date' => 'date',
             'due_at' => 'datetime',
+            'start_at' => 'datetime',
+            'end_at' => 'datetime',
+            'is_all_day' => 'boolean',
             'completed_at' => 'datetime',
             'is_pinned' => 'boolean',
             'duration_minutes' => 'integer',

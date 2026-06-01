@@ -23,6 +23,11 @@ use Laravel\Passport\HasApiTokens;
  * @property string|null $two_factor_secret
  * @property Carbon|null $two_factor_confirmed_at
  * @property Carbon|null $last_login_at
+ * @property string|null $google_access_token
+ * @property string|null $google_refresh_token
+ * @property Carbon|null $google_token_expires_at
+ * @property string|null $google_calendar_id
+ * @property bool $google_sync_enabled
  * @property string|null $remember_token
  * @property Carbon|null $email_verified_at
  * @property Carbon|null $created_at
@@ -45,12 +50,19 @@ class User extends Authenticatable implements OAuthenticatable
         'role',
         'avatar_colour',
         'notification_preferences',
+        'google_access_token',
+        'google_refresh_token',
+        'google_token_expires_at',
+        'google_calendar_id',
+        'google_sync_enabled',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
         'two_factor_secret',
+        'google_access_token',
+        'google_refresh_token',
     ];
 
     protected function casts(): array
@@ -61,6 +73,11 @@ class User extends Authenticatable implements OAuthenticatable
             'two_factor_confirmed_at' => 'datetime',
             'last_login_at' => 'datetime',
             'notification_preferences' => 'array',
+            // OAuth tokens encrypted at rest — never plaintext in the DB.
+            'google_access_token' => 'encrypted',
+            'google_refresh_token' => 'encrypted',
+            'google_token_expires_at' => 'datetime',
+            'google_sync_enabled' => 'boolean',
         ];
     }
 

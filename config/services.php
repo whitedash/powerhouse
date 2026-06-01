@@ -87,6 +87,18 @@ return [
      * the actual UUIDs from .env. Secrets are server-side only —
      * the consumer apps store them in their own configs.
      */
+    /*
+     * Per-user Google Calendar OAuth. Each staff member connects their
+     * own Google account from /account; tokens are stored encrypted on
+     * the users table. The redirect must exactly match the Authorised
+     * redirect URI configured on the Google Cloud OAuth client.
+     */
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URL', config('app.url').'/account/google/callback'),
+    ],
+
     'oauth_clients' => [
         'maavelus_id' => env('MAAVELUS_OAUTH_ID', '019e6f1a-c6b2-738b-a483-a7a51cb22742'),
         'maavelus_secret' => env('MAAVELUS_OAUTH_SECRET'),
