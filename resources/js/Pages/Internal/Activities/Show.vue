@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { useBackNavigation } from '@/Composables/useBackNavigation';
 import {
     Dialog,
     DialogPanel,
@@ -73,6 +74,11 @@ const backHref = computed(() => {
     if (props.task.customer) return `/customers/${props.task.customer.id}`;
     return '/';
 });
+
+/* Global back: return to where the user actually came from (My Work,
+ * a customer, a project board…). When there's no referrer — a direct
+ * link or a refresh — fall back to the task's own context via backHref. */
+const { goBack } = useBackNavigation(backHref.value);
 
 /* ─── Type → icon component ─── */
 const ICON_BY_NAME = {
@@ -364,10 +370,10 @@ const statusLabel = computed(() => {
 
     <InternalLayout :title="task.title" :breadcrumbs="breadcrumbs" active-nav="">
         <template #topbar-actions>
-            <Link :href="backHref" class="btn btn-ghost btn-sm">
+            <button type="button" class="btn btn-ghost btn-sm" @click="goBack">
                 <IconArrowLeft :size="14" stroke-width="1.75" />
                 Back
-            </Link>
+            </button>
             <button
                 v-if="task.status !== 'complete' && task.type !== 'note'"
                 type="button"

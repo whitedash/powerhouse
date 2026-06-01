@@ -5,8 +5,8 @@
  * input, and the due time. Stateless — the parent owns the
  * `completing` flag and the mutations; this just emits intent.
  */
-import { computed } from 'vue';
-import { IconCircle, IconLoader2, IconVideo } from '@tabler/icons-vue';
+import { computed, ref } from 'vue';
+import { IconCircle, IconLoader2, IconVideo, IconCalendar } from '@tabler/icons-vue';
 
 const props = defineProps({
     task: { type: Object, required: true },
@@ -19,6 +19,14 @@ const isOverdue = computed(() =>
     props.task.due_at_full && new Date(props.task.due_at_full) < new Date(),
 );
 const isCompleting = computed(() => props.completing === props.task.id);
+
+// Inline date fields are too wide for the narrow 3-column board, so the
+// reschedule control is a calendar button that toggles a date popover.
+const showDatePicker = ref(false);
+function pickDate(value) {
+    showDatePicker.value = false;
+    if (value) emit('reschedule', props.task.id, value);
+}
 </script>
 
 <template>
@@ -56,13 +64,25 @@ const isCompleting = computed(() => props.completing === props.task.id);
         </div>
 
         <!-- Quick reschedule -->
-        <input
-            type="date"
-            class="mw-reschedule-input"
-            :value="task.due_at_full ? task.due_at_full.slice(0, 10) : ''"
-            title="Reschedule"
-            @change="emit('reschedule', task.id, $event.target.value)"
-        />
+        <div class="mw-reschedule-wrap">
+            <button
+                type="button"
+                class="mw-reschedule-btn"
+                title="Reschedule"
+                @click.stop="showDatePicker = ! showDatePicker"
+            >
+                <IconCalendar :size="14" stroke-width="1.75" />
+            </button>
+            <input
+                v-if="showDatePicker"
+                type="date"
+                class="mw-date-picker-input"
+                :value="task.due_at_full ? task.due_at_full.slice(0, 10) : ''"
+                @click.stop
+                @change="pickDate($event.target.value)"
+                @blur="showDatePicker = false"
+            />
+        </div>
 
         <!-- Due time -->
         <span class="mw-due-time" :class="{ overdue: isOverdue }">{{ task.due_at }}</span>

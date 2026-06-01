@@ -13,8 +13,8 @@
 import { computed, nextTick, ref } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
-    IconAlertCircle, IconChevronDown, IconChevronUp, IconCircleCheck,
-    IconChecklist, IconCalendarEvent, IconLayoutKanban, IconCalendar,
+    IconAlertCircle, IconChevronDown, IconChevronUp,
+    IconChecklist, IconCalendarWeek, IconLayoutKanban, IconCalendar,
     IconBrandGoogle, IconMapPin, IconFolder, IconVideo, IconX,
 } from '@tabler/icons-vue';
 import FullCalendar from '@fullcalendar/vue3';
@@ -47,7 +47,10 @@ const todayLabel = computed(() =>
 );
 
 /* ─── Tabs ─── */
-const activeTab = ref('today');
+const activeTab = ref('tasks');
+
+/* Upcoming arrives grouped-by-day; flatten just for the column count badge. */
+const upcomingTotal = computed(() => Object.values(props.upcoming).flat().length);
 
 /* ─── Quick complete / reschedule ─── */
 const completing = ref(null);
@@ -317,11 +320,8 @@ function submitCreateTask() {
 
             <!-- ─── Tabs ─── -->
             <nav class="mw-tabs">
-                <button type="button" class="mw-tab" :class="{ active: activeTab === 'today' }" @click="switchTab('today')">
-                    <IconChecklist :size="15" stroke-width="2" /> Today
-                </button>
-                <button type="button" class="mw-tab" :class="{ active: activeTab === 'upcoming' }" @click="switchTab('upcoming')">
-                    <IconCalendarEvent :size="15" stroke-width="2" /> Upcoming
+                <button type="button" class="mw-tab" :class="{ active: activeTab === 'tasks' }" @click="switchTab('tasks')">
+                    <IconChecklist :size="15" stroke-width="2" /> Tasks
                 </button>
                 <button type="button" class="mw-tab" :class="{ active: activeTab === 'projects' }" @click="switchTab('projects')">
                     <IconLayoutKanban :size="15" stroke-width="2" /> Projects
@@ -331,85 +331,97 @@ function submitCreateTask() {
                 </button>
             </nav>
 
-            <!-- ════════ TODAY TAB ════════ -->
-            <div v-show="activeTab === 'today'">
-                <!-- Overdue -->
-                <div v-if="overdue.length" class="mw-section mw-section--alert">
-                    <div class="mw-section-head">
-                        <span class="mw-section-title">
-                            <IconAlertCircle :size="14" stroke-width="2" /> Overdue
-                        </span>
-                        <span class="mw-count-badge badge-danger">{{ overdue.length }}</span>
+            <!-- ════════ TASKS TAB (3-column board) ════════ -->
+            <div v-show="activeTab === 'tasks'">
+                <div class="mw-columns">
+                    <!-- COLUMN 1: OVERDUE -->
+                    <div class="mw-col mw-col--overdue">
+                        <div class="mw-col-head">
+                            <span class="mw-col-title">
+                                <IconAlertCircle :size="14" stroke-width="2" /> Overdue
+                            </span>
+                            <span class="mw-col-badge" :class="{ 'mw-col-badge--danger': overdue.length }">{{ overdue.length }}</span>
+                        </div>
+                        <div class="mw-col-body">
+                            <MyWorkTaskRow
+                                v-for="task in overdue"
+                                :key="task.id"
+                                :task="task"
+                                :completing="completing"
+                                @complete="quickComplete"
+                                @reschedule="quickReschedule"
+                                @open="goToTask"
+                            />
+                            <div v-if="! overdue.length" class="mw-col-empty">No overdue tasks ✓</div>
+                        </div>
                     </div>
-                    <MyWorkTaskRow
-                        v-for="task in overdue"
-                        :key="task.id"
-                        :task="task"
-                        :completing="completing"
-                        @complete="quickComplete"
-                        @reschedule="quickReschedule"
-                        @open="goToTask"
-                    />
-                </div>
 
-                <!-- Due today -->
-                <div class="mw-section">
-                    <div class="mw-section-head">
-                        <span class="mw-section-title">Today</span>
-                        <span class="mw-count-badge">{{ due_today.length }}</span>
+                    <!-- COLUMN 2: DUE TODAY (+ unscheduled at the bottom) -->
+                    <div class="mw-col mw-col--today">
+                        <div class="mw-col-head">
+                            <span class="mw-col-title">
+                                <IconCalendar :size="14" stroke-width="2" /> Today
+                            </span>
+                            <span class="mw-col-badge">{{ due_today.length }}</span>
+                        </div>
+                        <div class="mw-col-body">
+                            <MyWorkTaskRow
+                                v-for="task in due_today"
+                                :key="task.id"
+                                :task="task"
+                                :completing="completing"
+                                @complete="quickComplete"
+                                @reschedule="quickReschedule"
+                                @open="goToTask"
+                            />
+                            <div v-if="! due_today.length" class="mw-col-empty">Nothing due today 🎉</div>
+
+                            <!-- Unscheduled, parked at the bottom of Today -->
+                            <div v-if="unscheduled.length" class="mw-col-section">
+                                <button type="button" class="mw-col-section-toggle" @click="showUnscheduled = ! showUnscheduled">
+                                    Unscheduled
+                                    <span class="mw-col-badge">{{ unscheduled.length }}</span>
+                                    <component :is="showUnscheduled ? IconChevronUp : IconChevronDown" :size="13" stroke-width="2" />
+                                </button>
+                                <template v-if="showUnscheduled">
+                                    <MyWorkTaskRow
+                                        v-for="task in unscheduled"
+                                        :key="task.id"
+                                        :task="task"
+                                        :completing="completing"
+                                        @complete="quickComplete"
+                                        @reschedule="quickReschedule"
+                                        @open="goToTask"
+                                    />
+                                </template>
+                            </div>
+                        </div>
                     </div>
-                    <MyWorkTaskRow
-                        v-for="task in due_today"
-                        :key="task.id"
-                        :task="task"
-                        :completing="completing"
-                        @complete="quickComplete"
-                        @reschedule="quickReschedule"
-                        @open="goToTask"
-                    />
-                    <div v-if="! due_today.length" class="mw-empty">Nothing due today 🎉</div>
-                </div>
 
-                <!-- Unscheduled (collapsed by default) -->
-                <div v-if="unscheduled.length" class="mw-section">
-                    <button type="button" class="mw-section-head mw-section-toggle" @click="showUnscheduled = ! showUnscheduled">
-                        <span class="mw-section-title">Unscheduled</span>
-                        <span class="mw-count-badge">{{ unscheduled.length }}</span>
-                        <component :is="showUnscheduled ? IconChevronUp : IconChevronDown" :size="14" stroke-width="2" />
-                    </button>
-                    <template v-if="showUnscheduled">
-                        <MyWorkTaskRow
-                            v-for="task in unscheduled"
-                            :key="task.id"
-                            :task="task"
-                            :completing="completing"
-                            @complete="quickComplete"
-                            @reschedule="quickReschedule"
-                            @open="goToTask"
-                        />
-                    </template>
-                </div>
-            </div>
-
-            <!-- ════════ UPCOMING TAB ════════ -->
-            <div v-show="activeTab === 'upcoming'">
-                <div v-if="Object.keys(upcoming).length === 0" class="mw-section">
-                    <div class="mw-empty">Nothing scheduled ahead.</div>
-                </div>
-                <div v-for="(tasks, day) in upcoming" :key="day" class="mw-section">
-                    <div class="mw-section-head">
-                        <span class="mw-section-title">{{ day }}</span>
-                        <span class="mw-count-badge">{{ tasks.length }}</span>
+                    <!-- COLUMN 3: UPCOMING -->
+                    <div class="mw-col mw-col--upcoming">
+                        <div class="mw-col-head">
+                            <span class="mw-col-title">
+                                <IconCalendarWeek :size="14" stroke-width="2" /> Upcoming
+                            </span>
+                            <span class="mw-col-badge">{{ upcomingTotal }}</span>
+                        </div>
+                        <div class="mw-col-body">
+                            <template v-for="(tasks, day) in upcoming" :key="day">
+                                <div class="mw-day-header">{{ day }}</div>
+                                <MyWorkTaskRow
+                                    v-for="task in tasks"
+                                    :key="task.id"
+                                    :task="task"
+                                    :completing="completing"
+                                    @complete="quickComplete"
+                                    @reschedule="quickReschedule"
+                                    @open="goToTask"
+                                />
+                            </template>
+                            <div v-if="! upcomingTotal" class="mw-col-empty">Nothing upcoming</div>
+                        </div>
                     </div>
-                    <MyWorkTaskRow
-                        v-for="task in tasks"
-                        :key="task.id"
-                        :task="task"
-                        :completing="completing"
-                        @complete="quickComplete"
-                        @reschedule="quickReschedule"
-                        @open="goToTask"
-                    />
                 </div>
             </div>
 

@@ -66,6 +66,14 @@ class HandleInertiaRequests extends Middleware
              */
             'portal_preview_mode' => fn (): bool => (bool) $request->session()->get('portal_preview_mode', false),
             'referrer_preview_mode' => fn (): bool => (bool) $request->session()->get('referrer_preview_mode', false),
+            /*
+             * Previous URL — powers the global "Back" button via the
+             * useBackNavigation composable. Reads the Referer header
+             * (URL::previous) so a back button returns to wherever the
+             * user actually came from, not a hardcoded route. Falls back
+             * to the dashboard when there's no referrer (direct link).
+             */
+            'previous_url' => fn (): string => url()->previous(route('internal.dashboard')),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
