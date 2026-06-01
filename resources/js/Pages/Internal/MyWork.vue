@@ -80,7 +80,11 @@ const csrf = () => document.querySelector('meta[name=csrf-token]')?.content ?? '
 // the `url` field FullCalendar would otherwise hijack).
 const fetchCalendarEvents = async (info, successCallback, failureCallback) => {
     try {
-        const res = await fetch(`/my-work/calendar?start=${info.startStr}&end=${info.endStr}`, {
+        // encodeURIComponent is required: during BST, FullCalendar's
+        // startStr/endStr carry a "+01:00" offset, and a raw "+" in a query
+        // string decodes to a space server-side ("...T00:00:00 01:00"),
+        // which Carbon::parse rejects ("Double time specification") → 500.
+        const res = await fetch(`/my-work/calendar?start=${encodeURIComponent(info.startStr)}&end=${encodeURIComponent(info.endStr)}`, {
             headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         });
         if (! res.ok) throw new Error('calendar fetch failed');

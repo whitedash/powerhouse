@@ -25,7 +25,9 @@ class SecurityHeaders
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.bunny.net",
             "style-src 'self' 'unsafe-inline' https://fonts.bunny.net",
-            "font-src 'self' https://fonts.bunny.net",
+            // data: is required for FullCalendar's embedded `fcicons` font
+            // (the prev/next chevron glyphs ship as a base64 data: URI).
+            "font-src 'self' https://fonts.bunny.net data:",
             "img-src 'self' data: blob:",
             "connect-src 'self'",
             "frame-ancestors 'none'",
