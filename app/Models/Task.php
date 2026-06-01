@@ -43,6 +43,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Task> $childTasks
  * @property-read Collection<int, Note> $notes
  * @property-read Collection<int, TimeEntry> $timeEntries
+ * @property-read Collection<int, TaskAttachment> $attachments
  * @property-read User|null $assignedTo
  * @property-read User|null $createdBy
  * @property-read bool $is_overdue
@@ -174,6 +175,16 @@ class Task extends Model
     public function timeEntries(): HasMany
     {
         return $this->hasMany(TimeEntry::class);
+    }
+
+    /**
+     * File attachments. Cascade-deleted with the task at the DB level;
+     * the stored blobs on the private disk are removed explicitly in the
+     * controller's destroy() so we never orphan files.
+     */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(TaskAttachment::class);
     }
 
     /**

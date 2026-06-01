@@ -22,15 +22,27 @@ import {
     IconHeadset,
     IconMail,
     IconNotes,
+    IconPaperclip,
     IconPencil,
     IconPhone,
     IconPin,
     IconPlus,
     IconReceipt,
+    IconTrash,
+    IconUpload,
     IconUser,
     IconUserCheck,
     IconUsersGroup,
     IconX,
+    IconLoader2,
+    IconFile,
+    IconFileTypePdf,
+    IconFileTypeDoc,
+    IconFileTypeXls,
+    IconFileTypePpt,
+    IconFileTypeCsv,
+    IconFileZip,
+    IconPhoto,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -40,6 +52,7 @@ const props = defineProps({
     related: { type: Array, default: () => [] },
     staff: { type: Array, default: () => [] },
     contacts: { type: Array, default: () => [] },
+    attachments: { type: Array, default: () => [] },
     me_id: { type: Number, default: null },
 });
 
@@ -49,6 +62,17 @@ const breadcrumbs = computed(() => [
         : { label: 'Activities', href: '/' },
     { label: 'Activity detail' },
 ]);
+
+/* ─── Back button target ───
+ * A PM task returns to its project board; a CRM task to its customer;
+ * an orphan task to the Overview (the activities list lives there — there
+ * is no standalone /activities index). history.back() is deliberately
+ * avoided: it breaks when the page was opened from a direct link. */
+const backHref = computed(() => {
+    if (props.task.project_id) return `/projects/${props.task.project_id}`;
+    if (props.task.customer) return `/customers/${props.task.customer.id}`;
+    return '/';
+});
 
 /* ─── Type → icon component ─── */
 const ICON_BY_NAME = {
@@ -121,13 +145,102 @@ function togglePin() {
     router.post(`/tasks/${props.task.id}/pin`, {}, { preserveScroll: true });
 }
 
-/* ─── Edit (inline button) — redirects back to customer detail
- *    where the edit slide-over already lives. Building a duplicate
- *    slide-over here would double the surface for no benefit. ─── */
+/* ─── Edit slide-over ───
+ * The old button redirected to /customers/{id}?edit_task=… but nothing on
+ * the customer page consumed that param, so Edit was a dead end (and a
+ * total no-op for project/orphan tasks with no customer). The slide-over
+ * lives here now and PUTs to /tasks/{id}, working for every task type. */
+const TYPES = ['task', 'call', 'email', 'meeting', 'note'];
+const PRIORITIES = ['low', 'medium', 'high'];
+const showEdit = ref(false);
+const editForm = useForm({
+    type: props.task.type,
+    title: props.task.title ?? '',
+    description: props.task.description ?? '',
+    priority: props.task.priority ?? 'medium',
+    due_at: '',
+    assigned_to: props.task.assigned_to ?? null,
+    // contact_id is sent back so the controller (which nulls it when
+    // absent) preserves the existing contact on a plain edit.
+    contact_id: props.task.contact?.id ?? null,
+    duration_minutes: props.task.duration_minutes ?? null,
+});
+function toLocalInput(iso) {
+    if (! iso) return '';
+    const d = new Date(iso);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 function editActivity() {
-    if (props.task.customer) {
-        router.visit(`/customers/${props.task.customer.id}?edit_task=${props.task.id}`);
-    }
+    editForm.type = props.task.type;
+    editForm.title = props.task.title ?? '';
+    editForm.description = props.task.description ?? '';
+    editForm.priority = props.task.priority ?? 'medium';
+    editForm.due_at = toLocalInput(props.task.due_at);
+    editForm.assigned_to = props.task.assigned_to ?? null;
+    editForm.contact_id = props.task.contact?.id ?? null;
+    editForm.duration_minutes = props.task.duration_minutes ?? null;
+    editForm.clearErrors();
+    showEdit.value = true;
+}
+function submitEdit() {
+    editForm
+        .transform((data) => ({
+            ...data,
+            // Notes carry no schedule; the controller enforces this too.
+            due_at: data.type === 'note' ? null : (data.due_at || null),
+        }))
+        .put(`/tasks/${props.task.id}`, {
+            preserveScroll: true,
+            onSuccess: () => { showEdit.value = false; },
+        });
+}
+
+/* ─── Attachments ─── */
+const ATT_ICON = {
+    pdf: IconFileTypePdf,
+    doc: IconFileTypeDoc,
+    xls: IconFileTypeXls,
+    ppt: IconFileTypePpt,
+    csv: IconFileTypeCsv,
+    image: IconPhoto,
+    zip: IconFileZip,
+    file: IconFile,
+};
+function attIcon(key) {
+    return ATT_ICON[key] ?? IconFile;
+}
+const uploading = ref(false);
+function uploadFile(event) {
+    const file = event.target.files?.[0];
+    if (! file) return;
+    uploading.value = true;
+    const formData = new FormData();
+    formData.append('file', file);
+    router.post(`/tasks/${props.task.id}/attachments`, formData, {
+        forceFormData: true,
+        preserveScroll: true,
+        onFinish: () => {
+            uploading.value = false;
+            event.target.value = '';
+        },
+    });
+}
+const showDeleteAttModal = ref(false);
+const attToDelete = ref(null);
+function askDeleteAttachment(att) {
+    attToDelete.value = att;
+    showDeleteAttModal.value = true;
+}
+function performDeleteAttachment() {
+    if (! attToDelete.value) return;
+    router.delete(`/tasks/attachments/${attToDelete.value.id}`, {
+        preserveScroll: true,
+        onFinish: () => {
+            showDeleteAttModal.value = false;
+            attToDelete.value = null;
+        },
+    });
 }
 
 /* ─── Delete with ConfirmModal ─── */
@@ -251,10 +364,7 @@ const statusLabel = computed(() => {
 
     <InternalLayout :title="task.title" :breadcrumbs="breadcrumbs" active-nav="">
         <template #topbar-actions>
-            <Link
-                :href="task.customer ? `/customers/${task.customer.id}` : '/'"
-                class="btn btn-ghost btn-sm"
-            >
+            <Link :href="backHref" class="btn btn-ghost btn-sm">
                 <IconArrowLeft :size="14" stroke-width="1.75" />
                 Back
             </Link>
@@ -482,6 +592,55 @@ const statusLabel = computed(() => {
                             </div>
                         </div>
                     </div>
+
+                    <!-- Attachments -->
+                    <div class="card act-show-attachments">
+                        <div class="card-header">
+                            <div class="h-icon"><IconPaperclip :size="16" stroke-width="1.75" /></div>
+                            <div>
+                                <h3>Attachments</h3>
+                                <div class="sub">{{ attachments.length }} {{ attachments.length === 1 ? 'file' : 'files' }}</div>
+                            </div>
+                            <div class="right">
+                                <label class="btn btn-ghost btn-sm att-upload-label" :class="{ 'is-disabled': uploading }">
+                                    <IconUpload :size="14" stroke-width="1.75" />
+                                    Add file
+                                    <input
+                                        type="file"
+                                        hidden
+                                        :disabled="uploading"
+                                        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.zip,.txt,.csv"
+                                        @change="uploadFile"
+                                    >
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="act-show-att-body">
+                            <div v-if="uploading" class="att-uploading">
+                                <IconLoader2 :size="16" stroke-width="1.75" class="spin" />
+                                Uploading…
+                            </div>
+
+                            <div v-if="attachments.length" class="att-list">
+                                <div v-for="att in attachments" :key="att.id" class="att-row">
+                                    <component :is="attIcon(att.icon)" :size="22" stroke-width="1.75" class="att-icon" />
+                                    <div class="att-info">
+                                        <a :href="att.download_url" class="att-name" target="_blank" rel="noopener">{{ att.filename }}</a>
+                                        <span class="att-meta">{{ att.size }} · {{ att.uploaded_by ?? 'Unknown' }} · {{ att.uploaded_at }}</span>
+                                    </div>
+                                    <button type="button" class="icon-btn att-del" title="Remove attachment" @click="askDeleteAttachment(att)">
+                                        <IconTrash :size="15" stroke-width="1.75" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div v-else-if="! uploading" class="att-empty">
+                                <IconPaperclip :size="24" stroke-width="1.5" />
+                                No attachments yet
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- RIGHT — linked / related / customer -->
@@ -637,6 +796,16 @@ const statusLabel = computed(() => {
             @confirm="performDelete"
         />
 
+        <!-- ═══ DELETE ATTACHMENT MODAL ═══ -->
+        <ConfirmModal
+            v-model:show="showDeleteAttModal"
+            :title="attToDelete ? `Remove '${attToDelete.filename}'?` : 'Remove attachment?'"
+            message="This file will be permanently deleted. This cannot be undone."
+            confirm-label="Remove file"
+            variant="danger"
+            @confirm="performDeleteAttachment"
+        />
+
         <!-- ═══ LINKED SUB-TASK SLIDE-OVER ═══ -->
         <TransitionRoot as="template" :show="showSubTaskForm">
             <Dialog as="div" class="slide-over-dialog" @close="showSubTaskForm = false">
@@ -738,6 +907,121 @@ const statusLabel = computed(() => {
                                 <button type="submit" class="btn btn-primary" :disabled="subTaskForm.processing">
                                     <IconPlus :size="14" stroke-width="2" />
                                     {{ subTaskForm.processing ? 'Creating…' : 'Create linked task' }}
+                                </button>
+                            </footer>
+                        </form>
+                    </DialogPanel>
+                </TransitionChild>
+            </Dialog>
+        </TransitionRoot>
+
+        <!-- ═══ EDIT ACTIVITY SLIDE-OVER ═══ -->
+        <TransitionRoot as="template" :show="showEdit">
+            <Dialog as="div" class="slide-over-dialog" @close="showEdit = false">
+                <TransitionChild
+                    as="template"
+                    enter="transition-opacity ease-out duration-200" enter-from="opacity-0" enter-to="opacity-100"
+                    leave="transition-opacity ease-in duration-150" leave-from="opacity-100" leave-to="opacity-0"
+                >
+                    <div class="slide-over-backdrop" />
+                </TransitionChild>
+                <TransitionChild
+                    as="template"
+                    enter="transform transition ease-out duration-200" enter-from="translate-x-full" enter-to="translate-x-0"
+                    leave="transform transition ease-in duration-150" leave-from="translate-x-0" leave-to="translate-x-full"
+                >
+                    <DialogPanel class="slide-over-panel">
+                        <form class="slide-over-form" @submit.prevent="submitEdit">
+                            <header class="slide-over-header">
+                                <h2>Edit activity</h2>
+                                <button type="button" class="icon-btn" aria-label="Close" @click="showEdit = false">
+                                    <IconX :size="18" stroke-width="1.75" />
+                                </button>
+                            </header>
+                            <div class="slide-over-body">
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Type</label>
+                                            <select v-model="editForm.type">
+                                                <option v-for="t in TYPES" :key="t" :value="t">{{ TYPE_LABEL[t] ?? t }}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Title</label>
+                                            <input v-model="editForm.title" type="text" maxlength="500" :class="{ 'has-err': editForm.errors.title }">
+                                            <div v-if="editForm.errors.title" class="err">{{ editForm.errors.title }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Details</label>
+                                            <textarea v-model="editForm.description" rows="3" maxlength="5000" />
+                                            <div v-if="editForm.errors.description" class="err">{{ editForm.errors.description }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-section">
+                                    <div class="form-row">
+                                        <div class="form-field">
+                                            <label>Priority</label>
+                                            <div class="priority-pills">
+                                                <button
+                                                    v-for="p in PRIORITIES"
+                                                    :key="p"
+                                                    type="button"
+                                                    class="pp-btn"
+                                                    :class="[p, { active: editForm.priority === p }]"
+                                                    @click="editForm.priority = p"
+                                                >{{ p.charAt(0).toUpperCase() + p.slice(1) }}</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-if="editForm.type !== 'note'" class="form-section">
+                                    <div class="form-row">
+                                        <div class="form-field">
+                                            <label>Due</label>
+                                            <input v-model="editForm.due_at" type="datetime-local">
+                                            <div v-if="editForm.errors.due_at" class="err">{{ editForm.errors.due_at }}</div>
+                                        </div>
+                                        <div class="form-field">
+                                            <label>Duration (min)</label>
+                                            <input v-model.number="editForm.duration_minutes" type="number" min="1" max="480">
+                                            <div v-if="editForm.errors.duration_minutes" class="err">{{ editForm.errors.duration_minutes }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-if="contacts.length" class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Contact</label>
+                                            <select v-model="editForm.contact_id">
+                                                <option :value="null">— no specific contact —</option>
+                                                <option v-for="c in contacts" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Assign to</label>
+                                            <select v-model="editForm.assigned_to" :class="{ 'has-err': editForm.errors.assigned_to }">
+                                                <option v-for="u in staff" :key="u.id" :value="u.id">{{ u.name }}</option>
+                                            </select>
+                                            <div v-if="editForm.errors.assigned_to" class="err">{{ editForm.errors.assigned_to }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <footer class="slide-over-footer">
+                                <button type="button" class="btn btn-secondary" @click="showEdit = false">Cancel</button>
+                                <button type="submit" class="btn btn-primary" :disabled="editForm.processing">
+                                    <IconCheck :size="14" stroke-width="2" />
+                                    {{ editForm.processing ? 'Saving…' : 'Save changes' }}
                                 </button>
                             </footer>
                         </form>

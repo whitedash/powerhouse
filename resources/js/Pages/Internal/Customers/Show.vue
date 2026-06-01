@@ -24,6 +24,7 @@ import {
     IconActivity,
     IconArrowRight,
     IconExternalLink,
+    IconInfoCircle,
     IconPlus,
     IconDownload,
     IconSend,
@@ -3918,6 +3919,13 @@ function confirmDeleteWebsite() {
                                 <option :value="null">— None —</option>
                                 <option v-for="p in (customer.hosting_products ?? [])" :key="p.id" :value="p.id">{{ p.label }}</option>
                             </select>
+                            <div v-if="! (customer.hosting_products ?? []).length" class="hosting-empty-hint">
+                                <IconInfoCircle :size="14" stroke-width="1.75" />
+                                <span>
+                                    No active hosting subscriptions for this customer.
+                                    <Link href="/provisioning">Activate a hosting plan first →</Link>
+                                </span>
+                            </div>
                         </div>
                         <div class="form-row-2">
                             <div class="form-section">

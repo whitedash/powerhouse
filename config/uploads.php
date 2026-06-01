@@ -12,6 +12,7 @@ return [
         'contract' => 20 * 1024 * 1024,  // 20 MB
         'import' => 10 * 1024 * 1024,    // 10 MB
         'receipt' => 5 * 1024 * 1024,    // 5 MB — PDF or photo
+        'task_attachment' => 10 * 1024 * 1024, // 10 MB — docs, sheets, images, archives
         'default' => 5 * 1024 * 1024,    // 5 MB
     ],
 
@@ -45,6 +46,28 @@ return [
             'application/vnd.ms-excel',
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ],
+        // Task attachments accept the common office/doc/image/archive set.
+        // OOXML files (docx/xlsx/pptx) frequently sniff as application/zip
+        // via mime_content_type (they ARE zip containers), so the zip MIMEs
+        // are allow-listed too — without them a legitimate .docx is rejected
+        // because the real-bytes check disagrees with the client MIME.
+        'task_attachment' => [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'application/zip',
+            'application/x-zip-compressed',
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+            'image/webp',
+            'text/plain',
+            'text/csv',
+        ],
     ],
 
     /*
@@ -58,11 +81,18 @@ return [
         'image/png' => 'png',
         'image/svg+xml' => 'svg',
         'image/webp' => 'webp',
+        'image/gif' => 'gif',
         'application/pdf' => 'pdf',
         'text/csv' => 'csv',
         'text/plain' => 'csv',
         'application/vnd.ms-excel' => 'xls',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+        'application/msword' => 'doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+        'application/vnd.ms-powerpoint' => 'ppt',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation' => 'pptx',
+        'application/zip' => 'zip',
+        'application/x-zip-compressed' => 'zip',
     ],
 
     /*

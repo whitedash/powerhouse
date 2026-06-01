@@ -166,6 +166,17 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::post('/tasks/{id}/pin', [InternalTaskController::class, 'togglePin'])->name('internal.tasks.pin');
     Route::delete('/tasks/{id}', [InternalTaskController::class, 'destroy'])->name('internal.tasks.destroy');
 
+    // Task file attachments. Upload is scoped to a task id; download +
+    // destroy act on the attachment id. The literal 'attachments' segment
+    // can't collide with the numeric {id} routes — these are two-segment
+    // paths and the new ones pin {id} to digits with whereNumber.
+    Route::post('/tasks/{id}/attachments', [InternalTaskController::class, 'uploadAttachment'])
+        ->whereNumber('id')->name('internal.tasks.attachments.upload');
+    Route::get('/tasks/attachments/{id}/download', [InternalTaskController::class, 'downloadAttachment'])
+        ->whereNumber('id')->name('internal.tasks.attachments.download');
+    Route::delete('/tasks/attachments/{id}', [InternalTaskController::class, 'destroyAttachment'])
+        ->whereNumber('id')->name('internal.tasks.attachments.destroy');
+
     // Activity detail page (per task). /activities/{id} stays semantic
     // — "activity" is the user-facing word for a task even though the
     // controller is still TaskController.

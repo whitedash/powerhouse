@@ -8,7 +8,9 @@ use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\Milestone;
 use App\Models\Task;
+use App\Models\TaskAttachment;
 use App\Models\User;
+use App\Services\FileUploadService;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -16,9 +18,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TaskController extends Controller
 {
@@ -42,6 +46,8 @@ class TaskController extends Controller
             'notes' => fn ($q) => $q->orderBy('created_at')
                 ->with('author:id,name,avatar_colour'),
             'childTasks' => fn ($q) => $q->with('assignedTo:id,name,avatar_colour'),
+            'attachments' => fn ($q) => $q->orderByDesc('created_at')
+                ->with('uploadedBy:id,name'),
         ])->findOrFail($id);
 
         // Authorisation. Tasks attached to a customer ride the
@@ -124,6 +130,9 @@ class TaskController extends Controller
                 'is_pinned' => $task->is_pinned,
                 'is_overdue' => $task->is_overdue,
                 'created_at' => $task->created_at?->format('d M Y, H:i'),
+                // project_id drives the activity detail "Back" button — a
+                // PM task returns to its board, a CRM task to its customer.
+                'project_id' => $task->project_id,
                 'customer_id' => $task->customer_id,
                 'customer' => $task->customer ? [
                     'id' => $task->customer->id,
@@ -184,6 +193,16 @@ class TaskController extends Controller
             'related' => $related,
             'staff' => $staff,
             'contacts' => $contacts,
+            'attachments' => $task->attachments->map(fn (TaskAttachment $a): array => [
+                'id' => $a->id,
+                'filename' => $a->filename,
+                'mime_type' => $a->mime_type,
+                'size' => $this->formatBytes($a->size_bytes),
+                'uploaded_by' => $a->uploadedBy?->name,
+                'uploaded_at' => $a->created_at?->diffForHumans(),
+                'download_url' => route('internal.tasks.attachments.download', $a->id),
+                'icon' => $this->mimeIcon($a->mime_type),
+            ])->values()->all(),
             // me lets the frontend default the "Assign to" picker in
             // the linked-task slide-over without an extra fetch.
             'me_id' => $user->id,
@@ -359,6 +378,158 @@ class TaskController extends Controller
         $this->logActivity($request, 'task.deleted', $task, before: $snapshot);
 
         return back()->with('success', 'Activity deleted.');
+    }
+
+    /**
+     * Attach a file to a task. The upload is routed through
+     * FileUploadService (mandatory) which enforces the size limit, checks
+     * the real bytes against the task_attachment MIME allow-list, strips
+     * image EXIF, and stores under a UUID name on the private disk — the
+     * client filename is kept only as display metadata, never as a path.
+     */
+    public function uploadAttachment(int $id, Request $request, FileUploadService $uploads): RedirectResponse
+    {
+        $task = Task::with('customer')->findOrFail($id);
+        $user = $request->user();
+        $this->authorizeTaskEdit($task, $user);
+
+        $request->validate([
+            'file' => ['required', 'file', 'max:10240'],
+        ]);
+
+        $file = $request->file('file');
+        $originalName = $file->getClientOriginalName();
+        $clientMime = $file->getClientMimeType();
+        $size = $file->getSize();
+
+        // Throws a ValidationException on a disallowed type/oversize file,
+        // which surfaces as a form error on `file` — no extra handling.
+        $path = $uploads->store($file, 'task_attachment');
+
+        DB::transaction(function () use ($task, $originalName, $clientMime, $size, $path, $user, $request) {
+            $attachment = TaskAttachment::create([
+                'task_id' => $task->id,
+                'filename' => $originalName,
+                'path' => $path,
+                'mime_type' => $clientMime,
+                'size_bytes' => $size,
+                'uploaded_by' => $user->id,
+            ]);
+
+            $this->logActivity($request, 'task.attachment_uploaded', $task, after: [
+                'attachment_id' => $attachment->id,
+                'filename' => $attachment->filename,
+                'size_bytes' => $attachment->size_bytes,
+            ]);
+        });
+
+        return back()->with('success', 'Attachment uploaded.');
+    }
+
+    public function downloadAttachment(int $id, Request $request): StreamedResponse
+    {
+        $attachment = TaskAttachment::with('task.customer')->findOrFail($id);
+        // Read access mirrors the detail page: customer-view for CRM tasks,
+        // ownership-or-super_admin for orphans. Without this any signed-in
+        // user could pull any file by id (IDOR).
+        $this->authorizeTaskView($attachment->task, $request->user());
+
+        abort_unless(
+            Storage::disk('private')->exists($attachment->path),
+            404,
+            'File not found.',
+        );
+
+        return Storage::disk('private')->download($attachment->path, $attachment->filename);
+    }
+
+    public function destroyAttachment(int $id, Request $request, FileUploadService $uploads): RedirectResponse
+    {
+        $attachment = TaskAttachment::with('task.customer')->findOrFail($id);
+        $task = $attachment->task;
+        $this->authorizeTaskEdit($task, $request->user());
+
+        $snapshot = ['attachment_id' => $attachment->id, 'filename' => $attachment->filename];
+        $path = $attachment->path;
+
+        // Drop the row inside the transaction, then delete the blob only
+        // after the commit — a rolled-back delete must not orphan a live
+        // row pointing at a file that's already gone.
+        DB::transaction(function () use ($attachment, $task, $request, $snapshot) {
+            $attachment->delete();
+            $this->logActivity($request, 'task.attachment_deleted', $task, before: $snapshot);
+        });
+
+        $uploads->delete($path);
+
+        return back()->with('success', 'Attachment removed.');
+    }
+
+    /**
+     * View-level access to a task: customer-view gate for CRM tasks,
+     * ownership-or-super_admin for orphan (customer_id null) tasks. Mirrors
+     * the gate in show().
+     */
+    private function authorizeTaskView(Task $task, User $user): void
+    {
+        if ($task->customer_id !== null) {
+            Gate::authorize('view', $task->customer);
+        } else {
+            abort_unless(
+                $task->assigned_to === $user->id
+                    || $task->created_by === $user->id
+                    || $user->isSuperAdmin(),
+                403,
+                'You do not have access to this activity.',
+            );
+        }
+    }
+
+    /**
+     * Edit-level access: creator, assignee, or super_admin — the same rule
+     * update() enforces, so attaching/removing files can't be done by
+     * someone who couldn't edit the task itself.
+     */
+    private function authorizeTaskEdit(Task $task, User $user): void
+    {
+        abort_unless(
+            $task->created_by === $user->id
+                || $task->assigned_to === $user->id
+                || $user->isSuperAdmin(),
+            403,
+            'You can only modify activities you own or are assigned to.',
+        );
+    }
+
+    private function formatBytes(int $bytes): string
+    {
+        if ($bytes < 1024) {
+            return $bytes.' B';
+        }
+        if ($bytes < 1048576) {
+            return round($bytes / 1024, 1).' KB';
+        }
+
+        return round($bytes / 1048576, 1).' MB';
+    }
+
+    /**
+     * Coarse file-category key for the frontend icon map. Returns a plain
+     * token (pdf/doc/xls/ppt/csv/image/zip/file) rather than a CSS class —
+     * the UI renders @tabler/icons-vue components, there's no icon webfont.
+     */
+    private function mimeIcon(string $mime): string
+    {
+        return match (true) {
+            str_contains($mime, 'pdf') => 'pdf',
+            str_contains($mime, 'word'), str_contains($mime, 'document') => 'doc',
+            str_contains($mime, 'sheet'), str_contains($mime, 'excel') => 'xls',
+            str_contains($mime, 'presentation'), str_contains($mime, 'powerpoint') => 'ppt',
+            str_contains($mime, 'csv') => 'csv',
+            str_contains($mime, 'image') => 'image',
+            str_contains($mime, 'zip') => 'zip',
+            default => 'file',
+        };
     }
 
     /**
