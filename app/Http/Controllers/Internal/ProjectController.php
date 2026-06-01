@@ -140,6 +140,11 @@ class ProjectController extends Controller
             'timeEntries' => fn ($q) => $q
                 ->with('user:id,name,avatar_colour')
                 ->with('task:id,title')
+                // effective_rate / billable_amount fall back to the
+                // project's hourly_rate when the entry has none, so the
+                // project must be eager loaded or the accessor would lazy
+                // load it (LazyLoadingViolationException).
+                ->with('project:id,hourly_rate')
                 ->orderByDesc('logged_at')
                 ->take(50),
         ])->whereNull('archived_at')->findOrFail($id);

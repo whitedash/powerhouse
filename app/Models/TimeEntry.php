@@ -101,11 +101,21 @@ class TimeEntry extends Model
             if ($this->hourly_rate !== null) {
                 return (float) $this->hourly_rate;
             }
-            // phpstan sees TimeEntry::project as non-null because
-            // project_id is NOT NULL in the schema — drop the nullsafe.
-            $rate = $this->project->hourly_rate;
 
-            return $rate !== null ? (float) $rate : 0.0;
+            // Safety net: only fall back to the project rate when the
+            // relation is already loaded. Never lazy load here — callers
+            // must eager load `project` (lazy loading is disabled app-wide
+            // and would throw LazyLoadingViolationException).
+            if ($this->relationLoaded('project')) {
+                // project_id is NOT NULL, so once the relation is loaded
+                // the project is always present — phpstan types it non-null,
+                // hence no nullsafe operator.
+                $rate = $this->project->hourly_rate;
+
+                return $rate !== null ? (float) $rate : 0.0;
+            }
+
+            return 0.0;
         });
     }
 
