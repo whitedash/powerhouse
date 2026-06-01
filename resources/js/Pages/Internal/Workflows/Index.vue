@@ -15,7 +15,9 @@ import { ref, computed, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import {
     IconPlus, IconX, IconBolt, IconDots, IconTrash, IconEdit,
-    IconChevronUp, IconChevronDown, IconCheck,
+    IconChevronUp, IconChevronDown, IconCheck, IconPencil,
+    IconForms, IconWebhook, IconUserPlus, IconUserCheck, IconRefresh,
+    IconNote, IconBell, IconUsersGroup, IconClick, IconCheckbox,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -45,6 +47,70 @@ const ACTION_LABEL = {
     add_to_group: 'Add to group',
     webhook_outbound: 'Outbound webhook',
 };
+
+// Server emits a type string; the client maps it to a Tabler *component*
+// (no icon webfont is loaded) + a brand colour for the action card chip.
+const TRIGGER_ICONS = {
+    form_submitted: IconForms,
+    webhook_received: IconWebhook,
+    lead_created: IconUserPlus,
+    lead_status_changed: IconUserCheck,
+    manual: IconClick,
+};
+const ACTION_ICONS = {
+    create_lead: IconUserPlus,
+    update_lead_status: IconRefresh,
+    create_task: IconCheckbox,
+    assign_to_user: IconUserCheck,
+    add_note: IconNote,
+    send_notification: IconBell,
+    add_to_group: IconUsersGroup,
+    webhook_outbound: IconWebhook,
+};
+const ACTION_COLOURS = {
+    create_lead: '#10B981',
+    update_lead_status: '#F59E0B',
+    create_task: '#3B82F6',
+    assign_to_user: '#06B6D4',
+    add_note: '#8B5CF6',
+    send_notification: '#F97316',
+    add_to_group: '#64748B',
+    webhook_outbound: '#6366F1',
+};
+function triggerIcon(t) { return TRIGGER_ICONS[t] ?? IconBolt; }
+function triggerLabel(t) { return TRIGGER_LABEL[t] ?? t; }
+function actionIcon(t) { return ACTION_ICONS[t] ?? IconBolt; }
+function actionColour(t) { return ACTION_COLOURS[t] ?? '#64748B'; }
+function actionLabel(t) { return ACTION_LABEL[t] ?? t; }
+
+// One-line human summary of a configured action for the card.
+function actionSummary(a) {
+    const c = a.config || {};
+    switch (a.action_type) {
+        case 'create_lead':
+            return 'Create a new lead';
+        case 'create_task':
+            return c.title_template ? `Create task: ${c.title_template}` : 'Create a task';
+        case 'assign_to_user': {
+            const u = props.staff.find(s => s.id === c.user_id);
+            return u ? `Assign to ${u.name}` : 'Assign to a user';
+        }
+        case 'update_lead_status':
+            return c.status ? `Set status → ${c.status}` : 'Update lead status';
+        case 'add_note':
+            return 'Add a note';
+        case 'send_notification': {
+            const u = props.staff.find(s => s.id === c.user_id);
+            return u ? `Notify ${u.name}` : 'Send a notification';
+        }
+        case 'add_to_group':
+            return 'Add to a group';
+        case 'webhook_outbound':
+            return 'Send an outbound webhook';
+        default:
+            return ACTION_LABEL[a.action_type] ?? a.action_type;
+    }
+}
 const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost', 'unresponsive'];
 const LEAD_SOURCES = ['manual', 'landing_page', 'facebook', 'google', 'referral', 'email', 'phone', 'event', 'word_of_mouth', 'other'];
 const TASK_TYPES = ['task', 'call', 'email', 'meeting', 'note'];
@@ -100,10 +166,19 @@ function emptyEditor() {
     };
 }
 
+/* ─── Action builder UI state ─── */
+const editingActionIndex = ref(null);
+const showActionPicker = ref(false);
+function toggleActionEdit(i) {
+    editingActionIndex.value = editingActionIndex.value === i ? null : i;
+}
+
 function openCreate() {
     editingId.value = null;
     editor.clearErrors();
     Object.assign(editor, emptyEditor());
+    editingActionIndex.value = null;
+    showActionPicker.value = false;
     editorOpen.value = true;
 }
 function openEdit(w) {
@@ -120,19 +195,36 @@ function openEdit(w) {
             config: { ...(a.config || {}) },
         })),
     });
+    editingActionIndex.value = null;
+    showActionPicker.value = false;
     editorOpen.value = true;
     openMenu.value = null;
 }
 
-function addAction() {
-    editor.actions.push({ action_type: 'create_lead', config: {} });
+function setTrigger(type) {
+    editor.trigger_type = type;
+    editor.trigger_config = {};
 }
-function removeAction(i) { editor.actions.splice(i, 1); }
+
+function addAction(type = 'create_lead') {
+    editor.actions.push({ action_type: type, config: {} });
+    editingActionIndex.value = editor.actions.length - 1;
+    showActionPicker.value = false;
+}
+function removeAction(i) {
+    editor.actions.splice(i, 1);
+    if (editingActionIndex.value === i) {
+        editingActionIndex.value = null;
+    } else if (editingActionIndex.value !== null && editingActionIndex.value > i) {
+        editingActionIndex.value -= 1;
+    }
+}
 function moveAction(i, delta) {
     const j = i + delta;
     if (j < 0 || j >= editor.actions.length) return;
     const [item] = editor.actions.splice(i, 1);
     editor.actions.splice(j, 0, item);
+    editingActionIndex.value = null;
 }
 
 function save() {
@@ -254,11 +346,17 @@ function fmtRelative(iso) {
 
                         <section class="form-section">
                             <h3 class="form-section-title">Trigger</h3>
-                            <div class="form-row">
-                                <label>When this happens</label>
-                                <select v-model="editor.trigger_type" @change="editor.trigger_config = {}">
-                                    <option v-for="t in trigger_types" :key="t" :value="t">{{ TRIGGER_LABEL[t] || t }}</option>
-                                </select>
+                            <div class="wf-trigger-grid">
+                                <button
+                                    v-for="t in trigger_types"
+                                    :key="t"
+                                    type="button"
+                                    :class="['wf-trigger-option', { active: editor.trigger_type === t }]"
+                                    @click="setTrigger(t)"
+                                >
+                                    <component :is="triggerIcon(t)" :size="20" stroke-width="1.75" />
+                                    <span>{{ triggerLabel(t) }}</span>
+                                </button>
                             </div>
 
                             <div v-if="editor.trigger_type === 'form_submitted'" class="form-row">
@@ -285,26 +383,46 @@ function fmtRelative(iso) {
 
                         <section class="form-section">
                             <div class="form-section-head">
-                                <h3 class="form-section-title">Actions</h3>
-                                <button type="button" class="btn btn-ghost btn-sm" @click="addAction">
-                                    <IconPlus :size="14" stroke-width="2" /> Add action
-                                </button>
+                                <h3 class="form-section-title">
+                                    Actions
+                                    <span class="wf-count-badge">{{ editor.actions.length }}</span>
+                                </h3>
                             </div>
                             <div v-if="editor.actions.length === 0" class="muted small">
                                 No actions yet. A workflow without actions is a no-op.
                             </div>
 
-                            <div v-for="(action, i) in editor.actions" :key="i" class="action-builder-row">
-                                <div class="action-builder-handle">
-                                    <button type="button" class="icon-btn" :disabled="i === 0" @click="moveAction(i, -1)">
-                                        <IconChevronUp :size="14" stroke-width="2" />
-                                    </button>
-                                    <button type="button" class="icon-btn" :disabled="i === editor.actions.length - 1" @click="moveAction(i, 1)">
-                                        <IconChevronDown :size="14" stroke-width="2" />
-                                    </button>
+                            <template v-for="(action, i) in editor.actions" :key="i">
+                                <!-- Action card -->
+                                <div class="wf-action-card" :class="{ open: editingActionIndex === i }">
+                                    <div class="wf-reorder">
+                                        <button type="button" class="icon-btn" :disabled="i === 0" title="Move up" @click="moveAction(i, -1)">
+                                            <IconChevronUp :size="13" stroke-width="2" />
+                                        </button>
+                                        <button type="button" class="icon-btn" :disabled="i === editor.actions.length - 1" title="Move down" @click="moveAction(i, 1)">
+                                            <IconChevronDown :size="13" stroke-width="2" />
+                                        </button>
+                                    </div>
+                                    <div class="wf-action-num">{{ i + 1 }}</div>
+                                    <div class="wf-action-icon" :style="{ background: actionColour(action.action_type) }">
+                                        <component :is="actionIcon(action.action_type)" :size="15" stroke-width="2" />
+                                    </div>
+                                    <div class="wf-action-info" @click="toggleActionEdit(i)">
+                                        <span class="wf-action-label">{{ actionLabel(action.action_type) }}</span>
+                                        <span class="wf-action-summary">{{ actionSummary(action) }}</span>
+                                    </div>
+                                    <div class="wf-action-actions">
+                                        <button type="button" class="icon-btn" title="Edit" @click="toggleActionEdit(i)">
+                                            <IconPencil :size="15" stroke-width="2" />
+                                        </button>
+                                        <button type="button" class="icon-btn danger" title="Delete" @click="removeAction(i)">
+                                            <IconTrash :size="15" stroke-width="2" />
+                                        </button>
+                                    </div>
                                 </div>
 
-                                <div class="action-builder-body">
+                                <!-- Inline config panel -->
+                                <div v-if="editingActionIndex === i" class="wf-action-edit-panel">
                                     <div class="form-row">
                                         <label class="small">Action type</label>
                                         <select v-model="action.action_type" @change="action.config = {}">
@@ -434,10 +552,27 @@ function fmtRelative(iso) {
                                             <input v-model="action.config.message_template" type="text" :placeholder="notificationPlaceholder" />
                                         </div>
                                     </template>
-                                </div>
 
-                                <button type="button" class="icon-btn danger" @click="removeAction(i)">
-                                    <IconTrash :size="14" stroke-width="2" />
+                                    <button type="button" class="btn btn-ghost btn-sm" @click="editingActionIndex = null">Done</button>
+                                </div>
+                            </template>
+
+                            <!-- Add-action type picker -->
+                            <button type="button" class="btn btn-ghost btn-sm wf-add-btn" @click="showActionPicker = !showActionPicker">
+                                <IconPlus :size="14" stroke-width="2" /> Add action
+                            </button>
+                            <div v-if="showActionPicker" class="wf-action-picker">
+                                <button
+                                    v-for="t in action_types"
+                                    :key="t"
+                                    type="button"
+                                    class="wf-action-pick"
+                                    @click="addAction(t)"
+                                >
+                                    <span class="wf-pick-icon" :style="{ background: actionColour(t) }">
+                                        <component :is="actionIcon(t)" :size="14" stroke-width="2" />
+                                    </span>
+                                    <span>{{ actionLabel(t) }}</span>
                                 </button>
                             </div>
                         </section>

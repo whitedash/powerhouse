@@ -15,7 +15,9 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     IconPlus, IconForms, IconX, IconCopy, IconCheck, IconEye, IconEyeOff,
     IconDots, IconTrash, IconEdit, IconArrowRight, IconChevronUp, IconChevronDown,
-    IconGripVertical,
+    IconPencil,
+    IconLetterT, IconMail, IconPhone, IconAlignLeft, IconCheckbox, IconCircleDot,
+    IconNumbers, IconCalendar,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -36,6 +38,38 @@ const FIELD_TYPES = [
     { value: 'date', label: 'Date' },
     { value: 'hidden', label: 'Hidden' },
 ];
+
+// Server-emits-a-type, client-maps-to-a-component (matches the rest of
+// the app — there is no Tabler webfont loaded, only @tabler/icons-vue).
+const FIELD_ICONS = {
+    text: IconLetterT,
+    email: IconMail,
+    phone: IconPhone,
+    textarea: IconAlignLeft,
+    select: IconChevronDown,
+    radio: IconCircleDot,
+    checkbox: IconCheckbox,
+    number: IconNumbers,
+    date: IconCalendar,
+    hidden: IconEyeOff,
+};
+function fieldIcon(type) {
+    return FIELD_ICONS[type] ?? IconLetterT;
+}
+function fieldTypeLabel(type) {
+    return FIELD_TYPES.find(t => t.value === type)?.label ?? type;
+}
+// Types whose `options` list is meaningful.
+const OPTION_TYPES = ['select', 'radio', 'checkbox'];
+
+// Live options for previews — derive from the textarea string so unsaved
+// edits show immediately, falling back to the stored array.
+function fieldOptions(field) {
+    if (field.options_raw) {
+        return field.options_raw.split('\n').map(o => o.trim()).filter(Boolean);
+    }
+    return field.options ?? [];
+}
 
 /* ─── Integration panel state ─── */
 // Per-form id: is integration panel open?
@@ -124,6 +158,26 @@ const editor = useForm(emptyEditor());
 const showPreview = ref(false);
 const previewFields = computed(() => editor.fields ?? []);
 
+/* ─── Builder UI state ─── */
+// Which field card is expanded for inline editing (accordion).
+const editingFieldIndex = ref(null);
+function toggleFieldEdit(i) {
+    editingFieldIndex.value = editingFieldIndex.value === i ? null : i;
+}
+// Collapsible sections — details open, settings collapsed.
+const openSections = reactive({ details: true, settings: false });
+
+// A blank field shaped for the builder. options_raw is the textarea-backed
+// string; it's split into the `options` array only at save time so typing
+// a newline isn't stripped mid-edit.
+function blankField(type = 'text') {
+    return {
+        label: '', field_key: '', type,
+        placeholder: '', default_value: '',
+        options: null, options_raw: '', is_required: false,
+    };
+}
+
 function emptyEditor() {
     return {
         name: '',
@@ -136,8 +190,8 @@ function emptyEditor() {
         gdpr_consent_enabled: false,
         gdpr_consent_text: '',
         fields: [
-            { label: 'First name', field_key: 'first_name', type: 'text', placeholder: '', default_value: '', options: null, is_required: true },
-            { label: 'Email', field_key: 'email', type: 'email', placeholder: '', default_value: '', options: null, is_required: true },
+            { label: 'First name', field_key: 'first_name', type: 'text', placeholder: '', default_value: '', options: null, options_raw: '', is_required: true },
+            { label: 'Email', field_key: 'email', type: 'email', placeholder: '', default_value: '', options: null, options_raw: '', is_required: true },
         ],
     };
 }
@@ -146,13 +200,21 @@ function openCreate() {
     editingId.value = null;
     editor.clearErrors();
     Object.assign(editor, emptyEditor());
+    editingFieldIndex.value = null;
     editorOpen.value = true;
 }
 function openEdit(form) {
     editingId.value = form.id;
     editor.clearErrors();
     Object.assign(editor, formPayloadFromCard(form));
-    editor.fields = form.fields.map(f => ({ ...f, options: f.options ? [...f.options] : null }));
+    // Seed each field's options_raw from the stored array so the textarea
+    // shows existing options, one per line.
+    editor.fields = form.fields.map(f => ({
+        ...f,
+        options: f.options ? [...f.options] : null,
+        options_raw: (f.options ?? []).join('\n'),
+    }));
+    editingFieldIndex.value = null;
     editorOpen.value = true;
     openMenu.value = null;
 }
@@ -168,21 +230,25 @@ watch(() => editor.name, (n) => {
         .replace(/^-|-$/g, '');
 });
 
-function addField() {
-    editor.fields.push({
-        label: '', field_key: '', type: 'text',
-        placeholder: '', default_value: '', options: null,
-        is_required: false,
-    });
+function addField(type = 'text') {
+    editor.fields.push(blankField(type));
+    // Open the new field for editing straight away.
+    editingFieldIndex.value = editor.fields.length - 1;
 }
 function removeField(i) {
     editor.fields.splice(i, 1);
+    if (editingFieldIndex.value === i) {
+        editingFieldIndex.value = null;
+    } else if (editingFieldIndex.value !== null && editingFieldIndex.value > i) {
+        editingFieldIndex.value -= 1;
+    }
 }
 function moveField(i, delta) {
     const j = i + delta;
     if (j < 0 || j >= editor.fields.length) return;
     const [item] = editor.fields.splice(i, 1);
     editor.fields.splice(j, 0, item);
+    editingFieldIndex.value = null;
 }
 function autoKey(field) {
     if (!field.field_key && field.label) {
@@ -200,10 +266,30 @@ function save() {
         : '/forms';
     const method = editingId.value ? 'put' : 'post';
 
-    editor[method](endpoint, {
-        preserveScroll: true,
-        onSuccess: () => { editorOpen.value = false; },
-    });
+    // Split options_raw → options array at submit time (not per-keystroke,
+    // which would strip a newline the moment Enter is pressed).
+    editor
+        .transform((data) => ({
+            ...data,
+            fields: data.fields.map((f) => ({
+                label: f.label,
+                field_key: f.field_key,
+                type: f.type,
+                placeholder: f.placeholder,
+                default_value: f.default_value,
+                is_required: f.is_required,
+                options: OPTION_TYPES.includes(f.type)
+                    ? (f.options_raw ?? '')
+                        .split('\n')
+                        .map((o) => o.trim())
+                        .filter((o) => o.length > 0)
+                    : null,
+            })),
+        }))
+        [method](endpoint, {
+            preserveScroll: true,
+            onSuccess: () => { editorOpen.value = false; },
+        });
 }
 
 const formStatuses = ['active', 'inactive', 'draft'];
@@ -362,116 +448,169 @@ const totalSubmissions = computed(() =>
                     </header>
 
                     <form class="slide-over-body" @submit.prevent="save">
-                        <!-- Basics -->
+                        <!-- Form details (collapsible) -->
                         <section class="form-section">
-                            <h3 class="form-section-title">Basics</h3>
-                            <div class="form-row">
-                                <label>Form name <span class="req">*</span></label>
-                                <input v-model="editor.name" type="text" maxlength="255" required />
-                                <div v-if="editor.errors.name" class="err">{{ editor.errors.name }}</div>
-                            </div>
-                            <div class="form-row">
-                                <label>Slug <span class="req">*</span></label>
-                                <input v-model="editor.slug" type="text" pattern="[a-z0-9-]+" maxlength="100" required />
-                                <small class="muted">Used in /forms/{slug}/embed.js and /webhooks/{slug}. Lowercase, hyphens only.</small>
-                                <div v-if="editor.errors.slug" class="err">{{ editor.errors.slug }}</div>
-                            </div>
-                            <div class="form-row">
-                                <label>Description</label>
-                                <textarea v-model="editor.description" rows="2" maxlength="2000"></textarea>
-                            </div>
-                            <div class="form-row">
-                                <label>Status</label>
-                                <select v-model="editor.status">
-                                    <option v-for="s in formStatuses" :key="s" :value="s">{{ statusLabel(s) }}</option>
-                                </select>
+                            <button type="button" class="fb-section-head" @click="openSections.details = !openSections.details">
+                                <component :is="openSections.details ? IconChevronUp : IconChevronDown" :size="15" stroke-width="2" />
+                                <span class="form-section-title">Form details</span>
+                            </button>
+                            <div v-show="openSections.details" class="fb-section-body">
+                                <div class="form-row">
+                                    <label>Form name <span class="req">*</span></label>
+                                    <input v-model="editor.name" type="text" maxlength="255" required />
+                                    <div v-if="editor.errors.name" class="err">{{ editor.errors.name }}</div>
+                                </div>
+                                <div class="form-row">
+                                    <label>Slug <span class="req">*</span></label>
+                                    <input v-model="editor.slug" type="text" pattern="[a-z0-9-]+" maxlength="100" required />
+                                    <small class="muted">Used in /forms/{slug}/embed.js and /webhooks/{slug}. Lowercase, hyphens only.</small>
+                                    <div v-if="editor.errors.slug" class="err">{{ editor.errors.slug }}</div>
+                                </div>
+                                <div class="form-row">
+                                    <label>Description</label>
+                                    <textarea v-model="editor.description" rows="2" maxlength="2000"></textarea>
+                                </div>
+                                <div class="form-row">
+                                    <label>Status</label>
+                                    <select v-model="editor.status">
+                                        <option v-for="s in formStatuses" :key="s" :value="s">{{ statusLabel(s) }}</option>
+                                    </select>
+                                </div>
                             </div>
                         </section>
 
                         <!-- Fields builder -->
                         <section class="form-section">
                             <div class="form-section-head">
-                                <h3 class="form-section-title">Fields</h3>
-                                <button type="button" class="btn btn-ghost btn-sm" @click="addField">
-                                    <IconPlus :size="14" stroke-width="2" /> Add field
-                                </button>
+                                <h3 class="form-section-title">
+                                    Fields
+                                    <span class="fb-count-badge">{{ editor.fields.length }}</span>
+                                </h3>
                             </div>
-                            <div v-if="editor.fields.length === 0" class="muted small">No fields yet. Add at least one.</div>
-                            <div v-for="(field, i) in editor.fields" :key="i" class="field-builder-row">
-                                <div class="field-builder-handle">
-                                    <button type="button" class="icon-btn" :disabled="i === 0" @click="moveField(i, -1)">
-                                        <IconChevronUp :size="14" stroke-width="2" />
-                                    </button>
-                                    <button type="button" class="icon-btn" :disabled="i === editor.fields.length - 1" @click="moveField(i, 1)">
-                                        <IconChevronDown :size="14" stroke-width="2" />
-                                    </button>
+
+                            <div v-if="editor.fields.length === 0" class="muted small">No fields yet. Pick a type below to add one.</div>
+
+                            <template v-for="(field, i) in editor.fields" :key="i">
+                                <!-- Field card -->
+                                <div class="fb-field-card" :class="{ open: editingFieldIndex === i }">
+                                    <div class="fb-reorder">
+                                        <button type="button" class="icon-btn" :disabled="i === 0" title="Move up" @click="moveField(i, -1)">
+                                            <IconChevronUp :size="13" stroke-width="2" />
+                                        </button>
+                                        <button type="button" class="icon-btn" :disabled="i === editor.fields.length - 1" title="Move down" @click="moveField(i, 1)">
+                                            <IconChevronDown :size="13" stroke-width="2" />
+                                        </button>
+                                    </div>
+                                    <div class="fb-field-icon">
+                                        <component :is="fieldIcon(field.type)" :size="16" stroke-width="2" />
+                                    </div>
+                                    <div class="fb-field-info" @click="toggleFieldEdit(i)">
+                                        <span class="fb-field-label">{{ field.label || 'Untitled field' }}</span>
+                                        <span class="fb-field-meta">
+                                            <span class="fb-type-badge">{{ fieldTypeLabel(field.type) }}</span>
+                                            <span v-if="field.is_required" class="fb-required-badge">Required</span>
+                                        </span>
+                                    </div>
+                                    <div class="fb-field-actions">
+                                        <button type="button" class="icon-btn" title="Edit" @click="toggleFieldEdit(i)">
+                                            <IconPencil :size="15" stroke-width="2" />
+                                        </button>
+                                        <button type="button" class="icon-btn danger" title="Delete" @click="removeField(i)">
+                                            <IconTrash :size="15" stroke-width="2" />
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="field-builder-grid">
-                                    <div class="form-row">
-                                        <label class="small">Label</label>
-                                        <input v-model="field.label" type="text" maxlength="255" @blur="autoKey(field)" />
+
+                                <!-- Inline edit panel -->
+                                <div v-if="editingFieldIndex === i" class="fb-field-edit-panel">
+                                    <div class="fb-edit-grid">
+                                        <div class="form-row">
+                                            <label class="small">Label <span class="req">*</span></label>
+                                            <input v-model="field.label" type="text" maxlength="255" @blur="autoKey(field)" />
+                                        </div>
+                                        <div class="form-row">
+                                            <label class="small">Key (POST field name)</label>
+                                            <input v-model="field.field_key" type="text" pattern="[a-z][a-z0-9_]*" maxlength="100" />
+                                        </div>
+                                        <div class="form-row">
+                                            <label class="small">Type</label>
+                                            <select v-model="field.type">
+                                                <option v-for="t in FIELD_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-row">
+                                            <label class="small">Placeholder</label>
+                                            <input v-model="field.placeholder" type="text" maxlength="255" />
+                                        </div>
                                     </div>
-                                    <div class="form-row">
-                                        <label class="small">Key (POST field name)</label>
-                                        <input v-model="field.field_key" type="text" pattern="[a-z][a-z0-9_]*" maxlength="100" />
-                                    </div>
-                                    <div class="form-row">
-                                        <label class="small">Type</label>
-                                        <select v-model="field.type">
-                                            <option v-for="t in FIELD_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-row">
-                                        <label class="small">Placeholder</label>
-                                        <input v-model="field.placeholder" type="text" maxlength="255" />
-                                    </div>
-                                    <div v-if="field.type === 'select' || field.type === 'radio'" class="form-row form-row-wide">
-                                        <label class="small">Options (one per line)</label>
+
+                                    <div v-if="OPTION_TYPES.includes(field.type)" class="form-row">
+                                        <label class="small">Options <span class="fb-help-inline">— one per line</span></label>
                                         <textarea
-                                            :value="(field.options || []).join('\n')"
-                                            rows="3"
-                                            @input="field.options = $event.target.value.split('\n').map(s => s.trim()).filter(Boolean)"
+                                            v-model="field.options_raw"
+                                            @keydown.enter.stop
+                                            rows="4"
+                                            placeholder="Option A&#10;Option B&#10;Option C"
                                         ></textarea>
                                     </div>
-                                    <label class="checkbox-inline">
-                                        <input v-model="field.is_required" type="checkbox" /> Required
-                                    </label>
+
+                                    <div class="fb-toggle-row">
+                                        <div>
+                                            <div class="fb-toggle-label">Required</div>
+                                            <div class="field-help">Show a validation error if left empty</div>
+                                        </div>
+                                        <button type="button" :class="['toggle', { on: field.is_required }]" @click="field.is_required = !field.is_required"></button>
+                                    </div>
+
+                                    <button type="button" class="btn btn-ghost btn-sm" @click="editingFieldIndex = null">Done</button>
                                 </div>
-                                <button type="button" class="icon-btn danger" @click="removeField(i)">
-                                    <IconTrash :size="14" stroke-width="2" />
+                            </template>
+
+                            <!-- Add-field type picker -->
+                            <div class="fb-add-label muted small">Add a field</div>
+                            <div class="fb-type-grid">
+                                <button
+                                    v-for="t in FIELD_TYPES"
+                                    :key="t.value"
+                                    type="button"
+                                    class="fb-type-option"
+                                    @click="addField(t.value)"
+                                >
+                                    <component :is="fieldIcon(t.value)" :size="18" stroke-width="2" />
+                                    <span>{{ t.label }}</span>
                                 </button>
                             </div>
                         </section>
 
-                        <!-- After-submit -->
+                        <!-- Settings (collapsible) -->
                         <section class="form-section">
-                            <h3 class="form-section-title">After submission</h3>
-                            <div class="form-row">
-                                <label>Submit button text</label>
-                                <input v-model="editor.submit_button_text" type="text" maxlength="100" />
-                            </div>
-                            <div class="form-row">
-                                <label>Success message</label>
-                                <textarea v-model="editor.success_message" rows="2" maxlength="1000"></textarea>
-                                <small class="muted">Shown after submission. Ignored if a redirect URL is set.</small>
-                            </div>
-                            <div class="form-row">
-                                <label>Redirect URL (optional)</label>
-                                <input v-model="editor.redirect_url" type="url" maxlength="500" placeholder="https://example.com/thanks" />
-                            </div>
-                        </section>
-
-                        <!-- GDPR -->
-                        <section class="form-section">
-                            <h3 class="form-section-title">GDPR consent</h3>
-                            <label class="checkbox-inline">
-                                <input v-model="editor.gdpr_consent_enabled" type="checkbox" />
-                                Require a consent checkbox
-                            </label>
-                            <div v-if="editor.gdpr_consent_enabled" class="form-row">
-                                <label>Consent text</label>
-                                <textarea v-model="editor.gdpr_consent_text" rows="2" maxlength="2000"
-                                    placeholder="I agree to be contacted about my enquiry."></textarea>
+                            <button type="button" class="fb-section-head" @click="openSections.settings = !openSections.settings">
+                                <component :is="openSections.settings ? IconChevronUp : IconChevronDown" :size="15" stroke-width="2" />
+                                <span class="form-section-title">Settings</span>
+                            </button>
+                            <div v-show="openSections.settings" class="fb-section-body">
+                                <div class="form-row">
+                                    <label>Submit button text</label>
+                                    <input v-model="editor.submit_button_text" type="text" maxlength="100" />
+                                </div>
+                                <div class="form-row">
+                                    <label>Success message</label>
+                                    <textarea v-model="editor.success_message" rows="2" maxlength="1000"></textarea>
+                                    <small class="muted">Shown after submission. Ignored if a redirect URL is set.</small>
+                                </div>
+                                <div class="form-row">
+                                    <label>Redirect URL (optional)</label>
+                                    <input v-model="editor.redirect_url" type="url" maxlength="500" placeholder="https://example.com/thanks" />
+                                </div>
+                                <label class="checkbox-inline">
+                                    <input v-model="editor.gdpr_consent_enabled" type="checkbox" />
+                                    Require a GDPR consent checkbox
+                                </label>
+                                <div v-if="editor.gdpr_consent_enabled" class="form-row">
+                                    <label>Consent text</label>
+                                    <textarea v-model="editor.gdpr_consent_text" rows="2" maxlength="2000"
+                                        placeholder="I agree to be contacted about my enquiry."></textarea>
+                                </div>
                             </div>
                         </section>
 
@@ -538,7 +677,7 @@ const totalSubmissions = computed(() =>
                                     disabled
                                 >
                                     <option value="">{{ field.placeholder || 'Select…' }}</option>
-                                    <option v-for="(opt, oi) in (field.options || [])" :key="oi">{{ opt }}</option>
+                                    <option v-for="(opt, oi) in fieldOptions(field)" :key="oi">{{ opt }}</option>
                                 </select>
 
                                 <label
