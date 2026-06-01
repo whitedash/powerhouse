@@ -4284,11 +4284,49 @@ h3 .opt {
 .subscriptions .filter-bar .field-search { width: 260px; flex-shrink: 0; }
 .subscriptions .filter-bar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 
+/* Show-cancelled toggle — pill button that fills in when active */
+.subscriptions .sub-cancelled-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 30px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--text-secondary);
+    font: 500 13px/1 'Inter', sans-serif;
+    cursor: pointer;
+}
+.subscriptions .sub-cancelled-toggle .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+}
+.subscriptions .sub-cancelled-toggle.on {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft, rgba(13, 148, 136, .08));
+}
+.subscriptions .sub-cancelled-toggle.on .dot { background: var(--accent); }
+
 /* Table customer cell */
 .subscriptions .cell-cust { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .subscriptions .cell-cust .avatar { width: 30px; height: 30px; font-size: 11px; }
 .subscriptions .cust-name { font: 500 13px/1.3 'Inter', sans-serif; color: var(--text-primary); }
 .subscriptions .cust-loc { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 2px; }
+.subscriptions .sub-overdue {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font: 500 11px/1.2 'Inter', sans-serif;
+    color: var(--danger);
+    margin-top: 2px;
+}
+
+/* Instance label cell — distinguishes multiple subs of the same product */
+.subscriptions .sub-label { font: 400 13px/1.3 'Inter', sans-serif; color: var(--text-secondary); font-style: italic; }
 
 /* Product cell */
 .subscriptions .cell-prod { display: flex; align-items: center; gap: 9px; min-width: 0; }

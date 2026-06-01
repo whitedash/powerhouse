@@ -256,4 +256,15 @@ class WebhookDispatcher
             'status' => $cp->status,
         ]);
     }
+
+    public function dispatchCancellation(CustomerProduct $cp): void
+    {
+        $this->dispatch('customer_product.cancelled', $cp->product->slug ?? '', [
+            'customer_id' => $cp->customer_id,
+            'customer_name' => $cp->customer?->name,
+            'product_slug' => $cp->product?->slug,
+            'plan' => $cp->productPlan?->name,
+            'cancelled_at' => $cp->cancelled_at?->toISOString(),
+        ]);
+    }
 }

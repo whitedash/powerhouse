@@ -127,6 +127,7 @@ const searchInput = ref(props.filters.search ?? '');
 const productFilter = ref(props.filters.product_slug ?? '');
 const statusFilter = ref(props.filters.status ?? '');
 const intervalFilter = ref(props.filters.interval_unit ?? '');
+const showCancelled = ref(!! props.filters.show_cancelled);
 
 let searchTimeout = null;
 watch(searchInput, (v) => {
@@ -140,9 +141,15 @@ function applyFilters(patch = {}) {
         product_slug: productFilter.value || null,
         status: statusFilter.value || null,
         interval_unit: intervalFilter.value || null,
+        // Carried on every filter change so it survives search/product/etc.
+        show_cancelled: showCancelled.value ? 1 : null,
         ...patch,
     };
     router.get('/subscriptions', params, { preserveScroll: true, preserveState: true, replace: true });
+}
+function toggleCancelled() {
+    showCancelled.value = ! showCancelled.value;
+    applyFilters();
 }
 function setProduct(slug) {
     productFilter.value = productFilter.value === slug ? '' : slug;
@@ -299,6 +306,17 @@ function handleCancel() {
 const cancelDisabled = computed(() =>
     cancelMode.value === 'scheduled' && ! cancelDate.value,
 );
+
+/* ─── Inline suspend / reinstate ───
+ * These hit the CustomerProduct routes (reason-captured, webhook-firing)
+ * rather than the subscription edit path. preserveScroll keeps the
+ * operator's place in the table after the status flips. */
+function suspendSub(sub) {
+    router.post(`/customer-products/${sub.id}/suspend`, { reason: 'manual' }, { preserveScroll: true });
+}
+function reinstateSub(sub) {
+    router.post(`/customer-products/${sub.id}/reinstate`, {}, { preserveScroll: true });
+}
 
 /* ─── Pagination ─── */
 const prevUrl = computed(() => props.subscriptions.prev_page_url);
@@ -458,6 +476,15 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                 </Menu>
 
                 <div class="right">
+                    <button
+                        type="button"
+                        class="sub-cancelled-toggle"
+                        :class="{ on: showCancelled }"
+                        @click="toggleCancelled"
+                    >
+                        <span class="dot" />
+                        Show cancelled
+                    </button>
                     <button type="button" class="btn btn-ghost btn-sm" style="color: var(--text-secondary);" :class="{ 'btn-dot': hasFilters }" disabled>
                         <IconAdjustmentsHorizontal :size="14" stroke-width="1.75" />
                         Filters
@@ -476,8 +503,9 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                     <colgroup>
                         <col>
                         <col style="width: 180px;">
-                        <col style="width: 140px;">
-                        <col style="width: 140px;">
+                        <col style="width: 130px;">
+                        <col style="width: 130px;">
+                        <col style="width: 130px;">
                         <col style="width: 110px;">
                         <col style="width: 160px;">
                         <col style="width: 130px;">
@@ -488,6 +516,7 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                             <th>Customer</th>
                             <th>Product</th>
                             <th>Plan</th>
+                            <th>Label</th>
                             <th>Price</th>
                             <th>Billing</th>
                             <th>Status</th>
@@ -497,7 +526,7 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                     </thead>
                     <tbody>
                         <tr v-if="! subscriptions.data.length">
-                            <td colspan="8">
+                            <td colspan="9">
                                 <div class="empty-state">
                                     <IconReceiptOff :size="48" stroke-width="1.5" />
                                     <h3>No subscriptions found</h3>
@@ -515,7 +544,10 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                                     </div>
                                     <div>
                                         <div class="cust-name">{{ sub.customer.name }}</div>
-                                        <div class="cust-loc">{{ sub.customer.city || '—' }}</div>
+                                        <div v-if="sub.has_overdue" class="sub-overdue" title="Has an overdue invoice">
+                                            <IconAlertTriangle :size="11" stroke-width="2" /> overdue invoice
+                                        </div>
+                                        <div v-else class="cust-loc">{{ sub.customer.city || '—' }}</div>
                                     </div>
                                 </Link>
                             </td>
@@ -533,6 +565,10 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                                         Stripe
                                     </span>
                                 </div>
+                            </td>
+                            <td>
+                                <span v-if="sub.label" class="sub-label">{{ sub.label }}</span>
+                                <span v-else class="muted">—</span>
                             </td>
                             <td>
                                 <div class="price-cell">
@@ -596,7 +632,17 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                                                 Edit subscription
                                             </button>
                                         </MenuItem>
-                                        <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
+                                        <MenuItem v-if="['active', 'trial'].includes(sub.status)" v-slot="{ active }">
+                                            <button type="button" :class="['dd-option', { active }]" @click="suspendSub(sub)">
+                                                Suspend
+                                            </button>
+                                        </MenuItem>
+                                        <MenuItem v-if="sub.status === 'suspended'" v-slot="{ active }">
+                                            <button type="button" :class="['dd-option', { active }]" @click="reinstateSub(sub)">
+                                                Reinstate
+                                            </button>
+                                        </MenuItem>
+                                        <div v-if="['active', 'trial'].includes(sub.status)" style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
                                         <MenuItem v-if="['active', 'trial'].includes(sub.status)" v-slot="{ active }">
                                             <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askCancel(sub)">
                                                 Cancel subscription

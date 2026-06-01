@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
 use App\Models\CustomerProduct;
+use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\ProductPlan;
 use App\Models\ProductPlanPrice;
+use App\Services\WebhookDispatcher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -29,6 +31,20 @@ class SubscriptionController extends Controller
         $productSlug = $request->string('product_slug')->toString() ?: null;
         $statusFilter = $request->string('status')->toString() ?: null;
         $intervalFilter = $request->string('interval_unit')->toString() ?: null;
+        $showCancelled = $request->boolean('show_cancelled');
+
+        // Cancelled subscriptions are hidden by default — they're noise on
+        // a "what's live" view. The toggle adds them back into the base set.
+        $baseStatuses = $showCancelled
+            ? [...self::STATUSES, 'cancelled']
+            : self::STATUSES;
+
+        // One query for every customer with an overdue invoice, flipped to a
+        // key set so the row mapper can flag overdue in O(1) without an N+1.
+        $overdueCustomerIds = Invoice::where('status', 'overdue')
+            ->distinct()
+            ->pluck('customer_id')
+            ->flip();
 
         $subscriptions = CustomerProduct::query()
             ->with([
@@ -38,7 +54,7 @@ class SubscriptionController extends Controller
                 'planPrice:id,plan_id,price,interval_count,interval_unit,label,is_default',
                 'billingEntity:id,name',
             ])
-            ->whereIn('status', self::STATUSES)
+            ->whereIn('status', $baseStatuses)
             ->when($search, fn ($q, $s) => $q->whereHas('customer', fn ($q2) => $q2->where('name', 'like', "%{$s}%")))
             ->when($productSlug, fn ($q, $slug) => $q->whereHas('product', fn ($q2) => $q2->where('slug', $slug)))
             ->when($statusFilter, fn ($q, $st) => $q->where('status', $st))
@@ -58,6 +74,8 @@ class SubscriptionController extends Controller
                     'name' => $cp->product?->name,
                     'icon_colour' => $cp->product?->icon_colour,
                 ],
+                'label' => $cp->label,
+                'has_overdue' => $overdueCustomerIds->has($cp->customer_id),
                 'plan' => $cp->plan,
                 'plan_id' => $cp->plan_id,
                 'plan_price_id' => $cp->plan_price_id,
@@ -126,6 +144,7 @@ class SubscriptionController extends Controller
                 'product_slug' => $productSlug,
                 'status' => $statusFilter,
                 'interval_unit' => $intervalFilter,
+                'show_cancelled' => $showCancelled,
             ],
         ]);
     }
@@ -181,9 +200,9 @@ class SubscriptionController extends Controller
         return back()->with('success', 'Subscription updated.');
     }
 
-    public function cancel(int $id, Request $request): RedirectResponse
+    public function cancel(int $id, Request $request, WebhookDispatcher $dispatcher): RedirectResponse
     {
-        $cp = CustomerProduct::with('customer')->findOrFail($id);
+        $cp = CustomerProduct::with(['customer', 'product', 'productPlan'])->findOrFail($id);
         Gate::authorize('update', $cp->customer);
 
         $data = $request->validate([
@@ -201,7 +220,7 @@ class SubscriptionController extends Controller
             return back()->with('error', 'Only active or trial subscriptions can be cancelled.');
         }
 
-        DB::transaction(function () use ($cp, $immediately, $data, $request) {
+        DB::transaction(function () use ($cp, $immediately, $data, $request, $dispatcher) {
             $before = ['status' => $cp->status, 'cancels_at' => $cp->cancels_at?->toDateString()];
 
             if ($immediately) {
@@ -210,6 +229,11 @@ class SubscriptionController extends Controller
                     'cancelled_at' => now(),
                     'cancels_at' => null,
                 ]);
+
+                // Notify product sites the subscription is gone now.
+                // Scheduled cancellations aren't cancelled yet, so they
+                // don't fire here — the renewal sweep handles them later.
+                $dispatcher->dispatchCancellation($cp);
             } else {
                 $cp->update([
                     'cancels_at' => $data['cancels_at'],
