@@ -26,6 +26,13 @@ exempt_from_auto_suspend BOOLEAN NOT NULL DEFAULT false
   -- When true the invoices:process-suspensions sweep skips this
   -- customer (Webhooks + Auto-Suspension sprint).
 exempt_reason VARCHAR(500) nullable
+erasure_requested_at TIMESTAMP nullable
+  -- GDPR Art. 17: when a right-to-erasure request was logged.
+erasure_completed_at TIMESTAMP nullable
+  -- When the anonymisation actually ran (after invoices settled).
+erasure_requested_by BIGINT FK users nullable ON DELETE SET NULL
+data_export_last_at TIMESTAMP nullable
+  -- GDPR Art. 20: last right-to-portability export timestamp.
 archived_at nullable, created_at, updated_at
 
 ## contacts

@@ -32,9 +32,14 @@ use Illuminate\Support\Carbon;
  * @property int $portal_login_count
  * @property bool $exempt_from_auto_suspend
  * @property string|null $exempt_reason
+ * @property Carbon|null $erasure_requested_at
+ * @property Carbon|null $erasure_completed_at
+ * @property int|null $erasure_requested_by
+ * @property Carbon|null $data_export_last_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read User|null $assignedTo
+ * @property-read User|null $erasureRequestedBy
  * @property-read Referrer|null $referredBy
  * @property-read Collection<int, Contact> $contacts
  * @property-read Contact|null $primaryContact
@@ -80,6 +85,13 @@ class Customer extends Model
         // sweep skips this customer entirely.
         'exempt_from_auto_suspend',
         'exempt_reason',
+        // GDPR (Articles 17 + 20). erasure_* track a right-to-erasure
+        // request and its completion; data_export_last_at the last
+        // right-to-portability export.
+        'erasure_requested_at',
+        'erasure_completed_at',
+        'erasure_requested_by',
+        'data_export_last_at',
     ];
 
     protected function casts(): array
@@ -90,12 +102,20 @@ class Customer extends Model
             'portal_last_login_at' => 'datetime',
             'portal_login_count' => 'integer',
             'exempt_from_auto_suspend' => 'boolean',
+            'erasure_requested_at' => 'datetime',
+            'erasure_completed_at' => 'datetime',
+            'data_export_last_at' => 'datetime',
         ];
     }
 
     public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function erasureRequestedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'erasure_requested_by');
     }
 
     public function referredBy(): BelongsTo
