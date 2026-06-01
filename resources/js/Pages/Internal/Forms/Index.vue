@@ -118,6 +118,12 @@ const editorOpen = ref(false);
 const editingId = ref(null);
 const editor = useForm(emptyEditor());
 
+/* ─── Live preview modal ─── */
+// Renders the current (unsaved) builder state exactly as the embedded
+// form would appear. Reads editor.fields directly so it tracks edits.
+const showPreview = ref(false);
+const previewFields = computed(() => editor.fields ?? []);
+
 function emptyEditor() {
     return {
         name: '',
@@ -345,9 +351,14 @@ const totalSubmissions = computed(() =>
                 <aside class="slide-over slide-over-wide" role="dialog">
                     <header class="slide-over-head">
                         <h2>{{ editingId ? 'Edit form' : 'New form' }}</h2>
-                        <button type="button" class="icon-btn" @click="editorOpen = false">
-                            <IconX :size="18" stroke-width="2" />
-                        </button>
+                        <div class="slide-over-head-actions">
+                            <button type="button" class="btn btn-ghost btn-sm" @click="showPreview = true">
+                                <IconEye :size="14" stroke-width="2" /> Preview
+                            </button>
+                            <button type="button" class="icon-btn" @click="editorOpen = false">
+                                <IconX :size="18" stroke-width="2" />
+                            </button>
+                        </div>
                     </header>
 
                     <form class="slide-over-body" @submit.prevent="save">
@@ -472,6 +483,79 @@ const totalSubmissions = computed(() =>
                         </footer>
                     </form>
                 </aside>
+            </div>
+        </Teleport>
+
+        <!-- Live form preview -->
+        <Teleport to="body">
+            <div
+                v-if="showPreview"
+                class="fp-preview-overlay"
+                @click.self="showPreview = false"
+            >
+                <div class="fp-preview-modal">
+                    <div class="fp-preview-head">
+                        <h3>{{ editor.name || 'Form preview' }}</h3>
+                        <button type="button" class="icon-btn" @click="showPreview = false">
+                            <IconX :size="18" stroke-width="2" />
+                        </button>
+                    </div>
+
+                    <div class="fp-preview-body">
+                        <p class="fp-preview-note">
+                            This is how your form will appear when embedded.
+                        </p>
+
+                        <div class="fp-preview-form">
+                            <div
+                                v-for="(field, i) in previewFields"
+                                :key="i"
+                                class="fp-field"
+                            >
+                                <label class="fp-label">
+                                    {{ field.label }}
+                                    <span v-if="field.is_required" class="fp-required">*</span>
+                                </label>
+
+                                <input
+                                    v-if="['text', 'email', 'phone', 'number', 'date'].includes(field.type)"
+                                    :type="field.type === 'phone' ? 'tel' : field.type"
+                                    :placeholder="field.placeholder"
+                                    class="fp-input"
+                                    disabled
+                                />
+
+                                <textarea
+                                    v-else-if="field.type === 'textarea'"
+                                    :placeholder="field.placeholder"
+                                    class="fp-input fp-textarea"
+                                    disabled
+                                ></textarea>
+
+                                <select
+                                    v-else-if="field.type === 'select' || field.type === 'radio'"
+                                    class="fp-input"
+                                    disabled
+                                >
+                                    <option value="">{{ field.placeholder || 'Select…' }}</option>
+                                    <option v-for="(opt, oi) in (field.options || [])" :key="oi">{{ opt }}</option>
+                                </select>
+
+                                <label
+                                    v-else-if="field.type === 'checkbox'"
+                                    class="fp-check-label"
+                                >
+                                    <input type="checkbox" disabled />
+                                    {{ field.placeholder || field.label }}
+                                </label>
+                            </div>
+
+                            <button type="button" class="fp-submit-btn" disabled>
+                                {{ editor.submit_button_text || 'Submit' }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </Teleport>
 

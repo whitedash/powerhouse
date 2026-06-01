@@ -410,6 +410,80 @@ class TaskController extends Controller
     }
 
     /**
+     * One-click complete from the My Work list. Same effect as
+     * complete() but with no outcome prompt — the checkbox just
+     * marks the task done and drops it off the list.
+     */
+    public function quickComplete(int $id, Request $request): RedirectResponse
+    {
+        $task = Task::findOrFail($id);
+        $user = $request->user();
+
+        if ($task->assigned_to !== $user->id && ! $user->isSuperAdmin()) {
+            abort(403, 'You can only complete activities assigned to you.');
+        }
+
+        if ($task->status === 'complete') {
+            return back();
+        }
+
+        DB::transaction(function () use ($task, $request): void {
+            $task->update([
+                'status' => 'complete',
+                'completed_at' => now(),
+            ]);
+
+            $this->logActivity($request, 'task.quick_completed', $task, after: [
+                'title' => $task->title,
+            ]);
+        });
+
+        // Completed work leaves the calendar.
+        $this->removeTaskFromGoogle($user, $task);
+
+        return back()->with('success', 'Task completed.');
+    }
+
+    /**
+     * One-click reschedule from the My Work list. The date input hands
+     * back a bare YYYY-MM-DD; we pin it to 09:00 (matching reschedule())
+     * so the list views don't read it as "due at midnight".
+     */
+    public function quickReschedule(int $id, Request $request): RedirectResponse
+    {
+        $task = Task::findOrFail($id);
+        $user = $request->user();
+
+        if ($task->created_by !== $user->id
+            && $task->assigned_to !== $user->id
+            && ! $user->isSuperAdmin()
+        ) {
+            abort(403, 'You can only reschedule tasks you own or are assigned to.');
+        }
+
+        $data = $request->validate([
+            'due_at' => ['required', 'date'],
+        ]);
+
+        DB::transaction(function () use ($task, $data, $request): void {
+            $task->update([
+                'is_all_day' => true,
+                'due_at' => Carbon::parse($data['due_at'])->setTime(9, 0),
+                'start_at' => null,
+                'end_at' => null,
+            ]);
+
+            $this->logActivity($request, 'task.rescheduled', $task, after: [
+                'due_at' => $task->due_at?->toIso8601String(),
+            ]);
+        });
+
+        $this->syncTaskToGoogle($user, $task);
+
+        return back()->with('success', 'Task rescheduled.');
+    }
+
+    /**
      * Toggle the pinned flag. Pinned activities float to the top of
      * the customer timeline and are useful for "remember this" notes.
      */

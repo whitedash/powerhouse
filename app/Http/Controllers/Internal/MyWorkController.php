@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Internal;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\TimeEntry;
 use App\Services\GoogleCalendarService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,86 +31,77 @@ class MyWorkController extends Controller
     public function index(Request $request): Response
     {
         $userId = $request->user()->id;
+        $now = now();
 
-        $tasks = Task::where('assigned_to', $userId)
+        $allTasks = Task::where('assigned_to', $userId)
             ->whereNotIn('status', ['complete', 'cancelled'])
             ->with([
-                'project:id,title,colour,status',
-                'milestone:id,title',
+                'project:id,title,colour',
                 'customer:id,name',
             ])
-            // Status-based ordering keeps blocked items at the top:
-            // they're the work that needs unblocking before anything
-            // else can move.
-            ->orderByRaw("CASE status
-                WHEN 'blocked'     THEN 1
-                WHEN 'in_progress' THEN 2
-                WHEN 'in_review'   THEN 3
-                WHEN 'todo'        THEN 4
-                ELSE 5
-                END")
-            ->orderByRaw('due_at IS NULL, due_at ASC')
             ->get();
 
-        $mapped = $tasks->map(fn (Task $t): array => [
+        // Bucketed by schedule, partitioned on *start of today* so the
+        // buckets are mutually exclusive — a task due earlier today lands
+        // in due-today (not also overdue). The row still flags an elapsed
+        // due time in red via the client's isOverdue check.
+        //   overdue   = due before today
+        //   due-today = anytime today
+        //   upcoming  = after today
+        //   unscheduled = no due_at
+        $startOfDay = $now->copy()->startOfDay();
+        $endOfDay = $now->copy()->endOfDay();
+
+        $overdue = $allTasks
+            ->filter(fn (Task $t): bool => $t->due_at !== null && $t->due_at->lt($startOfDay))
+            ->sortBy('due_at')
+            ->values();
+
+        $dueToday = $allTasks
+            ->filter(fn (Task $t): bool => $t->due_at !== null
+                && $t->due_at->gte($startOfDay)
+                && $t->due_at->lte($endOfDay))
+            ->sortBy('due_at')
+            ->values();
+
+        $upcoming = $allTasks
+            ->filter(fn (Task $t): bool => $t->due_at !== null && $t->due_at->gt($endOfDay))
+            ->sortBy('due_at')
+            ->values();
+
+        $unscheduled = $allTasks
+            ->filter(fn (Task $t): bool => $t->due_at === null)
+            ->sortByDesc('created_at')
+            ->values();
+
+        $mapTask = fn (Task $t): array => [
             'id' => $t->id,
             'title' => $t->title,
             'type' => $t->type,
-            'type_icon' => $t->type_icon,
-            'status' => $t->status,
             'priority' => $t->priority,
-            'due_at' => $t->due_at?->toIso8601String(),
-            'due_label' => $t->due_at ? $this->formatDue($t->due_at) : null,
-            'is_overdue' => $t->due_at instanceof Carbon
-                && $t->due_at->isPast()
-                && $t->status !== 'complete',
-            'project' => $t->project ? [
-                'id' => $t->project->id,
-                'title' => $t->project->title,
-                'colour' => $t->project->colour,
-            ] : null,
-            'customer_id' => $t->customer_id,
+            'status' => $t->status,
+            'due_at' => $t->due_at?->format('d M H:i'),
+            'due_at_full' => $t->due_at?->toIso8601String(),
+            'project_id' => $t->project_id,
+            'project_title' => $t->project?->title,
+            'project_colour' => $t->project?->colour,
             'customer_name' => $t->customer?->name,
-            'milestone_title' => $t->milestone?->title,
-            'blocked_reason' => $t->blocked_reason,
-        ]);
-
-        $endOfWeek = now()->endOfWeek();
-        $tomorrow = now()->addDay()->startOfDay();
-
-        $grouped = [
-            'overdue' => $mapped->filter(fn (array $t): bool => $t['is_overdue'])->values(),
-            'today' => $mapped->filter(function (array $t): bool {
-                if ($t['is_overdue'] || $t['due_at'] === null) {
-                    return false;
-                }
-
-                return Carbon::parse($t['due_at'])->isToday();
-            })->values(),
-            'this_week' => $mapped->filter(function (array $t) use ($tomorrow, $endOfWeek): bool {
-                if ($t['is_overdue'] || $t['due_at'] === null) {
-                    return false;
-                }
-                $due = Carbon::parse($t['due_at']);
-
-                return $due->between($tomorrow, $endOfWeek) && ! $due->isToday();
-            })->values(),
-            'in_progress' => $mapped->filter(fn (array $t): bool => $t['status'] === 'in_progress')->values(),
-            'in_review' => $mapped->filter(fn (array $t): bool => $t['status'] === 'in_review')->values(),
-            // "Upcoming" catches both undated work and work scheduled
-            // beyond this week. Collapsed by default in the UI to
-            // keep the page focused on what's pressing.
-            'upcoming' => $mapped->filter(function (array $t) use ($endOfWeek): bool {
-                if ($t['is_overdue']) {
-                    return false;
-                }
-                if ($t['due_at'] === null) {
-                    return true;
-                }
-
-                return Carbon::parse($t['due_at'])->isAfter($endOfWeek);
-            })->values(),
         ];
+
+        $summary = [
+            'overdue' => $overdue->count(),
+            'today' => $dueToday->count(),
+            'upcoming' => $upcoming->count(),
+            'unscheduled' => $unscheduled->count(),
+            'total' => $allTasks->count(),
+        ];
+
+        // Hours logged today. Storage is minutes against logged_at (a DATE
+        // column — there is no `date` column on time_entries).
+        $minutesToday = (int) TimeEntry::where('user_id', $userId)
+            ->whereDate('logged_at', today())
+            ->sum('minutes');
+        $hoursToday = round($minutesToday / 60, 1);
 
         $myProjects = Project::whereHas('members', fn ($q) => $q->where('user_id', $userId))
             ->where('status', 'active')
@@ -134,9 +126,16 @@ class MyWorkController extends Controller
             ]);
 
         return Inertia::render('Internal/MyWork', [
-            'grouped' => $grouped,
+            'summary' => $summary,
+            'overdue' => $overdue->map($mapTask)->values(),
+            'due_today' => $dueToday->map($mapTask)->values(),
+            // Grouped by day so the Upcoming tab can render day headers.
+            'upcoming' => $upcoming->map($mapTask)
+                ->groupBy(fn (array $t): string => Carbon::parse($t['due_at_full'])->format('D d M')),
+            'unscheduled' => $unscheduled->map($mapTask)->take(10)->values(),
+            'hours_today' => $hoursToday,
             'my_projects' => $myProjects,
-            'total' => $mapped->count(),
+            'total' => $summary['total'],
             'google_connected' => $request->user()->google_sync_enabled,
         ]);
     }
@@ -199,33 +198,5 @@ class MyWorkController extends Controller
             'events' => $tasks->concat($gcalEvents)->values(),
             'google_connected' => $user->google_sync_enabled,
         ]);
-    }
-
-    /**
-     * Human-friendly due label for the task rows. We commit to
-     * "Today"/"Tomorrow"/"3d overdue" rather than raw dates so the
-     * eye can scan the list quickly.
-     */
-    private function formatDue(Carbon $date): string
-    {
-        $today = now()->startOfDay();
-        $day = $date->copy()->startOfDay();
-
-        if ($day->equalTo($today)) {
-            return 'Today';
-        }
-        if ($day->equalTo($today->copy()->addDay())) {
-            return 'Tomorrow';
-        }
-        if ($day->equalTo($today->copy()->subDay())) {
-            return 'Yesterday';
-        }
-        if ($date->isPast()) {
-            $days = (int) abs($today->diffInDays($day, false));
-
-            return $days.'d overdue';
-        }
-
-        return $date->format('d M');
     }
 }

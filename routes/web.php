@@ -244,6 +244,11 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // Drag-to-reschedule from the MyWork calendar (JSON).
     Route::post('/tasks/{id}/reschedule', [InternalTaskController::class, 'reschedule'])
         ->whereNumber('id')->name('internal.tasks.reschedule');
+    // One-click complete + reschedule from the My Work list (Inertia redirects).
+    Route::post('/tasks/{id}/quick-complete', [InternalTaskController::class, 'quickComplete'])
+        ->whereNumber('id')->name('internal.tasks.quick-complete');
+    Route::post('/tasks/{id}/quick-reschedule', [InternalTaskController::class, 'quickReschedule'])
+        ->whereNumber('id')->name('internal.tasks.quick-reschedule');
 
     Route::prefix('time-entries')->name('internal.time-entries.')->group(function () {
         Route::post('/', [InternalTimeEntryController::class, 'store'])->name('store');

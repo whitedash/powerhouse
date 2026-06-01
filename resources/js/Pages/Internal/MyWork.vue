@@ -1,23 +1,21 @@
 <script setup>
 /**
- * /my-work — personal task list.
+ * /my-work — the operator's personal command centre.
  *
- * The server pre-groups tasks into 6 sections (overdue, today,
- * this_week, in_progress, in_review, upcoming). We render each as
- * a collapsible card; empty sections are hidden unless they have
- * a semantic "good" empty state (e.g. "Today" → "All caught up").
+ * Four tabs: Today (overdue + due-today + unscheduled), Upcoming
+ * (grouped by day), Projects (the operator's active projects), and
+ * Calendar (FullCalendar + Google sync — unchanged from before).
  *
- * The status quick-change popover lets the operator move a card
- * between states without leaving the page; it posts to
- * /tasks/{id}/status the same as the project board does.
+ * The server pre-buckets tasks by schedule and ships display-ready
+ * shapes; the page just renders them and posts quick-complete /
+ * quick-reschedule mutations inline.
  */
-import { computed, nextTick, reactive, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
-    IconPlus, IconAlertTriangle, IconCircleCheck, IconChevronDown,
-    IconChevronUp, IconClock, IconEye, IconBan, IconCircle,
-    IconList, IconCalendar, IconBrandGoogle, IconMapPin, IconFolder,
-    IconVideo, IconX,
+    IconAlertCircle, IconChevronDown, IconChevronUp, IconCircleCheck,
+    IconChecklist, IconCalendarEvent, IconLayoutKanban, IconCalendar,
+    IconBrandGoogle, IconMapPin, IconFolder, IconVideo, IconX,
 } from '@tabler/icons-vue';
 import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -25,90 +23,52 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
+import MyWorkTaskRow from '@/Components/Internal/MyWorkTaskRow.vue';
 
 const props = defineProps({
-    grouped: { type: Object, required: true },
+    summary: { type: Object, default: () => ({ overdue: 0, today: 0, upcoming: 0, unscheduled: 0, total: 0 }) },
+    overdue: { type: Array, default: () => [] },
+    due_today: { type: Array, default: () => [] },
+    upcoming: { type: Object, default: () => ({}) },
+    unscheduled: { type: Array, default: () => [] },
+    hours_today: { type: Number, default: 0 },
     my_projects: { type: Array, default: () => [] },
     total: { type: Number, default: 0 },
     google_connected: { type: Boolean, default: false },
 });
 
 const page = usePage();
-
-/* ─── List / Calendar tab switch ─── */
-const activeTab = ref('list');
 const googleConnected = computed(() => props.google_connected);
 
-const me = computed(() => page.props.auth?.user?.name?.split(' ')[0] ?? 'there');
+const todayLabel = computed(() =>
+    new Date().toLocaleDateString('en-GB', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    }),
+);
 
-/* ─── Section open/closed state ─── */
-const open = reactive({
-    overdue: true,
-    today: true,
-    this_week: true,
-    in_progress: true,
-    in_review: true,
-    upcoming: false, // collapsed by default — see controller comment
-});
-function toggle(key) { open[key] = ! open[key]; }
+/* ─── Tabs ─── */
+const activeTab = ref('today');
 
-const STATUS_LABEL = {
-    todo: 'To do', in_progress: 'In progress', in_review: 'In review',
-    blocked: 'Blocked', complete: 'Complete', cancelled: 'Cancelled',
-};
-function statusLabel(s) { return STATUS_LABEL[s] ?? s; }
+/* ─── Quick complete / reschedule ─── */
+const completing = ref(null);
+const showUnscheduled = ref(false);
 
-/* ─── Status popover ─── */
-const openPopover = ref(null);
-const STATUS_OPTIONS = [
-    { key: 'todo',        label: 'To do',       icon: IconCircle },
-    { key: 'in_progress', label: 'In progress', icon: IconClock },
-    { key: 'in_review',   label: 'In review',   icon: IconEye },
-    { key: 'blocked',     label: 'Blocked',     icon: IconBan },
-    { key: 'complete',    label: 'Complete',    icon: IconCircleCheck },
-];
-function togglePopover(taskId) { openPopover.value = openPopover.value === taskId ? null : taskId; }
-function setStatus(taskId, status) {
-    router.post(`/tasks/${taskId}/status`, { status }, {
+function quickComplete(id) {
+    completing.value = id;
+    router.post(`/tasks/${id}/quick-complete`, {}, {
         preserveScroll: true,
-        onFinish: () => { openPopover.value = null; },
+        onFinish: () => { completing.value = null; },
     });
 }
-
-/* ─── Quick task add ─── */
-const quickAdd = useForm({ title: '' });
-function submitQuickAdd() {
-    if (! quickAdd.title.trim()) return;
-    quickAdd.transform(d => ({ title: d.title, type: 'task', assigned_to: page.props.auth?.user?.id }))
-        .post('/tasks', {
-            preserveScroll: true,
-            onSuccess: () => { quickAdd.title = ''; },
-        });
+function quickReschedule(id, date) {
+    if (! date) return;
+    router.post(`/tasks/${id}/quick-reschedule`, { due_at: date }, {
+        preserveScroll: true,
+    });
 }
-
-/* ─── This-week sub-grouping by day ─── */
-const thisWeekByDay = computed(() => {
-    const buckets = {};
-    for (const t of props.grouped.this_week) {
-        const key = t.due_at ? new Date(t.due_at).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }) : 'Later this week';
-        if (! buckets[key]) buckets[key] = [];
-        buckets[key].push(t);
-    }
-    return buckets;
-});
-
-function initials(name) {
-    return (name || '').split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase();
+function goToTask(task) {
+    router.visit(task.project_id ? `/projects/${task.project_id}` : `/activities/${task.id}`);
 }
-
-const sections = [
-    { key: 'overdue',     label: 'Overdue',          tone: 'red' },
-    { key: 'today',       label: 'Today',            tone: 'amber' },
-    { key: 'this_week',   label: 'This week',        tone: 'neutral' },
-    { key: 'in_progress', label: 'In progress',      tone: 'info' },
-    { key: 'in_review',   label: 'Waiting for review', tone: 'neutral' },
-    { key: 'upcoming',    label: 'Upcoming',         tone: 'neutral' },
-];
 
 /* ─── Calendar ─── */
 const csrf = () => document.querySelector('meta[name=csrf-token]')?.content ?? '';
@@ -327,16 +287,134 @@ function submitCreateTask() {
         <div class="my-work">
             <!-- ─── Header ─── -->
             <div class="mw-header">
-                <h1>Good {{ new Date().getHours() < 12 ? 'morning' : (new Date().getHours() < 18 ? 'afternoon' : 'evening') }}, {{ me }}</h1>
-                <p class="muted">
-                    <strong>{{ total }}</strong> {{ total === 1 ? 'task' : 'tasks' }} assigned to you.
-                </p>
+                <h1>My Work</h1>
+                <p class="muted">{{ todayLabel }}</p>
             </div>
 
-            <!-- ─── My projects strip ─── -->
-            <div v-if="my_projects.length > 0" class="mw-projects-strip">
-                <h3 class="strip-title">My active projects</h3>
-                <div class="strip-row">
+            <!-- ─── Summary strip ─── -->
+            <div class="mw-summary">
+                <div class="mw-stat" :class="{ 'mw-stat--alert': summary.overdue }">
+                    <span class="mw-stat-value">{{ summary.overdue }}</span>
+                    <span class="mw-stat-label">Overdue</span>
+                </div>
+                <div class="mw-stat">
+                    <span class="mw-stat-value">{{ summary.today }}</span>
+                    <span class="mw-stat-label">Due today</span>
+                </div>
+                <div class="mw-stat">
+                    <span class="mw-stat-value">{{ summary.upcoming }}</span>
+                    <span class="mw-stat-label">Upcoming</span>
+                </div>
+                <div class="mw-stat mw-stat--time">
+                    <span class="mw-stat-value">{{ hours_today }}h</span>
+                    <span class="mw-stat-label">Logged today</span>
+                </div>
+            </div>
+
+            <!-- ─── Tabs ─── -->
+            <nav class="mw-tabs">
+                <button type="button" class="mw-tab" :class="{ active: activeTab === 'today' }" @click="switchTab('today')">
+                    <IconChecklist :size="15" stroke-width="2" /> Today
+                </button>
+                <button type="button" class="mw-tab" :class="{ active: activeTab === 'upcoming' }" @click="switchTab('upcoming')">
+                    <IconCalendarEvent :size="15" stroke-width="2" /> Upcoming
+                </button>
+                <button type="button" class="mw-tab" :class="{ active: activeTab === 'projects' }" @click="switchTab('projects')">
+                    <IconLayoutKanban :size="15" stroke-width="2" /> Projects
+                </button>
+                <button type="button" class="mw-tab" :class="{ active: activeTab === 'calendar' }" @click="switchTab('calendar')">
+                    <IconCalendar :size="15" stroke-width="2" /> Calendar
+                </button>
+            </nav>
+
+            <!-- ════════ TODAY TAB ════════ -->
+            <div v-show="activeTab === 'today'">
+                <!-- Overdue -->
+                <div v-if="overdue.length" class="mw-section mw-section--alert">
+                    <div class="mw-section-head">
+                        <span class="mw-section-title">
+                            <IconAlertCircle :size="14" stroke-width="2" /> Overdue
+                        </span>
+                        <span class="mw-count-badge badge-danger">{{ overdue.length }}</span>
+                    </div>
+                    <MyWorkTaskRow
+                        v-for="task in overdue"
+                        :key="task.id"
+                        :task="task"
+                        :completing="completing"
+                        @complete="quickComplete"
+                        @reschedule="quickReschedule"
+                        @open="goToTask"
+                    />
+                </div>
+
+                <!-- Due today -->
+                <div class="mw-section">
+                    <div class="mw-section-head">
+                        <span class="mw-section-title">Today</span>
+                        <span class="mw-count-badge">{{ due_today.length }}</span>
+                    </div>
+                    <MyWorkTaskRow
+                        v-for="task in due_today"
+                        :key="task.id"
+                        :task="task"
+                        :completing="completing"
+                        @complete="quickComplete"
+                        @reschedule="quickReschedule"
+                        @open="goToTask"
+                    />
+                    <div v-if="! due_today.length" class="mw-empty">Nothing due today 🎉</div>
+                </div>
+
+                <!-- Unscheduled (collapsed by default) -->
+                <div v-if="unscheduled.length" class="mw-section">
+                    <button type="button" class="mw-section-head mw-section-toggle" @click="showUnscheduled = ! showUnscheduled">
+                        <span class="mw-section-title">Unscheduled</span>
+                        <span class="mw-count-badge">{{ unscheduled.length }}</span>
+                        <component :is="showUnscheduled ? IconChevronUp : IconChevronDown" :size="14" stroke-width="2" />
+                    </button>
+                    <template v-if="showUnscheduled">
+                        <MyWorkTaskRow
+                            v-for="task in unscheduled"
+                            :key="task.id"
+                            :task="task"
+                            :completing="completing"
+                            @complete="quickComplete"
+                            @reschedule="quickReschedule"
+                            @open="goToTask"
+                        />
+                    </template>
+                </div>
+            </div>
+
+            <!-- ════════ UPCOMING TAB ════════ -->
+            <div v-show="activeTab === 'upcoming'">
+                <div v-if="Object.keys(upcoming).length === 0" class="mw-section">
+                    <div class="mw-empty">Nothing scheduled ahead.</div>
+                </div>
+                <div v-for="(tasks, day) in upcoming" :key="day" class="mw-section">
+                    <div class="mw-section-head">
+                        <span class="mw-section-title">{{ day }}</span>
+                        <span class="mw-count-badge">{{ tasks.length }}</span>
+                    </div>
+                    <MyWorkTaskRow
+                        v-for="task in tasks"
+                        :key="task.id"
+                        :task="task"
+                        :completing="completing"
+                        @complete="quickComplete"
+                        @reschedule="quickReschedule"
+                        @open="goToTask"
+                    />
+                </div>
+            </div>
+
+            <!-- ════════ PROJECTS TAB ════════ -->
+            <div v-show="activeTab === 'projects'">
+                <div v-if="my_projects.length === 0" class="mw-section">
+                    <div class="mw-empty">You're not on any active projects.</div>
+                </div>
+                <div v-else class="mw-projects-grid">
                     <Link
                         v-for="p in my_projects"
                         :key="p.id"
@@ -355,124 +433,6 @@ function submitCreateTask() {
                     </Link>
                 </div>
             </div>
-
-            <!-- ─── List / Calendar tabs ─── -->
-            <nav class="mw-tabs">
-                <button type="button" class="mw-tab" :class="{ active: activeTab === 'list' }" @click="switchTab('list')">
-                    <IconList :size="15" stroke-width="2" /> List
-                </button>
-                <button type="button" class="mw-tab" :class="{ active: activeTab === 'calendar' }" @click="switchTab('calendar')">
-                    <IconCalendar :size="15" stroke-width="2" /> Calendar
-                </button>
-            </nav>
-
-            <!-- ════════ LIST TAB ════════ -->
-            <div v-show="activeTab === 'list'">
-            <!-- ─── Sections ─── -->
-            <div v-for="sec in sections" :key="sec.key">
-                <div v-if="grouped[sec.key].length > 0 || sec.key === 'today'" class="mw-section">
-                    <button type="button" class="mw-section-head" :class="`tone-${sec.tone}`" @click="toggle(sec.key)">
-                        <component :is="open[sec.key] ? IconChevronUp : IconChevronDown" :size="14" stroke-width="2" />
-                        <span class="mw-section-title">{{ sec.label }}</span>
-                        <span class="mw-section-count">{{ grouped[sec.key].length }}</span>
-                    </button>
-
-                    <div v-if="open[sec.key]" class="mw-section-body">
-                        <!-- Today empty state -->
-                        <div v-if="sec.key === 'today' && grouped[sec.key].length === 0" class="mw-empty-today">
-                            <IconCircleCheck :size="20" stroke-width="2" />
-                            All caught up for today.
-                        </div>
-
-                        <!-- This-week grouped by day -->
-                        <template v-else-if="sec.key === 'this_week'">
-                            <div v-for="(rows, dayLabel) in thisWeekByDay" :key="dayLabel">
-                                <div class="mw-day-label muted small">{{ dayLabel }}</div>
-                                <div
-                                    v-for="t in rows"
-                                    :key="t.id"
-                                    class="mw-task-row"
-                                >
-                                    <div class="mw-status-wrap">
-                                        <button type="button" class="mw-status-btn" @click="togglePopover(t.id)">
-                                            <span class="status-dot" :class="t.status"></span>
-                                        </button>
-                                        <div v-if="openPopover === t.id" class="mw-status-pop">
-                                            <button v-for="s in STATUS_OPTIONS" :key="s.key" type="button" class="mw-status-opt" @click.stop="setStatus(t.id, s.key)">
-                                                <component :is="s.icon" :size="13" stroke-width="2" />
-                                                {{ s.label }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <Link :href="`/activities/${t.id}`" class="mw-task-link">{{ t.title }}</Link>
-                                    <div class="mw-task-meta">
-                                        <span v-if="t.project" class="project-chip" :style="{ borderColor: t.project.colour }">
-                                            <span class="dot" :style="{ background: t.project.colour }"></span>
-                                            {{ t.project.title }}
-                                        </span>
-                                        <span v-if="t.customer_name" class="muted small">· {{ t.customer_name }}</span>
-                                        <span v-if="t.due_label" class="muted small">· {{ t.due_label }}</span>
-                                        <span class="priority-dot" :class="`pri-${t.priority}`"></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-
-                        <!-- Standard flat list -->
-                        <div v-else>
-                            <div
-                                v-for="t in grouped[sec.key]"
-                                :key="t.id"
-                                class="mw-task-row"
-                                :class="{ overdue: t.is_overdue && sec.key === 'overdue' }"
-                            >
-                                <div class="mw-status-wrap">
-                                    <button type="button" class="mw-status-btn" @click="togglePopover(t.id)">
-                                        <span class="status-dot" :class="t.status"></span>
-                                    </button>
-                                    <div v-if="openPopover === t.id" class="mw-status-pop">
-                                        <button v-for="s in STATUS_OPTIONS" :key="s.key" type="button" class="mw-status-opt" @click.stop="setStatus(t.id, s.key)">
-                                            <component :is="s.icon" :size="13" stroke-width="2" />
-                                            {{ s.label }}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <Link :href="`/activities/${t.id}`" class="mw-task-link">{{ t.title }}</Link>
-
-                                <div class="mw-task-meta">
-                                    <span v-if="t.project" class="project-chip" :style="{ borderColor: t.project.colour }">
-                                        <span class="dot" :style="{ background: t.project.colour }"></span>
-                                        {{ t.project.title }}
-                                    </span>
-                                    <span v-if="t.customer_name" class="muted small">· {{ t.customer_name }}</span>
-                                    <span v-if="t.due_label" :class="{ 'text-danger': t.is_overdue }" class="small">· {{ t.due_label }}</span>
-                                    <span v-if="t.status === 'blocked' && t.blocked_reason" class="muted small blocked-note">
-                                        <IconAlertTriangle :size="11" stroke-width="2" />
-                                        {{ t.blocked_reason }}
-                                    </span>
-                                    <span class="priority-dot" :class="`pri-${t.priority}`" :title="t.priority"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ─── Quick task add (footer) ─── -->
-            <div class="mw-quick-add">
-                <form @submit.prevent="submitQuickAdd" class="reply-box">
-                    <IconPlus :size="16" stroke-width="2" />
-                    <input
-                        v-model="quickAdd.title"
-                        type="text"
-                        placeholder="Quick task — title, then Enter"
-                        maxlength="255"
-                    />
-                    <button type="submit" class="btn btn-primary btn-sm" :disabled="!quickAdd.title.trim() || quickAdd.processing">Add</button>
-                </form>
-            </div>
-            </div><!-- /list tab -->
 
             <!-- ════════ CALENDAR TAB ════════ -->
             <div v-show="activeTab === 'calendar'" class="my-work-calendar">

@@ -14,7 +14,6 @@ import {
     IconCreditCard,
     IconChartLine,
     IconUsersGroup,
-    IconLayoutGrid,
     IconToolsKitchen2,
     IconFileInvoice,
     IconClipboardList,
@@ -189,7 +188,13 @@ const hasMaavelus = computed(() => (page.props.nav_products ?? []).some((p) => p
 const expandedGroups = ref(JSON.parse(localStorage.getItem('nav_groups') ?? '{}'));
 
 const toggleGroup = (key) => {
-    expandedGroups.value[key] = ! expandedGroups.value[key];
+    // Accordion behaviour: opening one group collapses every other.
+    // Clicking an already-open group closes it. The group containing
+    // the active route is force-open via isGroupExpanded regardless of
+    // this persisted state, so the operator never loses sight of where
+    // they are.
+    const wasOpen = expandedGroups.value[key] ?? false;
+    expandedGroups.value = wasOpen ? {} : { [key]: true };
     localStorage.setItem('nav_groups', JSON.stringify(expandedGroups.value));
 };
 
@@ -255,7 +260,8 @@ const sections = computed(() => {
                     children: [
                         { key: 'suppliers',    label: 'Suppliers',    href: '/suppliers',    icon: IconBuildingFactory2 },
                         { key: 'domains',      label: 'Domains',      href: '/domains',      icon: IconWorld },
-                        { key: 'provisioning', label: 'Provisioning', href: '/provisioning', icon: IconLayoutGrid },
+                        // Provisioning removed from nav — Subscriptions covers the
+                        // same use cases. Route + page kept intact (/provisioning).
                         { key: 'forms',        label: 'Forms',        href: '/forms',        icon: IconForms },
                         { key: 'workflows',    label: 'Workflows',    href: '/workflows',    icon: IconBolt },
                     ],
