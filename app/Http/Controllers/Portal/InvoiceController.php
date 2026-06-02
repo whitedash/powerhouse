@@ -26,11 +26,36 @@ class InvoiceController extends Controller
         /** @var PortalUser $portalUser */
         $portalUser = Auth::guard('portal')->user();
 
-        $invoices = Invoice::where('customer_id', $portalUser->customer_id)
-            ->with('billingEntity:id,name')
+        $customerId = $portalUser->customer_id;
+        $outstandingStatuses = ['sent', 'overdue', 'partially_paid'];
+
+        // Filter-tab counts span the whole account, not just the current
+        // page — the tabs show a total, then the table paginates within it.
+        $counts = [
+            'all' => Invoice::where('customer_id', $customerId)->count(),
+            'outstanding' => Invoice::where('customer_id', $customerId)->whereIn('status', $outstandingStatuses)->count(),
+            'paid' => Invoice::where('customer_id', $customerId)->where('status', 'paid')->count(),
+        ];
+
+        // Active filter tab. Anything unexpected falls back to "all".
+        $filter = (string) $request->query('filter', 'all');
+        if (! in_array($filter, ['all', 'outstanding', 'paid'], true)) {
+            $filter = 'all';
+        }
+
+        $query = Invoice::where('customer_id', $customerId)
+            ->with('billingEntity:id,name');
+        if ($filter === 'outstanding') {
+            $query->whereIn('status', $outstandingStatuses);
+        } elseif ($filter === 'paid') {
+            $query->where('status', 'paid');
+        }
+
+        $invoices = $query
             ->orderByDesc('issue_date')
             ->orderByDesc('id')
             ->paginate(15)
+            ->withQueryString()
             ->through(fn (Invoice $inv) => [
                 'id' => $inv->id,
                 'number' => $inv->number,
@@ -43,10 +68,10 @@ class InvoiceController extends Controller
             ]);
 
         $summary = [
-            'total_outstanding' => round((float) Invoice::where('customer_id', $portalUser->customer_id)
+            'total_outstanding' => round((float) Invoice::where('customer_id', $customerId)
                 ->whereIn('status', ['sent', 'overdue'])
                 ->sum('total'), 2),
-            'overdue_count' => Invoice::where('customer_id', $portalUser->customer_id)
+            'overdue_count' => Invoice::where('customer_id', $customerId)
                 ->where('status', 'overdue')
                 ->count(),
         ];
@@ -54,6 +79,8 @@ class InvoiceController extends Controller
         return Inertia::render('Portal/Invoices', [
             'invoices' => $invoices,
             'summary' => $summary,
+            'counts' => $counts,
+            'filter' => $filter,
         ]);
     }
 
