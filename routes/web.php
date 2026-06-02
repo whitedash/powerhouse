@@ -56,7 +56,6 @@ use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
 use App\Http\Controllers\Portal\PasswordController as PortalPasswordController;
 use App\Http\Controllers\Portal\ProductLaunchController as PortalProductLaunchController;
 use App\Http\Controllers\Portal\ProductsController as PortalProductsController;
-use App\Http\Controllers\Portal\SecurityController as PortalSecurityController;
 use App\Http\Controllers\Portal\SubscriptionController as PortalSubscriptionController;
 use App\Http\Controllers\Portal\SupportController as PortalSupportController;
 use App\Http\Controllers\Public\EmbedController as PublicEmbedController;
@@ -782,13 +781,9 @@ Route::prefix('portal')->middleware('auth.portal')->group(function () {
         ->where('slug', '[a-z0-9-]+')
         ->name('portal.product.launch');
 
-    // Security page — password change form + per-token revoke list.
-    // The password endpoint already lives on AccountController so we
-    // reuse it; this page just renders the form against the same URL.
-    Route::get('/security', [PortalSecurityController::class, 'index'])->name('portal.security');
-    Route::delete('/security/tokens/{token}', [PortalSecurityController::class, 'revokeToken'])
-        ->where('token', '[a-zA-Z0-9]+')
-        ->name('portal.security.tokens.revoke');
+    // Security page merged into /account — password + connected apps now
+    // live there. Old URL kept alive with a permanent redirect.
+    Route::permanentRedirect('/security', '/portal/account')->name('portal.security');
 
     Route::get('/subscriptions', [PortalSubscriptionController::class, 'index'])->name('portal.subscriptions.index');
     Route::post('/subscriptions', [PortalSubscriptionController::class, 'store'])->name('portal.subscriptions.store');
@@ -809,6 +804,9 @@ Route::prefix('portal')->middleware('auth.portal')->group(function () {
     Route::get('/account', [PortalAccountController::class, 'index'])->name('portal.account.index');
     Route::put('/account', [PortalAccountController::class, 'update'])->name('portal.account.update');
     Route::put('/account/password', [PortalAccountController::class, 'updatePassword'])->name('portal.account.password');
+    Route::delete('/account/tokens/{token}', [PortalAccountController::class, 'revokeToken'])
+        ->where('token', '[a-zA-Z0-9]+')
+        ->name('portal.account.tokens.revoke');
 });
 
 // Bare alias /portal so account.whitedash.co.uk/ lands somewhere useful
