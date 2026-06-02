@@ -176,12 +176,15 @@ class MainWPService
      */
     public function updateSitePlugin(int|string $site, string $slug): array
     {
+        // The /update/plugins endpoint declares no params, so pass the slug
+        // as an array (the common MainWP/WP batch shape). If the dashboard
+        // build ignores it, it falls back to updating all outdated plugins.
         $response = Http::timeout(120)
             ->withHeaders($this->headers())
-            ->post($this->baseUrl().'/updates/'.$site.'/update/plugins', ['plugins' => $slug]);
+            ->post($this->baseUrl().'/updates/'.$site.'/update/plugins', ['plugins' => [$slug]]);
 
         if ($response->failed()) {
-            throw new \RuntimeException('MainWP plugin update failed: '.$response->status());
+            throw new \RuntimeException('MainWP plugin update failed: '.$response->status().' '.$response->body());
         }
 
         return $response->json() ?? [];
@@ -199,10 +202,10 @@ class MainWPService
     {
         $response = Http::timeout(120)
             ->withHeaders($this->headers())
-            ->post($this->baseUrl().'/updates/'.$site.'/update/themes', ['themes' => $slug]);
+            ->post($this->baseUrl().'/updates/'.$site.'/update/themes', ['themes' => [$slug]]);
 
         if ($response->failed()) {
-            throw new \RuntimeException('MainWP theme update failed: '.$response->status());
+            throw new \RuntimeException('MainWP theme update failed: '.$response->status().' '.$response->body());
         }
 
         return $response->json() ?? [];

@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -185,13 +186,21 @@ class WordPressUpdateController extends Controller
 
         try {
             $mainwp = app(MainWPService::class);
-            $mainwp->updateSiteCore($website->mainwp_site_id);
+            $result = $mainwp->updateSiteCore($website->mainwp_site_id);
+            Log::info('mainwp.core_update', ['site' => $website->url, 'response' => $result]);
+
             $this->resync($mainwp, $website);
-            $this->record($request, $website, 'website.core_updated', null, ['wp_version' => $website->wp_version]);
+
+            // Core still flagged after a fresh sync = update hasn't applied.
+            $pending = (bool) $website->wp_core_update_available;
+            $this->record($request, $website, 'website.core_updated', null, ['wp_version' => $website->wp_version, 'applied' => ! $pending]);
 
             return response()->json([
-                'ok' => true,
-                'message' => 'WordPress core updated',
+                'ok' => ! $pending,
+                'pending' => $pending,
+                'message' => $pending
+                    ? 'MainWP accepted the request but core still shows an update — it may be processing. Re-sync the site in a minute to confirm.'
+                    : 'WordPress core updated',
                 'wp_version' => $website->wp_version,
                 'wp_core_update_available' => $website->wp_core_update_available,
                 'wp_latest_version' => $website->wp_latest_version,
@@ -219,13 +228,25 @@ class WordPressUpdateController extends Controller
 
         try {
             $mainwp = app(MainWPService::class);
-            $mainwp->updateSitePlugin($website->mainwp_site_id, $data['plugin_slug']);
+            $result = $mainwp->updateSitePlugin($website->mainwp_site_id, $data['plugin_slug']);
+            // Record what MainWP actually returned — previously we were blind
+            // to this, which is why a no-op looked like success.
+            Log::info('mainwp.plugin_update', ['site' => $website->url, 'slug' => $data['plugin_slug'], 'response' => $result]);
+
             $this->resync($mainwp, $website);
-            $this->record($request, $website, 'website.plugin_updated', ['plugin' => $data['plugin_slug']], ['plugins_outdated' => $website->plugins_outdated]);
+
+            // Verify rather than assume: if the plugin is still in the outdated
+            // list after a fresh sync, the update hasn't applied (queued, failed,
+            // or the per-plugin target was ignored).
+            $pending = $this->stillListed($website->plugin_updates_detail, $data['plugin_slug']);
+            $this->record($request, $website, 'website.plugin_updated', ['plugin' => $data['plugin_slug']], ['plugins_outdated' => $website->plugins_outdated, 'applied' => ! $pending]);
 
             return response()->json([
-                'ok' => true,
-                'message' => 'Plugin update triggered',
+                'ok' => ! $pending,
+                'pending' => $pending,
+                'message' => $pending
+                    ? 'MainWP accepted the request but the plugin still shows an update — it may be processing. Re-sync the site in a minute to confirm.'
+                    : 'Plugin updated',
                 'plugins_outdated' => $website->plugins_outdated,
                 'plugins_total' => $website->plugins_total,
                 'themes_outdated' => $website->themes_outdated,
@@ -255,13 +276,20 @@ class WordPressUpdateController extends Controller
 
         try {
             $mainwp = app(MainWPService::class);
-            $mainwp->updateSiteTheme($website->mainwp_site_id, $data['theme_slug']);
+            $result = $mainwp->updateSiteTheme($website->mainwp_site_id, $data['theme_slug']);
+            Log::info('mainwp.theme_update', ['site' => $website->url, 'slug' => $data['theme_slug'], 'response' => $result]);
+
             $this->resync($mainwp, $website);
-            $this->record($request, $website, 'website.theme_updated', ['theme' => $data['theme_slug']], ['themes_outdated' => $website->themes_outdated]);
+
+            $pending = $this->stillListed($website->theme_updates_detail, $data['theme_slug']);
+            $this->record($request, $website, 'website.theme_updated', ['theme' => $data['theme_slug']], ['themes_outdated' => $website->themes_outdated, 'applied' => ! $pending]);
 
             return response()->json([
-                'ok' => true,
-                'message' => 'Theme update triggered',
+                'ok' => ! $pending,
+                'pending' => $pending,
+                'message' => $pending
+                    ? 'MainWP accepted the request but the theme still shows an update — it may be processing. Re-sync the site in a minute to confirm.'
+                    : 'Theme updated',
                 'plugins_outdated' => $website->plugins_outdated,
                 'themes_outdated' => $website->themes_outdated,
                 'plugin_updates' => $website->plugin_updates_detail ?? [],
@@ -326,10 +354,31 @@ class WordPressUpdateController extends Controller
      */
     private function resync(MainWPService $mainwp, Website $website): void
     {
+        // Trigger a child sync first so MainWP re-reads the site's current
+        // versions — getSite() otherwise returns MainWP's last-cached view,
+        // which still shows the pre-update version right after an update.
+        // Best-effort: a sync failure must not wipe the data we already have.
+        try {
+            $mainwp->syncSite($website->mainwp_site_id);
+        } catch (\Throwable) {
+            // fall through to the last-known state
+        }
+
         $fresh = $mainwp->getSite($website->mainwp_site_id);
         if ($fresh) {
             DB::transaction(fn () => $website->update($mainwp->mapSiteData($fresh)));
         }
+    }
+
+    /**
+     * True when a slug is still present in a *_updates_detail list — i.e. the
+     * update has not (yet) applied.
+     *
+     * @param  array<int, array<string, mixed>>|null  $detail
+     */
+    private function stillListed(?array $detail, string $slug): bool
+    {
+        return collect($detail ?? [])->contains(fn ($item): bool => ($item['slug'] ?? '') === $slug);
     }
 
     /**

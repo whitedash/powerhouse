@@ -156,7 +156,8 @@ async function updateCore(site) {
     busy.value[key] = true;
     site.actionError = '';
     const { ok, data } = await postJson('/wordpress/updates/core', { website_id: site.id });
-    if (ok) applyResult(site, data); else site.actionError = data.message ?? 'Core update failed';
+    applyResult(site, data); // refresh from the synced state regardless of outcome
+    if (! ok) site.actionError = data.message ?? 'Core update failed';
     busy.value[key] = false;
 }
 
@@ -166,7 +167,8 @@ async function updateOnePlugin(site, plugin) {
     busy.value[key] = true;
     site.actionError = '';
     const { ok, data } = await postJson('/wordpress/updates/plugin/update', { website_id: site.id, plugin_slug: plugin.slug });
-    if (ok) applyResult(site, data); else site.actionError = data.message ?? 'Plugin update failed';
+    applyResult(site, data);
+    if (! ok) site.actionError = data.message ?? 'Plugin update failed';
     busy.value[key] = false;
 }
 
@@ -176,7 +178,8 @@ async function updateOneTheme(site, theme) {
     busy.value[key] = true;
     site.actionError = '';
     const { ok, data } = await postJson('/wordpress/updates/theme/update', { website_id: site.id, theme_slug: theme.slug });
-    if (ok) applyResult(site, data); else site.actionError = data.message ?? 'Theme update failed';
+    applyResult(site, data);
+    if (! ok) site.actionError = data.message ?? 'Theme update failed';
     busy.value[key] = false;
 }
 
