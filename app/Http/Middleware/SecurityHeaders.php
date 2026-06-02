@@ -23,13 +23,17 @@ class SecurityHeaders
 
         $response->headers->set('Content-Security-Policy', implode('; ', [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.bunny.net",
+            // Stripe.js powers the embedded invoice checkout (portal).
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.bunny.net https://js.stripe.com https://*.stripe.com",
             "style-src 'self' 'unsafe-inline' https://fonts.bunny.net",
             // data: is required for FullCalendar's embedded `fcicons` font
             // (the prev/next chevron glyphs ship as a base64 data: URI).
             "font-src 'self' https://fonts.bunny.net data:",
             "img-src 'self' data: blob:",
-            "connect-src 'self'",
+            // Stripe API calls + the Embedded Checkout iframe (js.stripe.com
+            // mounts frames from *.stripe.com / hooks.stripe.com).
+            "connect-src 'self' https://api.stripe.com https://*.stripe.com",
+            "frame-src 'self' https://*.stripe.com https://hooks.stripe.com",
             "frame-ancestors 'none'",
         ]));
 
