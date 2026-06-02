@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import {
     IconCheck,
@@ -79,6 +79,22 @@ watch(
     },
     { deep: true, immediate: true },
 );
+
+/*
+ * Imperative bridge: non-Inertia code (fetch handlers, try/catch) fires a
+ * window 'app:toast' event via the useToast() composable. Only one layout
+ * — and thus one ToastContainer — is mounted per page, so the listener
+ * never double-fires.
+ */
+function handleImperativeToast(event) {
+    const { type = 'info', message, duration = 5000 } = event.detail ?? {};
+    if (message) {
+        addToast(type, message, duration);
+    }
+}
+
+onMounted(() => window.addEventListener('app:toast', handleImperativeToast));
+onBeforeUnmount(() => window.removeEventListener('app:toast', handleImperativeToast));
 </script>
 
 <template>

@@ -64,6 +64,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import { showToast } from '@/Composables/useToast';
 
 dayjs.extend(relativeTime);
 
@@ -859,7 +860,7 @@ async function openPortalPreview() {
         });
         const data = await res.json().catch(() => ({}));
         if (! res.ok) {
-            window.alert(data?.error ?? `Preview failed (HTTP ${res.status}).`);
+            showToast('error', data?.error ?? `Preview failed (HTTP ${res.status}).`);
 
             return;
         }
@@ -867,7 +868,7 @@ async function openPortalPreview() {
             window.open(data.url, '_blank', 'noopener');
         }
     } catch (e) {
-        window.alert('Could not open preview.');
+        showToast('error', 'Could not open preview.');
     }
 }
 
