@@ -31,6 +31,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $usage_checked_at
  * @property int|null $mainwp_site_id
  * @property string|null $wp_version
+ * @property bool $wp_core_update_available
+ * @property string|null $wp_latest_version
  * @property string|null $php_version
  * @property int $plugins_total
  * @property int $plugins_outdated
@@ -87,6 +89,8 @@ class Website extends Model
         'usage_checked_at',
         'mainwp_site_id',
         'wp_version',
+        'wp_core_update_available',
+        'wp_latest_version',
         'php_version',
         'plugins_total',
         'plugins_outdated',
@@ -119,6 +123,7 @@ class Website extends Model
     {
         return [
             'whm_managed' => 'boolean',
+            'wp_core_update_available' => 'boolean',
             'pagespeed_data' => 'array',
             'plugin_updates_detail' => 'array',
             'theme_updates_detail' => 'array',

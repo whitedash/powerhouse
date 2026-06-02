@@ -46,6 +46,8 @@ class WordPressUpdateController extends Controller
                 'customer_id' => $w->customer_id,
                 'customer_name' => $w->customer?->name,
                 'wp_version' => $w->wp_version,
+                'wp_core_update_available' => $w->wp_core_update_available,
+                'wp_latest_version' => $w->wp_latest_version,
                 'php_version' => $w->php_version,
                 'plugins_total' => $w->plugins_total,
                 'plugins_outdated' => $w->plugins_outdated,
@@ -65,6 +67,9 @@ class WordPressUpdateController extends Controller
             // The same outstanding updates inverted to a per-plugin view —
             // "which plugins are out of date, and on how many sites".
             'plugins_with_updates' => $this->aggregateByPlugin($websites),
+            // MainWP exposes plugin activate/deactivate routes, so the per-row
+            // toggle is available whenever the integration is configured.
+            'toggle_supported' => (bool) config('services.mainwp.enabled'),
         ]);
     }
 
@@ -147,7 +152,7 @@ class WordPressUpdateController extends Controller
             }
 
             $updated = max(0, $before - $website->fresh()->plugins_outdated);
-            $this->log($request, $website, $before, $website->plugins_outdated);
+            $this->record($request, $website, 'website.plugins_updated', ['plugins_outdated' => $before], ['plugins_outdated' => $website->plugins_outdated]);
 
             return response()->json([
                 'ok' => true,
@@ -165,16 +170,182 @@ class WordPressUpdateController extends Controller
         }
     }
 
-    private function log(Request $request, Website $website, int $before, int $after): void
+    /**
+     * Update WordPress core on a single linked site, then re-sync telemetry.
+     */
+    public function updateCore(Request $request): JsonResponse
+    {
+        $data = $request->validate(['website_id' => ['required', 'integer', 'exists:websites,id']]);
+        $website = Website::findOrFail($data['website_id']);
+        Gate::authorize('update', $website->customer);
+
+        if ($error = $this->guard($website)) {
+            return $error;
+        }
+
+        try {
+            $mainwp = app(MainWPService::class);
+            $mainwp->updateSiteCore($website->mainwp_site_id);
+            $this->resync($mainwp, $website);
+            $this->record($request, $website, 'website.core_updated', null, ['wp_version' => $website->wp_version]);
+
+            return response()->json([
+                'ok' => true,
+                'message' => 'WordPress core updated',
+                'wp_version' => $website->wp_version,
+                'wp_core_update_available' => $website->wp_core_update_available,
+                'wp_latest_version' => $website->wp_latest_version,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 502);
+        }
+    }
+
+    /**
+     * Update a single plugin on a linked site, then re-sync telemetry.
+     */
+    public function updatePlugin(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'website_id' => ['required', 'integer', 'exists:websites,id'],
+            'plugin_slug' => ['required', 'string', 'max:255'],
+        ]);
+        $website = Website::findOrFail($data['website_id']);
+        Gate::authorize('update', $website->customer);
+
+        if ($error = $this->guard($website)) {
+            return $error;
+        }
+
+        try {
+            $mainwp = app(MainWPService::class);
+            $mainwp->updateSitePlugin($website->mainwp_site_id, $data['plugin_slug']);
+            $this->resync($mainwp, $website);
+            $this->record($request, $website, 'website.plugin_updated', ['plugin' => $data['plugin_slug']], ['plugins_outdated' => $website->plugins_outdated]);
+
+            return response()->json([
+                'ok' => true,
+                'message' => 'Plugin update triggered',
+                'plugins_outdated' => $website->plugins_outdated,
+                'plugins_total' => $website->plugins_total,
+                'themes_outdated' => $website->themes_outdated,
+                'plugin_updates' => $website->plugin_updates_detail ?? [],
+                'theme_updates' => $website->theme_updates_detail ?? [],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 502);
+        }
+    }
+
+    /**
+     * Update a single theme on a linked site, then re-sync telemetry.
+     */
+    public function updateTheme(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'website_id' => ['required', 'integer', 'exists:websites,id'],
+            'theme_slug' => ['required', 'string', 'max:255'],
+        ]);
+        $website = Website::findOrFail($data['website_id']);
+        Gate::authorize('update', $website->customer);
+
+        if ($error = $this->guard($website)) {
+            return $error;
+        }
+
+        try {
+            $mainwp = app(MainWPService::class);
+            $mainwp->updateSiteTheme($website->mainwp_site_id, $data['theme_slug']);
+            $this->resync($mainwp, $website);
+            $this->record($request, $website, 'website.theme_updated', ['theme' => $data['theme_slug']], ['themes_outdated' => $website->themes_outdated]);
+
+            return response()->json([
+                'ok' => true,
+                'message' => 'Theme update triggered',
+                'plugins_outdated' => $website->plugins_outdated,
+                'themes_outdated' => $website->themes_outdated,
+                'plugin_updates' => $website->plugin_updates_detail ?? [],
+                'theme_updates' => $website->theme_updates_detail ?? [],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 502);
+        }
+    }
+
+    /**
+     * Activate or deactivate a single plugin on a linked site. MainWP exposes
+     * /plugins/activate and /plugins/deactivate routes for this.
+     */
+    public function togglePlugin(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'website_id' => ['required', 'integer', 'exists:websites,id'],
+            'plugin_slug' => ['required', 'string', 'max:255'],
+            'action' => ['required', 'in:activate,deactivate'],
+        ]);
+        $website = Website::findOrFail($data['website_id']);
+        Gate::authorize('update', $website->customer);
+
+        if ($error = $this->guard($website)) {
+            return $error;
+        }
+
+        try {
+            $mainwp = app(MainWPService::class);
+            $mainwp->setSitePluginState($website->mainwp_site_id, $data['plugin_slug'], $data['action'] === 'activate');
+            $this->resync($mainwp, $website);
+            $this->record($request, $website, 'website.plugin_'.$data['action'].'d', ['plugin' => $data['plugin_slug']], null);
+
+            return response()->json([
+                'ok' => true,
+                'message' => 'Plugin '.($data['action'] === 'activate' ? 'activated' : 'deactivated'),
+                'plugin_updates' => $website->plugin_updates_detail ?? [],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 502);
+        }
+    }
+
+    /**
+     * Shared guard for the action endpoints: MainWP configured + site linked.
+     */
+    private function guard(Website $website): ?JsonResponse
+    {
+        if (! config('services.mainwp.enabled')) {
+            return response()->json(['ok' => false, 'message' => 'MainWP is not configured.'], 422);
+        }
+        if (! $website->mainwp_site_id) {
+            return response()->json(['ok' => false, 'message' => 'Site is not linked to MainWP.'], 422);
+        }
+
+        return null;
+    }
+
+    /**
+     * Pull fresh telemetry for a site and persist the mapped fields.
+     */
+    private function resync(MainWPService $mainwp, Website $website): void
+    {
+        $fresh = $mainwp->getSite($website->mainwp_site_id);
+        if ($fresh) {
+            DB::transaction(fn () => $website->update($mainwp->mapSiteData($fresh)));
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $before
+     * @param  array<string, mixed>|null  $after
+     */
+    private function record(Request $request, Website $website, string $action, ?array $before, ?array $after): void
     {
         ActivityLog::create([
             'user_id' => $request->user()->id,
             'user_role' => $request->user()->role,
-            'action' => 'website.plugins_updated',
+            'action' => $action,
             'entity_type' => 'website',
             'entity_id' => $website->id,
-            'before' => ['plugins_outdated' => $before],
-            'after' => ['plugins_outdated' => $after],
+            'before' => $before,
+            'after' => $after,
             'ip_address' => $request->ip(),
             'user_agent' => substr((string) $request->userAgent(), 0, 500),
         ]);

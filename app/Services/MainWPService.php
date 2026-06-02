@@ -166,6 +166,91 @@ class MainWPService
     }
 
     /**
+     * Update a single plugin on a child site, identified by its slug
+     * (folder/file.php). MainWP's REST update endpoint does not formally
+     * declare a slug parameter, so we pass it as `plugins`; if the dashboard
+     * build ignores it this falls back to updating every outdated plugin on
+     * the site. Throws on a non-2xx.
+     *
+     * @return array<string, mixed>
+     */
+    public function updateSitePlugin(int|string $site, string $slug): array
+    {
+        $response = Http::timeout(120)
+            ->withHeaders($this->headers())
+            ->post($this->baseUrl().'/updates/'.$site.'/update/plugins', ['plugins' => $slug]);
+
+        if ($response->failed()) {
+            throw new \RuntimeException('MainWP plugin update failed: '.$response->status());
+        }
+
+        return $response->json() ?? [];
+    }
+
+    /**
+     * Update a single theme on a child site, by slug. Same caveat as
+     * updateSitePlugin — the slug is passed as `themes` and falls back to
+     * updating all outdated themes if the dashboard ignores it. Throws on a
+     * non-2xx.
+     *
+     * @return array<string, mixed>
+     */
+    public function updateSiteTheme(int|string $site, string $slug): array
+    {
+        $response = Http::timeout(120)
+            ->withHeaders($this->headers())
+            ->post($this->baseUrl().'/updates/'.$site.'/update/themes', ['themes' => $slug]);
+
+        if ($response->failed()) {
+            throw new \RuntimeException('MainWP theme update failed: '.$response->status());
+        }
+
+        return $response->json() ?? [];
+    }
+
+    /**
+     * Activate or deactivate a single plugin on a child site, by slug. Hits
+     * the dedicated /plugins/activate or /plugins/deactivate route with the
+     * slug under `plugins`. Throws on a non-2xx.
+     *
+     * @return array<string, mixed>
+     */
+    public function setSitePluginState(int|string $site, string $slug, bool $activate): array
+    {
+        $action = $activate ? 'activate' : 'deactivate';
+
+        $response = Http::timeout(60)
+            ->withHeaders($this->headers())
+            ->post($this->baseUrl().'/sites/'.$site.'/plugins/'.$action, ['plugins' => $slug]);
+
+        if ($response->failed()) {
+            throw new \RuntimeException('MainWP plugin '.$action.' failed: '.$response->status());
+        }
+
+        return $response->json() ?? [];
+    }
+
+    /**
+     * Update WordPress core on a child site to the latest available version.
+     * The endpoint is idempotent — a no-op when core is already current.
+     * Throws on a non-2xx.
+     *
+     * @return array<string, mixed>
+     */
+    public function updateSiteCore(int|string $site): array
+    {
+        $response = Http::timeout(180)
+            ->withHeaders($this->headers())
+            ->post($this->baseUrl().'/updates/'.$site.'/update/wp');
+
+        if ($response->failed()) {
+            throw new \RuntimeException('MainWP core update failed: '.$response->status());
+        }
+
+        return $response->json() ?? [];
+    }
+
+    /**
      * Map a MainWP site response onto the Website telemetry columns. Shape
      * is defensive: missing keys fall back to null / 0 so a partial
      * response never blows up an ->update().
@@ -200,8 +285,15 @@ class MainWPService
         $pluginUpgrades = $decode($site['plugin_upgrades'] ?? []);
         $themeUpgrades = $decode($site['theme_upgrades'] ?? []);
 
+        // Core upgrade is reported under wp_upgrades as {current, new} when
+        // pending, empty otherwise. We keep the boolean + target version.
+        $wpUpgrades = $decode($site['wp_upgrades'] ?? []);
+        $wpLatest = isset($wpUpgrades['new']) ? (string) $wpUpgrades['new'] : null;
+
         return [
             'wp_version' => $site['wp_version'] ?? null,
+            'wp_core_update_available' => $wpLatest !== null,
+            'wp_latest_version' => $wpLatest,
             'php_version' => $site['php_version'] ?? null,
             'plugins_total' => count($plugins),
             'plugins_outdated' => count($pluginUpgrades),
@@ -221,7 +313,7 @@ class MainWPService
      * is the plugin/theme slug. Lower-case fallbacks cover other builds.
      *
      * @param  array<array-key, mixed>  $upgrades
-     * @return array<int, array{name: string, slug: string, current_version: string, new_version: string}>
+     * @return array<int, array{name: string, slug: string, current_version: string, new_version: string, active: bool}>
      */
     private function extractUpdateDetail(array $upgrades): array
     {
@@ -242,6 +334,7 @@ class MainWPService
                 'slug' => (string) (is_string($slug) && $slug !== '' ? $slug : ($item['slug'] ?? '')),
                 'current_version' => (string) ($item['Version'] ?? $item['version'] ?? '—'),
                 'new_version' => (string) $newVersion,
+                'active' => (bool) ($item['active'] ?? true),
             ];
         }
 

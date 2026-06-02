@@ -23,12 +23,13 @@ const props = defineProps({
     sites: { type: Array, default: () => [] },
     customers: { type: Array, default: () => [] },
     plugins_with_updates: { type: Array, default: () => [] },
+    toggle_supported: { type: Boolean, default: false },
 });
 
 const tab = ref('by-site');
 
 /* Local working copy so counts / detail / status mutate as updates land. */
-const rows = ref(props.sites.map((s) => ({ ...s, status: 'idle', message: '' })));
+const rows = ref(props.sites.map((s) => ({ ...s, status: 'idle', message: '', actionError: '' })));
 const search = ref('');
 const customerFilter = ref('all');
 const running = ref(false);
@@ -116,6 +117,81 @@ async function updateAll() {
         await updateOne(row);
     }
     running.value = false;
+}
+
+/* ─── Per-row actions (By Site detail) ───
+ * Each posts one targeted action, then merges the fresh telemetry back into
+ * the reactive site row so the table updates in place (no full reload). */
+const busy = ref({});
+const coreKey = (s) => `core:${s.id}`;
+const rowKey = (s, slug) => `row:${s.id}:${slug}`;
+function rowBusy(s, slug) {
+    return !! busy.value[rowKey(s, slug)];
+}
+
+async function postJson(url, body) {
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrf() },
+        credentials: 'same-origin',
+        body: JSON.stringify(body),
+    });
+    let data = {};
+    try { data = await res.json(); } catch { /* non-JSON */ }
+    return { ok: res.ok && data.ok, status: res.status, data };
+}
+
+function applyResult(row, data) {
+    if (typeof data.plugins_outdated === 'number') row.plugins_outdated = data.plugins_outdated;
+    if (typeof data.plugins_total === 'number') row.plugins_total = data.plugins_total;
+    if (typeof data.themes_outdated === 'number') row.themes_outdated = data.themes_outdated;
+    if (Array.isArray(data.plugin_updates)) row.plugin_updates = data.plugin_updates;
+    if (Array.isArray(data.theme_updates)) row.theme_updates = data.theme_updates;
+    if (typeof data.wp_version === 'string') row.wp_version = data.wp_version;
+    if (typeof data.wp_core_update_available === 'boolean') row.wp_core_update_available = data.wp_core_update_available;
+    if ('wp_latest_version' in data) row.wp_latest_version = data.wp_latest_version;
+}
+
+async function updateCore(site) {
+    if (! props.configured) return;
+    const key = coreKey(site);
+    busy.value[key] = true;
+    site.actionError = '';
+    const { ok, data } = await postJson('/wordpress/updates/core', { website_id: site.id });
+    if (ok) applyResult(site, data); else site.actionError = data.message ?? 'Core update failed';
+    busy.value[key] = false;
+}
+
+async function updateOnePlugin(site, plugin) {
+    if (! props.configured) return;
+    const key = rowKey(site, plugin.slug);
+    busy.value[key] = true;
+    site.actionError = '';
+    const { ok, data } = await postJson('/wordpress/updates/plugin/update', { website_id: site.id, plugin_slug: plugin.slug });
+    if (ok) applyResult(site, data); else site.actionError = data.message ?? 'Plugin update failed';
+    busy.value[key] = false;
+}
+
+async function updateOneTheme(site, theme) {
+    if (! props.configured) return;
+    const key = rowKey(site, theme.slug);
+    busy.value[key] = true;
+    site.actionError = '';
+    const { ok, data } = await postJson('/wordpress/updates/theme/update', { website_id: site.id, theme_slug: theme.slug });
+    if (ok) applyResult(site, data); else site.actionError = data.message ?? 'Theme update failed';
+    busy.value[key] = false;
+}
+
+async function togglePluginState(site, plugin) {
+    if (! props.configured) return;
+    const key = rowKey(site, plugin.slug);
+    const action = plugin.active === false ? 'activate' : 'deactivate';
+    busy.value[key] = true;
+    site.actionError = '';
+    const { ok, data } = await postJson('/wordpress/updates/plugin/toggle', { website_id: site.id, plugin_slug: plugin.slug, action });
+    if (ok && Array.isArray(data.plugin_updates)) site.plugin_updates = data.plugin_updates;
+    else if (! ok) site.actionError = data.message ?? 'Toggle failed';
+    busy.value[key] = false;
 }
 
 const STATUS = {
@@ -226,42 +302,89 @@ const STATUS = {
                     </div>
 
                     <div v-if="expanded[site.id]" class="wu-site-detail">
-                        <div v-if="site.plugin_updates?.length" class="wu-updates-section">
-                            <div class="wu-section-label">Plugins ({{ site.plugin_updates.length }})</div>
-                            <table class="wu-updates-table">
+                        <div v-if="site.actionError" class="wu-action-error">
+                            <IconAlertTriangle :size="14" stroke-width="2" /> {{ site.actionError }}
+                        </div>
+
+                        <!-- WordPress core -->
+                        <div v-if="site.wp_core_update_available" class="wu-core-section">
+                            <div class="wu-detail-label">WordPress Core</div>
+                            <div class="wu-core-row">
+                                <span class="wu-version wu-version--old">{{ site.wp_version ?? '—' }}</span>
+                                <span class="wu-arrow">→</span>
+                                <span class="wu-version wu-version--new">{{ site.wp_latest_version ?? 'latest' }}</span>
+                                <button type="button" class="wu-btn-warning" :disabled="! configured || busy[coreKey(site)]" @click="updateCore(site)">
+                                    <component :is="busy[coreKey(site)] ? IconLoader2 : IconBrandWordpress" :size="14" stroke-width="2" :class="{ 'wu-spin': busy[coreKey(site)] }" />
+                                    Update WordPress Core
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Plugins -->
+                        <div v-if="site.plugin_updates?.length" class="wu-detail-section">
+                            <div class="wu-detail-header">
+                                <span class="wu-detail-label">Plugins</span>
+                                <span class="wu-detail-count">{{ site.plugin_updates.length }} update{{ site.plugin_updates.length === 1 ? '' : 's' }} available</span>
+                                <button type="button" class="btn btn-ghost btn-sm wu-ml-auto" :disabled="! configured || site.status === 'running'" @click="updateOne(site)">
+                                    <IconRefresh :size="14" stroke-width="2" :class="{ 'wu-spin': site.status === 'running' }" />
+                                    Update all plugins
+                                </button>
+                            </div>
+                            <table class="wu-detail-table">
+                                <colgroup><col style="width: 34%"><col style="width: 15%"><col style="width: 4%"><col style="width: 15%"><col style="width: 32%"></colgroup>
                                 <thead>
-                                    <tr><th>Plugin</th><th>Current</th><th></th><th>Latest</th></tr>
+                                    <tr><th>Plugin</th><th>Current</th><th></th><th>Latest</th><th>Actions</th></tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="p in site.plugin_updates" :key="p.slug || p.name">
-                                        <td class="wu-plugin-name">{{ p.name }}</td>
-                                        <td class="wu-version wu-version--old">{{ p.current_version }}</td>
+                                    <tr v-for="p in site.plugin_updates" :key="p.slug || p.name" class="wu-row">
+                                        <td class="wu-plugin-name">{{ p.name }}<span v-if="p.active === false" class="wu-inactive-tag">inactive</span></td>
+                                        <td><span class="wu-version wu-version--old">{{ p.current_version }}</span></td>
                                         <td class="wu-arrow">→</td>
-                                        <td class="wu-version wu-version--new">{{ p.new_version }}</td>
+                                        <td><span class="wu-version wu-version--new">{{ p.new_version }}</span></td>
+                                        <td class="wu-row-actions">
+                                            <button type="button" class="btn btn-primary wu-btn-xs" :disabled="! configured || rowBusy(site, p.slug)" @click="updateOnePlugin(site, p)">
+                                                <IconRefresh :size="12" stroke-width="2" :class="{ 'wu-spin': rowBusy(site, p.slug) }" />
+                                                Update
+                                            </button>
+                                            <button v-if="toggle_supported" type="button" class="btn btn-ghost wu-btn-xs" :disabled="! configured || rowBusy(site, p.slug)" @click="togglePluginState(site, p)">
+                                                {{ p.active === false ? 'Activate' : 'Deactivate' }}
+                                            </button>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
 
-                        <div v-if="site.theme_updates?.length" class="wu-updates-section">
-                            <div class="wu-section-label">Themes ({{ site.theme_updates.length }})</div>
-                            <table class="wu-updates-table">
+                        <!-- Themes -->
+                        <div v-if="site.theme_updates?.length" class="wu-detail-section">
+                            <div class="wu-detail-header">
+                                <span class="wu-detail-label">Themes</span>
+                                <span class="wu-detail-count">{{ site.theme_updates.length }} update{{ site.theme_updates.length === 1 ? '' : 's' }} available</span>
+                            </div>
+                            <table class="wu-detail-table">
+                                <colgroup><col style="width: 34%"><col style="width: 15%"><col style="width: 4%"><col style="width: 15%"><col style="width: 32%"></colgroup>
                                 <thead>
-                                    <tr><th>Theme</th><th>Current</th><th></th><th>Latest</th></tr>
+                                    <tr><th>Theme</th><th>Current</th><th></th><th>Latest</th><th>Actions</th></tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="t in site.theme_updates" :key="t.slug || t.name">
+                                    <tr v-for="t in site.theme_updates" :key="t.slug || t.name" class="wu-row">
                                         <td class="wu-plugin-name">{{ t.name }}</td>
-                                        <td class="wu-version wu-version--old">{{ t.current_version }}</td>
+                                        <td><span class="wu-version wu-version--old">{{ t.current_version }}</span></td>
                                         <td class="wu-arrow">→</td>
-                                        <td class="wu-version wu-version--new">{{ t.new_version }}</td>
+                                        <td><span class="wu-version wu-version--new">{{ t.new_version }}</span></td>
+                                        <td class="wu-row-actions">
+                                            <button type="button" class="btn btn-primary wu-btn-xs" :disabled="! configured || rowBusy(site, t.slug)" @click="updateOneTheme(site, t)">
+                                                <IconRefresh :size="12" stroke-width="2" :class="{ 'wu-spin': rowBusy(site, t.slug) }" />
+                                                Update
+                                            </button>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
 
-                        <div v-if="! site.plugin_updates?.length && ! site.theme_updates?.length" class="wu-detail-empty">
-                            No pending updates — this site is up to date.
+                        <div v-if="! site.plugin_updates?.length && ! site.theme_updates?.length && ! site.wp_core_update_available" class="wu-all-good">
+                            <IconCircleCheck :size="16" stroke-width="2" /> Everything up to date
                         </div>
                     </div>
                 </div>
@@ -390,6 +513,50 @@ const STATUS = {
 .wu-version--new { color: var(--success); font-weight: 600; }
 .wu-arrow { color: var(--text-tertiary); width: 20px; text-align: center; }
 .wu-detail-empty { font: 400 12.5px/1.4 'Inter', sans-serif; color: var(--text-tertiary); }
+
+/* ─── By Site detail (redesigned) ─── */
+.wu-action-error {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 12px;
+    padding: 8px 12px; border-radius: var(--radius-md);
+    background: var(--danger-bg); color: #B91C1C; border: 1px solid #FECACA;
+    font: 500 12.5px/1.4 'Inter', sans-serif;
+}
+.wu-detail-section { margin-bottom: 18px; }
+.wu-detail-section:last-child { margin-bottom: 0; }
+.wu-detail-header { display: flex; align-items: center; gap: 10px; padding: 0 0 7px; border-bottom: 1px solid var(--border); }
+.wu-detail-label { font: 700 10px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .09em; color: var(--text-tertiary); }
+.wu-detail-count { font: 400 12px/1 'Inter', sans-serif; color: var(--text-secondary); }
+.wu-ml-auto { margin-left: auto; }
+.wu-detail-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+.wu-detail-table th {
+    font: 600 10px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--text-tertiary); padding: 7px 10px; text-align: left;
+    background: var(--neutral-bg); border-bottom: 2px solid var(--border);
+}
+.wu-detail-table th:last-child, .wu-detail-table td.wu-row-actions { text-align: left; }
+.wu-row { transition: background .1s; }
+.wu-row:hover { background: var(--neutral-bg); }
+.wu-row td { padding: 8px 10px; vertical-align: middle; border-bottom: 1px solid var(--border-soft); }
+.wu-row:last-child td { border-bottom: none; }
+.wu-detail-table .wu-plugin-name { font: 500 13px/1.3 'Inter', sans-serif; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wu-inactive-tag { margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--neutral-bg); border: 1px solid var(--border); color: var(--text-tertiary); font: 600 9.5px/1.5 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .04em; }
+.wu-row-actions { display: flex; gap: 5px; align-items: center; }
+.wu-btn-xs { padding: 3px 9px !important; height: 25px; font-size: 11px !important; }
+
+/* Core update banner */
+.wu-core-section {
+    background: var(--warning-bg); border: 1px solid #FDE68A;
+    border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 16px;
+}
+.wu-core-row { display: flex; align-items: center; gap: 10px; margin-top: 7px; }
+.wu-btn-warning {
+    display: inline-flex; align-items: center; gap: 5px; margin-left: auto;
+    padding: 6px 12px; border: none; border-radius: var(--radius-md); cursor: pointer;
+    background: #D97706; color: #fff; font: 600 12px/1 'Inter', sans-serif;
+}
+.wu-btn-warning:hover { background: #B45309; }
+.wu-btn-warning:disabled { opacity: .6; cursor: default; }
+.wu-all-good { display: flex; align-items: center; gap: 8px; padding: 8px 0; color: var(--success); font: 500 13px/1 'Inter', sans-serif; }
 
 .wu-empty { text-align: center; padding: 40px 0; color: var(--text-tertiary); }
 .wu-empty p { margin: 8px 0 0; font: 500 13px/1.4 'Inter', sans-serif; }

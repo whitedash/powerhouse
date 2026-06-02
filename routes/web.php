@@ -470,6 +470,14 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
             ->name('internal.wordpress.updates');
         Route::post('/updates/site/{id}', [InternalWordPressUpdateController::class, 'updateSite'])
             ->whereNumber('id')->name('internal.wordpress.updates.site');
+        Route::post('/updates/core', [InternalWordPressUpdateController::class, 'updateCore'])
+            ->name('internal.wordpress.updates.core');
+        Route::post('/updates/plugin/update', [InternalWordPressUpdateController::class, 'updatePlugin'])
+            ->name('internal.wordpress.updates.plugin.update');
+        Route::post('/updates/theme/update', [InternalWordPressUpdateController::class, 'updateTheme'])
+            ->name('internal.wordpress.updates.theme.update');
+        Route::post('/updates/plugin/toggle', [InternalWordPressUpdateController::class, 'togglePlugin'])
+            ->name('internal.wordpress.updates.plugin.toggle');
     });
 
     Route::get('/invoices/new', [InternalInvoiceController::class, 'create'])->name('internal.invoices.create');

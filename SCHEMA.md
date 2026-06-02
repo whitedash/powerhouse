@@ -439,7 +439,10 @@ bandwidth_quota_mb INT UNSIGNED nullable,
 usage_checked_at TIMESTAMP nullable,
 -- WordPress (MainWP)
 mainwp_site_id INT UNSIGNED nullable,
-wp_version VARCHAR(20) nullable, php_version VARCHAR(20) nullable,
+wp_version VARCHAR(20) nullable,
+wp_core_update_available BOOLEAN DEFAULT 0,   -- core upgrade pending (from wp_upgrades.new)
+wp_latest_version VARCHAR(20) nullable,        -- target core version when an upgrade is pending
+php_version VARCHAR(20) nullable,
 plugins_total SMALLINT UNSIGNED DEFAULT 0,
 plugins_outdated SMALLINT UNSIGNED DEFAULT 0,
 plugin_updates_detail JSON nullable,   -- [{name,slug,current_version,new_version}] per outdated plugin
