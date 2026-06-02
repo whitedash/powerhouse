@@ -82,11 +82,13 @@ return [
 
     /*
      * MainWP dashboard (self-hosted WP install that aggregates all the
-     * managed child sites). WooCommerce-style auth: consumer key + secret
-     * passed as query params on the /wp-json/mainwp/v2 REST API. The
-     * websites:sync-wordpress sweep pulls WP/PHP versions, plugin/theme
-     * update counts and last-backup timestamps from here. `enabled` gates
-     * the sweep + manual sync so a missing key is a graceful no-op.
+     * managed child sites). Auth is a Bearer token on the /wp-json/mainwp/v2
+     * REST API: the consumer_key and consumer_secret are combined as
+     * key==secret for the token. Store them separately in .env; the service
+     * combines them. The websites:sync-wordpress sweep pulls WP/PHP versions,
+     * plugin/theme update counts and last-backup timestamps from here.
+     * `enabled` gates the sweep + manual sync so a missing key is a graceful
+     * no-op.
      */
     'mainwp' => [
         'url' => env('MAINWP_URL'),

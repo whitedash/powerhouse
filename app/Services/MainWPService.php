@@ -24,25 +24,18 @@ class MainWPService
     }
 
     /**
+     * MainWP authenticates via a Bearer token that is the consumer key and
+     * secret joined with `==` (key==secret) — not WooCommerce-style query
+     * params. The two halves are stored separately in .env and combined
+     * here.
+     *
      * @return array<string, string>
      */
     private function headers(): array
     {
         return [
+            'Authorization' => 'Bearer '.config('services.mainwp.consumer_key').'=='.config('services.mainwp.consumer_secret'),
             'Content-Type' => 'application/json',
-        ];
-    }
-
-    /**
-     * WooCommerce-style auth — consumer key/secret as query params.
-     *
-     * @return array<string, string|null>
-     */
-    private function auth(): array
-    {
-        return [
-            'consumer_key' => config('services.mainwp.consumer_key'),
-            'consumer_secret' => config('services.mainwp.consumer_secret'),
         ];
     }
 
@@ -57,7 +50,7 @@ class MainWPService
         try {
             $response = Http::timeout(10)
                 ->withHeaders($this->headers())
-                ->get($this->baseUrl().'/sites', $this->auth());
+                ->get($this->baseUrl().'/sites');
 
             return $response->successful();
         } catch (\Throwable) {
@@ -74,7 +67,7 @@ class MainWPService
     {
         $response = Http::timeout(30)
             ->withHeaders($this->headers())
-            ->get($this->baseUrl().'/sites', $this->auth());
+            ->get($this->baseUrl().'/sites');
 
         if ($response->failed()) {
             throw new \RuntimeException('MainWP API error: '.$response->status());
@@ -95,7 +88,7 @@ class MainWPService
     {
         $response = Http::timeout(15)
             ->withHeaders($this->headers())
-            ->get($this->baseUrl().'/site/'.$siteId, $this->auth());
+            ->get($this->baseUrl().'/site/'.$siteId);
 
         if ($response->failed()) {
             return null;
@@ -113,7 +106,7 @@ class MainWPService
     {
         $response = Http::timeout(60)
             ->withHeaders($this->headers())
-            ->post($this->baseUrl().'/site/'.$siteId.'/sync', $this->auth());
+            ->post($this->baseUrl().'/site/'.$siteId.'/sync');
 
         if ($response->failed()) {
             throw new \RuntimeException('MainWP sync failed: '.$response->status());
