@@ -64,6 +64,10 @@ class HandleInertiaRequests extends Middleware
              * reading as someone else. Booleans only — never expose
              * the admin's id to the customer-facing surface.
              */
+            // Stripe publishable key for Embedded Checkout (portal invoice
+            // payments). Publishable keys are safe to expose client-side;
+            // null when Stripe isn't configured so the UI can hide "Pay now".
+            'stripe_key' => fn (): ?string => config('services.stripe.key'),
             'portal_preview_mode' => fn (): bool => (bool) $request->session()->get('portal_preview_mode', false),
             'referrer_preview_mode' => fn (): bool => (bool) $request->session()->get('referrer_preview_mode', false),
             /*

@@ -22,14 +22,58 @@ use Stripe\Stripe;
 class StripeService
 {
     /**
-     * Build (or rebuild) a hosted Checkout session for an invoice's
-     * outstanding balance. The caller is responsible for persisting
-     * $session->url / $session->id onto the invoice.
+     * Build (or rebuild) a *hosted* Checkout session for an invoice's
+     * outstanding balance, returning the full Session (with ->url / ->id).
+     *
+     * This is the redirect flow — used where we need a shareable URL the
+     * customer can click from outside the portal: the staff "Generate
+     * payment link" action and the "Pay Now" button on the invoice PDF /
+     * email. The in-portal experience uses the embedded flow below instead.
+     * The caller persists $session->url / $session->id onto the invoice.
      */
     public function createCheckoutSession(Invoice $invoice): Session
     {
         Stripe::setApiKey((string) config('services.stripe.secret'));
 
+        return Session::create([
+            ...$this->baseSessionParams($invoice),
+            'success_url' => route('portal.invoices.paid', $invoice->id).'?session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url' => route('portal.invoices.index'),
+        ]);
+    }
+
+    /**
+     * Build an *embedded* Checkout session and return only its
+     * client_secret. This powers Stripe Embedded Checkout — the payment
+     * form renders inline inside Powerhouse rather than redirecting to a
+     * Stripe-hosted page. There is no ->url in embedded mode, so nothing is
+     * stored: the secret is short-lived and fetched fresh each time the
+     * customer opens the modal.
+     */
+    public function createEmbeddedCheckoutSession(Invoice $invoice): string
+    {
+        Stripe::setApiKey((string) config('services.stripe.secret'));
+
+        $session = Session::create([
+            ...$this->baseSessionParams($invoice),
+            'ui_mode' => 'embedded',
+            // Embedded returns the customer here once the form completes;
+            // session_id lets the landing page confirm + settle on arrival.
+            'return_url' => route('portal.invoices.paid', $invoice->id).'?session_id={CHECKOUT_SESSION_ID}',
+        ]);
+
+        return (string) $session->client_secret;
+    }
+
+    /**
+     * Shared Checkout parameters for both the hosted and embedded flows —
+     * everything except the mode-specific URL keys (success/cancel for
+     * hosted, ui_mode/return_url for embedded).
+     *
+     * @return array<string, mixed>
+     */
+    private function baseSessionParams(Invoice $invoice): array
+    {
         $outstanding = round((float) $invoice->total - (float) $invoice->amount_paid, 2);
 
         // Guard rail — never open Checkout for £0 (or negative). The
@@ -42,7 +86,7 @@ class StripeService
 
         $invoice->loadMissing('customer.primaryContact');
 
-        return Session::create([
+        return [
             'payment_method_types' => ['card'],
             'mode' => 'payment',
             'line_items' => [[
@@ -58,14 +102,12 @@ class StripeService
                 'quantity' => 1,
             ]],
             'customer_email' => $invoice->customer?->primaryContact?->email,
-            'success_url' => route('portal.invoices.paid', $invoice->id).'?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url' => route('portal.invoices.index'),
             'metadata' => [
                 'invoice_id' => (string) $invoice->id,
                 'customer_id' => (string) $invoice->customer_id,
             ],
             'client_reference_id' => (string) $invoice->id,
-        ]);
+        ];
     }
 
     /**

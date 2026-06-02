@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import {
     IconDownload,
     IconReceipt,
@@ -8,6 +8,7 @@ import {
     IconCreditCard,
 } from '@tabler/icons-vue';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
+import StripeCheckoutModal from '@/Components/Portal/StripeCheckoutModal.vue';
 
 const props = defineProps({
     invoices: { type: Object, required: true },
@@ -22,18 +23,17 @@ function gbp(n) {
     return `£${Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-const payingId = ref(null);
+const stripeKey = computed(() => usePage().props.stripe_key || '');
 
 const payableStatuses = ['sent', 'overdue', 'partially_paid'];
 
-function payInvoice(id) {
-    payingId.value = id;
-    // The controller responds with Inertia::location(stripeUrl), so Inertia
-    // performs a full-page visit to Stripe Checkout. onError/onFinish keep
-    // the button from getting stuck if the request fails before redirect.
-    router.post(`/portal/invoices/${id}/pay`, {}, {
-        onFinish: () => { payingId.value = null; },
-    });
+// Embedded Stripe Checkout renders inline in a modal (no redirect off-site).
+const checkoutOpen = ref(false);
+const activeInvoice = ref(null);
+
+function payInvoice(inv) {
+    activeInvoice.value = inv;
+    checkoutOpen.value = true;
 }
 
 function statusBadge(status) {
@@ -100,11 +100,10 @@ function statusBadge(status) {
                             v-if="payableStatuses.includes(inv.status)"
                             type="button"
                             class="inv-pay-btn"
-                            :disabled="payingId === inv.id"
-                            @click.stop.prevent="payInvoice(inv.id)"
+                            @click.stop.prevent="payInvoice(inv)"
                         >
                             <IconCreditCard :size="13" stroke-width="1.75" />
-                            {{ payingId === inv.id ? 'Redirecting…' : `Pay ${gbp(inv.total)}` }}
+                            Pay {{ gbp(inv.total) }}
                         </button>
                         <a
                             :href="`/portal/invoices/${inv.id}/pdf`"
@@ -130,5 +129,13 @@ function statusBadge(status) {
                 v-html="link.label"
             />
         </div>
+
+        <StripeCheckoutModal
+            v-model:show="checkoutOpen"
+            :invoice-id="activeInvoice?.id"
+            :invoice-number="activeInvoice?.number || ''"
+            :invoice-total="activeInvoice?.total || 0"
+            :stripe-key="stripeKey"
+        />
     </PortalLayout>
 </template>

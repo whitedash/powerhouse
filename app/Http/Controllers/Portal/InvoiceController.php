@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\PortalUser;
 use App\Services\StripeService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -57,12 +58,13 @@ class InvoiceController extends Controller
     }
 
     /**
-     * Start a Stripe Checkout payment for an unpaid invoice. We always
-     * mint a fresh session (Checkout URLs expire ~24h) and hand the browser
-     * off via Inertia::location — a plain redirect to an external host would
-     * be followed by Inertia's XHR and fail.
+     * Mint an embedded Stripe Checkout session for an unpaid invoice and
+     * return its client_secret as JSON. The portal "Pay now" button fetches
+     * this, then mounts Stripe Embedded Checkout inline (see
+     * StripeCheckoutModal.vue). Secrets are short-lived, so we create a
+     * fresh one on every request and never persist it.
      */
-    public function pay(int $id, StripeService $stripe): \Symfony\Component\HttpFoundation\Response
+    public function checkoutSession(int $id, StripeService $stripe): JsonResponse
     {
         /** @var PortalUser $portalUser */
         $portalUser = Auth::guard('portal')->user();
@@ -71,20 +73,15 @@ class InvoiceController extends Controller
             ->where('customer_id', $portalUser->customer_id)
             ->findOrFail($id);
 
-        if (! in_array($invoice->status, ['sent', 'overdue', 'partially_paid'], true)) {
-            return redirect()
-                ->route('portal.invoices.index')
-                ->with('error', 'This invoice is not awaiting payment.');
-        }
+        abort_unless(
+            in_array($invoice->status, ['sent', 'overdue', 'partially_paid'], true),
+            422,
+            'This invoice is not awaiting payment.',
+        );
 
-        $session = $stripe->createCheckoutSession($invoice);
-
-        $invoice->update([
-            'stripe_payment_link' => $session->url,
-            'stripe_checkout_session_id' => $session->id,
+        return response()->json([
+            'client_secret' => $stripe->createEmbeddedCheckoutSession($invoice),
         ]);
-
-        return Inertia::location($session->url);
     }
 
     /**
