@@ -1,16 +1,7 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import {
-    IconLock,
-    IconUser,
-    IconBuilding,
-    IconShieldLock,
-    IconClock,
-    IconX,
-} from '@tabler/icons-vue';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
-import PasswordStrengthMeter from '@/Components/UI/PasswordStrengthMeter.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 
 const props = defineProps({
@@ -20,266 +11,200 @@ const props = defineProps({
     tokens: { type: Array, default: () => [] },
 });
 
-const profileForm = useForm({
-    name: props.portal_user.name,
-    email: props.portal_user.email,
-});
-
-const passwordForm = useForm({
-    current_password: '',
-    password: '',
-    password_confirmation: '',
-});
+const profileForm = useForm({ name: props.portal_user.name, email: props.portal_user.email });
+const passwordForm = useForm({ current_password: '', password: '', password_confirmation: '' });
 
 function submitProfile() {
     profileForm.put('/portal/account', { preserveScroll: true });
 }
-
 function submitPassword() {
-    passwordForm.put('/portal/account/password', {
-        preserveScroll: true,
-        onSuccess: () => passwordForm.reset(),
-    });
+    passwordForm.put('/portal/account/password', { preserveScroll: true, onSuccess: () => passwordForm.reset() });
 }
 
-/* ─── Connected apps: per-token revoke ─── */
+// Single-line business address from whatever parts exist.
+const businessAddress = computed(() => [
+    props.customer.address_line1,
+    props.customer.city,
+    props.customer.postcode,
+    props.customer.country,
+].filter(Boolean).join(', '));
+
+// Password strength → the handoff's 4-segment meter.
+const strength = computed(() => {
+    const p = passwordForm.password || '';
+    if (! p) return { score: 0, label: '', tone: '' };
+    let score = 0;
+    if (p.length >= 10) score++;
+    if (/[a-z]/.test(p) && /[A-Z]/.test(p)) score++;
+    if (/\d/.test(p)) score++;
+    if (/[^A-Za-z0-9]/.test(p)) score++;
+    const map = {
+        1: { label: 'Weak — add length, cases, a number and a symbol', tone: 'on1', color: '#DC2626' },
+        2: { label: 'Fair — add a number and a symbol', tone: 'on2', color: '#B45309' },
+        3: { label: 'Good — add a symbol for a stronger password', tone: 'on2', color: '#B45309' },
+        4: { label: 'Strong password', tone: 'on3', color: '#047857' },
+    };
+    return { score, ...(map[score] ?? map[1]) };
+});
+
+const lastChanged = computed(() => {
+    const iso = props.password_meta?.last_changed_at;
+    if (! iso) return 'never';
+    return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+});
+
+/* ── Connected apps: per-token revoke (kept) ── */
 const confirmRevoke = ref(false);
 const revokeTarget = ref(null);
-
 function askRevoke(token) {
     revokeTarget.value = token;
     confirmRevoke.value = true;
 }
-
 function doRevoke() {
-    if (!revokeTarget.value) return;
+    if (! revokeTarget.value) return;
     router.delete(`/portal/account/tokens/${revokeTarget.value.id}`, {
         preserveScroll: true,
         onFinish: () => { confirmRevoke.value = false; revokeTarget.value = null; },
     });
 }
-
-function fmtDate(iso) {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function fmtRelative(iso) {
-    if (!iso) return '—';
-    const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-    if (diff < 60) return 'just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    if (diff < 86400 * 30) return `${Math.floor(diff / 86400)}d ago`;
-    return fmtDate(iso);
-}
 </script>
 
 <template>
     <Head title="Account · Whitedash" />
-    <PortalLayout title="Account" active-nav="account">
-        <div class="portal-section-head">
-            <div class="col-l">
-                <h2>Your account</h2>
-                <div class="desc">Manage your personal details and password.</div>
-            </div>
-        </div>
+    <PortalLayout active-nav="account">
+        <!-- ═══════════ DESKTOP ═══════════ -->
+        <template #desktop>
+            <div class="content narrow">
+                <div class="page-head"><div class="ph-l"><h1>Your account</h1><div class="ph-sub">Manage your details, security and connected apps</div></div></div>
 
-        <!-- Personal details -->
-        <form class="portal-account-card" @submit.prevent="submitProfile">
-            <div class="portal-account-card-header">
-                <IconUser :size="18" stroke-width="1.75" />
-                <h3>Personal details</h3>
-            </div>
-
-            <div class="form-field">
-                <label>Name</label>
-                <input
-                    v-model="profileForm.name"
-                    type="text"
-                    :class="{ 'has-err': profileForm.errors.name }"
-                    required
-                >
-                <div v-if="profileForm.errors.name" class="err">{{ profileForm.errors.name }}</div>
-            </div>
-
-            <div class="form-field">
-                <label>Email</label>
-                <input
-                    v-model="profileForm.email"
-                    type="email"
-                    :class="{ 'has-err': profileForm.errors.email }"
-                    required
-                >
-                <div v-if="profileForm.errors.email" class="err">{{ profileForm.errors.email }}</div>
-            </div>
-
-            <div class="portal-account-footer">
-                <button type="submit" class="btn btn-primary" :disabled="profileForm.processing">
-                    {{ profileForm.processing ? 'Saving…' : 'Save changes' }}
-                </button>
-            </div>
-        </form>
-
-        <!-- Business details (read-only) -->
-        <div class="portal-account-card">
-            <div class="portal-account-card-header">
-                <IconBuilding :size="18" stroke-width="1.75" />
-                <h3>Business details</h3>
-                <span class="portal-account-readonly">read-only — contact your account manager to update</span>
-            </div>
-
-            <dl class="portal-account-readonly-list">
-                <div>
-                    <dt>Company</dt>
-                    <dd>{{ customer.name }}</dd>
-                </div>
-                <div v-if="customer.address_line1">
-                    <dt>Address</dt>
-                    <dd>
-                        {{ customer.address_line1 }}<br>
-                        <template v-if="customer.city">{{ customer.city }}</template>
-                        <template v-if="customer.postcode">, {{ customer.postcode }}</template>
-                        <template v-if="customer.country"><br>{{ customer.country }}</template>
-                    </dd>
-                </div>
-                <div v-if="customer.primary_contact_email">
-                    <dt>Primary contact</dt>
-                    <dd>{{ customer.primary_contact_email }}</dd>
-                </div>
-            </dl>
-        </div>
-
-        <!-- Change password -->
-        <form class="portal-account-card" @submit.prevent="submitPassword">
-            <div class="portal-account-card-header">
-                <IconLock :size="18" stroke-width="1.75" />
-                <h3>Change password</h3>
-                <span v-if="password_meta?.last_changed_at" class="portal-account-readonly">
-                    last changed {{ fmtRelative(password_meta.last_changed_at) }}
-                </span>
-            </div>
-
-            <div class="form-field">
-                <label>Current password</label>
-                <input
-                    v-model="passwordForm.current_password"
-                    type="password"
-                    autocomplete="current-password"
-                    :class="{ 'has-err': passwordForm.errors.current_password }"
-                    required
-                >
-                <div v-if="passwordForm.errors.current_password" class="err">{{ passwordForm.errors.current_password }}</div>
-            </div>
-
-            <div class="form-field">
-                <label>New password</label>
-                <input
-                    v-model="passwordForm.password"
-                    type="password"
-                    autocomplete="new-password"
-                    :class="{ 'has-err': passwordForm.errors.password }"
-                    required
-                >
-                <div class="form-hint">Minimum 10 characters with upper case, lower case, a number, and a symbol.</div>
-                <div v-if="passwordForm.errors.password" class="err">{{ passwordForm.errors.password }}</div>
-                <PasswordStrengthMeter :password="passwordForm.password" />
-            </div>
-
-            <div class="form-field">
-                <label>Confirm new password</label>
-                <input
-                    v-model="passwordForm.password_confirmation"
-                    type="password"
-                    autocomplete="new-password"
-                    required
-                >
-            </div>
-
-            <div class="portal-account-footer">
-                <button type="submit" class="btn btn-primary" :disabled="passwordForm.processing">
-                    {{ passwordForm.processing ? 'Saving…' : 'Update password' }}
-                </button>
-            </div>
-        </form>
-
-        <!-- Connected apps -->
-        <div class="portal-account-card">
-            <div class="portal-account-card-header">
-                <IconShieldLock :size="18" stroke-width="1.75" />
-                <h3>Connected apps</h3>
-                <span class="portal-account-readonly">apps with active access to your account</span>
-            </div>
-
-            <div v-if="tokens.length === 0" class="portal-account-apps-empty">
-                No connected apps yet. They appear here once you open a product from your dashboard or authorise an integration.
-            </div>
-
-            <div v-else class="portal-account-apps">
-                <article v-for="t in tokens" :key="t.id" class="portal-account-app">
-                    <div class="paa-meta">
-                        <div class="paa-name">{{ t.client_name }}</div>
-                        <div class="paa-sub">
-                            {{ t.name }}
-                            <template v-if="t.scopes && t.scopes.length"> · {{ t.scopes.join(', ') }}</template>
+                <div class="acc-stack">
+                    <!-- Personal details -->
+                    <form class="acc-card" @submit.prevent="submitProfile">
+                        <div class="head"><h3>Personal details</h3><div class="s">Shown on your invoices and account emails</div></div>
+                        <div class="body">
+                            <div class="grid-2">
+                                <div class="field"><label>Full name</label><input class="input" v-model="profileForm.name" required><div v-if="profileForm.errors.name" class="strength-label" style="color:var(--danger)">{{ profileForm.errors.name }}</div></div>
+                                <div class="field"><label>Email address</label><input class="input" type="email" v-model="profileForm.email" required><div v-if="profileForm.errors.email" class="strength-label" style="color:var(--danger)">{{ profileForm.errors.email }}</div></div>
+                            </div>
                         </div>
-                        <div class="paa-dates">
-                            <IconClock :size="12" stroke-width="2" />
-                            Issued {{ fmtRelative(t.created_at) }}
-                            <template v-if="t.expires_at"> · Expires {{ fmtDate(t.expires_at) }}</template>
+                        <div class="foot"><button type="submit" class="btn btn-primary" :disabled="profileForm.processing">{{ profileForm.processing ? 'Saving…' : 'Save changes' }}</button></div>
+                    </form>
+
+                    <!-- Business details (read-only) -->
+                    <div class="acc-card">
+                        <div class="head"><h3>Business details</h3><div class="s">Used for billing &amp; VAT</div></div>
+                        <div class="body">
+                            <div class="form-rows">
+                                <div class="field"><label>Company</label><input class="input readonly" :value="customer.name" readonly></div>
+                                <div class="field"><label>Registered address</label><input class="input readonly" :value="businessAddress || '—'" readonly></div>
+                            </div>
+                            <div class="readonly-note"><i class="ti ti-lock" />Read-only — contact your account manager to update business details.</div>
                         </div>
                     </div>
-                    <button type="button" class="btn btn-ghost btn-sm" @click="askRevoke(t)">
-                        <IconX :size="13" stroke-width="2" />
-                        Revoke
-                    </button>
-                </article>
+
+                    <!-- Password -->
+                    <form class="acc-card" @submit.prevent="submitPassword">
+                        <div class="head"><h3>Password</h3><div class="s">Last changed: {{ lastChanged }}</div></div>
+                        <div class="body">
+                            <div class="form-rows">
+                                <div class="field"><label>Current password</label><input class="input" type="password" autocomplete="current-password" v-model="passwordForm.current_password" required><div v-if="passwordForm.errors.current_password" class="strength-label" style="color:var(--danger)">{{ passwordForm.errors.current_password }}</div></div>
+                                <div class="grid-2">
+                                    <div class="field">
+                                        <label>New password</label>
+                                        <input class="input" :class="{ focused: passwordForm.password }" type="password" autocomplete="new-password" v-model="passwordForm.password" required>
+                                        <div class="strength"><div class="seg" :class="strength.score >= 1 ? strength.tone : ''" /><div class="seg" :class="strength.score >= 2 ? strength.tone : ''" /><div class="seg" :class="strength.score >= 3 ? strength.tone : ''" /><div class="seg" :class="strength.score >= 4 ? strength.tone : ''" /></div>
+                                        <div v-if="strength.label" class="strength-label" :style="{ color: strength.color }">Strength: {{ strength.label }}</div>
+                                        <div v-if="passwordForm.errors.password" class="strength-label" style="color:var(--danger)">{{ passwordForm.errors.password }}</div>
+                                    </div>
+                                    <div class="field"><label>Confirm new password</label><input class="input" type="password" autocomplete="new-password" v-model="passwordForm.password_confirmation" required></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="foot"><button type="submit" class="btn btn-primary" :disabled="passwordForm.processing">{{ passwordForm.processing ? 'Saving…' : 'Update password' }}</button></div>
+                    </form>
+
+                    <!-- Connected apps -->
+                    <div class="acc-card">
+                        <div class="head"><h3>Connected apps</h3><div class="s">Apps and API tokens with access to your account</div></div>
+                        <div v-if="tokens.length === 0" class="empty">
+                            <div class="ic"><i class="ti ti-plug-connected" /></div>
+                            <h4>No connected apps yet</h4>
+                            <p>When you connect an app or generate an API token, it will appear here so you can review and revoke access.</p>
+                        </div>
+                        <div v-else class="body" style="display:flex;flex-direction:column;gap:10px">
+                            <div v-for="t in tokens" :key="t.id" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border:1px solid var(--border-soft);border-radius:var(--radius-md)">
+                                <div>
+                                    <div style="font:600 14px/1.2 'Inter'">{{ t.client_name }}</div>
+                                    <div style="font:400 12px/1.4 'Inter';color:var(--text-secondary);margin-top:2px">{{ t.name }}<template v-if="t.scopes && t.scopes.length"> · {{ t.scopes.join(', ') }}</template></div>
+                                </div>
+                                <button class="btn btn-danger-soft btn-sm" @click="askRevoke(t)"><i class="ti ti-x" />Revoke</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
+        </template>
 
-        <div class="portal-last-login">
-            <span v-if="portal_user.last_login_at">Last sign-in: {{ portal_user.last_login_at }}</span>
-        </div>
+        <!-- ═══════════ MOBILE ═══════════ -->
+        <template #mobile>
+            <div class="m-appbar">
+                <div class="title">Account</div>
+                <div class="spacer" />
+            </div>
+            <div class="m-body is-pb">
+                <form class="m-card" @submit.prevent="submitProfile">
+                    <div class="ch"><div style="font:600 14px/1.3 'Inter'">Personal details</div></div>
+                    <div class="cb" style="display:flex;flex-direction:column;gap:14px">
+                        <div class="field"><label>Full name</label><input class="input" v-model="profileForm.name" required></div>
+                        <div class="field"><label>Email address</label><input class="input" type="email" v-model="profileForm.email" required></div>
+                        <button type="submit" class="btn btn-primary btn-block btn-sm" :disabled="profileForm.processing">{{ profileForm.processing ? 'Saving…' : 'Save changes' }}</button>
+                    </div>
+                </form>
 
-        <ConfirmModal
-            v-model:show="confirmRevoke"
-            variant="danger"
-            :title="`Revoke access for ${revokeTarget?.client_name}?`"
-            message="The app holding this token will lose access immediately. You can grant access again by signing in from the product."
-            confirm-label="Revoke token"
-            @confirm="doRevoke"
-        />
+                <div class="m-card">
+                    <div class="ch"><div style="font:600 14px/1.3 'Inter'">Business details</div></div>
+                    <div class="cb" style="display:flex;flex-direction:column;gap:14px">
+                        <div class="field"><label>Company</label><input class="input readonly" :value="customer.name" readonly></div>
+                        <div class="field"><label>Address</label><input class="input readonly" :value="businessAddress || '—'" readonly></div>
+                        <div class="readonly-note" style="margin-top:0"><i class="ti ti-lock" />Read-only — contact your account manager.</div>
+                    </div>
+                </div>
+
+                <form class="m-card" @submit.prevent="submitPassword">
+                    <div class="ch"><div style="font:600 14px/1.3 'Inter'">Password</div></div>
+                    <div class="cb" style="display:flex;flex-direction:column;gap:14px">
+                        <div class="field"><label>Current password</label><input class="input" type="password" autocomplete="current-password" v-model="passwordForm.current_password" required></div>
+                        <div class="field">
+                            <label>New password</label>
+                            <input class="input" :class="{ focused: passwordForm.password }" type="password" autocomplete="new-password" v-model="passwordForm.password" required>
+                            <div class="strength"><div class="seg" :class="strength.score >= 1 ? strength.tone : ''" /><div class="seg" :class="strength.score >= 2 ? strength.tone : ''" /><div class="seg" :class="strength.score >= 3 ? strength.tone : ''" /><div class="seg" :class="strength.score >= 4 ? strength.tone : ''" /></div>
+                            <div v-if="strength.label" class="strength-label" :style="{ color: strength.color }">Strength: {{ strength.label }}</div>
+                        </div>
+                        <div class="field"><label>Confirm new password</label><input class="input" type="password" autocomplete="new-password" v-model="passwordForm.password_confirmation" required></div>
+                        <button type="submit" class="btn btn-primary btn-block btn-sm" :disabled="passwordForm.processing">{{ passwordForm.processing ? 'Saving…' : 'Update password' }}</button>
+                    </div>
+                </form>
+
+                <div class="m-card">
+                    <div class="ch"><div style="font:600 14px/1.3 'Inter'">Connected apps</div></div>
+                    <div v-if="tokens.length === 0" class="empty" style="padding:28px 20px"><div class="ic"><i class="ti ti-plug-connected" /></div><h4>No connected apps yet</h4><p>API tokens and connected apps will appear here.</p></div>
+                    <div v-else class="cb" style="display:flex;flex-direction:column;gap:10px">
+                        <div v-for="t in tokens" :key="t.id" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                            <div><div style="font:600 13.5px/1.2 'Inter'">{{ t.client_name }}</div><div style="font:400 12px/1.4 'Inter';color:var(--text-secondary)">{{ t.name }}</div></div>
+                            <button class="btn btn-danger-soft btn-sm" @click="askRevoke(t)">Revoke</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
     </PortalLayout>
-</template>
 
-<style scoped>
-.portal-account-apps {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-.portal-account-app {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 14px;
-    border: 1px solid var(--border-soft, #eef2f7);
-    border-radius: 10px;
-}
-.paa-meta { min-width: 0; }
-.paa-name { font: 600 14px/1.2 'Inter', sans-serif; color: var(--text-primary, #111827); }
-.paa-sub { font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-muted, #6b7280); margin-top: 2px; }
-.paa-dates {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font: 400 11px/1.4 'Inter', sans-serif;
-    color: var(--text-tertiary, #9ca3af);
-    margin-top: 4px;
-}
-.portal-account-apps-empty {
-    font: 400 13px/1.5 'Inter', sans-serif;
-    color: var(--text-muted, #6b7280);
-}
-</style>
+    <ConfirmModal
+        v-model:show="confirmRevoke"
+        variant="danger"
+        :title="`Revoke access for ${revokeTarget?.client_name}?`"
+        message="The app holding this token will lose access immediately. You can grant access again by signing in from the product."
+        confirm-label="Revoke token"
+        @confirm="doRevoke"
+    />
+</template>
