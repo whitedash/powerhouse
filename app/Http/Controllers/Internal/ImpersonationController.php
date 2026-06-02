@@ -33,7 +33,7 @@ use Illuminate\Support\Str;
  */
 class ImpersonationController extends Controller
 {
-    private const TTL_MINUTES = 10;
+    private const TTL_MINUTES = 30;
 
     public function portalPreview(int $customerId, Request $request): JsonResponse
     {
