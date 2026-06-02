@@ -47,6 +47,7 @@ import {
     IconFlag,
     IconCheck,
     IconBuildingFactory2,
+    IconBrandWordpress,
 } from '@tabler/icons-vue';
 import ToastContainer from '@/Components/UI/ToastContainer.vue';
 
@@ -206,6 +207,8 @@ const isGroupExpanded = (key, children) => {
     return expandedGroups.value[key] ?? false;
 };
 
+const isSuperAdmin = computed(() => page.props.auth?.user?.role === 'super_admin');
+
 const sections = computed(() => {
     const products = [...productItems.value];
     // Statements is a sub-item under Maavelus — only surface it if
@@ -264,6 +267,10 @@ const sections = computed(() => {
                         // same use cases. Route + page kept intact (/provisioning).
                         { key: 'forms',        label: 'Forms',        href: '/forms',        icon: IconForms },
                         { key: 'workflows',    label: 'Workflows',    href: '/workflows',    icon: IconBolt },
+                        // super_admin only — mutates live customer sites.
+                        ...(isSuperAdmin.value
+                            ? [{ key: 'wp-updates', label: 'WP Updates', href: '/wordpress/updates', icon: IconBrandWordpress }]
+                            : []),
                     ],
                 },
                 { key: 'analytics',     label: 'Analytics',     href: '/analytics',  icon: IconChartLine },

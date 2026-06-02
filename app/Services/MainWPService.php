@@ -117,6 +117,55 @@ class MainWPService
     }
 
     /**
+     * Pending updates for a single child site, keyed by type. MainWP returns
+     * {success, data:{wp, plugins, themes, translations}} where each list is
+     * a slug-keyed map of items carrying Name / Version. Used to preview what
+     * a plugin update would touch before triggering it.
+     *
+     * @return array{wp: array<string,mixed>, plugins: array<string,mixed>, themes: array<string,mixed>, translations: array<string,mixed>}
+     */
+    public function getSitePendingUpdates(int|string $site): array
+    {
+        $response = Http::timeout(30)
+            ->withHeaders($this->headers())
+            ->get($this->baseUrl().'/updates/'.$site);
+
+        if ($response->failed()) {
+            throw new \RuntimeException('MainWP updates lookup failed: '.$response->status());
+        }
+
+        $data = $response->json('data') ?? [];
+
+        return [
+            'wp' => $data['wp'] ?? [],
+            'plugins' => $data['plugins'] ?? [],
+            'themes' => $data['themes'] ?? [],
+            'translations' => $data['translations'] ?? [],
+        ];
+    }
+
+    /**
+     * Trigger an update of every outdated plugin on a child site. MainWP
+     * processes all pending plugin updates for the site (the endpoint takes
+     * no body). Returns MainWP's result payload; throws on a non-2xx so the
+     * caller can record a per-site failure.
+     *
+     * @return array<string, mixed>
+     */
+    public function updateSitePlugins(int|string $site): array
+    {
+        $response = Http::timeout(120)
+            ->withHeaders($this->headers())
+            ->post($this->baseUrl().'/updates/'.$site.'/update/plugins');
+
+        if ($response->failed()) {
+            throw new \RuntimeException('MainWP plugin update failed: '.$response->status());
+        }
+
+        return $response->json() ?? [];
+    }
+
+    /**
      * Map a MainWP site response onto the Website telemetry columns. Shape
      * is defensive: missing keys fall back to null / 0 so a partial
      * response never blows up an ->update().

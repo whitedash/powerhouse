@@ -44,6 +44,7 @@ use App\Http\Controllers\Internal\SupportController as InternalSupportController
 use App\Http\Controllers\Internal\TaskController as InternalTaskController;
 use App\Http\Controllers\Internal\TimeEntryController as InternalTimeEntryController;
 use App\Http\Controllers\Internal\WebsiteController as InternalWebsiteController;
+use App\Http\Controllers\Internal\WordPressUpdateController as InternalWordPressUpdateController;
 use App\Http\Controllers\Internal\WorkflowController as InternalWorkflowController;
 use App\Http\Controllers\OAuth\SuspensionController as OAuthSuspensionController;
 use App\Http\Controllers\OAuth\UserInfoController as OAuthUserInfoController;
@@ -459,6 +460,17 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         ->whereNumber('id')->name('internal.websites.check-pagespeed');
     Route::post('/websites/{id}/sync-wordpress', [InternalWebsiteController::class, 'syncWordPress'])
         ->whereNumber('id')->name('internal.websites.sync-wordpress');
+
+    // ─── WordPress bulk plugin updates (MainWP) ───
+    // super_admin only — mutates live customer sites. The page lists sites
+    // with outstanding updates; the run endpoint updates one site at a time
+    // so the UI can show live per-site progress.
+    Route::middleware('role:super_admin')->prefix('wordpress')->group(function () {
+        Route::get('/updates', [InternalWordPressUpdateController::class, 'index'])
+            ->name('internal.wordpress.updates');
+        Route::post('/updates/site/{id}', [InternalWordPressUpdateController::class, 'updateSite'])
+            ->whereNumber('id')->name('internal.wordpress.updates.site');
+    });
 
     Route::get('/invoices/new', [InternalInvoiceController::class, 'create'])->name('internal.invoices.create');
     Route::post('/invoices', [InternalInvoiceController::class, 'store'])->name('internal.invoices.store');
