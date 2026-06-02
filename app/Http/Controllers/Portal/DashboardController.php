@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Portal\Concerns\ResolvesProductLaunch;
 use App\Models\Customer;
 use App\Models\CustomerProduct;
 use App\Models\Invoice;
@@ -21,6 +22,8 @@ use Inertia\Response;
  */
 class DashboardController extends Controller
 {
+    use ResolvesProductLaunch;
+
     public function __invoke(): Response
     {
         /** @var PortalUser $portalUser */
@@ -183,67 +186,4 @@ class DashboardController extends Controller
         };
     }
 
-    /**
-     * Map a product slug to the SSO entry point on the consumer app.
-     * The hint `?sso=1&customer_id=X` tells the consumer to start an
-     * OAuth flow; auth still happens through Powerhouse, this is just
-     * the deep link.
-     *
-     * Unknown slugs return null — the dashboard falls back to the
-     * existing "Manage" link to the portal subscription page.
-     */
-    private function resolveSsoUrl(?string $slug, int $customerId): ?string
-    {
-        $base = $this->getProductUrl($slug);
-
-        return $base === null
-            ? null
-            : $base.'/?sso=1&customer_id='.$customerId;
-    }
-
-    /**
-     * Base URL for a consumer product. Pulled from config so a
-     * staging install can point Maavelus at a different hostname
-     * without code changes. Returns null for slugs we don't yet
-     * know how to launch — the UI then falls back to the legacy
-     * "Manage" link to /portal/subscriptions.
-     */
-    private function getProductUrl(?string $slug): ?string
-    {
-        if ($slug === null || $slug === '') {
-            return null;
-        }
-
-        return match (true) {
-            str_starts_with($slug, 'maavelus') => (string) config(
-                'services.products.maavelus_url',
-                'https://restaurant.maavelus.co.uk',
-            ),
-            in_array($slug, ['myorderpad', 'orderpad'], true) => (string) config(
-                'services.products.myorderpad_url',
-                'https://app.myorderpad.co.uk',
-            ),
-            default => null,
-        };
-    }
-
-    /**
-     * True when the consumer app exposes a token-exchange SSO
-     * endpoint we can POST to (see ProductLaunchController). Used
-     * by the Dashboard.vue Open button to decide whether to POST
-     * to /portal/launch/{slug} (server-mint flow) or follow the
-     * sso_url directly (legacy redirect).
-     */
-    private function productHasSso(?string $slug): bool
-    {
-        if ($slug === null || $slug === '') {
-            return false;
-        }
-
-        return in_array($slug, [
-            'maavelus',
-            'maavelus-hospitality',
-            'myorderpad',
-        ], true);
-    }
 }

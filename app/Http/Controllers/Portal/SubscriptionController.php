@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Portal\Concerns\ResolvesProductLaunch;
 use App\Models\ActivityLog;
 use App\Models\CustomerProduct;
 use App\Models\PortalUser;
@@ -25,6 +26,8 @@ use Inertia\Response;
  */
 class SubscriptionController extends Controller
 {
+    use ResolvesProductLaunch;
+
     public function index(): Response
     {
         /** @var PortalUser $portalUser */
@@ -53,6 +56,10 @@ class SubscriptionController extends Controller
                 'trial_ends_at' => $cp->trial_ends_at?->format('j M Y'),
                 'next_billing_date' => $cp->next_billing_date?->format('j M Y'),
                 'cancels_at' => $cp->cancels_at?->format('j M Y'),
+                // "Open {product}" launch — mirrors the dashboard's logic
+                // so an active product can be opened straight from here.
+                'sso_enabled' => $this->productHasSso($cp->product?->slug),
+                'sso_url' => $this->resolveSsoUrl($cp->product?->slug, $customerId),
             ])
             ->all();
 
