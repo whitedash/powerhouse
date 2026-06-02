@@ -97,6 +97,7 @@ class InvoiceController extends Controller
 
         $invoice = Invoice::with([
             'billingEntity:id,name',
+            'customer:id,name,address_line1,address_line2,city,postcode,country',
             'lines' => fn ($q) => $q->orderBy('sort_order'),
         ])
             ->where('customer_id', $portalUser->customer_id)
@@ -105,11 +106,24 @@ class InvoiceController extends Controller
         $total = (float) $invoice->total;
         $amountPaid = (float) $invoice->amount_paid;
 
+        // "Billed to" block on the redesigned document — the customer's
+        // name + a single-line address assembled from the parts we have.
+        $cust = $invoice->customer;
+        $addressLine = $cust ? implode(', ', array_filter([
+            $cust->address_line1,
+            $cust->address_line2,
+            $cust->city,
+            $cust->postcode,
+            $cust->country,
+        ])) : null;
+
         return Inertia::render('Portal/InvoiceDetail', [
             'invoice' => [
                 'id' => $invoice->id,
                 'number' => $invoice->number,
                 'billing_entity' => $invoice->billingEntity?->name,
+                'billed_to_name' => $cust?->name,
+                'billed_to_address' => $addressLine ?: null,
                 'status' => $invoice->status,
                 'issue_date' => $invoice->issue_date?->format('j M Y'),
                 'due_date' => $invoice->due_date?->format('j M Y'),
