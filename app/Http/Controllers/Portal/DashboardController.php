@@ -185,5 +185,4 @@ class DashboardController extends Controller
             default => 'Open',
         };
     }
-
 }
