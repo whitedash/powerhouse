@@ -11,6 +11,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -169,9 +170,22 @@ class InvoiceController extends Controller
             'This invoice is not awaiting payment.',
         );
 
-        return response()->json([
-            'client_secret' => $stripe->createEmbeddedCheckoutSession($invoice),
-        ]);
+        try {
+            $clientSecret = $stripe->createEmbeddedCheckoutSession($invoice);
+        } catch (\Throwable $e) {
+            // Stripe outage / API error must not surface as a 500 to the
+            // customer mid-payment — return a clean, retryable signal.
+            Log::error('Embedded Checkout session creation failed', [
+                'invoice_id' => $invoice->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Payment is temporarily unavailable. Please try again shortly.',
+            ], 503);
+        }
+
+        return response()->json(['client_secret' => $clientSecret]);
     }
 
     /**

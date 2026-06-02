@@ -313,7 +313,7 @@ class ExpenseController extends Controller
             'description' => 'required|string|max:255',
             'supplier_name' => 'nullable|string|max:255',
             'supplier_id' => 'nullable|integer|exists:suppliers,id',
-            'amount' => 'required|numeric|min:0',
+            'amount' => 'required|numeric|min:0|max:999999.99',
             'vat_rate' => 'nullable|numeric|min:0|max:100',
             'expense_date' => 'required|date',
             'status' => ['nullable', Rule::in(self::STATUSES)],

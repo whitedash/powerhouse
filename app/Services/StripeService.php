@@ -128,6 +128,21 @@ class StripeService
     public function markInvoicePaid(Invoice $invoice, string $sessionId, string $paymentIntentId): array
     {
         $reinstated = DB::transaction(function () use ($invoice, $sessionId, $paymentIntentId): array {
+            // Re-read the invoice under a row lock and re-check status INSIDE
+            // the transaction. Stripe fires checkout.session.completed and
+            // payment_intent.succeeded for the same payment, retries
+            // deliveries, and the success-page confirm path is a third
+            // concurrent settler. The callers' status short-circuit happens
+            // before this call, so without the lock two in-flight settles can
+            // both pass it and double-run autoReinstate() — duplicate WHM
+            // unsuspends, duplicate reinstatement emails. The lock serialises
+            // them; the loser sees status === 'paid' and no-ops.
+            $invoice = Invoice::whereKey($invoice->getKey())->lockForUpdate()->first();
+
+            if (! $invoice || $invoice->status === 'paid') {
+                return [];
+            }
+
             $invoice->update([
                 'status' => 'paid',
                 'amount_paid' => $invoice->total,

@@ -21,10 +21,20 @@ class SecurityHeaders
             'camera=(), microphone=(), geolocation=(), payment=()'
         );
 
+        // 'unsafe-eval' is only needed by Vite's dev/HMR runtime — the
+        // compiled production Vue bundle never calls eval(). Drop it in
+        // production so an injected payload can't reach eval()/new Function().
+        // ('unsafe-inline' stays: Inertia's initial-page <script> and Vue
+        // scoped styles are inline; removing it needs per-request nonces,
+        // tracked as a follow-up.)
+        $scriptSrc = app()->environment('production')
+            ? "script-src 'self' 'unsafe-inline' https://fonts.bunny.net https://js.stripe.com https://*.stripe.com"
+            : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.bunny.net https://js.stripe.com https://*.stripe.com";
+
         $response->headers->set('Content-Security-Policy', implode('; ', [
             "default-src 'self'",
             // Stripe.js powers the embedded invoice checkout (portal).
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.bunny.net https://js.stripe.com https://*.stripe.com",
+            $scriptSrc,
             "style-src 'self' 'unsafe-inline' https://fonts.bunny.net",
             // data: is required for FullCalendar's embedded `fcicons` font
             // (the prev/next chevron glyphs ship as a base64 data: URI).

@@ -75,7 +75,7 @@ class CustomerController extends Controller
             'sort' => in_array($request->query('sort'), self::SORT_OPTIONS, true)
                 ? $request->query('sort')
                 : 'last_active',
-            'per_page' => (int) ($request->query('per_page') ?: 20),
+            'per_page' => min(100, max(1, (int) ($request->query('per_page') ?: 20))),
         ];
 
         $query = Customer::query()

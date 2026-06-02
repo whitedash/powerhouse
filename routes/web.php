@@ -746,14 +746,22 @@ Route::get('/oauth/suspended', [OAuthSuspensionController::class, 'show'])
 // portal session straight to the dashboard so login pages aren't re-served.
 Route::prefix('portal')->middleware('portal_guest')->group(function () {
     Route::get('/login', [PortalAuthController::class, 'showLogin'])->name('portal.login');
-    Route::post('/login', [PortalAuthController::class, 'login'])->name('portal.login.submit');
+    Route::post('/login', [PortalAuthController::class, 'login'])
+        ->middleware('throttle:portal-login')
+        ->name('portal.login.submit');
 
     // Password reset is part of the guest surface — once logged in,
     // a portal user changes their password from /portal/account.
+    // Throttled so neither the reset-link request nor the token-submit
+    // (Hash::check) path can be hammered.
     Route::get('/forgot-password', [PortalPasswordController::class, 'showForgotForm'])->name('portal.forgot-password');
-    Route::post('/forgot-password', [PortalPasswordController::class, 'sendResetLink'])->name('portal.forgot-password.submit');
+    Route::post('/forgot-password', [PortalPasswordController::class, 'sendResetLink'])
+        ->middleware('throttle:6,1')
+        ->name('portal.forgot-password.submit');
     Route::get('/reset-password', [PortalPasswordController::class, 'showResetForm'])->name('portal.reset-password');
-    Route::post('/reset-password', [PortalPasswordController::class, 'resetPassword'])->name('portal.reset-password.submit');
+    Route::post('/reset-password', [PortalPasswordController::class, 'resetPassword'])
+        ->middleware('throttle:6,1')
+        ->name('portal.reset-password.submit');
 });
 
 // Preview entrypoint sits outside portal_guest because the staff

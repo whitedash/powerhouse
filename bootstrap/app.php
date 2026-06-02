@@ -13,6 +13,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Sentry\Laravel\Integration;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -76,6 +77,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Report every unhandled exception to Sentry. The package ships a
+        // config and the prod env template carries SENTRY_*, but nothing
+        // registered the handler — without this line no exception ever
+        // reached Sentry in production.
+        Integration::handles($exceptions);
+
         // JSON-render the auth exception for any request that's
         // consuming an OAuth token. Without this, an unauthenticated
         // /oauth/userinfo redirects to a login URL — fine for browsers,

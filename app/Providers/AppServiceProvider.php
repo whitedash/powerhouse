@@ -23,11 +23,14 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Passport\Passport;
 
@@ -40,13 +43,67 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->enforceProductionSecurity();
         $this->registerPolicies();
         $this->configurePassport();
         $this->configureEloquent();
         $this->registerRateLimiters();
         $this->registerSlowQueryListener();
         $this->registerSecurityEventListeners();
+        $this->registerQueueFailureHandler();
         $this->enforcePkceOnAuthorize();
+    }
+
+    /**
+     * Production hardening that has to happen at boot, before any request
+     * is served:
+     *   - Force the https scheme so every generated URL (Stripe success/
+     *     cancel/return URLs, password-reset links, signed routes) and the
+     *     session/CSRF cookies are emitted as secure behind a TLS proxy.
+     *   - Fail closed if a *test* Stripe key slipped into a production
+     *     deploy — otherwise live checkout silently runs against Stripe
+     *     test mode: customers "pay", invoices flip to paid, products
+     *     reinstate, but no money ever moves.
+     */
+    private function enforceProductionSecurity(): void
+    {
+        if (! $this->app->isProduction()) {
+            return;
+        }
+
+        URL::forceScheme('https');
+
+        if (str_starts_with((string) config('services.stripe.secret'), 'sk_test_')) {
+            throw new \RuntimeException(
+                'Refusing to boot: a Stripe TEST key (sk_test_) is configured in production.'
+            );
+        }
+    }
+
+    /**
+     * A queued job that exhausts its retries dies silently otherwise — the
+     * failure is only stored in failed_jobs. For a queue that settles
+     * invoices, dispatches reinstatements and delivers webhooks, that is a
+     * blind spot. Log it at critical (which routes to Sentry once wired) so
+     * it surfaces in alerting.
+     */
+    private function registerQueueFailureHandler(): void
+    {
+        Queue::failing(function (JobFailed $event): void {
+            Log::critical('Queue job failed', [
+                'connection' => $event->connectionName,
+                'queue' => $event->job->getQueue(),
+                'job' => $event->job->resolveName(),
+                'exception' => $event->exception->getMessage(),
+            ]);
+
+            // A caught job failure is never an "unhandled" exception, so the
+            // bootstrap Integration::handles() hook won't see it — send it to
+            // Sentry explicitly so alerting fires.
+            if (function_exists('Sentry\captureException')) {
+                \Sentry\captureException($event->exception);
+            }
+        });
     }
 
     private function enforcePkceOnAuthorize(): void
@@ -76,6 +133,27 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinutes(15, 5)
                 ->by($key)
+                ->response(function (Request $request, array $headers) {
+                    $retryAfter = (int) ($headers['Retry-After'] ?? 900);
+                    $minutes = max(1, (int) ceil($retryAfter / 60));
+
+                    return back()
+                        ->withInput($request->only('email'))
+                        ->withErrors([
+                            'email' => "Too many attempts. Try again in {$minutes} minute".($minutes === 1 ? '' : 's').'.',
+                        ]);
+                });
+        });
+
+        // Portal login + password-reset share the same shape as staff-login:
+        // keyed on email|ip so one attacker can't lock out an unrelated user,
+        // and the throttle is the only brute-force backstop on the portal
+        // guard (Portal\AuthController does no in-controller limiting).
+        RateLimiter::for('portal-login', function (Request $request) {
+            $email = strtolower((string) $request->input('email'));
+
+            return Limit::perMinutes(15, 5)
+                ->by($email.'|'.$request->ip())
                 ->response(function (Request $request, array $headers) {
                     $retryAfter = (int) ($headers['Retry-After'] ?? 900);
                     $minutes = max(1, (int) ceil($retryAfter / 60));
