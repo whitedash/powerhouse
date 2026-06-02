@@ -8,6 +8,7 @@ use App\Models\Website;
 use App\Services\MainWPService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -61,7 +62,59 @@ class WordPressUpdateController extends Controller
                 ->unique('id')
                 ->sortBy('name')
                 ->values(),
+            // The same outstanding updates inverted to a per-plugin view —
+            // "which plugins are out of date, and on how many sites".
+            'plugins_with_updates' => $this->aggregateByPlugin($websites),
         ]);
+    }
+
+    /**
+     * Invert the per-site update detail into a per-plugin overview: one row
+     * per distinct plugin slug, carrying the affected sites and their
+     * current versions, sorted by reach (most widespread first). Read-only —
+     * MainWP REST has no per-plugin update endpoint (the /update/plugins call
+     * updates every outstanding plugin on a site), so this is presentation
+     * only; updates are driven per-site from the "By Site" tab.
+     *
+     * @param  Collection<int, Website>  $websites
+     * @return array<int, array<string, mixed>>
+     */
+    private function aggregateByPlugin($websites): array
+    {
+        $byPlugin = [];
+
+        foreach ($websites as $website) {
+            foreach ($website->plugin_updates_detail ?? [] as $plugin) {
+                $slug = $plugin['slug'] ?? '';
+                if ($slug === '') {
+                    continue;
+                }
+
+                if (! isset($byPlugin[$slug])) {
+                    $byPlugin[$slug] = [
+                        'slug' => $slug,
+                        'name' => $plugin['name'] ?? $slug,
+                        'new_version' => $plugin['new_version'] ?? '—',
+                        'sites' => [],
+                        'site_count' => 0,
+                    ];
+                }
+
+                $byPlugin[$slug]['sites'][] = [
+                    'website_id' => $website->id,
+                    'mainwp_site_id' => $website->mainwp_site_id,
+                    'url' => $website->url,
+                    'customer_name' => $website->customer?->name,
+                    'current_version' => $plugin['current_version'] ?? '—',
+                ];
+                $byPlugin[$slug]['site_count']++;
+            }
+        }
+
+        $rows = array_values($byPlugin);
+        usort($rows, fn (array $a, array $b): int => $b['site_count'] <=> $a['site_count']);
+
+        return $rows;
     }
 
     /**

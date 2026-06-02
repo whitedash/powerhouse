@@ -13,8 +13,8 @@
 import { computed, ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import {
-    IconBrandWordpress, IconRefresh, IconSearch, IconChevronRight, IconChevronDown,
-    IconCircleCheck, IconAlertTriangle, IconLoader2,
+    IconBrandWordpress, IconRefresh, IconSearch, IconChevronRight, IconChevronDown, IconChevronUp,
+    IconCircleCheck, IconAlertTriangle, IconLoader2, IconChecks,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 
@@ -22,7 +22,10 @@ const props = defineProps({
     configured: { type: Boolean, default: false },
     sites: { type: Array, default: () => [] },
     customers: { type: Array, default: () => [] },
+    plugins_with_updates: { type: Array, default: () => [] },
 });
+
+const tab = ref('by-site');
 
 /* Local working copy so counts / detail / status mutate as updates land. */
 const rows = ref(props.sites.map((s) => ({ ...s, status: 'idle', message: '' })));
@@ -49,6 +52,23 @@ const filtered = computed(() => {
 const pendingTotal = computed(() => rows.value.reduce((n, r) => n + (r.plugins_outdated || 0), 0));
 const sitesNeeding = computed(() => rows.value.filter((r) => r.plugins_outdated > 0).length);
 const updatableVisible = computed(() => filtered.value.filter((r) => r.plugins_outdated > 0));
+
+/* ─── By Plugin (read-only overview) ───
+ * MainWP REST has no per-plugin update endpoint — /update/plugins updates
+ * every outstanding plugin on a site — so this tab is presentation only.
+ * Updates are driven per-site from the "By Site" tab. */
+const pluginSearch = ref('');
+const expandedPlugins = ref({});
+function togglePlugin(slug) {
+    expandedPlugins.value[slug] = ! expandedPlugins.value[slug];
+}
+const filteredPlugins = computed(() => {
+    const q = pluginSearch.value.trim().toLowerCase();
+    if (! q) return props.plugins_with_updates;
+    return props.plugins_with_updates.filter((p) =>
+        (p.name ?? '').toLowerCase().includes(q) || (p.slug ?? '').toLowerCase().includes(q),
+    );
+});
 
 function csrf() {
     return document.querySelector('meta[name=csrf-token]')?.content ?? '';
@@ -119,6 +139,19 @@ const STATUS = {
                 MainWP is not configured. Add credentials in Settings → Integrations to enable plugin updates.
             </div>
 
+            <!-- Tabs -->
+            <div class="wu-tabs">
+                <button type="button" :class="['wu-tab', { active: tab === 'by-site' }]" @click="tab = 'by-site'">
+                    By Site
+                </button>
+                <button type="button" :class="['wu-tab', { active: tab === 'by-plugin' }]" @click="tab = 'by-plugin'">
+                    By Plugin
+                    <span class="wu-tab-count">{{ plugins_with_updates.length }}</span>
+                </button>
+            </div>
+
+            <!-- ─── BY SITE ─── -->
+            <div v-show="tab === 'by-site'">
             <!-- Summary -->
             <div class="summary-strip">
                 <div class="stat-pill">
@@ -238,6 +271,65 @@ const STATUS = {
                     <p>No linked sites match.</p>
                 </div>
             </div>
+            </div>
+            <!-- ─── /BY SITE ─── -->
+
+            <!-- ─── BY PLUGIN (read-only) ─── -->
+            <div v-show="tab === 'by-plugin'">
+                <div class="wu-toolbar">
+                    <div class="wu-search">
+                        <IconSearch :size="15" stroke-width="1.75" />
+                        <input v-model="pluginSearch" type="text" placeholder="Search plugins…" />
+                    </div>
+                    <div class="wu-spacer"></div>
+                    <span class="wu-hint">Read-only — run updates per site from the By Site tab.</span>
+                </div>
+
+                <div class="wu-list">
+                    <div v-for="plugin in filteredPlugins" :key="plugin.slug" class="wu-plugin-card">
+                        <div class="wu-plugin-header">
+                            <div class="wu-plugin-info">
+                                <span class="wu-plugin-name">{{ plugin.name }}</span>
+                                <span class="wu-plugin-meta">
+                                    <span class="wu-version-tag">Latest: {{ plugin.new_version }}</span>
+                                    <span class="wu-site-count">
+                                        {{ plugin.site_count }} {{ plugin.site_count === 1 ? 'site needs' : 'sites need' }} this update
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="wu-plugin-actions">
+                                <button type="button" class="btn btn-ghost btn-sm" @click="togglePlugin(plugin.slug)">
+                                    <component :is="expandedPlugins[plugin.slug] ? IconChevronUp : IconChevronDown" :size="14" stroke-width="2" />
+                                    {{ expandedPlugins[plugin.slug] ? 'Hide sites' : 'Show sites' }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div v-if="expandedPlugins[plugin.slug]" class="wu-plugin-sites">
+                            <table class="wu-sites-table">
+                                <thead>
+                                    <tr><th>Site</th><th>Customer</th><th>Current</th><th></th><th>Latest</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="site in plugin.sites" :key="site.website_id">
+                                        <td class="wu-site-url">{{ site.url }}</td>
+                                        <td class="wu-customer">{{ site.customer_name ?? '—' }}</td>
+                                        <td class="wu-version wu-version--old">{{ site.current_version }}</td>
+                                        <td class="wu-arrow">→</td>
+                                        <td class="wu-version wu-version--new">{{ plugin.new_version }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div v-if="filteredPlugins.length === 0" class="wu-empty">
+                        <IconChecks :size="22" stroke-width="1.5" />
+                        <p>{{ pluginSearch ? 'No plugins match.' : 'All plugins up to date.' }}</p>
+                    </div>
+                </div>
+            </div>
+            <!-- ─── /BY PLUGIN ─── -->
         </div>
     </InternalLayout>
 </template>
@@ -301,4 +393,36 @@ const STATUS = {
 
 .wu-empty { text-align: center; padding: 40px 0; color: var(--text-tertiary); }
 .wu-empty p { margin: 8px 0 0; font: 500 13px/1.4 'Inter', sans-serif; }
+
+/* ─── Tabs ─── */
+.wu-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+.wu-tab {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 16px; margin-bottom: -1px;
+    background: none; border: none; border-bottom: 2px solid transparent;
+    cursor: pointer; font: 500 14px/1 'Inter', sans-serif; color: var(--text-secondary);
+    transition: color .15s, border-color .15s;
+}
+.wu-tab:hover { color: var(--text-primary); }
+.wu-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.wu-tab-count { font: 600 11px/1 'Inter', sans-serif; padding: 2px 7px; border-radius: 999px; background: var(--neutral-bg); color: var(--text-secondary); }
+.wu-tab.active .wu-tab-count { background: var(--accent-soft, #F1F5FF); color: var(--accent); }
+.wu-hint { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-tertiary); }
+
+/* ─── By Plugin cards ─── */
+.wu-plugin-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.wu-plugin-header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+.wu-plugin-info { flex: 1; min-width: 0; }
+.wu-plugin-info .wu-plugin-name { display: block; font: 600 14px/1.2 'Inter', sans-serif; color: var(--text-primary); }
+.wu-plugin-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.wu-version-tag { font: 500 12px/1 'Inter', sans-serif; color: var(--success); }
+.wu-site-count { font: 400 12px/1 'Inter', sans-serif; color: var(--text-tertiary); }
+.wu-plugin-actions { flex-shrink: 0; }
+.wu-plugin-sites { border-top: 1px solid var(--border); padding: 12px 16px; background: var(--neutral-bg); }
+.wu-sites-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.wu-sites-table th { font: 500 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); padding: 4px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+.wu-sites-table td { padding: 8px; border-bottom: 1px solid var(--border-soft); }
+.wu-sites-table tr:last-child td { border-bottom: none; }
+.wu-site-url { font-weight: 500; color: var(--text-primary); word-break: break-all; }
+.wu-customer { color: var(--text-secondary); font-size: 12px; }
 </style>
