@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -919,6 +920,23 @@ class InvoiceController extends Controller
             // outstanding bucket the badge counts).
             Cache::forget('nav.invoices_outstanding');
         });
+
+        // Generate a hosted Stripe payment link before the email goes out so
+        // the "Pay Now" button renders on both the PDF and the email body.
+        // Best-effort: a Stripe outage must never block sending the invoice.
+        if (! $invoice->stripe_payment_link && config('services.stripe.secret')) {
+            try {
+                $session = app(StripeService::class)->createCheckoutSession($invoice);
+                $invoice->update([
+                    'stripe_payment_link' => $session->url,
+                    'stripe_checkout_session_id' => $session->id,
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('Could not generate Stripe link for invoice '.$invoice->id, [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         // Email outside the transaction so a Postmark hiccup can't roll
         // back the status change. No contact email → status still flips,

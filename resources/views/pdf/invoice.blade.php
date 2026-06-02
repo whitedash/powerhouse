@@ -372,6 +372,39 @@
     padding: 12px 14px;
     margin-top: 12px;
   }
+
+  /* ---- pay online ---- */
+  .pay-online {
+    text-align: center;
+    margin-top: 18px;
+  }
+  .pay-online-lead {
+    font-size: 12px;
+    color: #666666;
+    margin-bottom: 8px;
+  }
+  .pay-online-btn-wrap {
+    margin-bottom: 8px;
+  }
+  .pay-online-btn {
+    background: #F5A623;
+    color: #FFFFFF;
+    padding: 10px 24px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 14px;
+  }
+  .pay-online-note {
+    font-size: 10px;
+    color: #999999;
+    margin-bottom: 6px;
+  }
+  .pay-online-url {
+    font-size: 9px;
+    color: #AAAAAA;
+    word-break: break-all;
+  }
   .pay-detail-table {
     width: 100%;
     border: none;
@@ -627,6 +660,19 @@
         </td>
       </tr>
     </tbody></table>
+
+    @if($invoice->stripe_payment_link && in_array($statusKey, ['sent', 'overdue'], true))
+    <!-- ============ PAY ONLINE ============ -->
+    <div class="pay-online no-break">
+      <p class="pay-online-lead">Pay this invoice online:</p>
+      <p class="pay-online-btn-wrap">
+        <a href="{{ $invoice->stripe_payment_link }}" class="pay-online-btn">Pay Now — {{ $gbp($total) }}</a>
+      </p>
+      <p class="pay-online-note">Secure payment powered by Stripe</p>
+      {{-- Plain URL fallback for viewers that don't render the styled link. --}}
+      <p class="pay-online-url">{{ $invoice->stripe_payment_link }}</p>
+    </div>
+    @endif
 
     @if($showBank)
     <!-- ============ PAYMENT DETAILS ============ -->

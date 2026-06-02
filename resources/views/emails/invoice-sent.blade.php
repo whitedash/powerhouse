@@ -16,6 +16,14 @@
     <tr><td style="padding:8px 0;font-size:14px;color:#94a3b8;border-bottom:1px solid #f8fafc;">Payment reference</td><td style="padding:8px 0;font-size:14px;color:#334155;border-bottom:1px solid #f8fafc;"><strong>{{ $invoice->number }}</strong></td></tr>
 </table>
 
+@if(!empty($invoice->stripe_payment_link) && in_array($invoice->status, ['sent', 'overdue'], true))
+<div style="text-align:center;margin:28px 0 8px;">
+    <a href="{{ $invoice->stripe_payment_link }}" style="background:#F5A623;color:#ffffff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;display:inline-block;">Pay Now — £{{ number_format((float) $invoice->total, 2) }}</a>
+</div>
+<p style="text-align:center;font-size:12px;color:#94a3b8;margin:0 0 4px;">Secure payment powered by Stripe</p>
+<p style="text-align:center;font-size:11px;color:#cbd5e1;margin:0;word-break:break-all;">{{ $invoice->stripe_payment_link }}</p>
+@endif
+
 @if(!empty($paymentDetails))
 <hr style="border:none;border-top:1px solid #f1f5f9;margin:24px 0;">
 <p style="font-size:15px;line-height:1.6;color:#334155;margin:0 0 16px;font-weight:600;">Payment details:</p>
