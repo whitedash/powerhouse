@@ -212,15 +212,12 @@ class MainWPService
     {
         $action = $activate ? 'activate' : 'deactivate';
 
-        $response = Http::timeout(60)
-            ->withHeaders($this->headers())
-            ->post($this->baseUrl().'/sites/'.$site.'/plugins/'.$action, ['plugins' => $slug]);
+        // Same singular `slug` contract as the update endpoints — a plugins[]
+        // value is rejected (HTTP 500). Send slug as a query param + body.
+        $url = $this->baseUrl().'/sites/'.$site.'/plugins/'.$action.'?slug='.rawurlencode($slug);
+        $response = Http::timeout(60)->withHeaders($this->headers())->post($url, ['slug' => $slug]);
 
-        if ($response->failed()) {
-            throw new \RuntimeException('MainWP plugin '.$action.' failed: '.$response->status());
-        }
-
-        return $response->json() ?? [];
+        return $this->assertUpdateApplied($response, 'plugin '.$action);
     }
 
     /**

@@ -474,6 +474,8 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
             ->name('internal.wordpress.updates.core');
         Route::post('/updates/plugin/update', [InternalWordPressUpdateController::class, 'updatePlugin'])
             ->name('internal.wordpress.updates.plugin.update');
+        Route::post('/updates/plugin/bulk', [InternalWordPressUpdateController::class, 'updatePluginAcrossSites'])
+            ->name('internal.wordpress.updates.plugin.bulk');
         Route::post('/updates/theme/update', [InternalWordPressUpdateController::class, 'updateTheme'])
             ->name('internal.wordpress.updates.theme.update');
         Route::post('/updates/plugin/toggle', [InternalWordPressUpdateController::class, 'togglePlugin'])

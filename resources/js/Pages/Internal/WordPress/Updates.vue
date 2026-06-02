@@ -11,7 +11,7 @@
  * super_admin only — this mutates live customer sites.
  */
 import { computed, ref } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import {
     IconBrandWordpress, IconRefresh, IconSearch, IconChevronRight, IconChevronDown, IconChevronUp,
     IconCircleCheck, IconAlertTriangle, IconLoader2, IconChecks,
@@ -54,10 +54,9 @@ const pendingTotal = computed(() => rows.value.reduce((n, r) => n + (r.plugins_o
 const sitesNeeding = computed(() => rows.value.filter((r) => r.plugins_outdated > 0).length);
 const updatableVisible = computed(() => filtered.value.filter((r) => r.plugins_outdated > 0));
 
-/* ─── By Plugin (read-only overview) ───
- * MainWP REST has no per-plugin update endpoint — /update/plugins updates
- * every outstanding plugin on a site — so this tab is presentation only.
- * Updates are driven per-site from the "By Site" tab. */
+/* ─── By Plugin (per-plugin overview + actions) ───
+ * Now that per-plugin updates work (?slug=), this tab can update a plugin on
+ * one site or across every affected site. */
 const pluginSearch = ref('');
 const expandedPlugins = ref({});
 function togglePlugin(slug) {
@@ -76,10 +75,14 @@ async function updateOne(row) {
     row.status = 'running';
     row.message = '';
     const { ok, status, data } = await postJson(`/wordpress/updates/site/${row.id}`, {});
+    applyResult(row, data);
     if (ok) {
         row.status = 'done';
         row.message = data.message ?? 'Updated';
-        applyResult(row, data);
+    } else if (data.partial) {
+        // Some plugins updated, some failed — amber, not a hard error.
+        row.status = 'partial';
+        row.message = data.message ?? 'Partially updated';
     } else {
         row.status = 'error';
         row.message = data.message ?? `Failed (${status})`;
@@ -195,9 +198,40 @@ async function togglePluginState(site, plugin) {
     busy.value[key] = false;
 }
 
+/* ─── By Plugin tab actions ───
+ * After a mutation we partial-reload the plugins_with_updates prop so the
+ * per-plugin view reflects the new state (rows drop off as sites update). */
+const bulkUpdating = ref({});
+const siteUpdating = ref({});
+const siteUpdateStatus = ref({});
+const pluginMsg = ref({});
+
+async function updatePluginAllSites(plugin) {
+    if (! props.configured || bulkUpdating.value[plugin.slug]) return;
+    bulkUpdating.value[plugin.slug] = true;
+    pluginMsg.value[plugin.slug] = '';
+    const siteIds = plugin.sites.map((s) => s.website_id);
+    const { data } = await postJson('/wordpress/updates/plugin/bulk', { plugin_slug: plugin.slug, site_ids: siteIds });
+    pluginMsg.value[plugin.slug] = data.message ?? '';
+    bulkUpdating.value[plugin.slug] = false;
+    router.reload({ only: ['sites', 'plugins_with_updates'] });
+}
+
+async function updatePluginOneSite(plugin, site) {
+    if (! props.configured) return;
+    const key = plugin.slug + '_' + site.website_id;
+    siteUpdating.value[key] = true;
+    siteUpdateStatus.value[key] = '';
+    const { ok } = await postJson('/wordpress/updates/plugin/update', { website_id: site.website_id, plugin_slug: plugin.slug });
+    siteUpdateStatus.value[key] = ok ? '✓ Updated' : '✗ Failed';
+    siteUpdating.value[key] = false;
+    if (ok) router.reload({ only: ['sites', 'plugins_with_updates'] });
+}
+
 const STATUS = {
     running: { cls: 'wu-running', icon: IconLoader2 },
     done: { cls: 'wu-done', icon: IconCircleCheck },
+    partial: { cls: 'wu-partial', icon: IconAlertTriangle },
     error: { cls: 'wu-error', icon: IconAlertTriangle },
 };
 </script>
@@ -398,7 +432,7 @@ const STATUS = {
             </div>
             <!-- ─── /BY SITE ─── -->
 
-            <!-- ─── BY PLUGIN (read-only) ─── -->
+            <!-- ─── BY PLUGIN ─── -->
             <div v-show="tab === 'by-plugin'">
                 <div class="wu-toolbar">
                     <div class="wu-search">
@@ -406,7 +440,6 @@ const STATUS = {
                         <input v-model="pluginSearch" type="text" placeholder="Search plugins…" />
                     </div>
                     <div class="wu-spacer"></div>
-                    <span class="wu-hint">Read-only — run updates per site from the By Site tab.</span>
                 </div>
 
                 <div class="wu-list">
@@ -422,17 +455,28 @@ const STATUS = {
                                 </span>
                             </div>
                             <div class="wu-plugin-actions">
+                                <span v-if="pluginMsg[plugin.slug]" class="wu-bulk-msg">{{ pluginMsg[plugin.slug] }}</span>
                                 <button type="button" class="btn btn-ghost btn-sm" @click="togglePlugin(plugin.slug)">
                                     <component :is="expandedPlugins[plugin.slug] ? IconChevronUp : IconChevronDown" :size="14" stroke-width="2" />
                                     {{ expandedPlugins[plugin.slug] ? 'Hide sites' : 'Show sites' }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-primary btn-sm"
+                                    :disabled="! configured || bulkUpdating[plugin.slug]"
+                                    @click="updatePluginAllSites(plugin)"
+                                >
+                                    <IconRefresh :size="14" stroke-width="2" :class="{ 'wu-spin': bulkUpdating[plugin.slug] }" />
+                                    Update on all {{ plugin.site_count }} {{ plugin.site_count === 1 ? 'site' : 'sites' }}
                                 </button>
                             </div>
                         </div>
 
                         <div v-if="expandedPlugins[plugin.slug]" class="wu-plugin-sites">
                             <table class="wu-sites-table">
+                                <colgroup><col style="width: 35%"><col style="width: 20%"><col style="width: 13%"><col style="width: 4%"><col style="width: 13%"><col style="width: 15%"></colgroup>
                                 <thead>
-                                    <tr><th>Site</th><th>Customer</th><th>Current</th><th></th><th>Latest</th></tr>
+                                    <tr><th>Site</th><th>Customer</th><th>Current</th><th></th><th>Latest</th><th>Action</th></tr>
                                 </thead>
                                 <tbody>
                                     <tr v-for="site in plugin.sites" :key="site.website_id">
@@ -441,6 +485,18 @@ const STATUS = {
                                         <td class="wu-version wu-version--old">{{ site.current_version }}</td>
                                         <td class="wu-arrow">→</td>
                                         <td class="wu-version wu-version--new">{{ plugin.new_version }}</td>
+                                        <td class="wu-row-actions">
+                                            <span v-if="siteUpdateStatus[plugin.slug + '_' + site.website_id]" class="wu-site-status">{{ siteUpdateStatus[plugin.slug + '_' + site.website_id] }}</span>
+                                            <button
+                                                type="button"
+                                                class="btn btn-primary wu-btn-xs"
+                                                :disabled="! configured || siteUpdating[plugin.slug + '_' + site.website_id]"
+                                                @click="updatePluginOneSite(plugin, site)"
+                                            >
+                                                <IconRefresh :size="12" stroke-width="2" :class="{ 'wu-spin': siteUpdating[plugin.slug + '_' + site.website_id] }" />
+                                                Update
+                                            </button>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -498,7 +554,10 @@ const STATUS = {
 .wu-status { display: inline-flex; align-items: center; gap: 4px; font: 500 12px/1 'Inter', sans-serif; }
 .wu-status.wu-running { color: var(--info); }
 .wu-status.wu-done { color: #047857; }
+.wu-status.wu-partial { color: #B45309; }
 .wu-status.wu-error { color: #B91C1C; }
+.wu-bulk-msg { font: 500 12px/1 'Inter', sans-serif; color: var(--text-secondary); }
+.wu-site-status { font: 600 11px/1 'Inter', sans-serif; margin-right: 6px; }
 .wu-site-actions { flex-shrink: 0; }
 
 .wu-site-detail { border-top: 1px solid var(--border); padding: 16px; background: var(--neutral-bg); }
@@ -575,7 +634,6 @@ const STATUS = {
 .wu-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 .wu-tab-count { font: 600 11px/1 'Inter', sans-serif; padding: 2px 7px; border-radius: 999px; background: var(--neutral-bg); color: var(--text-secondary); }
 .wu-tab.active .wu-tab-count { background: var(--accent-soft, #F1F5FF); color: var(--accent); }
-.wu-hint { font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-tertiary); }
 
 /* ─── By Plugin cards ─── */
 .wu-plugin-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }

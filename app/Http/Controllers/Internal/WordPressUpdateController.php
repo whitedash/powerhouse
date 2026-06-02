@@ -163,6 +163,9 @@ class WordPressUpdateController extends Controller
 
         return response()->json([
             'ok' => $failed === 0,
+            'partial' => $updated > 0 && $failed > 0,
+            'updated' => $updated,
+            'failed' => $failed,
             'message' => $failed > 0
                 ? $updated.' updated, '.$failed.' failed'
                 : $updated.' plugin'.($updated === 1 ? '' : 's').' updated',
@@ -335,6 +338,58 @@ class WordPressUpdateController extends Controller
         } catch (\Throwable $e) {
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 502);
         }
+    }
+
+    /**
+     * Update one plugin across many sites (the By Plugin tab's "update on all
+     * N sites"). Each site is independent — one failure is recorded and the
+     * loop continues so a single bad site never blocks the rest.
+     */
+    public function updatePluginAcrossSites(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'plugin_slug' => ['required', 'string', 'max:255'],
+            'site_ids' => ['required', 'array', 'min:1'],
+            'site_ids.*' => ['integer', 'exists:websites,id'],
+        ]);
+
+        $mainwp = app(MainWPService::class);
+        $updated = 0;
+        $errors = [];
+
+        foreach ($data['site_ids'] as $id) {
+            $website = Website::with('customer')->find($id);
+            if (! $website?->mainwp_site_id) {
+                $errors[$id] = 'Not linked to MainWP';
+
+                continue;
+            }
+            if (! $request->user()?->can('update', $website->customer)) {
+                $errors[$id] = 'Not allowed';
+
+                continue;
+            }
+
+            try {
+                $mainwp->updateSitePlugin($website->mainwp_site_id, $data['plugin_slug']);
+                $this->resync($mainwp, $website);
+                $this->record($request, $website, 'website.plugin_updated', ['plugin' => $data['plugin_slug']], ['plugins_outdated' => $website->plugins_outdated]);
+                $updated++;
+                Log::info('mainwp.plugin_bulk_updated', ['site' => $website->url, 'plugin' => $data['plugin_slug']]);
+            } catch (\Throwable $e) {
+                $errors[$id] = $e->getMessage();
+                Log::warning('mainwp.plugin_bulk_update_failed', ['site' => $website->url, 'plugin' => $data['plugin_slug'], 'error' => $e->getMessage()]);
+            }
+        }
+
+        return response()->json([
+            'ok' => $errors === [],
+            'partial' => $updated > 0 && $errors !== [],
+            'updated' => $updated,
+            'failed' => count($errors),
+            'errors' => $errors,
+            'message' => $updated.' site'.($updated === 1 ? '' : 's').' updated'.($errors !== [] ? ', '.count($errors).' failed' : ''),
+        ]);
     }
 
     /**
