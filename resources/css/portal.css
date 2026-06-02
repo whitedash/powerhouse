@@ -351,7 +351,7 @@
 .wd .msg.them { align-self: flex-start; }
 .wd .msg.you { align-self: flex-end; flex-direction: row-reverse; }
 .wd .msg .av { width: 34px; height: 34px; flex-shrink: 0; }
-.wd .msg .av.wd { background: linear-gradient(135deg, var(--accent), #F97316); border-radius: 9px; display: grid; place-items: center; color: #fff; font: 700 12px/1 'Inter', sans-serif; }
+.wd .msg .av.staff { background: linear-gradient(135deg, var(--accent), #F97316); border-radius: 9px; display: grid; place-items: center; color: #fff; font: 700 12px/1 'Inter', sans-serif; }
 .wd .bubble { border-radius: 14px; padding: 13px 16px; }
 .wd .msg.them .bubble { background: #fff; border: 1px solid var(--border); border-top-left-radius: 4px; }
 .wd .msg.you .bubble { background: var(--bg-navy); color: #fff; border-top-right-radius: 4px; }
@@ -546,7 +546,7 @@
 .wd .m-msg.them { align-self: flex-start; }
 .wd .m-msg.you { align-self: flex-end; flex-direction: row-reverse; }
 .wd .m-msg .av { width: 30px; height: 30px; flex-shrink: 0; }
-.wd .m-msg .av.wd { background: linear-gradient(135deg, var(--accent), #F97316); border-radius: 8px; display: grid; place-items: center; color: #fff; font: 700 11px/1 'Inter', sans-serif; }
+.wd .m-msg .av.staff { background: linear-gradient(135deg, var(--accent), #F97316); border-radius: 8px; display: grid; place-items: center; color: #fff; font: 700 11px/1 'Inter', sans-serif; }
 .wd .m-bubble { border-radius: 13px; padding: 11px 13px; }
 .wd .m-msg.them .m-bubble { background: #fff; border: 1px solid var(--border); border-top-left-radius: 4px; }
 .wd .m-msg.you .m-bubble { background: var(--bg-navy); color: #fff; border-top-right-radius: 4px; }
