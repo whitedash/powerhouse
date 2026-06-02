@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -49,6 +50,10 @@ class SupportController extends Controller
 
         $tickets = SupportTicket::where('customer_id', $portalUser->customer_id)
             ->withCount('messages')
+            // No column constraint here: latestPublicMessage uses
+            // latestOfMany(), whose self-join makes an unqualified
+            // "ticket_id" in a select list ambiguous (SQLSTATE 1052).
+            ->with('latestPublicMessage')
             ->orderByDesc('updated_at')
             ->get()
             ->map(fn (SupportTicket $t): array => [
@@ -57,6 +62,11 @@ class SupportController extends Controller
                 'status' => $t->status,
                 'priority' => $t->priority,
                 'messages_count' => $t->messages_count,
+                // Customer-visible snippet only — internal notes are excluded
+                // by the relationship. Trimmed to keep the card compact.
+                'last_message' => $t->latestPublicMessage
+                    ? Str::limit((string) $t->latestPublicMessage->body, 120)
+                    : null,
                 'created_at' => $t->created_at?->diffForHumans(),
                 'updated_at' => $t->updated_at?->diffForHumans(),
             ])

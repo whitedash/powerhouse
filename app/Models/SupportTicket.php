@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -28,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property-read Product|null $product
  * @property-read User|null $assignedTo
  * @property-read Collection<int, SupportMessage> $messages
+ * @property-read SupportMessage|null $latestPublicMessage
  */
 class SupportTicket extends Model
 {
@@ -78,5 +80,18 @@ class SupportTicket extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(SupportMessage::class, 'ticket_id');
+    }
+
+    /**
+     * The most recent customer-visible message — internal staff notes
+     * (is_internal_note) are excluded so the portal ticket-list preview
+     * never leaks staff-only commentary. Used for the last-message snippet
+     * on the customer support page.
+     */
+    public function latestPublicMessage(): HasOne
+    {
+        return $this->hasOne(SupportMessage::class, 'ticket_id')
+            ->where('is_internal_note', false)
+            ->latestOfMany();
     }
 }

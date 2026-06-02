@@ -4,7 +4,6 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import {
     IconArrowRight,
     IconHeadset,
-    IconMessageCircle,
     IconPlus,
     IconX,
     IconAlertCircle,
@@ -23,11 +22,23 @@ const counts = computed(() => ({
     support: openCount.value || undefined,
 }));
 
-function statusBadge(status) {
-    if (status === 'resolved' || status === 'closed') return { cls: 'badge-active', label: 'Resolved' };
-    if (status === 'awaiting_customer') return { cls: 'badge-pending', label: 'Awaiting you' };
-    if (status === 'in_progress') return { cls: 'badge-info', label: 'In progress' };
-    return { cls: 'badge-pending', label: 'Open' };
+// Maps the real ticket statuses (open, in_progress, awaiting_customer,
+// resolved, closed) to a dot tone + pill label. awaiting_customer means the
+// ball is in the customer's court, so it reads "Reply needed".
+function statusInfo(status) {
+    const map = {
+        open: { tone: 'amber', label: 'Open' },
+        in_progress: { tone: 'blue', label: 'In progress' },
+        awaiting_customer: { tone: 'blue', label: 'Reply needed' },
+        resolved: { tone: 'green', label: 'Resolved' },
+        closed: { tone: 'grey', label: 'Closed' },
+    };
+    return map[status] ?? map.open;
+}
+
+// Only surface a priority chip when it's worth the customer's attention.
+function showPriority(priority) {
+    return priority === 'high' || priority === 'urgent';
 }
 
 function priorityLabel(priority) {
@@ -77,38 +88,51 @@ function submit() {
             </button>
         </div>
 
-        <div v-if="tickets.length === 0" class="portal-empty">
-            <IconHeadset :size="32" stroke-width="1.5" />
-            <div class="portal-empty-title">No tickets yet</div>
-            <div class="portal-empty-sub">If you ever need a hand, open a ticket and we'll get back to you fast.</div>
-            <button type="button" class="btn btn-primary" @click="openNew">
-                <IconPlus :size="14" stroke-width="1.75" />
-                Start a ticket
-            </button>
-        </div>
+        <div class="portal-support">
+            <div v-if="tickets.length === 0" class="support-empty">
+                <IconHeadset :size="40" stroke-width="1.5" />
+                <h3>No open tickets</h3>
+                <p>All good! Need help with something?</p>
+                <button type="button" class="btn btn-primary" @click="openNew">
+                    <IconPlus :size="14" stroke-width="1.75" />
+                    Open a support ticket
+                </button>
+            </div>
 
-        <div v-else class="card">
             <Link
                 v-for="t in tickets"
+                v-else
                 :key="t.id"
                 :href="`/portal/support/${t.id}`"
-                class="sup-row"
+                class="ticket-card"
             >
-                <div class="sup-ic">
-                    <IconMessageCircle :size="18" stroke-width="1.75" />
-                </div>
-                <div class="sup-meta">
-                    <div class="ttl">
-                        <strong>#TK-{{ t.id }}</strong>
-                        · {{ t.subject }}
-                        <span class="badge badge-sm" :class="statusBadge(t.status).cls">{{ statusBadge(t.status).label }}</span>
+                <div class="ticket-status-dot" :class="`dot-${statusInfo(t.status).tone}`" />
+
+                <div class="ticket-card-body">
+                    <div class="ticket-card-header">
+                        <span class="ticket-ref">#TK-{{ t.id }}</span>
+                        <span class="ticket-status-badge" :class="`badge-${statusInfo(t.status).tone}`">
+                            {{ statusInfo(t.status).label }}
+                        </span>
+                        <span v-if="showPriority(t.priority)" class="ticket-priority" :class="{ urgent: t.priority === 'urgent' }">
+                            <IconAlertCircle :size="13" stroke-width="2" />
+                            {{ priorityLabel(t.priority) }}
+                        </span>
                     </div>
-                    <div class="sub">
-                        Updated {{ t.updated_at }} · Priority: {{ priorityLabel(t.priority) }} · {{ t.messages_count }} message{{ t.messages_count === 1 ? '' : 's' }}
+
+                    <div class="ticket-title">{{ t.subject }}</div>
+
+                    <div class="ticket-meta">
+                        <span>{{ t.messages_count }} {{ t.messages_count === 1 ? 'message' : 'messages' }}</span>
+                        <span>·</span>
+                        <span>Updated {{ t.updated_at }}</span>
                     </div>
+
+                    <div v-if="t.last_message" class="ticket-preview">{{ t.last_message }}</div>
                 </div>
-                <span class="ghost-link accent">
-                    View ticket
+
+                <span class="ticket-card-view">
+                    View
                     <IconArrowRight :size="14" stroke-width="1.75" />
                 </span>
             </Link>
@@ -183,3 +207,100 @@ function submit() {
         </Teleport>
     </PortalLayout>
 </template>
+
+<style scoped>
+.ticket-card {
+    display: flex;
+    gap: 14px;
+    padding: 16px;
+    background: #fff;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    text-decoration: none;
+    transition: box-shadow .15s, border-color .15s;
+}
+.ticket-card:hover {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
+    border-color: var(--border, #d1d5db);
+}
+.ticket-status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+}
+.dot-amber { background: #f59e0b; }
+.dot-blue { background: #3b82f6; }
+.dot-green { background: #10b981; }
+.dot-grey { background: #9ca3af; }
+
+.ticket-card-body { flex: 1; min-width: 0; }
+.ticket-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+.ticket-ref {
+    font: 500 12px/1 'Inter', sans-serif;
+    color: #9ca3af;
+}
+.ticket-status-badge {
+    font: 500 11px/1 'Inter', sans-serif;
+    padding: 3px 8px;
+    border-radius: 999px;
+}
+.badge-amber { background: #fef3c7; color: #d97706; }
+.badge-blue { background: #eff6ff; color: #2563eb; }
+.badge-green { background: #ecfdf5; color: #059669; }
+.badge-grey { background: #f3f4f6; color: #6b7280; }
+.ticket-priority {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font: 500 11px/1 'Inter', sans-serif;
+    color: #d97706;
+}
+.ticket-priority.urgent { color: #dc2626; }
+.ticket-title {
+    font: 600 15px/1.3 'Inter', sans-serif;
+    color: #111827;
+    margin-bottom: 6px;
+}
+.ticket-meta {
+    display: flex;
+    gap: 6px;
+    font: 400 12px/1 'Inter', sans-serif;
+    color: #9ca3af;
+    margin-bottom: 6px;
+}
+.ticket-preview {
+    font: 400 13px/1.4 'Inter', sans-serif;
+    color: #6b7280;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ticket-card-view {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    align-self: center;
+    font: 500 13px/1 'Inter', sans-serif;
+    color: var(--accent, #f5a623);
+    white-space: nowrap;
+}
+.support-empty {
+    text-align: center;
+    padding: 60px 24px;
+    color: #9ca3af;
+}
+.support-empty h3 {
+    font: 600 18px/1 'Inter', sans-serif;
+    color: #374151;
+    margin: 12px 0 8px;
+}
+.support-empty p { margin: 0 0 18px; font-size: 14px; }
+</style>
