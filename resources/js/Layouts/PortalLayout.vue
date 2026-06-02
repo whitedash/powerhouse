@@ -7,23 +7,28 @@ import {
     MenuItem,
     MenuItems,
 } from '@headlessui/vue';
-import {
-    IconBell,
-    IconChevronDown,
-    IconLogout,
-    IconUserCircle,
-    IconEye,
-    IconHome,
-    IconReceipt,
-    IconHeadset,
-    IconUser,
-} from '@tabler/icons-vue';
+import { IconLogout, IconUserCircle, IconEye } from '@tabler/icons-vue';
 import ToastContainer from '@/Components/UI/ToastContainer.vue';
 
+/*
+ * Portal chrome — implements the Whitedash handoff design system
+ * (resources/css/portal.css, scoped under .wd). The layout owns the
+ * shared chrome: the desktop .topnav + .foot-bar, and the mobile
+ * .tabbar. Each page fills two slots:
+ *   #default  → desktop content (a div.content wrapper)
+ *   #mobile   → mobile content (its own .m-appbar + .m-body, since the
+ *               app bar varies per page — title, back affordance, etc.)
+ * The layout appends the mobile .tabbar after the #mobile slot unless
+ * mobileTabbar is false (ticket thread + confirmation have none).
+ */
 const props = defineProps({
-    title: { type: String, default: '' },
+    // overview | subscriptions | invoices | support | account
     activeNav: { type: String, default: '' },
+    // { invoices?: number, support?: number } — drives the nav badges.
     counts: { type: Object, default: () => ({}) },
+    // Mobile bottom tab bar. Off for the ticket thread (sticky reply
+    // bar instead) and the payment confirmation screen.
+    mobileTabbar: { type: Boolean, default: true },
 });
 
 const page = usePage();
@@ -35,7 +40,8 @@ const me = computed(() => {
     }
     const cname = pu.customer?.name ?? pu.name ?? '';
     const parts = cname.trim().split(/\s+/);
-    const initials = ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || cname.slice(0, 2).toUpperCase();
+    const initials = ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase()
+        || cname.slice(0, 2).toUpperCase();
     return {
         initials: initials || '?',
         name: pu.name,
@@ -45,17 +51,24 @@ const me = computed(() => {
 });
 
 /*
- * Tabs surfaced in the topnav. Keys match the activeNav prop so the
- * active styling stays in sync with the route. Counts come in via
- * the page-level prop so each page can paint badges based on its
- * own data (e.g. dashboard knows open ticket count, others may not).
+ * Desktop tabs. `tone` matches the handoff count-pill colours
+ * (invoices = amber, support = blue). A count of 0/undefined paints
+ * no badge — same rule the rest of the portal uses.
  */
 const tabs = computed(() => [
-    { key: 'dashboard',     label: 'Overview',      href: '/portal/dashboard' },
-    { key: 'subscriptions', label: 'Subscriptions', href: '/portal/subscriptions', count: props.counts?.subscriptions },
-    { key: 'invoices',      label: 'Invoices',      href: '/portal/invoices',      count: props.counts?.invoices },
-    { key: 'support',       label: 'Support',       href: '/portal/support',       count: props.counts?.support },
-    { key: 'account',       label: 'Account',       href: '/portal/account' },
+    { key: 'overview', label: 'Overview', href: '/portal/dashboard' },
+    { key: 'subscriptions', label: 'Subscriptions', href: '/portal/subscriptions' },
+    { key: 'invoices', label: 'Invoices', href: '/portal/invoices', count: props.counts?.invoices, tone: 'amber' },
+    { key: 'support', label: 'Support', href: '/portal/support', count: props.counts?.support, tone: 'blue' },
+    { key: 'account', label: 'Account', href: '/portal/account' },
+]);
+
+const mobileTabs = computed(() => [
+    { key: 'overview', icon: 'layout-grid', label: 'Overview', href: '/portal/dashboard' },
+    { key: 'subscriptions', icon: 'stack-2', label: 'Subs', href: '/portal/subscriptions' },
+    { key: 'invoices', icon: 'receipt', label: 'Invoices', href: '/portal/invoices', count: props.counts?.invoices },
+    { key: 'support', icon: 'lifebuoy', label: 'Support', href: '/portal/support', count: props.counts?.support },
+    { key: 'account', icon: 'user', label: 'Account', href: '/portal/account' },
 ]);
 
 function logout() {
@@ -63,186 +76,169 @@ function logout() {
 }
 
 /*
- * Exit preview: super_admin opens the impersonation tab via
- * window.open from the internal dashboard, so window.close()
- * normally works. If it doesn't (user navigated and back-buttoned,
- * or opened the URL directly), fall back to POSTing the portal
- * logout endpoint. Plain location.href would 405 because the
- * portal logout route is POST-only.
+ * Exit preview: super_admin opens the impersonation tab via window.open,
+ * so window.close() usually works. If it doesn't (back-button, direct
+ * URL), fall back to POSTing the portal logout endpoint — a plain
+ * location.href would 405 because that route is POST-only.
  */
 function exitPreview() {
     window.close();
-    setTimeout(() => {
-        router.post('/portal/logout');
-    }, 150);
+    setTimeout(() => router.post('/portal/logout'), 150);
 }
 </script>
 
 <template>
-    <div class="portal">
-        <!--
-          Preview banner: super_admin used /impersonate/portal/{id} to
-          view this account. Shown above the topnav so it's unmissable;
-          closing the tab clears the session naturally.
-        -->
-        <div v-if="page.props.portal_preview_mode" class="preview-banner">
+    <div class="wd portal-shell">
+        <!-- Preview banner (operator impersonation) — a safety affordance
+             outside the handoff design, kept above the chrome. -->
+        <div v-if="page.props.portal_preview_mode" class="portal-preview-banner">
             <IconEye :size="16" stroke-width="2" />
             <span>Previewing as <strong>{{ me.name || me.customerName }}</strong></span>
-            <button type="button" class="preview-exit-btn" @click="exitPreview">
+            <button type="button" class="portal-preview-exit" @click="exitPreview">
                 <IconLogout :size="14" stroke-width="2" />
                 Exit preview
             </button>
         </div>
 
-        <!-- Topnav: sticky white bar with brand, tabs, bell, user pill -->
-        <nav class="portal-topnav">
-            <Link href="/portal/dashboard" class="portal-brand">
-                <div class="brand-mark">W</div>
-                <div class="portal-brand-name">Whitedash</div>
-                <div class="portal-brand-divider" />
-                <div class="portal-brand-sub">account</div>
-            </Link>
+        <!-- ═══════════ DESKTOP SHELL (≥768px) ═══════════ -->
+        <div class="wd-desktop">
+            <nav class="topnav">
+                <Link href="/portal/dashboard" class="brand" style="text-decoration:none;color:inherit">
+                    <div class="brand-mark">W</div>
+                    <div class="brand-name">Whitedash</div>
+                    <div class="brand-divider" />
+                    <div class="brand-sub">account</div>
+                </Link>
 
-            <div class="portal-tabs">
+                <div class="tabs">
+                    <Link
+                        v-for="tab in tabs"
+                        :key="tab.key"
+                        :href="tab.href"
+                        class="tab"
+                        :class="{ active: activeNav === tab.key }"
+                    >
+                        {{ tab.label }}
+                        <span v-if="tab.count" class="count" :class="tab.tone">{{ tab.count }}</span>
+                    </Link>
+                </div>
+
+                <div class="nav-right">
+                    <button class="bell-btn" aria-label="Notifications"><i class="ti ti-bell" /></button>
+                    <div class="brand-divider" />
+                    <Menu as="div" style="position:relative">
+                        <MenuButton class="user-pill">
+                            <div class="avatar av-amber">{{ me.initials }}</div>
+                            <div class="uname">{{ me.customerName }}</div>
+                            <i class="ti ti-chevron-down chev" />
+                        </MenuButton>
+                        <MenuItems class="portal-user-popover">
+                            <Link href="/portal/account" class="portal-user-item">
+                                <IconUserCircle :size="16" stroke-width="1.75" />
+                                <span>Account settings</span>
+                            </Link>
+                            <div class="portal-user-sep" />
+                            <MenuItem v-slot="{ active }">
+                                <button type="button" class="portal-user-item" :class="{ active }" @click="logout">
+                                    <IconLogout :size="16" stroke-width="1.75" />
+                                    <span>Sign out</span>
+                                </button>
+                            </MenuItem>
+                        </MenuItems>
+                    </Menu>
+                </div>
+            </nav>
+
+            <slot name="desktop" />
+
+            <footer class="foot-bar">
+                <div class="l"><div class="brand-mark">W</div>Whitedash · account.whitedash.co.uk</div>
+                <div class="links">
+                    <a href="#">Privacy</a><a href="#">Terms</a><a href="#">Status</a><a href="#">Help centre</a>
+                </div>
+                <div class="l" style="color:var(--text-tertiary)">© 2026 Whitedash Holdings Ltd</div>
+            </footer>
+        </div>
+
+        <!-- ═══════════ MOBILE SHELL (below 768px) ═══════════ -->
+        <div class="wd-mobile">
+            <slot name="mobile" />
+
+            <div v-if="mobileTabbar" class="tabbar">
                 <Link
-                    v-for="tab in tabs"
+                    v-for="tab in mobileTabs"
                     :key="tab.key"
                     :href="tab.href"
-                    class="portal-tab"
+                    class="tb"
                     :class="{ active: activeNav === tab.key }"
+                    style="text-decoration:none"
                 >
-                    <span>{{ tab.label }}</span>
-                    <span v-if="tab.count" class="portal-tab-count">{{ tab.count }}</span>
+                    <span v-if="tab.count" class="tb-badge">{{ tab.count }}</span>
+                    <i class="ti" :class="'ti-' + tab.icon" /><span class="lbl">{{ tab.label }}</span>
                 </Link>
             </div>
-
-            <div class="portal-nav-right">
-                <button class="portal-bell-btn" aria-label="Notifications">
-                    <IconBell :size="20" stroke-width="1.75" />
-                </button>
-                <div class="portal-brand-divider" />
-
-                <Menu as="div" class="portal-user-menu">
-                    <MenuButton class="portal-user-pill">
-                        <div class="portal-avatar av-teal">{{ me.initials }}</div>
-                        <div class="portal-user-name">{{ me.customerName }}</div>
-                        <IconChevronDown :size="16" stroke-width="1.75" class="portal-user-chev" />
-                    </MenuButton>
-                    <MenuItems class="portal-user-popover">
-                        <Link href="/portal/account" class="portal-user-item">
-                            <IconUserCircle :size="16" stroke-width="1.75" />
-                            <span>Account settings</span>
-                        </Link>
-                        <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
-                        <MenuItem v-slot="{ active }">
-                            <button
-                                type="button"
-                                class="portal-user-item"
-                                :class="{ active }"
-                                @click="logout"
-                            >
-                                <IconLogout :size="16" stroke-width="1.75" />
-                                <span>Sign out</span>
-                            </button>
-                        </MenuItem>
-                    </MenuItems>
-                </Menu>
-            </div>
-        </nav>
-
-        <!-- Page content sits in a max-960 column. Each page styles its own
-             internals — the layout only owns the chrome around it. -->
-        <main class="portal-content">
-            <slot />
-        </main>
-
-        <footer class="portal-footer">
-            <div class="portal-footer-left">
-                <div class="brand-mark">W</div>
-                Whitedash · account.whitedash.co.uk
-            </div>
-            <div class="portal-footer-mid">
-                <a href="#">Privacy policy</a>
-                <a href="#">Terms</a>
-                <a href="#">Status</a>
-                <a href="#">Help</a>
-            </div>
-            <div class="portal-footer-right">© 2026 Whitedash Holdings Ltd</div>
-        </footer>
-
-        <!-- Mobile bottom tab bar — hidden on desktop via CSS. Active state
-             reuses the page-level activeNav prop so it stays in sync with
-             the topnav; badges read the same counts. -->
-        <nav class="po-bottom-nav">
-            <Link href="/portal/dashboard" class="po-tab" :class="{ active: activeNav === 'dashboard' }">
-                <IconHome :size="20" stroke-width="1.75" />
-                <span>Home</span>
-            </Link>
-            <Link href="/portal/invoices" class="po-tab" :class="{ active: activeNav === 'invoices' }">
-                <IconReceipt :size="20" stroke-width="1.75" />
-                <span>Invoices</span>
-                <span v-if="counts?.invoices" class="po-tab-badge">{{ counts.invoices }}</span>
-            </Link>
-            <Link href="/portal/support" class="po-tab" :class="{ active: activeNav === 'support' }">
-                <IconHeadset :size="20" stroke-width="1.75" />
-                <span>Support</span>
-                <span v-if="counts?.support" class="po-tab-badge">{{ counts.support }}</span>
-            </Link>
-            <Link href="/portal/account" class="po-tab" :class="{ active: activeNav === 'account' }">
-                <IconUser :size="20" stroke-width="1.75" />
-                <span>Account</span>
-            </Link>
-        </nav>
+        </div>
 
         <ToastContainer />
     </div>
 </template>
 
 <style scoped>
-.po-bottom-nav { display: none; }
-
-@media (max-width: 767px) {
-    .po-bottom-nav {
-        display: flex;
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: #fff;
-        border-top: 1px solid #f3f4f6;
-        z-index: 50;
-        padding-bottom: env(safe-area-inset-bottom, 0);
-        box-shadow: 0 -2px 12px rgba(0, 0, 0, .06);
-    }
-    .po-tab {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 4px;
-        padding: 8px 4px;
-        min-height: 56px;
-        text-decoration: none;
-        color: #9ca3af;
-        font: 400 10px/1 'Inter', sans-serif;
-        position: relative;
-        transition: color .15s;
-    }
-    .po-tab.active { color: var(--accent, #f5a623); }
-    .po-tab-badge {
-        position: absolute;
-        top: 6px;
-        right: calc(50% - 20px);
-        background: #dc2626;
-        color: #fff;
-        font: 600 9px/1 'Inter', sans-serif;
-        padding: 2px 5px;
-        border-radius: 999px;
-        min-width: 16px;
-        text-align: center;
-    }
-    /* Keep page content clear of the fixed bar. */
-    .portal-content { padding-bottom: 80px; }
+/* Preview banner — minimal, not part of the handoff sheet. */
+.portal-preview-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: #1e293b;
+    color: #fff;
+    font: 500 13px/1 'Inter', sans-serif;
 }
+.portal-preview-banner strong { font-weight: 700; }
+.portal-preview-exit {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, .12);
+    color: #fff;
+    border: 0;
+    border-radius: 7px;
+    padding: 6px 10px;
+    font: 500 12px/1 'Inter', sans-serif;
+    cursor: pointer;
+}
+.portal-preview-exit:hover { background: rgba(255, 255, 255, .2); }
+
+/* User dropdown popover (the handoff shows a static pill; this is the
+   menu it opens). Uses the .wd design tokens. */
+.portal-user-popover {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    min-width: 200px;
+    background: #fff;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 10px;
+    box-shadow: var(--shadow-md, 0 4px 12px -2px rgba(15, 23, 42, .08));
+    padding: 6px;
+    z-index: 60;
+}
+.portal-user-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 10px;
+    border: 0;
+    background: transparent;
+    border-radius: 7px;
+    font: 500 13px/1 'Inter', sans-serif;
+    color: var(--text-primary, #0f172a);
+    text-decoration: none;
+    cursor: pointer;
+}
+.portal-user-item:hover,
+.portal-user-item.active { background: var(--neutral-bg, #f1f5f9); }
+.portal-user-sep { height: 1px; background: var(--border-soft, #eef2f7); margin: 4px 0; }
 </style>

@@ -1,13 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import {
-    IconArrowRight,
-    IconReceipt,
-    IconMessageCircle,
-    IconExternalLink,
-    IconAlertCircle,
-} from '@tabler/icons-vue';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
 
 const props = defineProps({
@@ -16,9 +9,11 @@ const props = defineProps({
     recent_invoices: { type: Array, default: () => [] },
     recent_tickets: { type: Array, default: () => [] },
     invoices_paid_count: { type: Number, default: 0 },
+    invoices_paid_total: { type: Number, default: 0 },
     outstanding_total: { type: Number, default: 0 },
     outstanding_count: { type: Number, default: 0 },
     overdue_count: { type: Number, default: 0 },
+    next_due_invoice: { type: Object, default: null },
     open_tickets: { type: Number, default: 0 },
     awaiting_reply: { type: Number, default: 0 },
 });
@@ -37,7 +32,6 @@ const firstName = computed(() => {
 });
 
 const counts = computed(() => ({
-    subscriptions: props.active_products.length,
     invoices: props.overdue_count || undefined,
     support: props.open_tickets || undefined,
 }));
@@ -46,15 +40,19 @@ function gbp(n) {
     return Number(n ?? 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function initials(name) {
+function initial(name) {
     return (name || '?').charAt(0).toUpperCase();
 }
 
+// Dismissable attention banner (session-local — reappears on reload, by
+// design: an unpaid invoice should keep nagging).
+const attnDismissed = ref(false);
+const showAttn = computed(() => ! attnDismissed.value && props.outstanding_count > 0);
+
 /* ─── SSO launch (unchanged behaviour) ─── */
 const launchingId = ref(null);
-
 function launchProduct(product) {
-    if (!product.sso_enabled) {
+    if (! product.sso_enabled) {
         if (product.sso_url) window.location.href = product.sso_url;
         return;
     }
@@ -66,265 +64,241 @@ function launchProduct(product) {
     });
 }
 
-function invoiceLabel(status) {
-    if (status === 'paid') return 'Paid';
-    if (status === 'overdue') return 'Overdue';
-    if (status === 'sent') return 'Awaiting payment';
-    if (status === 'draft') return 'Draft';
-    return 'Upcoming';
+// Invoice status → handoff badge class + label.
+function invBadge(status) {
+    if (status === 'paid') return { cls: 'badge-paid', label: 'Paid' };
+    if (status === 'overdue') return { cls: 'badge-overdue', label: 'Overdue' };
+    if (status === 'sent') return { cls: 'badge-awaiting', label: 'Awaiting' };
+    if (status === 'partially_paid') return { cls: 'badge-awaiting', label: 'Part-paid' };
+    return { cls: 'badge-neutral', label: status };
 }
 </script>
 
 <template>
     <Head title="Overview · Whitedash" />
-    <PortalLayout title="Overview" active-nav="dashboard" :counts="counts">
-        <div class="po-overview">
-            <!-- Greeting -->
-            <div class="po-greeting">
-                <h1 class="po-name">{{ greeting }}, {{ firstName }}</h1>
-                <p class="po-sub">
-                    {{ customer.name }}
-                    <template v-if="customer.member_since"> · Member since {{ customer.member_since }}</template>
-                </p>
-            </div>
-
-            <!-- Attention banner -->
-            <div v-if="outstanding_total > 0 || awaiting_reply > 0" class="po-attention-strip">
-                <div v-if="outstanding_total > 0" class="po-attention-item po-attention--warning">
-                    <IconReceipt :size="20" stroke-width="1.75" />
-                    <div>
-                        <strong>£{{ gbp(outstanding_total) }} outstanding</strong>
-                        <span>{{ outstanding_count }} invoice{{ outstanding_count === 1 ? '' : 's' }} need{{ outstanding_count === 1 ? 's' : '' }} payment</span>
+    <PortalLayout active-nav="overview" :counts="counts">
+        <!-- ═══════════ DESKTOP ═══════════ -->
+        <template #desktop>
+            <div class="content">
+                <section class="welcome">
+                    <div class="greet">{{ greeting }}</div>
+                    <div class="wname">{{ firstName }}</div>
+                    <div class="wsub">
+                        {{ customer.name }}
+                        <template v-if="customer.city"><span class="sep">·</span>{{ customer.city }}</template>
+                        <template v-if="customer.member_since"><span class="sep">·</span>Member since {{ customer.member_since }}</template>
                     </div>
-                    <Link href="/portal/invoices" class="po-attention-action">Pay now →</Link>
-                </div>
-                <div v-if="awaiting_reply > 0" class="po-attention-item po-attention--info">
-                    <IconMessageCircle :size="20" stroke-width="1.75" />
-                    <div>
-                        <strong>{{ awaiting_reply }} ticket{{ awaiting_reply === 1 ? '' : 's' }}</strong>
-                        <span>waiting for your reply</span>
+                    <div class="welcome-actions">
+                        <Link href="/portal/support" class="btn btn-outline-light"><i class="ti ti-headset" />Get support</Link>
+                        <Link href="/portal/invoices" class="btn btn-primary"><i class="ti ti-credit-card" />Pay invoice</Link>
                     </div>
-                    <Link href="/portal/support" class="po-attention-action">View →</Link>
-                </div>
-            </div>
+                </section>
 
-            <!-- Stats -->
-            <div class="po-stats">
-                <div class="po-stat">
-                    <span class="po-stat-value">{{ active_products.length }}</span>
-                    <span class="po-stat-label">Active products</span>
-                </div>
-                <div class="po-stat">
-                    <span class="po-stat-value">{{ invoices_paid_count }}</span>
-                    <span class="po-stat-label">Invoices paid</span>
-                </div>
-                <div class="po-stat" :class="{ 'po-stat--alert': outstanding_total > 0 }">
-                    <span class="po-stat-value">£{{ gbp(outstanding_total) }}</span>
-                    <span class="po-stat-label">Outstanding</span>
-                </div>
-                <div class="po-stat">
-                    <span class="po-stat-value">{{ open_tickets }}</span>
-                    <span class="po-stat-label">Open tickets</span>
-                </div>
-            </div>
-
-            <!-- Two-column grid -->
-            <div class="po-grid">
-                <!-- LEFT: products -->
-                <div class="po-col-main">
-                    <div class="po-section-head"><h2>Your products</h2></div>
-
-                    <div v-if="active_products.length === 0" class="po-card po-empty">
-                        No active products yet.
+                <div v-if="showAttn" class="attn">
+                    <div class="ic"><i class="ti ti-alert-triangle" /></div>
+                    <div class="body">
+                        <div class="t">{{ outstanding_count }} invoice{{ outstanding_count === 1 ? '' : 's' }} outstanding — £{{ gbp(outstanding_total) }}</div>
+                        <div v-if="next_due_invoice" class="s">{{ next_due_invoice.number }} is awaiting payment, due {{ next_due_invoice.due_date }}.</div>
                     </div>
-
-                    <div v-else class="po-products">
-                        <component
-                            :is="p.sso_enabled ? 'button' : (p.sso_url ? 'a' : Link)"
-                            v-for="p in active_products"
-                            :key="p.id"
-                            class="po-product-card"
-                            :type="p.sso_enabled ? 'button' : undefined"
-                            :href="!p.sso_enabled ? (p.sso_url || '/portal/subscriptions') : undefined"
-                            :target="!p.sso_enabled && p.sso_url ? '_blank' : undefined"
-                            :disabled="launchingId === p.id"
-                            @click="p.sso_enabled ? launchProduct(p) : undefined"
-                        >
-                            <div class="po-product-icon" :style="{ background: p.icon_colour || 'var(--accent, #F5A623)' }">
-                                {{ initials(p.product_name) }}
-                            </div>
-                            <div class="po-product-info">
-                                <span class="po-product-name">{{ p.product_name }}</span>
-                                <span class="po-product-plan">{{ p.plan_name }} · {{ p.interval_label }}</span>
-                            </div>
-                            <div class="po-product-right">
-                                <span class="po-product-status" :class="`status-${p.status}`">{{ p.status }}</span>
-                                <IconExternalLink :size="15" stroke-width="1.75" class="po-open-icon" />
-                            </div>
-                        </component>
-                    </div>
+                    <Link
+                        :href="next_due_invoice ? `/portal/invoices/${next_due_invoice.id}` : '/portal/invoices'"
+                        class="btn btn-primary btn-sm"
+                    >Pay now<i class="ti ti-arrow-right" /></Link>
+                    <button class="icon-btn dismiss" @click="attnDismissed = true"><i class="ti ti-x" /></button>
                 </div>
 
-                <!-- RIGHT: recent activity -->
-                <div class="po-col-side">
-                    <!-- Recent invoices -->
-                    <div class="po-card">
-                        <div class="po-card-head">
-                            <h3>Recent invoices</h3>
-                            <Link href="/portal/invoices" class="po-card-link">View all →</Link>
+                <div class="stat-row">
+                    <div class="stat">
+                        <div class="stat-top"><div class="k">Active products</div><div class="ic blue"><i class="ti ti-stack-2" /></div></div>
+                        <div class="v">{{ active_products.length }}</div>
+                        <div class="foot">All running normally</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-top"><div class="k">Invoices paid</div><div class="ic green"><i class="ti ti-circle-check" /></div></div>
+                        <div class="v">{{ invoices_paid_count }}</div>
+                        <div class="foot">£{{ gbp(invoices_paid_total) }} lifetime</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-top"><div class="k">Outstanding</div><div class="ic red"><i class="ti ti-receipt" /></div></div>
+                        <div class="v" :class="{ red: outstanding_total > 0 }">£{{ gbp(outstanding_total) }}</div>
+                        <div class="foot">
+                            <template v-if="next_due_invoice">{{ outstanding_count }} invoice due {{ next_due_invoice.due_date }}</template>
+                            <template v-else>Nothing outstanding</template>
                         </div>
-                        <div v-if="recent_invoices.length === 0" class="po-row-empty">No invoices yet.</div>
-                        <div v-else class="po-invoice-list">
-                            <Link
-                                v-for="inv in recent_invoices"
-                                :key="inv.id"
-                                :href="`/portal/invoices/${inv.id}`"
-                                class="po-invoice-row"
+                    </div>
+                    <div class="stat">
+                        <div class="stat-top"><div class="k">Open tickets</div><div class="ic gold"><i class="ti ti-message-2" /></div></div>
+                        <div class="v">{{ open_tickets }}</div>
+                        <div class="foot">{{ awaiting_reply }} awaiting your reply</div>
+                    </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1.42fr 1fr;gap:24px;margin-top:32px;align-items:start">
+                    <!-- LEFT: products -->
+                    <div>
+                        <div class="section-head" style="margin-top:0">
+                            <div class="col-l">
+                                <h2>Your products</h2>
+                                <div class="desc">Click any product to open it — you're signed in automatically.</div>
+                            </div>
+                        </div>
+
+                        <div v-if="active_products.length === 0" class="card card-pad" style="color:var(--text-secondary)">
+                            No active products yet.
+                        </div>
+
+                        <div v-else style="display:flex;flex-direction:column;gap:14px">
+                            <div
+                                v-for="p in active_products"
+                                :key="p.id"
+                                class="prod-card"
+                                style="flex-direction:row;align-items:center;gap:18px;padding:18px 20px"
                             >
-                                <div class="po-invoice-info">
-                                    <span class="po-invoice-ref">{{ inv.number }}</span>
-                                    <span class="po-invoice-date">{{ inv.description }}</span>
+                                <div class="pc-logo" :style="{ background: p.icon_colour || 'var(--accent)' }">{{ initial(p.product_name) }}</div>
+                                <div style="flex:1">
+                                    <div style="display:flex;align-items:center;gap:10px">
+                                        <div class="pc-name" style="margin:0">{{ p.product_name }}</div>
+                                        <span class="badge badge-active">Active</span>
+                                    </div>
+                                    <div class="pc-plan">{{ p.plan_name }}<span style="color:var(--text-tertiary)"> · </span>£{{ gbp(p.price) }} / month</div>
                                 </div>
-                                <div class="po-invoice-right">
-                                    <span class="po-invoice-status" :class="`inv-${inv.status}`">{{ invoiceLabel(inv.status) }}</span>
-                                    <span class="po-invoice-amount">£{{ gbp(inv.total) }}</span>
+                                <button class="btn btn-secondary btn-sm" :disabled="launchingId === p.id" @click="launchProduct(p)">
+                                    {{ launchingId === p.id ? 'Opening…' : 'Open' }}<i class="ti ti-external-link" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT: recent activity -->
+                    <div style="display:flex;flex-direction:column;gap:20px">
+                        <div class="card">
+                            <div class="card-head">
+                                <div><h3>Recent invoices</h3></div>
+                                <span v-if="outstanding_count > 0" class="badge badge-overdue badge-sm">{{ outstanding_count }} due</span>
+                            </div>
+                            <div v-if="recent_invoices.length === 0" class="card-pad" style="color:var(--text-secondary)">No invoices yet.</div>
+                            <template v-else>
+                                <Link
+                                    v-for="inv in recent_invoices"
+                                    :key="inv.id"
+                                    :href="`/portal/invoices/${inv.id}`"
+                                    class="inv-list-row"
+                                    style="text-decoration:none;color:inherit"
+                                >
+                                    <div class="ic" :class="inv.status === 'paid' ? 'green' : 'amber'"><i class="ti ti-receipt" /></div>
+                                    <div><div class="ttl">{{ inv.number }}</div><div class="sub">{{ inv.description }}</div></div>
+                                    <div class="r">
+                                        <div class="amt">£{{ gbp(inv.total) }}</div>
+                                        <span class="badge badge-sm" :class="invBadge(inv.status).cls">{{ invBadge(inv.status).label }}</span>
+                                    </div>
+                                </Link>
+                            </template>
+                            <div class="list-foot">
+                                <Link href="/portal/invoices" class="ghost-link accent" style="padding-left:0">View all invoices<i class="ti ti-arrow-right" /></Link>
+                            </div>
+                        </div>
+
+                        <div v-if="recent_tickets.length" class="card">
+                            <div class="card-head">
+                                <div><h3>Open tickets</h3></div>
+                                <span class="badge badge-open badge-sm">{{ open_tickets }} open</span>
+                            </div>
+                            <Link
+                                v-for="t in recent_tickets"
+                                :key="t.id"
+                                :href="`/portal/support/${t.id}`"
+                                class="inv-list-row"
+                                style="text-decoration:none;color:inherit"
+                            >
+                                <div class="ic" style="background:var(--info-bg);color:#1D4ED8"><i class="ti ti-message-2" /></div>
+                                <div><div class="ttl">#{{ t.reference }} · {{ t.subject }}</div><div class="sub">Updated {{ t.updated_at }}</div></div>
+                                <div class="r">
+                                    <span class="badge badge-sm" :class="t.awaiting_reply ? 'badge-open' : 'badge-awaiting'">
+                                        {{ t.awaiting_reply ? 'Awaiting you' : t.status_label }}
+                                    </span>
                                 </div>
                             </Link>
-                        </div>
-                    </div>
-
-                    <!-- Support tickets -->
-                    <div v-if="recent_tickets.length" class="po-card">
-                        <div class="po-card-head">
-                            <h3>Support tickets</h3>
-                            <Link href="/portal/support" class="po-card-link">View all →</Link>
-                        </div>
-                        <div class="po-ticket-list">
-                            <Link
-                                v-for="ticket in recent_tickets"
-                                :key="ticket.id"
-                                :href="`/portal/support/${ticket.id}`"
-                                class="po-ticket-row"
-                            >
-                                <div class="po-ticket-dot" :class="`status-${ticket.status}`" />
-                                <div class="po-ticket-info">
-                                    <span class="po-ticket-subject">{{ ticket.subject }}</span>
-                                    <span class="po-ticket-meta">#{{ ticket.reference }} · {{ ticket.updated_at }}</span>
-                                </div>
-                                <span class="po-ticket-badge" :class="{ 'badge--blue': ticket.awaiting_reply }">
-                                    {{ ticket.status_label }}
-                                </span>
-                            </Link>
+                            <div class="list-foot">
+                                <Link href="/portal/support" class="ghost-link accent" style="padding-left:0">View all tickets<i class="ti ti-arrow-right" /></Link>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </template>
+
+        <!-- ═══════════ MOBILE ═══════════ -->
+        <template #mobile>
+            <div class="m-appbar">
+                <div class="brand-mark">W</div>
+                <div class="title">Overview</div>
+                <div class="spacer" />
+                <div class="bell"><i class="ti ti-bell" /></div>
+                <div class="avatar av-amber av">{{ initial(customer.contact_name || customer.name) }}</div>
+            </div>
+            <div class="m-body is-pb">
+                <div class="m-welcome">
+                    <div class="greet">{{ greeting }}</div>
+                    <div class="wname">{{ firstName }}</div>
+                    <div class="wsub">
+                        {{ customer.name }}
+                        <template v-if="customer.city"> · {{ customer.city }}</template>
+                        <template v-if="customer.member_since"> · Member since {{ customer.member_since }}</template>
+                    </div>
+                </div>
+
+                <div v-if="showAttn" class="m-attn">
+                    <div class="ic"><i class="ti ti-alert-triangle" /></div>
+                    <div style="flex:1">
+                        <div class="t">{{ outstanding_count }} invoice{{ outstanding_count === 1 ? '' : 's' }} outstanding — £{{ gbp(outstanding_total) }}</div>
+                        <div v-if="next_due_invoice" class="s">{{ next_due_invoice.number }} · due {{ next_due_invoice.due_date }}</div>
+                    </div>
+                    <Link :href="next_due_invoice ? `/portal/invoices/${next_due_invoice.id}` : '/portal/invoices'" class="btn btn-primary btn-sm">Pay</Link>
+                </div>
+
+                <div class="m-stats">
+                    <div class="m-stat"><div class="top"><div class="k">Active products</div><div class="ic blue"><i class="ti ti-stack-2" /></div></div><div class="v">{{ active_products.length }}</div></div>
+                    <div class="m-stat"><div class="top"><div class="k">Invoices paid</div><div class="ic green"><i class="ti ti-circle-check" /></div></div><div class="v">{{ invoices_paid_count }}</div></div>
+                    <div class="m-stat"><div class="top"><div class="k">Outstanding</div><div class="ic red"><i class="ti ti-receipt" /></div></div><div class="v" :class="{ red: outstanding_total > 0 }">£{{ gbp(outstanding_total) }}</div></div>
+                    <div class="m-stat"><div class="top"><div class="k">Open tickets</div><div class="ic gold"><i class="ti ti-message-2" /></div></div><div class="v">{{ open_tickets }}</div></div>
+                </div>
+
+                <div class="m-section-title">Your products</div>
+                <div style="display:flex;flex-direction:column;gap:12px">
+                    <button
+                        v-for="p in active_products"
+                        :key="p.id"
+                        class="m-prod"
+                        style="text-align:left;border-width:1px;cursor:pointer"
+                        :disabled="launchingId === p.id"
+                        @click="launchProduct(p)"
+                    >
+                        <div class="top">
+                            <div class="logo" :style="{ background: p.icon_colour || 'var(--accent)' }">{{ initial(p.product_name) }}</div>
+                            <div style="flex:1"><div class="nm">{{ p.product_name }}</div><div class="pl">{{ p.plan_name }} · £{{ gbp(p.price) }}/mo</div></div>
+                            <span class="badge badge-active badge-sm">Active</span>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="m-section-title">
+                    Recent invoices
+                    <Link href="/portal/invoices">View all<i class="ti ti-chevron-right" style="font-size:14px" /></Link>
+                </div>
+                <div v-if="recent_invoices.length" class="m-card">
+                    <Link
+                        v-for="inv in recent_invoices.slice(0, 3)"
+                        :key="inv.id"
+                        :href="`/portal/invoices/${inv.id}`"
+                        class="inv-list-row"
+                        style="text-decoration:none;color:inherit"
+                    >
+                        <div class="ic" :class="inv.status === 'paid' ? 'green' : 'amber'"><i class="ti ti-receipt" /></div>
+                        <div><div class="ttl">{{ inv.number }}</div><div class="sub">{{ inv.description }}</div></div>
+                        <div class="r"><div class="amt">£{{ gbp(inv.total) }}</div></div>
+                    </Link>
+                </div>
+            </div>
+        </template>
     </PortalLayout>
 </template>
-
-<style scoped>
-.po-overview { padding-bottom: 8px; }
-
-.po-greeting { padding: 8px 0 16px; }
-.po-name { font: 700 26px/1.2 'Inter', sans-serif; color: #111827; margin: 0 0 4px; }
-.po-sub { font: 400 14px/1.4 'Inter', sans-serif; color: #9ca3af; margin: 0; }
-
-.po-attention-strip { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
-.po-attention-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    border-radius: 12px;
-    font-size: 13px;
-}
-.po-attention--warning { background: #fffbeb; border: 1px solid #f59e0b; color: #92400e; }
-.po-attention--info { background: #eff6ff; border: 1px solid #3b82f6; color: #1e40af; }
-.po-attention-item > div { flex: 1; }
-.po-attention-item strong { display: block; font-weight: 600; }
-.po-attention-action { font: 600 13px/1 'Inter', sans-serif; white-space: nowrap; text-decoration: none; color: inherit; }
-
-.po-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
-.po-stat { background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #f3f4f6; text-align: center; }
-.po-stat--alert .po-stat-value { color: #dc2626; }
-.po-stat-value { display: block; font: 700 24px/1 'Inter', sans-serif; color: #111827; margin-bottom: 4px; }
-.po-stat-label { display: block; font: 400 11px/1.2 'Inter', sans-serif; color: #9ca3af; text-transform: uppercase; letter-spacing: .05em; }
-
-.po-grid { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
-.po-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.po-section-head h2 { font: 600 16px/1 'Inter', sans-serif; color: #111827; margin: 0; }
-
-.po-product-card {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    width: 100%;
-    text-align: left;
-    padding: 14px 16px;
-    background: #fff;
-    border: 1px solid #f3f4f6;
-    border-radius: 12px;
-    margin-bottom: 10px;
-    text-decoration: none;
-    cursor: pointer;
-    transition: border-color .15s, box-shadow .15s;
-    font-family: inherit;
-}
-.po-product-card:hover { border-color: var(--accent, #f5a623); box-shadow: 0 2px 12px rgba(0, 0, 0, .08); }
-.po-product-card:disabled { opacity: .6; cursor: default; }
-.po-product-icon {
-    width: 42px; height: 42px;
-    border-radius: 10px;
-    display: grid; place-items: center;
-    font: 700 16px/1 'Inter', sans-serif;
-    color: #fff;
-    flex-shrink: 0;
-}
-.po-product-info { flex: 1; min-width: 0; }
-.po-product-name { display: block; font: 600 14px/1.2 'Inter', sans-serif; color: #111827; margin-bottom: 4px; }
-.po-product-plan { display: block; font: 400 12px/1.2 'Inter', sans-serif; color: #9ca3af; }
-.po-product-right { display: flex; align-items: center; gap: 10px; }
-.po-product-status { font: 500 11px/1 'Inter', sans-serif; padding: 3px 8px; border-radius: 999px; text-transform: capitalize; }
-.status-active { background: #ecfdf5; color: #059669; }
-.status-trial { background: #eff6ff; color: #2563eb; }
-.status-suspended { background: #fef2f2; color: #dc2626; }
-.po-open-icon { color: #d1d5db; }
-
-.po-card { background: #fff; border: 1px solid #f3f4f6; border-radius: 14px; margin-bottom: 16px; overflow: hidden; }
-.po-card-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #f3f4f6; }
-.po-card-head h3 { font: 600 14px/1 'Inter', sans-serif; color: #111827; margin: 0; }
-.po-card-link { font: 400 12px/1 'Inter', sans-serif; color: #9ca3af; text-decoration: none; }
-.po-card-link:hover { color: var(--accent, #f5a623); }
-.po-row-empty, .po-empty { padding: 18px 16px; font-size: 13px; color: #9ca3af; }
-
-.po-invoice-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid #f9fafb; text-decoration: none; }
-.po-invoice-row:last-child { border-bottom: none; }
-.po-invoice-ref { display: block; font: 500 13px/1.2 'Inter', sans-serif; color: #374151; }
-.po-invoice-date { display: block; font: 400 11px/1.2 'Inter', sans-serif; color: #9ca3af; margin-top: 2px; }
-.po-invoice-right { display: flex; align-items: center; gap: 10px; }
-.po-invoice-amount { font: 600 13px/1 'Inter', sans-serif; color: #111827; }
-.po-invoice-status { font: 500 11px/1 'Inter', sans-serif; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
-.inv-paid { background: #ecfdf5; color: #059669; }
-.inv-sent { background: #fffbeb; color: #d97706; }
-.inv-overdue { background: #fef2f2; color: #dc2626; }
-.inv-draft, .inv-void, .inv-partially_paid { background: #f3f4f6; color: #6b7280; }
-
-.po-ticket-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid #f9fafb; text-decoration: none; }
-.po-ticket-row:last-child { border-bottom: none; }
-.po-ticket-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.po-ticket-dot.status-open { background: #f59e0b; }
-.po-ticket-dot.status-in_progress, .po-ticket-dot.status-awaiting_customer { background: #3b82f6; }
-.po-ticket-dot.status-resolved { background: #10b981; }
-.po-ticket-dot.status-closed { background: #9ca3af; }
-.po-ticket-info { flex: 1; min-width: 0; }
-.po-ticket-subject { display: block; font: 500 13px/1.3 'Inter', sans-serif; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.po-ticket-meta { display: block; font: 400 11px/1.2 'Inter', sans-serif; color: #9ca3af; margin-top: 2px; }
-.po-ticket-badge { font: 500 11px/1 'Inter', sans-serif; padding: 2px 7px; border-radius: 999px; background: #f3f4f6; color: #6b7280; white-space: nowrap; }
-.po-ticket-badge.badge--blue { background: #eff6ff; color: #2563eb; }
-
-@media (max-width: 767px) {
-    .po-grid { grid-template-columns: 1fr; }
-    .po-stats { grid-template-columns: repeat(2, 1fr); }
-}
-</style>

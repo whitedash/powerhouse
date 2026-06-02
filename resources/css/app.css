@@ -1,5 +1,10 @@
 @import 'tailwindcss';
 
+/* Customer-portal redesign — Whitedash handoff design system, scoped
+   under .wd (resources/css/portal.css). Kept in its own file so the
+   verbatim handoff sheet stays diffable against the source of truth. */
+@import './portal.css';
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../js/**/*.vue';

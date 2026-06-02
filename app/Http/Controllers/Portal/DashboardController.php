@@ -116,12 +116,25 @@ class DashboardController extends Controller
             ->where('status', 'paid')
             ->count();
 
+        // Lifetime paid total — the "£X lifetime" foot on the paid stat card.
+        $invoicesPaidTotal = (float) Invoice::where('customer_id', $customer->id)
+            ->where('status', 'paid')
+            ->sum('total');
+
         $outstandingInvoices = Invoice::where('customer_id', $customer->id)
             ->whereIn('status', ['sent', 'overdue']);
         $outstandingTotal = (float) (clone $outstandingInvoices)->sum('total');
         // Count of unpaid invoices (what the attention banner means by
         // "need payment") vs overdue-only (the urgent nav badge).
         $outstandingCount = (clone $outstandingInvoices)->count();
+
+        // The single invoice the attention banner names ("INV-0006 is
+        // awaiting payment, due …") and the outstanding stat foot points
+        // at — the oldest unpaid, so the most pressing one surfaces first.
+        $nextDue = (clone $outstandingInvoices)
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->first();
 
         $overdueCount = Invoice::where('customer_id', $customer->id)
             ->where('status', 'overdue')
@@ -140,9 +153,16 @@ class DashboardController extends Controller
             'recent_invoices' => $recentInvoices,
             'recent_tickets' => $recentTickets,
             'invoices_paid_count' => $invoicesPaid,
+            'invoices_paid_total' => round($invoicesPaidTotal, 2),
             'outstanding_total' => round($outstandingTotal, 2),
             'outstanding_count' => $outstandingCount,
             'overdue_count' => $overdueCount,
+            'next_due_invoice' => $nextDue ? [
+                'id' => $nextDue->id,
+                'number' => $nextDue->number,
+                'total' => round((float) $nextDue->total, 2),
+                'due_date' => $nextDue->due_date?->format('j M Y'),
+            ] : null,
             'open_tickets' => $openTickets,
             'awaiting_reply' => $awaitingReply,
         ]);
