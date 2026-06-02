@@ -36,6 +36,10 @@ function payInvoice(inv) {
     checkoutOpen.value = true;
 }
 
+function openPdf(id) {
+    window.open(`/portal/invoices/${id}/pdf`, '_blank', 'noopener');
+}
+
 function statusBadge(status) {
     if (status === 'paid') return { cls: 'badge-active', label: 'Paid' };
     if (status === 'overdue') return { cls: 'badge-overdue', label: 'Overdue' };
@@ -73,12 +77,10 @@ function statusBadge(status) {
                   explicit Download button stops propagation so clicking
                   "PDF" doesn't double-fire both the preview and download.
                 -->
-                <a
+                <Link
                     v-for="inv in invoices.data"
                     :key="inv.id"
-                    :href="`/portal/invoices/${inv.id}/preview-pdf`"
-                    target="_blank"
-                    rel="noopener"
+                    :href="`/portal/invoices/${inv.id}`"
                     class="inv-row inv-row-clickable"
                 >
                     <div class="inv-ic" :class="inv.status === 'paid' ? 'green' : 'muted'">
@@ -105,16 +107,19 @@ function statusBadge(status) {
                             <IconCreditCard :size="13" stroke-width="1.75" />
                             Pay {{ gbp(inv.total) }}
                         </button>
-                        <a
-                            :href="`/portal/invoices/${inv.id}/pdf`"
+                        <!-- Button, not <a>: nesting an anchor inside the
+                             row <Link> (also an anchor) is invalid HTML and
+                             truncates the row. window.open keeps PDF access. -->
+                        <button
+                            type="button"
                             class="ghost-link muted"
-                            @click.stop
+                            @click.stop.prevent="openPdf(inv.id)"
                         >
                             <IconDownload :size="13" stroke-width="1.75" />
                             PDF
-                        </a>
+                        </button>
                     </div>
-                </a>
+                </Link>
             </template>
         </div>
 

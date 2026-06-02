@@ -795,6 +795,7 @@ Route::prefix('portal')->middleware('auth.portal')->group(function () {
     Route::post('/subscriptions/{id}/cancel', [PortalSubscriptionController::class, 'cancel'])->name('portal.subscriptions.cancel');
 
     Route::get('/invoices', [PortalInvoiceController::class, 'index'])->name('portal.invoices.index');
+    Route::get('/invoices/{id}', [PortalInvoiceController::class, 'show'])->whereNumber('id')->name('portal.invoices.show');
     Route::get('/invoices/{id}/checkout', [PortalInvoiceController::class, 'checkoutSession'])->whereNumber('id')->name('portal.invoices.checkout');
     Route::get('/invoices/{id}/paid', [PortalInvoiceController::class, 'paid'])->whereNumber('id')->name('portal.invoices.paid');
     Route::get('/invoices/{id}/pdf', [PortalInvoiceController::class, 'downloadPdf'])->name('portal.invoices.pdf');

@@ -58,6 +58,55 @@ class InvoiceController extends Controller
     }
 
     /**
+     * In-portal invoice detail page. Renders the invoice as HTML (not the
+     * PDF) so the "Pay now" action can open the embedded Stripe Checkout
+     * modal inline rather than redirecting to a hosted page. Scoped to the
+     * portal user's customer_id — findOrFail 404s on any other invoice.
+     */
+    public function show(int $id): Response
+    {
+        /** @var PortalUser $portalUser */
+        $portalUser = Auth::guard('portal')->user();
+
+        $invoice = Invoice::with([
+            'billingEntity:id,name',
+            'lines' => fn ($q) => $q->orderBy('sort_order'),
+        ])
+            ->where('customer_id', $portalUser->customer_id)
+            ->findOrFail($id);
+
+        $total = (float) $invoice->total;
+        $amountPaid = (float) $invoice->amount_paid;
+
+        return Inertia::render('Portal/InvoiceDetail', [
+            'invoice' => [
+                'id' => $invoice->id,
+                'number' => $invoice->number,
+                'billing_entity' => $invoice->billingEntity?->name,
+                'status' => $invoice->status,
+                'issue_date' => $invoice->issue_date?->format('j M Y'),
+                'due_date' => $invoice->due_date?->format('j M Y'),
+                'paid_at' => $invoice->paid_at?->format('j M Y'),
+                'subtotal' => round((float) $invoice->subtotal, 2),
+                'vat_rate' => (float) $invoice->vat_rate,
+                'vat_amount' => round((float) $invoice->vat_amount, 2),
+                'total' => round($total, 2),
+                'amount_paid' => round($amountPaid, 2),
+                'amount_due' => round($total - $amountPaid, 2),
+                'is_payable' => in_array($invoice->status, ['sent', 'overdue', 'partially_paid'], true),
+                'lines' => $invoice->lines->map(fn ($l) => [
+                    'id' => $l->id,
+                    'description' => $l->description,
+                    'note' => $l->note,
+                    'quantity' => (float) $l->quantity,
+                    'unit_price' => round((float) $l->unit_price, 2),
+                    'amount' => round((float) $l->amount, 2),
+                ])->values(),
+            ],
+        ]);
+    }
+
+    /**
      * Mint an embedded Stripe Checkout session for an unpaid invoice and
      * return its client_secret as JSON. The portal "Pay now" button fetches
      * this, then mounts Stripe Embedded Checkout inline (see
