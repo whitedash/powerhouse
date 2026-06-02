@@ -1069,25 +1069,24 @@ class CustomerController extends Controller
             ->where('customer_id', $customer->id)
             ->firstOrFail();
 
+        // Failure feedback goes through the `error` flash, not withErrors():
+        // there's no field-level error display on the customer page, so a
+        // validation bag would be silently swallowed (the invite button
+        // would just appear to do nothing). The global ToastContainer
+        // surfaces flash.error as a red toast.
         if (empty($contact->email)) {
-            return back()->withErrors([
-                'portal' => "{$contact->display_name} has no email on file. Add one before inviting them to the portal.",
-            ]);
+            return back()->with('error', "{$contact->display_name} has no email on file. Add one before inviting them to the portal.");
         }
 
         // Per-contact uniqueness: at most one portal account per contact.
         if (PortalUser::where('contact_id', $contact->id)->exists()) {
-            return back()->withErrors([
-                'portal' => "{$contact->display_name} already has portal access. Revoke it first to issue new credentials.",
-            ]);
+            return back()->with('error', "{$contact->display_name} already has portal access. Revoke it first to issue new credentials.");
         }
 
         // Table-wide uniqueness on email: another contact (possibly on
         // a different customer) already owns this address.
         if (PortalUser::where('email', $contact->email)->exists()) {
-            return back()->withErrors([
-                'portal' => 'That email already has a portal account elsewhere. Use a different contact email.',
-            ]);
+            return back()->with('error', 'That email already has a portal account elsewhere. Use a different contact email.');
         }
 
         $tempPassword = Str::password(14, symbols: false);
