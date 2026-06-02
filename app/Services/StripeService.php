@@ -56,7 +56,11 @@ class StripeService
 
         $session = Session::create([
             ...$this->baseSessionParams($invoice),
-            'ui_mode' => 'embedded',
+            // Stripe renamed the embedded-form ui_mode: the old 'embedded'
+            // value is now rejected ("no longer supported. Use 'embedded_page'
+            // instead."). 'embedded_page' still returns a client_secret for
+            // Stripe.js initEmbeddedCheckout().
+            'ui_mode' => 'embedded_page',
             // Embedded returns the customer here once the form completes;
             // session_id lets the landing page confirm + settle on arrival.
             'return_url' => route('portal.invoices.paid', $invoice->id).'?session_id={CHECKOUT_SESSION_ID}',
