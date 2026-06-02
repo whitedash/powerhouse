@@ -71,40 +71,18 @@ const filteredPlugins = computed(() => {
     );
 });
 
-function csrf() {
-    return document.querySelector('meta[name=csrf-token]')?.content ?? '';
-}
-
 async function updateOne(row) {
     if (! props.configured || ! row.plugins_outdated) return;
     row.status = 'running';
     row.message = '';
-    try {
-        const res = await fetch(`/wordpress/updates/site/${row.id}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': csrf(),
-            },
-            credentials: 'same-origin',
-        });
-        const data = await res.json();
-        if (res.ok && data.ok) {
-            row.status = 'done';
-            row.message = data.message ?? 'Updated';
-            if (typeof data.plugins_outdated === 'number') row.plugins_outdated = data.plugins_outdated;
-            if (typeof data.plugins_total === 'number') row.plugins_total = data.plugins_total;
-            if (typeof data.themes_outdated === 'number') row.themes_outdated = data.themes_outdated;
-            if (Array.isArray(data.plugin_updates)) row.plugin_updates = data.plugin_updates;
-            if (Array.isArray(data.theme_updates)) row.theme_updates = data.theme_updates;
-        } else {
-            row.status = 'error';
-            row.message = data.message ?? `Failed (${res.status})`;
-        }
-    } catch (e) {
+    const { ok, status, data } = await postJson(`/wordpress/updates/site/${row.id}`, {});
+    if (ok) {
+        row.status = 'done';
+        row.message = data.message ?? 'Updated';
+        applyResult(row, data);
+    } else {
         row.status = 'error';
-        row.message = e?.message ?? 'Network error';
+        row.message = data.message ?? `Failed (${status})`;
     }
 }
 
@@ -129,16 +107,36 @@ function rowBusy(s, slug) {
     return !! busy.value[rowKey(s, slug)];
 }
 
+/* Read the live XSRF-TOKEN cookie Laravel sets on every response. Sending it
+ * back as X-XSRF-TOKEN (which Laravel decrypts) is more robust than a meta-tag
+ * token — it's always current and survives session rotation. */
+function xsrfToken() {
+    const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+}
+
 async function postJson(url, body) {
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrf() },
-        credentials: 'same-origin',
-        body: JSON.stringify(body),
-    });
-    let data = {};
-    try { data = await res.json(); } catch { /* non-JSON */ }
-    return { ok: res.ok && data.ok, status: res.status, data };
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            // 'include' (not 'same-origin') so the session cookie is sent even
+            // when the app is served through a proxy/preview origin — without
+            // it a fresh guest session is created and the request 419s/401s.
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-XSRF-TOKEN': xsrfToken(),
+            },
+            body: JSON.stringify(body ?? {}),
+        });
+        let data = {};
+        try { data = await res.json(); } catch { /* non-JSON */ }
+        return { ok: res.ok && data.ok, status: res.status, data };
+    } catch (e) {
+        return { ok: false, status: 0, data: { message: e?.message ?? 'Network error' } };
+    }
 }
 
 function applyResult(row, data) {
