@@ -107,7 +107,7 @@ class MainWPService
     {
         $response = Http::timeout(60)
             ->withHeaders($this->headers())
-            ->post($this->baseUrl().'/site/'.$siteId.'/sync');
+            ->post($this->baseUrl().'/sites/'.$siteId.'/sync');
 
         if ($response->failed()) {
             throw new \RuntimeException('MainWP sync failed: '.$response->status());
@@ -126,15 +126,37 @@ class MainWPService
      */
     public function mapSiteData(array $site): array
     {
-        $plugins = collect($site['plugins'] ?? []);
-        $themes = collect($site['themes'] ?? []);
+        // MainWP delivers plugins / themes and their *_upgrades lists as
+        // JSON-encoded strings, not arrays. Decode leniently — some builds
+        // may already hand back an array, and a malformed string becomes [].
+        $decode = function ($val): array {
+            if (is_array($val)) {
+                return $val;
+            }
+            if (is_string($val)) {
+                $decoded = json_decode($val, true);
+
+                return is_array($decoded) ? $decoded : [];
+            }
+
+            return [];
+        };
+
+        $plugins = $decode($site['plugins'] ?? []);
+        $themes = $decode($site['themes'] ?? []);
+
+        // plugin_upgrades / theme_upgrades already contain only the items
+        // with a pending update (keyed by slug), so their size is the
+        // outdated count — more reliable than scanning an `update` flag.
+        $pluginUpgrades = $decode($site['plugin_upgrades'] ?? []);
+        $themeUpgrades = $decode($site['theme_upgrades'] ?? []);
 
         return [
             'wp_version' => $site['wp_version'] ?? null,
             'php_version' => $site['php_version'] ?? null,
-            'plugins_total' => $plugins->count(),
-            'plugins_outdated' => $plugins->where('update', true)->count(),
-            'themes_outdated' => $themes->where('update', true)->count(),
+            'plugins_total' => count($plugins),
+            'plugins_outdated' => count($pluginUpgrades),
+            'themes_outdated' => count($themeUpgrades),
             'last_backup_at' => $this->parseBackupDate($site['last_backup'] ?? null),
             'mainwp_site_id' => $site['id'] ?? null,
         ];
