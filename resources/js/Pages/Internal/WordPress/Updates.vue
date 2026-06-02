@@ -3,15 +3,19 @@
  * WordPress bulk plugin updates.
  *
  * Server hands us every MainWP-linked active site plus its outstanding
- * plugin-update count (from the websites:sync-wordpress sweep). The
- * operator selects sites and hits "Update plugins"; the page then loops
- * the selection, POSTing one site per request to /wordpress/updates/site/{id}
- * so each call stays inside the HTTP timeout and we can show live per-site
- * progress. super_admin only — this mutates live customer sites.
+ * plugin/theme update breakdown (name, current → new version) captured by
+ * the websites:sync-wordpress sweep. Each site row expands to show that
+ * breakdown. "Update all plugins" (per site, or for every filtered site)
+ * POSTs one site per request to /wordpress/updates/site/{id} so each call
+ * stays inside the HTTP timeout and progress is legible per site.
+ * super_admin only — this mutates live customer sites.
  */
 import { computed, ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
-import { IconBrandWordpress, IconRefresh, IconSearch, IconCircleCheck, IconAlertTriangle, IconLoader2 } from '@tabler/icons-vue';
+import {
+    IconBrandWordpress, IconRefresh, IconSearch, IconChevronRight, IconChevronDown,
+    IconCircleCheck, IconAlertTriangle, IconLoader2,
+} from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 
 const props = defineProps({
@@ -20,11 +24,16 @@ const props = defineProps({
     customers: { type: Array, default: () => [] },
 });
 
-/* Local working copy so we can mutate counts/status as updates land. */
+/* Local working copy so counts / detail / status mutate as updates land. */
 const rows = ref(props.sites.map((s) => ({ ...s, status: 'idle', message: '' })));
 const search = ref('');
 const customerFilter = ref('all');
 const running = ref(false);
+const expanded = ref({});
+
+function toggleSite(id) {
+    expanded.value[id] = ! expanded.value[id];
+}
 
 const filtered = computed(() => {
     const q = search.value.trim().toLowerCase();
@@ -37,36 +46,16 @@ const filtered = computed(() => {
     });
 });
 
-/* Selection — keyed by website id. */
-const selected = ref(new Set());
-function toggle(id) {
-    const next = new Set(selected.value);
-    next.has(id) ? next.delete(id) : next.add(id);
-    selected.value = next;
-}
-const visibleSelectableIds = computed(() => filtered.value.filter((r) => r.plugins_outdated > 0).map((r) => r.id));
-const allVisibleSelected = computed(() =>
-    visibleSelectableIds.value.length > 0 && visibleSelectableIds.value.every((id) => selected.value.has(id)),
-);
-function toggleAll() {
-    const next = new Set(selected.value);
-    if (allVisibleSelected.value) {
-        visibleSelectableIds.value.forEach((id) => next.delete(id));
-    } else {
-        visibleSelectableIds.value.forEach((id) => next.add(id));
-    }
-    selected.value = next;
-}
-
-const selectedCount = computed(() => selected.value.size);
 const pendingTotal = computed(() => rows.value.reduce((n, r) => n + (r.plugins_outdated || 0), 0));
 const sitesNeeding = computed(() => rows.value.filter((r) => r.plugins_outdated > 0).length);
+const updatableVisible = computed(() => filtered.value.filter((r) => r.plugins_outdated > 0));
 
 function csrf() {
     return document.querySelector('meta[name=csrf-token]')?.content ?? '';
 }
 
 async function updateOne(row) {
+    if (! props.configured || ! row.plugins_outdated) return;
     row.status = 'running';
     row.message = '';
     try {
@@ -85,6 +74,9 @@ async function updateOne(row) {
             row.message = data.message ?? 'Updated';
             if (typeof data.plugins_outdated === 'number') row.plugins_outdated = data.plugins_outdated;
             if (typeof data.plugins_total === 'number') row.plugins_total = data.plugins_total;
+            if (typeof data.themes_outdated === 'number') row.themes_outdated = data.themes_outdated;
+            if (Array.isArray(data.plugin_updates)) row.plugin_updates = data.plugin_updates;
+            if (Array.isArray(data.theme_updates)) row.theme_updates = data.theme_updates;
         } else {
             row.status = 'error';
             row.message = data.message ?? `Failed (${res.status})`;
@@ -95,24 +87,21 @@ async function updateOne(row) {
     }
 }
 
-async function runUpdates() {
-    if (running.value || selectedCount.value === 0) return;
+async function updateAll() {
+    if (running.value) return;
     running.value = true;
     // Sequential — one site at a time keeps load on the MainWP dashboard
     // sane and makes per-site progress legible.
-    for (const row of rows.value) {
-        if (selected.value.has(row.id)) {
-            await updateOne(row);
-        }
+    for (const row of updatableVisible.value) {
+        await updateOne(row);
     }
     running.value = false;
 }
 
 const STATUS = {
-    idle: { cls: '', icon: null, label: '' },
-    running: { cls: 'wpu-running', icon: IconLoader2, label: 'Updating…' },
-    done: { cls: 'wpu-done', icon: IconCircleCheck, label: 'Done' },
-    error: { cls: 'wpu-error', icon: IconAlertTriangle, label: 'Error' },
+    running: { cls: 'wu-running', icon: IconLoader2 },
+    done: { cls: 'wu-done', icon: IconCircleCheck },
+    error: { cls: 'wu-error', icon: IconAlertTriangle },
 };
 </script>
 
@@ -125,7 +114,7 @@ const STATUS = {
         :breadcrumbs="[{ label: 'Powerhouse', href: '/' }, { label: 'WordPress Updates' }]"
     >
         <div class="wp-updates">
-            <div v-if="! configured" class="wpu-notice">
+            <div v-if="! configured" class="wu-notice">
                 <IconAlertTriangle :size="16" stroke-width="2" />
                 MainWP is not configured. Add credentials in Settings → Integrations to enable plugin updates.
             </div>
@@ -150,80 +139,104 @@ const STATUS = {
             </div>
 
             <!-- Toolbar -->
-            <div class="wpu-toolbar">
-                <div class="wpu-search">
+            <div class="wu-toolbar">
+                <div class="wu-search">
                     <IconSearch :size="15" stroke-width="1.75" />
                     <input v-model="search" type="text" placeholder="Search sites or customers…" />
                 </div>
-                <select v-model="customerFilter" class="field-input wpu-cust">
+                <select v-model="customerFilter" class="field-input wu-cust">
                     <option value="all">All customers</option>
                     <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</option>
                 </select>
-                <div class="wpu-spacer"></div>
+                <div class="wu-spacer"></div>
                 <button
                     type="button"
                     class="btn btn-primary"
-                    :disabled="! configured || running || selectedCount === 0"
-                    @click="runUpdates"
+                    :disabled="! configured || running || updatableVisible.length === 0"
+                    @click="updateAll"
                 >
-                    <IconRefresh :size="15" stroke-width="2" :class="{ 'wpu-spin': running }" />
-                    {{ running ? 'Updating…' : `Update plugins${selectedCount ? ' (' + selectedCount + ')' : ''}` }}
+                    <IconRefresh :size="15" stroke-width="2" :class="{ 'wu-spin': running }" />
+                    {{ running ? 'Updating…' : `Update all${updatableVisible.length ? ' (' + updatableVisible.length + ')' : ''}` }}
                 </button>
             </div>
 
-            <!-- Site table -->
-            <div class="table-card">
-                <table class="tbl wpu-table">
-                    <thead>
-                        <tr>
-                            <th class="wpu-check">
-                                <input type="checkbox" :checked="allVisibleSelected" :disabled="visibleSelectableIds.length === 0" @change="toggleAll" />
-                            </th>
-                            <th>Site</th>
-                            <th style="width: 160px;">Customer</th>
-                            <th style="width: 90px;">WP</th>
-                            <th style="width: 130px;">Plugins</th>
-                            <th style="width: 200px;">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="row in filtered" :key="row.id" :class="{ 'wpu-sel': selected.has(row.id) }">
-                            <td class="wpu-check">
-                                <input
-                                    type="checkbox"
-                                    :checked="selected.has(row.id)"
-                                    :disabled="row.plugins_outdated === 0"
-                                    @change="toggle(row.id)"
-                                />
-                            </td>
-                            <td>
-                                <div class="wpu-site-name">{{ row.name }}</div>
-                                <a :href="row.url" target="_blank" rel="noopener" class="wpu-site-url">{{ row.url }}</a>
-                            </td>
-                            <td class="wpu-muted">{{ row.customer_name ?? '—' }}</td>
-                            <td class="wpu-muted">{{ row.wp_version ?? '—' }}</td>
-                            <td>
-                                <span v-if="row.plugins_outdated > 0" class="badge badge-sm badge-pending">
-                                    {{ row.plugins_outdated }} / {{ row.plugins_total }} outdated
+            <!-- Site cards -->
+            <div class="wu-list">
+                <div v-for="site in filtered" :key="site.id" class="wu-site-card">
+                    <div class="wu-site-header" @click="toggleSite(site.id)">
+                        <component :is="expanded[site.id] ? IconChevronDown : IconChevronRight" :size="16" stroke-width="2" class="wu-chevron" />
+                        <div class="wu-site-info">
+                            <span class="wu-site-name">{{ site.url }}</span>
+                            <span class="wu-site-meta">
+                                <span>WP {{ site.wp_version ?? '—' }}</span>
+                                <span v-if="site.plugins_outdated" class="wu-badge-warning">{{ site.plugins_outdated }} plugin updates</span>
+                                <span v-if="site.themes_outdated" class="wu-badge-warning">{{ site.themes_outdated }} theme updates</span>
+                                <span v-if="! site.plugins_outdated && ! site.themes_outdated" class="wu-badge-ok">Up to date ✓</span>
+                                <span v-if="site.status !== 'idle'" class="wu-status" :class="STATUS[site.status]?.cls">
+                                    <component :is="STATUS[site.status]?.icon" :size="13" stroke-width="2" :class="{ 'wu-spin': site.status === 'running' }" />
+                                    {{ site.message }}
                                 </span>
-                                <span v-else class="badge badge-sm badge-active">Up to date</span>
-                            </td>
-                            <td>
-                                <span v-if="row.status !== 'idle'" class="wpu-status" :class="STATUS[row.status].cls">
-                                    <component :is="STATUS[row.status].icon" :size="14" stroke-width="2" :class="{ 'wpu-spin': row.status === 'running' }" />
-                                    {{ row.message || STATUS[row.status].label }}
-                                </span>
-                                <span v-else class="wpu-muted">—</span>
-                            </td>
-                        </tr>
-                        <tr v-if="filtered.length === 0">
-                            <td colspan="6" class="wpu-empty">
-                                <IconBrandWordpress :size="22" stroke-width="1.5" />
-                                <p>No linked sites match.</p>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </span>
+                        </div>
+                        <div class="wu-site-actions" @click.stop>
+                            <button
+                                v-if="site.plugins_outdated"
+                                type="button"
+                                class="btn btn-primary btn-sm"
+                                :disabled="! configured || site.status === 'running'"
+                                @click="updateOne(site)"
+                            >
+                                <IconRefresh :size="14" stroke-width="2" :class="{ 'wu-spin': site.status === 'running' }" />
+                                Update all plugins
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="expanded[site.id]" class="wu-site-detail">
+                        <div v-if="site.plugin_updates?.length" class="wu-updates-section">
+                            <div class="wu-section-label">Plugins ({{ site.plugin_updates.length }})</div>
+                            <table class="wu-updates-table">
+                                <thead>
+                                    <tr><th>Plugin</th><th>Current</th><th></th><th>Latest</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="p in site.plugin_updates" :key="p.slug || p.name">
+                                        <td class="wu-plugin-name">{{ p.name }}</td>
+                                        <td class="wu-version wu-version--old">{{ p.current_version }}</td>
+                                        <td class="wu-arrow">→</td>
+                                        <td class="wu-version wu-version--new">{{ p.new_version }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div v-if="site.theme_updates?.length" class="wu-updates-section">
+                            <div class="wu-section-label">Themes ({{ site.theme_updates.length }})</div>
+                            <table class="wu-updates-table">
+                                <thead>
+                                    <tr><th>Theme</th><th>Current</th><th></th><th>Latest</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="t in site.theme_updates" :key="t.slug || t.name">
+                                        <td class="wu-plugin-name">{{ t.name }}</td>
+                                        <td class="wu-version wu-version--old">{{ t.current_version }}</td>
+                                        <td class="wu-arrow">→</td>
+                                        <td class="wu-version wu-version--new">{{ t.new_version }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div v-if="! site.plugin_updates?.length && ! site.theme_updates?.length" class="wu-detail-empty">
+                            No pending updates — this site is up to date.
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="filtered.length === 0" class="wu-empty">
+                    <IconBrandWordpress :size="22" stroke-width="1.5" />
+                    <p>No linked sites match.</p>
+                </div>
             </div>
         </div>
     </InternalLayout>
@@ -231,34 +244,61 @@ const STATUS = {
 
 <style scoped>
 .wp-updates { display: flex; flex-direction: column; gap: 16px; }
-.wpu-notice {
+.wu-notice {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 14px; border-radius: var(--radius-md);
     background: var(--warning-bg); color: #B45309;
     border: 1px solid #FDE68A; font: 500 13px/1.4 'Inter', sans-serif;
 }
-.wpu-toolbar { display: flex; align-items: center; gap: 10px; }
-.wpu-search {
+.wu-toolbar { display: flex; align-items: center; gap: 10px; }
+.wu-search {
     display: flex; align-items: center; gap: 7px;
     padding: 0 10px; height: 36px; min-width: 260px;
     background: #fff; border: 1px solid var(--border); border-radius: var(--radius-md);
     color: var(--text-tertiary);
 }
-.wpu-search input { border: 0; outline: 0; flex: 1; font: 400 13px/1 'Inter', sans-serif; color: var(--text-primary); background: transparent; }
-.wpu-cust { max-width: 200px; height: 36px; }
-.wpu-spacer { flex: 1; }
-.wpu-spin { animation: wpu-rot 0.8s linear infinite; }
-@keyframes wpu-rot { to { transform: rotate(360deg); } }
-.wpu-table th.wpu-check, .wpu-table td.wpu-check { width: 36px; text-align: center; }
-.wpu-table tbody tr.wpu-sel { background: var(--accent-soft, #F1F5FF); }
-.wpu-site-name { font: 600 13.5px/1.3 'Inter', sans-serif; color: var(--text-primary); }
-.wpu-site-url { font: 400 12px/1.3 'Inter', sans-serif; color: var(--info); text-decoration: none; word-break: break-all; }
-.wpu-site-url:hover { text-decoration: underline; }
-.wpu-muted { color: var(--text-tertiary); font: 400 12.5px/1.3 'Inter', sans-serif; }
-.wpu-status { display: inline-flex; align-items: center; gap: 5px; font: 500 12.5px/1.3 'Inter', sans-serif; }
-.wpu-status.wpu-running { color: var(--info); }
-.wpu-status.wpu-done { color: #047857; }
-.wpu-status.wpu-error { color: #B91C1C; }
-.wpu-empty { text-align: center; padding: 40px 0; color: var(--text-tertiary); }
-.wpu-empty p { margin: 8px 0 0; font: 500 13px/1.4 'Inter', sans-serif; }
+.wu-search input { border: 0; outline: 0; flex: 1; font: 400 13px/1 'Inter', sans-serif; color: var(--text-primary); background: transparent; }
+.wu-cust { max-width: 200px; height: 36px; }
+.wu-spacer { flex: 1; }
+.wu-spin { animation: wu-rot 0.8s linear infinite; }
+@keyframes wu-rot { to { transform: rotate(360deg); } }
+
+.wu-list { display: flex; flex-direction: column; gap: 8px; }
+.wu-site-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden;
+}
+.wu-site-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; cursor: pointer; transition: background .1s;
+}
+.wu-site-header:hover { background: var(--neutral-bg); }
+.wu-chevron { color: var(--text-tertiary); flex-shrink: 0; }
+.wu-site-info { flex: 1; min-width: 0; }
+.wu-site-name { display: block; font: 600 14px/1.2 'Inter', sans-serif; color: var(--text-primary); word-break: break-all; }
+.wu-site-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 5px; font: 400 12px/1 'Inter', sans-serif; color: var(--text-secondary); }
+.wu-badge-warning { padding: 2px 8px; border-radius: 999px; background: var(--warning-bg); color: #B45309; font: 600 11px/1.5 'Inter', sans-serif; }
+.wu-badge-ok { color: var(--success); font: 500 11.5px/1 'Inter', sans-serif; }
+.wu-status { display: inline-flex; align-items: center; gap: 4px; font: 500 12px/1 'Inter', sans-serif; }
+.wu-status.wu-running { color: var(--info); }
+.wu-status.wu-done { color: #047857; }
+.wu-status.wu-error { color: #B91C1C; }
+.wu-site-actions { flex-shrink: 0; }
+
+.wu-site-detail { border-top: 1px solid var(--border); padding: 16px; background: var(--neutral-bg); }
+.wu-updates-section { margin-bottom: 16px; }
+.wu-updates-section:last-child { margin-bottom: 0; }
+.wu-section-label { font: 600 10px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .08em; color: var(--text-tertiary); margin-bottom: 8px; }
+.wu-updates-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.wu-updates-table th { font: 500 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+.wu-updates-table td { padding: 7px 8px; border-bottom: 1px solid var(--border-soft); }
+.wu-plugin-name { font-weight: 500; color: var(--text-primary); }
+.wu-version { font-family: 'SFMono-Regular', ui-monospace, monospace; }
+.wu-version--old { color: var(--text-tertiary); }
+.wu-version--new { color: var(--success); font-weight: 600; }
+.wu-arrow { color: var(--text-tertiary); width: 20px; text-align: center; }
+.wu-detail-empty { font: 400 12.5px/1.4 'Inter', sans-serif; color: var(--text-tertiary); }
+
+.wu-empty { text-align: center; padding: 40px 0; color: var(--text-tertiary); }
+.wu-empty p { margin: 8px 0 0; font: 500 13px/1.4 'Inter', sans-serif; }
 </style>

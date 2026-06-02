@@ -49,6 +49,8 @@ class WordPressUpdateController extends Controller
                 'plugins_total' => $w->plugins_total,
                 'plugins_outdated' => $w->plugins_outdated,
                 'themes_outdated' => $w->themes_outdated,
+                'plugin_updates' => $w->plugin_updates_detail ?? [],
+                'theme_updates' => $w->theme_updates_detail ?? [],
                 'last_synced' => $w->updated_at?->diffForHumans(),
             ])->values(),
             // Distinct customers among the linked sites — powers the
@@ -101,6 +103,9 @@ class WordPressUpdateController extends Controller
                     : 'Update triggered',
                 'plugins_outdated' => $website->plugins_outdated,
                 'plugins_total' => $website->plugins_total,
+                'themes_outdated' => $website->themes_outdated,
+                'plugin_updates' => $website->plugin_updates_detail ?? [],
+                'theme_updates' => $website->theme_updates_detail ?? [],
             ]);
         } catch (\Throwable $e) {
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 502);

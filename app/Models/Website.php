@@ -35,6 +35,8 @@ use Illuminate\Support\Carbon;
  * @property int $plugins_total
  * @property int $plugins_outdated
  * @property int $themes_outdated
+ * @property array<int, array<string, string>>|null $plugin_updates_detail
+ * @property array<int, array<string, string>>|null $theme_updates_detail
  * @property Carbon|null $last_backup_at
  * @property int|null $pagespeed_mobile
  * @property int|null $pagespeed_desktop
@@ -89,6 +91,8 @@ class Website extends Model
         'plugins_total',
         'plugins_outdated',
         'themes_outdated',
+        'plugin_updates_detail',
+        'theme_updates_detail',
         'last_backup_at',
         'pagespeed_mobile',
         'pagespeed_desktop',
@@ -116,6 +120,8 @@ class Website extends Model
         return [
             'whm_managed' => 'boolean',
             'pagespeed_data' => 'array',
+            'plugin_updates_detail' => 'array',
+            'theme_updates_detail' => 'array',
             'pagespeed_checked_at' => 'datetime',
             'usage_checked_at' => 'datetime',
             'last_backup_at' => 'datetime',

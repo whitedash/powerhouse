@@ -437,12 +437,14 @@ email_accounts_quota SMALLINT UNSIGNED nullable,
 bandwidth_used_mb INT UNSIGNED nullable,
 bandwidth_quota_mb INT UNSIGNED nullable,
 usage_checked_at TIMESTAMP nullable,
--- WordPress (MainWP, future)
+-- WordPress (MainWP)
 mainwp_site_id INT UNSIGNED nullable,
 wp_version VARCHAR(20) nullable, php_version VARCHAR(20) nullable,
 plugins_total SMALLINT UNSIGNED DEFAULT 0,
 plugins_outdated SMALLINT UNSIGNED DEFAULT 0,
+plugin_updates_detail JSON nullable,   -- [{name,slug,current_version,new_version}] per outdated plugin
 themes_outdated SMALLINT UNSIGNED DEFAULT 0,
+theme_updates_detail JSON nullable,    -- [{name,slug,current_version,new_version}] per outdated theme
 last_backup_at TIMESTAMP nullable,
 -- PageSpeed (Google PSI)
 pagespeed_mobile TINYINT UNSIGNED nullable,

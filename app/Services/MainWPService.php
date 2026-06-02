@@ -206,9 +206,46 @@ class MainWPService
             'plugins_total' => count($plugins),
             'plugins_outdated' => count($pluginUpgrades),
             'themes_outdated' => count($themeUpgrades),
+            'plugin_updates_detail' => $this->extractUpdateDetail($pluginUpgrades),
+            'theme_updates_detail' => $this->extractUpdateDetail($themeUpgrades),
             'last_backup_at' => $this->parseBackupDate($site['last_backup'] ?? null),
             'mainwp_site_id' => $site['id'] ?? null,
         ];
+    }
+
+    /**
+     * Reduce a slug-keyed *_upgrades map to the slim per-item breakdown the
+     * WP Updates page renders. MainWP items use capitalised WP header keys
+     * (Name, Version) and carry the target version under update.new_version
+     * alongside a large bundled changelog we deliberately drop. The map key
+     * is the plugin/theme slug. Lower-case fallbacks cover other builds.
+     *
+     * @param  array<array-key, mixed>  $upgrades
+     * @return array<int, array{name: string, slug: string, current_version: string, new_version: string}>
+     */
+    private function extractUpdateDetail(array $upgrades): array
+    {
+        $out = [];
+
+        foreach ($upgrades as $slug => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $update = $item['update'] ?? [];
+            $newVersion = is_array($update)
+                ? ($update['new_version'] ?? '—')
+                : (is_string($update) ? $update : '—');
+
+            $out[] = [
+                'name' => (string) ($item['Name'] ?? $item['name'] ?? (is_string($slug) ? $slug : 'Unknown')),
+                'slug' => (string) (is_string($slug) && $slug !== '' ? $slug : ($item['slug'] ?? '')),
+                'current_version' => (string) ($item['Version'] ?? $item['version'] ?? '—'),
+                'new_version' => (string) $newVersion,
+            ];
+        }
+
+        return $out;
     }
 
     /**
