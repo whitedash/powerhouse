@@ -1125,6 +1125,7 @@ class CustomerController extends Controller
         Mail::to($contact->email)->send(new PortalInvite($customer, $contact, $tempPassword));
 
         return back()->with('portal_invite', [
+            'login_url' => route('portal.login'),
             'email' => $portalUser->email,
             'password' => $tempPassword,
             'message' => "Portal invite emailed to {$contact->email}. Credentials are shown here too in case you'd rather share them through a trusted channel.",

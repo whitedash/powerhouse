@@ -3722,6 +3722,12 @@ function confirmDeleteWebsite() {
                     </div>
 
                     <div style="background: var(--neutral-bg); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+                        <div v-if="$page.props.flash.portal_invite.login_url">
+                            <div style="font: 500 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary); margin-bottom: 4px;">
+                                Portal URL
+                            </div>
+                            <a :href="$page.props.flash.portal_invite.login_url" target="_blank" rel="noopener" style="font: 500 13.5px/1.3 'JetBrains Mono', monospace; color: var(--accent); user-select: all; word-break: break-all;">{{ $page.props.flash.portal_invite.login_url }}</a>
+                        </div>
                         <div>
                             <div style="font: 500 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary); margin-bottom: 4px;">
                                 Email
