@@ -1,7 +1,6 @@
 <script setup>
 import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
-import { IconCircleCheck, IconClock, IconReceipt } from '@tabler/icons-vue';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
 
 const props = defineProps({
@@ -9,81 +8,80 @@ const props = defineProps({
 });
 
 function gbp(n) {
-    return `£${Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return Number(n ?? 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// The webhook is authoritative, and the success page also confirms the
-// session with Stripe on load — so "paid" is the normal case. If the
-// confirmation hasn't landed yet we show a softer "processing" state
-// rather than claiming payment we can't yet prove.
+// The webhook is authoritative and this page also confirms the session
+// with Stripe on load, so "paid" is the normal case. Until it lands we
+// show a softer "processing" state rather than claiming payment.
 const isPaid = computed(() => props.invoice.status === 'paid');
+
+const methodLabel = computed(() => {
+    const m = props.invoice.paid_via;
+    if (! m) return 'Card';
+    return { stripe: 'Card (Stripe)', manual: 'Recorded by Whitedash', bank: 'Bank transfer' }[m] ?? m;
+});
+const reference = computed(() => props.invoice.payment_ref || props.invoice.number);
 </script>
 
 <template>
     <Head title="Payment · Whitedash" />
-    <PortalLayout title="Invoices" active-nav="invoices">
-        <div class="card invoice-paid-card">
-            <div class="invoice-paid-icon" :class="isPaid ? 'green' : 'amber'">
-                <IconCircleCheck v-if="isPaid" :size="34" stroke-width="1.75" />
-                <IconClock v-else :size="34" stroke-width="1.75" />
+    <PortalLayout active-nav="invoices" :mobile-tabbar="false">
+        <!-- ═══════════ DESKTOP ═══════════ -->
+        <template #desktop>
+            <div class="content" style="max-width:520px;display:flex;align-items:center;justify-content:center;padding-top:56px">
+                <div class="card card-pad" style="width:100%;padding:40px 36px">
+                    <div class="confirm">
+                        <div class="check" :style="!isPaid ? 'background:var(--warning-bg)' : ''">
+                            <i class="ti" :class="isPaid ? 'ti-check' : 'ti-clock'" :style="!isPaid ? 'color:var(--accent)' : ''" />
+                        </div>
+                        <h2>{{ isPaid ? 'Payment successful' : 'Payment processing' }}</h2>
+                        <div class="amt-line">{{ invoice.number }}<span style="color:var(--text-tertiary);margin:0 8px">·</span><b>£{{ gbp(invoice.total) }}</b></div>
+
+                        <div v-if="isPaid" class="confirm-detail">
+                            <div v-if="invoice.paid_at" class="row">Paid on<span class="v">{{ invoice.paid_at }}</span></div>
+                            <div class="row">Payment method<span class="v">{{ methodLabel }}</span></div>
+                            <div class="row">Transaction ref<span class="v mono">{{ reference }}</span></div>
+                        </div>
+                        <p v-else class="amt-line" style="max-width:360px">
+                            This usually takes a few moments — the invoice status updates automatically once it clears.
+                        </p>
+
+                        <div v-if="isPaid && invoice.receipt_email" class="emailed"><i class="ti ti-mail" />A receipt has been emailed to {{ invoice.receipt_email }}</div>
+
+                        <div class="btns">
+                            <Link :href="`/portal/invoices/${invoice.id}`" class="btn btn-secondary btn-lg">View invoice</Link>
+                            <Link href="/portal/invoices" class="btn btn-primary btn-lg">Back to invoices</Link>
+                        </div>
+                    </div>
+                </div>
             </div>
+        </template>
 
-            <h2 v-if="isPaid">Payment received</h2>
-            <h2 v-else>Payment processing</h2>
+        <!-- ═══════════ MOBILE ═══════════ -->
+        <template #mobile>
+            <div class="m-body" style="justify-content:center;padding:24px 20px 40px">
+                <div class="confirm">
+                    <div class="check" :style="!isPaid ? 'background:var(--warning-bg)' : ''">
+                        <i class="ti" :class="isPaid ? 'ti-check' : 'ti-clock'" :style="!isPaid ? 'color:var(--accent)' : ''" />
+                    </div>
+                    <h2>{{ isPaid ? 'Payment successful' : 'Payment processing' }}</h2>
+                    <div class="amt-line">{{ invoice.number }}<span style="color:var(--text-tertiary);margin:0 8px">·</span><b>£{{ gbp(invoice.total) }}</b></div>
 
-            <p v-if="isPaid" class="invoice-paid-lead">
-                Thank you — we've received your payment of
-                <strong>{{ gbp(invoice.total) }}</strong> for invoice
-                <strong>{{ invoice.number }}</strong>.
-                <template v-if="invoice.paid_at"> Paid on {{ invoice.paid_at }}.</template>
-            </p>
-            <p v-else class="invoice-paid-lead">
-                Your payment for invoice <strong>{{ invoice.number }}</strong>
-                is being confirmed. This usually takes a few moments — the
-                invoice status will update automatically once it clears.
-            </p>
+                    <div v-if="isPaid" class="confirm-detail">
+                        <div v-if="invoice.paid_at" class="row">Paid on<span class="v">{{ invoice.paid_at }}</span></div>
+                        <div class="row">Method<span class="v">{{ methodLabel }}</span></div>
+                        <div class="row">Ref<span class="v mono">{{ reference }}</span></div>
+                    </div>
 
-            <div class="invoice-paid-actions">
-                <Link :href="`/portal/invoices/${invoice.id}/preview-pdf`" class="btn-ghost btn-sm" target="_blank" rel="noopener">
-                    <IconReceipt :size="15" stroke-width="1.75" />
-                    View invoice
-                </Link>
-                <Link href="/portal/invoices" class="btn-primary btn-sm">
-                    Back to invoices
-                </Link>
+                    <div v-if="isPaid && invoice.receipt_email" class="emailed"><i class="ti ti-mail" />Receipt emailed to {{ invoice.receipt_email }}</div>
+
+                    <div class="btns" style="flex-direction:column;width:100%">
+                        <Link href="/portal/invoices" class="btn btn-primary btn-block btn-lg">Back to invoices</Link>
+                        <Link :href="`/portal/invoices/${invoice.id}`" class="btn btn-secondary btn-block btn-lg">View invoice</Link>
+                    </div>
+                </div>
             </div>
-        </div>
+        </template>
     </PortalLayout>
 </template>
-
-<style scoped>
-.invoice-paid-card {
-    max-width: 520px;
-    margin: 32px auto;
-    padding: 40px 32px;
-    text-align: center;
-}
-.invoice-paid-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    margin-bottom: 18px;
-}
-.invoice-paid-icon.green { background: var(--success-bg, #e6f6ec); color: var(--success, #1a8245); }
-.invoice-paid-icon.amber { background: var(--warning-bg, #fdf3e2); color: var(--warning, #b7791f); }
-.invoice-paid-card h2 { margin: 0 0 10px; font-size: 20px; }
-.invoice-paid-lead {
-    margin: 0 auto 24px;
-    max-width: 380px;
-    color: var(--text-muted, #5b6472);
-    line-height: 1.55;
-}
-.invoice-paid-actions {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-}
-</style>

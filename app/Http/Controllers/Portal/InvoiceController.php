@@ -187,7 +187,9 @@ class InvoiceController extends Controller
         /** @var PortalUser $portalUser */
         $portalUser = Auth::guard('portal')->user();
 
-        $invoice = Invoice::where('customer_id', $portalUser->customer_id)->findOrFail($id);
+        $invoice = Invoice::with('customer.primaryContact:id,customer_id,email')
+            ->where('customer_id', $portalUser->customer_id)
+            ->findOrFail($id);
 
         $sessionId = (string) $request->query('session_id', '');
         if ($invoice->status !== 'paid' && $sessionId !== '') {
@@ -201,7 +203,13 @@ class InvoiceController extends Controller
                 'number' => $invoice->number,
                 'total' => round((float) $invoice->total, 2),
                 'status' => $invoice->status,
-                'paid_at' => $invoice->paid_at?->format('j M Y'),
+                'paid_at' => $invoice->paid_at?->format('j M Y, H:i'),
+                // Receipt detail for the confirmation screen. We don't store
+                // card brand/last4 (PCI-minimising), so the reference is the
+                // Stripe payment-intent id and the channel is paid_via.
+                'paid_via' => $invoice->paid_via,
+                'payment_ref' => $invoice->stripe_payment_intent_id,
+                'receipt_email' => $invoice->customer?->primaryContact?->email,
             ],
         ]);
     }

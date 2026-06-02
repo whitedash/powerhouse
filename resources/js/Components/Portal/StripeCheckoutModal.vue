@@ -1,6 +1,5 @@
 <script setup>
 import { ref, watch, onBeforeUnmount, nextTick } from 'vue';
-import { IconX, IconAlertCircle, IconLoader2 } from '@tabler/icons-vue';
 
 const props = defineProps({
     show: { type: Boolean, default: false },
@@ -109,31 +108,30 @@ function gbp(n) {
 </script>
 
 <template>
+    <!-- The handoff shows a mock card form; we keep real Stripe Embedded
+         Checkout for PCI compliance and only adopt the handoff chrome
+         (.pay-modal / .pay-head / .stripe-amount / .stripe-secure). The
+         .wd wrapper scopes the handoff design tokens to this overlay. -->
     <Teleport to="body">
-        <div v-if="show" class="stripe-modal-overlay" @click.self="close">
-            <div class="stripe-modal" role="dialog" aria-modal="true">
-                <header class="stripe-modal-head">
+        <div v-if="show" class="wd pay-overlay" @click.self="close">
+            <div class="pay-modal" role="dialog" aria-modal="true">
+                <div class="pay-head">
                     <div>
-                        <h3>Pay invoice {{ invoiceNumber }}</h3>
-                        <div class="stripe-modal-sub">{{ gbp(invoiceTotal) }} · Secure payment by Stripe</div>
+                        <div class="ttl">Pay invoice {{ invoiceNumber }}</div>
+                        <div class="sub">{{ gbp(invoiceTotal) }}<span style="color:var(--text-tertiary)">·</span>Secure payment by <b style="color:#635BFF;font-weight:700">Stripe</b></div>
                     </div>
-                    <button type="button" class="stripe-modal-close" aria-label="Close" @click="close">
-                        <IconX :size="18" stroke-width="2" />
-                    </button>
-                </header>
+                    <button type="button" class="icon-btn" aria-label="Close" @click="close"><i class="ti ti-x" /></button>
+                </div>
+                <div class="pay-body">
+                    <div class="stripe-amount"><span class="lbl">Amount due</span><span class="v">{{ gbp(invoiceTotal) }}</span></div>
 
-                <div class="stripe-modal-body">
-                    <div v-if="error" class="stripe-modal-error">
-                        <IconAlertCircle :size="18" stroke-width="2" />
-                        <span>{{ error }}</span>
-                    </div>
-                    <div v-else-if="loading" class="stripe-modal-loading">
-                        <IconLoader2 :size="28" stroke-width="2" class="spin" />
-                        <span>Loading secure payment form…</span>
-                    </div>
+                    <div v-if="error" class="pay-error"><i class="ti ti-alert-circle" /><span>{{ error }}</span></div>
+                    <div v-else-if="loading" class="pay-loading"><i class="ti ti-loader-2 spin" /><span>Loading secure payment form…</span></div>
 
                     <!-- Stripe Embedded Checkout mounts here. -->
                     <div ref="mountEl" class="stripe-mount" />
+
+                    <div class="stripe-secure"><i class="ti ti-lock" />Secured by <b>Stripe</b> · your card details are encrypted</div>
                 </div>
             </div>
         </div>
@@ -141,65 +139,53 @@ function gbp(n) {
 </template>
 
 <style scoped>
-.stripe-modal-overlay {
+/* Fixed full-screen scroll overlay. The handoff .pay-modal is absolutely
+   centred for a fixed-height mock; real Stripe Embedded Checkout is taller
+   than the viewport, so we top-align the modal and let the overlay scroll
+   (overriding the handoff's absolute centring). */
+.pay-overlay {
     position: fixed;
     inset: 0;
     z-index: 1000;
     background: rgba(15, 23, 42, .55);
+    backdrop-filter: blur(3px);
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    padding: 40px 16px;
+    padding: 32px 16px;
     overflow-y: auto;
 }
-.stripe-modal {
-    background: #fff;
-    border-radius: 14px;
-    width: 100%;
-    max-width: 560px;
-    box-shadow: 0 24px 60px rgba(15, 23, 42, .3);
-    overflow: hidden;
+.pay-overlay .pay-modal {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    margin: auto;
+    max-width: 100%;
 }
-.stripe-modal-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 18px 20px;
-    border-bottom: 1px solid var(--border-soft, #eef2f7);
-}
-.stripe-modal-head h3 { margin: 0; font-size: 16px; }
-.stripe-modal-sub { font-size: 12px; color: var(--text-muted, #64748b); margin-top: 3px; }
-.stripe-modal-close {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--text-muted, #64748b);
-    padding: 4px;
-    border-radius: 6px;
-    line-height: 0;
-}
-.stripe-modal-close:hover { background: var(--neutral-bg, #f1f5f9); }
-.stripe-modal-body { padding: 16px 20px 22px; min-height: 120px; }
-.stripe-modal-loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    padding: 32px 0;
-    color: var(--text-muted, #64748b);
-    font-size: 13px;
-}
-.stripe-modal-error {
+.pay-error {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 12px 14px;
-    background: var(--danger-bg, #fee2e2);
-    color: var(--danger, #b91c1c);
-    border-radius: 8px;
-    font-size: 13px;
+    margin-bottom: 14px;
+    background: var(--danger-bg);
+    color: #b91c1c;
+    border-radius: var(--radius-md);
+    font: 500 13px/1.4 'Inter', sans-serif;
 }
-.spin { animation: stripe-spin 0.8s linear infinite; }
+.pay-error .ti { font-size: 18px; }
+.pay-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 28px 0;
+    color: var(--text-secondary);
+    font: 400 13px/1.4 'Inter', sans-serif;
+}
+.pay-loading .ti { font-size: 26px; }
+.stripe-mount:empty { min-height: 0; }
+.spin { animation: stripe-spin 0.8s linear infinite; display: inline-block; }
 @keyframes stripe-spin { to { transform: rotate(360deg); } }
 </style>
