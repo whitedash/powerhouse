@@ -13,6 +13,10 @@ import {
     IconLogout,
     IconUserCircle,
     IconEye,
+    IconHome,
+    IconReceipt,
+    IconHeadset,
+    IconUser,
 } from '@tabler/icons-vue';
 import ToastContainer from '@/Components/UI/ToastContainer.vue';
 
@@ -166,6 +170,79 @@ function exitPreview() {
             <div class="portal-footer-right">© 2026 Whitedash Holdings Ltd</div>
         </footer>
 
+        <!-- Mobile bottom tab bar — hidden on desktop via CSS. Active state
+             reuses the page-level activeNav prop so it stays in sync with
+             the topnav; badges read the same counts. -->
+        <nav class="po-bottom-nav">
+            <Link href="/portal/dashboard" class="po-tab" :class="{ active: activeNav === 'dashboard' }">
+                <IconHome :size="20" stroke-width="1.75" />
+                <span>Home</span>
+            </Link>
+            <Link href="/portal/invoices" class="po-tab" :class="{ active: activeNav === 'invoices' }">
+                <IconReceipt :size="20" stroke-width="1.75" />
+                <span>Invoices</span>
+                <span v-if="counts?.invoices" class="po-tab-badge">{{ counts.invoices }}</span>
+            </Link>
+            <Link href="/portal/support" class="po-tab" :class="{ active: activeNav === 'support' }">
+                <IconHeadset :size="20" stroke-width="1.75" />
+                <span>Support</span>
+                <span v-if="counts?.support" class="po-tab-badge">{{ counts.support }}</span>
+            </Link>
+            <Link href="/portal/account" class="po-tab" :class="{ active: activeNav === 'account' }">
+                <IconUser :size="20" stroke-width="1.75" />
+                <span>Account</span>
+            </Link>
+        </nav>
+
         <ToastContainer />
     </div>
 </template>
+
+<style scoped>
+.po-bottom-nav { display: none; }
+
+@media (max-width: 767px) {
+    .po-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #fff;
+        border-top: 1px solid #f3f4f6;
+        z-index: 50;
+        padding-bottom: env(safe-area-inset-bottom, 0);
+        box-shadow: 0 -2px 12px rgba(0, 0, 0, .06);
+    }
+    .po-tab {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 8px 4px;
+        min-height: 56px;
+        text-decoration: none;
+        color: #9ca3af;
+        font: 400 10px/1 'Inter', sans-serif;
+        position: relative;
+        transition: color .15s;
+    }
+    .po-tab.active { color: var(--accent, #f5a623); }
+    .po-tab-badge {
+        position: absolute;
+        top: 6px;
+        right: calc(50% - 20px);
+        background: #dc2626;
+        color: #fff;
+        font: 600 9px/1 'Inter', sans-serif;
+        padding: 2px 5px;
+        border-radius: 999px;
+        min-width: 16px;
+        text-align: center;
+    }
+    /* Keep page content clear of the fixed bar. */
+    .portal-content { padding-bottom: 80px; }
+}
+</style>

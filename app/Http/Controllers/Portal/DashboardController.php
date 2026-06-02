@@ -66,9 +66,9 @@ class DashboardController extends Controller
             ])
             ->all();
 
-        // The connected-apps roll-up moved to /portal/security so we
+        // The connected-apps roll-up lives on /portal/account so we
         // skip the join here. Dashboard is the launching surface; the
-        // Security page owns token management.
+        // Account page owns token management.
 
         $recentInvoices = Invoice::where('customer_id', $customer->id)
             ->with('billingEntity:id,name')
@@ -90,13 +90,42 @@ class DashboardController extends Controller
             ->whereIn('status', ['open', 'in_progress', 'awaiting_customer'])
             ->count();
 
+        $awaitingReply = SupportTicket::where('customer_id', $customer->id)
+            ->where('status', 'awaiting_customer')
+            ->count();
+
+        // A short list for the overview's "Support tickets" card — the
+        // newest non-closed tickets, with a customer-facing reference.
+        $recentTickets = SupportTicket::where('customer_id', $customer->id)
+            ->where('status', '!=', 'closed')
+            ->orderByDesc('updated_at')
+            ->take(4)
+            ->get()
+            ->map(fn (SupportTicket $t): array => [
+                'id' => $t->id,
+                'reference' => 'TK-'.$t->id,
+                'subject' => $t->subject,
+                'status' => $t->status,
+                'status_label' => $this->ticketStatusLabel($t->status),
+                'awaiting_reply' => $t->status === 'awaiting_customer',
+                'updated_at' => $t->updated_at?->diffForHumans(),
+            ])
+            ->all();
+
         $invoicesPaid = Invoice::where('customer_id', $customer->id)
             ->where('status', 'paid')
             ->count();
 
-        $outstandingTotal = (float) Invoice::where('customer_id', $customer->id)
-            ->whereIn('status', ['sent', 'overdue'])
-            ->sum('total');
+        $outstandingInvoices = Invoice::where('customer_id', $customer->id)
+            ->whereIn('status', ['sent', 'overdue']);
+        $outstandingTotal = (float) (clone $outstandingInvoices)->sum('total');
+        // Count of unpaid invoices (what the attention banner means by
+        // "need payment") vs overdue-only (the urgent nav badge).
+        $outstandingCount = (clone $outstandingInvoices)->count();
+
+        $overdueCount = Invoice::where('customer_id', $customer->id)
+            ->where('status', 'overdue')
+            ->count();
 
         return Inertia::render('Portal/Dashboard', [
             'customer' => [
@@ -109,10 +138,29 @@ class DashboardController extends Controller
             ],
             'active_products' => $activeProducts,
             'recent_invoices' => $recentInvoices,
+            'recent_tickets' => $recentTickets,
             'invoices_paid_count' => $invoicesPaid,
             'outstanding_total' => round($outstandingTotal, 2),
+            'outstanding_count' => $outstandingCount,
+            'overdue_count' => $overdueCount,
             'open_tickets' => $openTickets,
+            'awaiting_reply' => $awaitingReply,
         ]);
+    }
+
+    /**
+     * Customer-facing label for a ticket status. awaiting_customer means
+     * the ball is in their court, so it reads "Reply needed".
+     */
+    private function ticketStatusLabel(string $status): string
+    {
+        return match ($status) {
+            'in_progress' => 'In progress',
+            'awaiting_customer' => 'Reply needed',
+            'resolved' => 'Resolved',
+            'closed' => 'Closed',
+            default => 'Open',
+        };
     }
 
     /**
