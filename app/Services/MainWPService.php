@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 
@@ -145,70 +146,59 @@ class MainWPService
     }
 
     /**
-     * Trigger an update of every outdated plugin on a child site. MainWP
-     * processes all pending plugin updates for the site (the endpoint takes
-     * no body). Returns MainWP's result payload; throws on a non-2xx so the
-     * caller can record a per-site failure.
-     *
-     * @return array<string, mixed>
-     */
-    public function updateSitePlugins(int|string $site): array
-    {
-        $response = Http::timeout(120)
-            ->withHeaders($this->headers())
-            ->post($this->baseUrl().'/updates/'.$site.'/update/plugins');
-
-        if ($response->failed()) {
-            throw new \RuntimeException('MainWP plugin update failed: '.$response->status());
-        }
-
-        return $response->json() ?? [];
-    }
-
-    /**
      * Update a single plugin on a child site, identified by its slug
-     * (folder/file.php). MainWP's REST update endpoint does not formally
-     * declare a slug parameter, so we pass it as `plugins`; if the dashboard
-     * build ignores it this falls back to updating every outdated plugin on
-     * the site. Throws on a non-2xx.
+     * (folder/file.php). The v2 endpoint targets one plugin via a singular
+     * `slug` parameter. Throws on a non-2xx or when MainWP reports success:0.
      *
      * @return array<string, mixed>
      */
     public function updateSitePlugin(int|string $site, string $slug): array
     {
-        // The /update/plugins endpoint declares no params, so pass the slug
-        // as an array (the common MainWP/WP batch shape). If the dashboard
-        // build ignores it, it falls back to updating all outdated plugins.
-        $response = Http::timeout(120)
-            ->withHeaders($this->headers())
-            ->post($this->baseUrl().'/updates/'.$site.'/update/plugins', ['plugins' => [$slug]]);
+        // MainWP expects the plugin slug (dir/file.php) as a SINGULAR `slug`
+        // parameter — a plugins[] array is ignored and the endpoint returns
+        // 200 {"success":0,"message":"No Plugins to update."}. Per the v2
+        // schema slug is a query param; we also send it in the body so the
+        // request works whichever way the build reads params.
+        $url = $this->baseUrl().'/updates/'.$site.'/update/plugins?slug='.rawurlencode($slug);
+        $response = Http::timeout(120)->withHeaders($this->headers())->post($url, ['slug' => $slug]);
 
-        if ($response->failed()) {
-            throw new \RuntimeException('MainWP plugin update failed: '.$response->status().' '.$response->body());
-        }
-
-        return $response->json() ?? [];
+        return $this->assertUpdateApplied($response, 'plugin');
     }
 
     /**
-     * Update a single theme on a child site, by slug. Same caveat as
-     * updateSitePlugin — the slug is passed as `themes` and falls back to
-     * updating all outdated themes if the dashboard ignores it. Throws on a
-     * non-2xx.
+     * MainWP returns HTTP 200 with success:0 (e.g. "No Plugins to update.")
+     * when it did not apply anything — that must be treated as a failure, not
+     * blindly as success. Throws with MainWP's own message on a non-success.
+     *
+     * @return array<string, mixed>
+     */
+    private function assertUpdateApplied(Response $response, string $what): array
+    {
+        if ($response->failed()) {
+            throw new \RuntimeException('MainWP '.$what.' update failed: '.$response->status().' '.$response->body());
+        }
+
+        $json = $response->json() ?? [];
+        if (empty($json['success'])) {
+            throw new \RuntimeException('MainWP did not apply the '.$what.' update: '.($json['message'] ?? 'unknown response'));
+        }
+
+        return $json;
+    }
+
+    /**
+     * Update a single theme on a child site, by slug — same singular `slug`
+     * contract as plugins. Throws on a non-2xx or a success:0 response.
      *
      * @return array<string, mixed>
      */
     public function updateSiteTheme(int|string $site, string $slug): array
     {
-        $response = Http::timeout(120)
-            ->withHeaders($this->headers())
-            ->post($this->baseUrl().'/updates/'.$site.'/update/themes', ['themes' => [$slug]]);
+        // Same contract as plugins — singular `slug` query/body param.
+        $url = $this->baseUrl().'/updates/'.$site.'/update/themes?slug='.rawurlencode($slug);
+        $response = Http::timeout(120)->withHeaders($this->headers())->post($url, ['slug' => $slug]);
 
-        if ($response->failed()) {
-            throw new \RuntimeException('MainWP theme update failed: '.$response->status().' '.$response->body());
-        }
-
-        return $response->json() ?? [];
+        return $this->assertUpdateApplied($response, 'theme');
     }
 
     /**
@@ -246,11 +236,7 @@ class MainWPService
             ->withHeaders($this->headers())
             ->post($this->baseUrl().'/updates/'.$site.'/update/wp');
 
-        if ($response->failed()) {
-            throw new \RuntimeException('MainWP core update failed: '.$response->status());
-        }
-
-        return $response->json() ?? [];
+        return $this->assertUpdateApplied($response, 'core');
     }
 
     /**

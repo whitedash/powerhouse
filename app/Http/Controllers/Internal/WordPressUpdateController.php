@@ -142,33 +142,36 @@ class WordPressUpdateController extends Controller
 
         $before = $website->plugins_outdated;
 
-        try {
-            $mainwp = app(MainWPService::class);
-            $mainwp->updateSitePlugins($website->mainwp_site_id);
+        // MainWP has no bulk "update all" — each plugin is updated by slug, so
+        // loop the outstanding list. One failure doesn't abort the rest.
+        $slugs = collect($website->plugin_updates_detail ?? [])->pluck('slug')->filter()->values();
+        $mainwp = app(MainWPService::class);
+        $failed = 0;
 
-            // Re-sync so the stored counts reflect what actually updated.
-            $fresh = $mainwp->getSite($website->mainwp_site_id);
-            if ($fresh) {
-                DB::transaction(fn () => $website->update($mainwp->mapSiteData($fresh)));
+        foreach ($slugs as $slug) {
+            try {
+                $mainwp->updateSitePlugin($website->mainwp_site_id, $slug);
+            } catch (\Throwable $e) {
+                $failed++;
+                Log::warning('mainwp.plugin_update_failed', ['site' => $website->url, 'slug' => $slug, 'error' => $e->getMessage()]);
             }
-
-            $updated = max(0, $before - $website->fresh()->plugins_outdated);
-            $this->record($request, $website, 'website.plugins_updated', ['plugins_outdated' => $before], ['plugins_outdated' => $website->plugins_outdated]);
-
-            return response()->json([
-                'ok' => true,
-                'message' => $updated > 0
-                    ? $updated.' plugin'.($updated === 1 ? '' : 's').' updated'
-                    : 'Update triggered',
-                'plugins_outdated' => $website->plugins_outdated,
-                'plugins_total' => $website->plugins_total,
-                'themes_outdated' => $website->themes_outdated,
-                'plugin_updates' => $website->plugin_updates_detail ?? [],
-                'theme_updates' => $website->theme_updates_detail ?? [],
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json(['ok' => false, 'message' => $e->getMessage()], 502);
         }
+
+        $this->resync($mainwp, $website);
+        $updated = max(0, $before - $website->plugins_outdated);
+        $this->record($request, $website, 'website.plugins_updated', ['plugins_outdated' => $before], ['plugins_outdated' => $website->plugins_outdated, 'failed' => $failed]);
+
+        return response()->json([
+            'ok' => $failed === 0,
+            'message' => $failed > 0
+                ? $updated.' updated, '.$failed.' failed'
+                : $updated.' plugin'.($updated === 1 ? '' : 's').' updated',
+            'plugins_outdated' => $website->plugins_outdated,
+            'plugins_total' => $website->plugins_total,
+            'themes_outdated' => $website->themes_outdated,
+            'plugin_updates' => $website->plugin_updates_detail ?? [],
+            'theme_updates' => $website->theme_updates_detail ?? [],
+        ]);
     }
 
     /**
