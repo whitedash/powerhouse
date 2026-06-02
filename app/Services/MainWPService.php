@@ -73,9 +73,8 @@ class MainWPService
             throw new \RuntimeException('MainWP API error: '.$response->status());
         }
 
-        // Some MainWP builds return the array at the top level, others
-        // nest it under "sites". Accept either.
-        return $response->json('sites') ?? $response->json() ?? [];
+        // MainWP wraps the list under "data" ({success, total, data}).
+        return $response->json('data') ?? [];
     }
 
     /**
@@ -86,15 +85,17 @@ class MainWPService
      */
     public function getSite(int $siteId): ?array
     {
+        // Single-site route is /sites/{id} (plural) and wraps the site
+        // object under "data" — same envelope as the list endpoint.
         $response = Http::timeout(15)
             ->withHeaders($this->headers())
-            ->get($this->baseUrl().'/site/'.$siteId);
+            ->get($this->baseUrl().'/sites/'.$siteId);
 
         if ($response->failed()) {
             return null;
         }
 
-        return $response->json();
+        return $response->json('data');
     }
 
     /**
