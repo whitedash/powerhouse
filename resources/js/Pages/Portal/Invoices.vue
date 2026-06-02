@@ -1,10 +1,11 @@
 <script setup>
-import { computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
 import {
     IconDownload,
     IconReceipt,
     IconAlertCircle,
+    IconCreditCard,
 } from '@tabler/icons-vue';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
 
@@ -19,6 +20,20 @@ const counts = computed(() => ({
 
 function gbp(n) {
     return `£${Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+const payingId = ref(null);
+
+const payableStatuses = ['sent', 'overdue', 'partially_paid'];
+
+function payInvoice(id) {
+    payingId.value = id;
+    // The controller responds with Inertia::location(stripeUrl), so Inertia
+    // performs a full-page visit to Stripe Checkout. onError/onFinish keep
+    // the button from getting stuck if the request fails before redirect.
+    router.post(`/portal/invoices/${id}/pay`, {}, {
+        onFinish: () => { payingId.value = null; },
+    });
 }
 
 function statusBadge(status) {
@@ -81,6 +96,16 @@ function statusBadge(status) {
                         <span class="badge badge-sm" :class="statusBadge(inv.status).cls">
                             {{ statusBadge(inv.status).label }}
                         </span>
+                        <button
+                            v-if="payableStatuses.includes(inv.status)"
+                            type="button"
+                            class="inv-pay-btn"
+                            :disabled="payingId === inv.id"
+                            @click.stop.prevent="payInvoice(inv.id)"
+                        >
+                            <IconCreditCard :size="13" stroke-width="1.75" />
+                            {{ payingId === inv.id ? 'Redirecting…' : `Pay ${gbp(inv.total)}` }}
+                        </button>
                         <a
                             :href="`/portal/invoices/${inv.id}/pdf`"
                             class="ghost-link muted"

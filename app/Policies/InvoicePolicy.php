@@ -67,6 +67,21 @@ class InvoicePolicy
     }
 
     /**
+     * Generate a Stripe Checkout payment link for an issued invoice.
+     * Same privilege as recording a payment — it's a money-movement
+     * action on a sent/overdue invoice.
+     */
+    public function generatePaymentLink(User $user, ?Invoice $invoice = null): bool
+    {
+        if (! $user->isStaff()) {
+            return false;
+        }
+
+        return $invoice === null
+            || in_array($invoice->status, ['sent', 'overdue'], true);
+    }
+
+    /**
      * Send a chase reminder. Distinct from `send` (which is the
      * draft → sent transition) because reminders go out repeatedly
      * on already-issued invoices.

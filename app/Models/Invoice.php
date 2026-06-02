@@ -33,6 +33,10 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $next_reminder_at
  * @property bool $reminders_paused
  * @property string|null $qbo_invoice_id
+ * @property string|null $stripe_payment_intent_id
+ * @property string|null $stripe_checkout_session_id
+ * @property string|null $stripe_payment_link
+ * @property string|null $paid_via
  * @property int|null $created_by
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -75,6 +79,12 @@ class Invoice extends Model
         'next_reminder_at',
         'reminders_paused',
         'qbo_invoice_id',
+        // Stripe online-payment fields. stripe_payment_link is the hosted
+        // Checkout URL; paid_via records the channel (manual|stripe|bank).
+        'stripe_payment_intent_id',
+        'stripe_checkout_session_id',
+        'stripe_payment_link',
+        'paid_via',
         'created_by',
         // Recurring template fields. is_recurring marks this invoice
         // as a template that auto-clones into draft children at the

@@ -69,6 +69,9 @@ use App\Http\Controllers\Referrer\AuthController as ReferrerAuthController;
 use App\Http\Controllers\Referrer\CommissionController as ReferrerCommissionController;
 use App\Http\Controllers\Referrer\CustomerController as ReferrerCustomerController;
 use App\Http\Controllers\Referrer\DashboardController as ReferrerDashboardController;
+use App\Http\Controllers\Webhooks\StripeWebhookController;
+use App\Http\Middleware\VerifyStripeWebhook;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -493,6 +496,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::get('/invoices/{id}/pdf', [InternalInvoiceController::class, 'downloadPdf'])->whereNumber('id')->name('internal.invoices.pdf');
     Route::get('/invoices/{id}/preview-pdf', [InternalInvoiceController::class, 'previewPdf'])->whereNumber('id')->name('internal.invoices.preview-pdf');
     Route::post('/invoices/{id}/mark-paid', [InternalInvoiceController::class, 'markPaid'])->whereNumber('id')->name('internal.invoices.mark-paid');
+    Route::post('/invoices/{id}/payment-link', [InternalInvoiceController::class, 'generatePaymentLink'])->whereNumber('id')->name('internal.invoices.payment-link');
     Route::post('/invoices/{id}/void', [InternalInvoiceController::class, 'voidInvoice'])->whereNumber('id')->name('internal.invoices.void');
     Route::post('/invoices/{id}/send', [InternalInvoiceController::class, 'sendInvoice'])->whereNumber('id')->name('internal.invoices.send');
     Route::post('/invoices/{id}/send-reminder', [InternalInvoiceController::class, 'sendReminder'])->whereNumber('id')->name('internal.invoices.send-reminder');
@@ -686,6 +690,16 @@ Route::post('/forms/{slug}/submit', [PublicFormController::class, 'submit'])
     ->where('slug', '[a-z0-9-]+')
     ->middleware('throttle:30,1')
     ->name('form.submit');
+// Stripe payment webhooks. MUST precede the /webhooks/{slug} catch-all
+// below — the slug regex would otherwise swallow "stripe". Signature is
+// verified in VerifyStripeWebhook (fail-closed); idempotency + handling
+// live in the controller. CSRF-exempt via the webhooks/* rule in
+// bootstrap/app.php (the explicit withoutMiddleware is belt-and-braces).
+Route::post('/webhooks/stripe', [StripeWebhookController::class, 'receive'])
+    ->withoutMiddleware([ValidateCsrfToken::class])
+    ->middleware([VerifyStripeWebhook::class, 'throttle:120,1'])
+    ->name('webhooks.stripe');
+
 Route::post('/webhooks/{slug}', [PublicWebhookController::class, 'receive'])
     ->where('slug', '[a-z0-9-]+')
     ->middleware(['form.webhook', 'throttle:120,1'])
@@ -781,6 +795,8 @@ Route::prefix('portal')->middleware('auth.portal')->group(function () {
     Route::post('/subscriptions/{id}/cancel', [PortalSubscriptionController::class, 'cancel'])->name('portal.subscriptions.cancel');
 
     Route::get('/invoices', [PortalInvoiceController::class, 'index'])->name('portal.invoices.index');
+    Route::post('/invoices/{id}/pay', [PortalInvoiceController::class, 'pay'])->whereNumber('id')->name('portal.invoices.pay');
+    Route::get('/invoices/{id}/paid', [PortalInvoiceController::class, 'paid'])->whereNumber('id')->name('portal.invoices.paid');
     Route::get('/invoices/{id}/pdf', [PortalInvoiceController::class, 'downloadPdf'])->name('portal.invoices.pdf');
     Route::get('/invoices/{id}/preview-pdf', [PortalInvoiceController::class, 'previewPdf'])->name('portal.invoices.preview-pdf');
 

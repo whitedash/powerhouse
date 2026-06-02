@@ -18,6 +18,7 @@ use App\Models\Product;
 use App\Models\ProductPlan;
 use App\Services\InvoicePdfService;
 use App\Services\ReminderTemplateService;
+use App\Services\StripeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -666,6 +667,8 @@ class InvoiceController extends Controller
                 'paid_at' => $invoice->paid_at?->toIso8601String(),
                 'payment_method' => $invoice->payment_method,
                 'payment_reference' => $invoice->payment_reference,
+                'paid_via' => $invoice->paid_via,
+                'stripe_payment_link' => $invoice->stripe_payment_link,
                 'notes' => $invoice->notes,
                 'pdf_path' => $invoice->pdf_path,
                 'sent_at' => $invoice->sent_at?->toIso8601String(),
@@ -830,6 +833,38 @@ class InvoiceController extends Controller
         $remaining = number_format($invoiceTotal - $newTotalPaid, 2);
 
         return back()->with('success', "Payment recorded. £{$remaining} outstanding on invoice {$invoice->number}.");
+    }
+
+    /**
+     * Generate (or regenerate) a Stripe Checkout payment link for a
+     * sent/overdue invoice so staff can share it directly or have the
+     * customer pay from the portal. The hosted URL + session id are stored
+     * on the invoice; the webhook settles it once the customer pays.
+     */
+    public function generatePaymentLink(int $id, Request $request, StripeService $stripe): RedirectResponse
+    {
+        $invoice = Invoice::with('customer.primaryContact')->findOrFail($id);
+        Gate::authorize('generatePaymentLink', $invoice);
+
+        if (! in_array($invoice->status, ['sent', 'overdue'], true)) {
+            return back()->with('error', 'A payment link can only be generated for a sent or overdue invoice.');
+        }
+
+        $session = $stripe->createCheckoutSession($invoice);
+
+        DB::transaction(function () use ($invoice, $session, $request) {
+            $invoice->update([
+                'stripe_payment_link' => $session->url,
+                'stripe_checkout_session_id' => $session->id,
+            ]);
+
+            $this->logActivity($request, 'invoice.payment_link_generated', $invoice, after: [
+                'number' => $invoice->number,
+                'session_id' => $session->id,
+            ]);
+        });
+
+        return back()->with('success', 'Payment link generated. Share it with the customer or send it by email.');
     }
 
     public function voidInvoice(int $id, Request $request): RedirectResponse

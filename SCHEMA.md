@@ -165,6 +165,15 @@ payment_method ENUM(bank_transfer|card|direct_debit|other) nullable,
 payment_reference VARCHAR(255) nullable,
 notes TEXT nullable, pdf_path VARCHAR(500) nullable,
 sent_at nullable, qbo_invoice_id VARCHAR(100) nullable,
+stripe_payment_intent_id VARCHAR(100) nullable,
+stripe_checkout_session_id VARCHAR(100) nullable,
+stripe_payment_link VARCHAR(500) nullable,
+  -- Stripe Checkout: hosted payment URL (stripe_payment_link) plus the
+  -- session/intent ids the webhook reconciles against. Settled by
+  -- Webhooks\StripeWebhookController → StripeService::markInvoicePaid().
+paid_via ENUM(manual|stripe|bank) nullable,
+  -- Channel that cleared the balance. Backfilled via the reconciling
+  -- migration 2026_06_02_130000 (columns pre-existed the migration).
 reminder_count INT UNSIGNED DEFAULT 0,
 last_reminder_sent_at nullable,
 next_reminder_at nullable,

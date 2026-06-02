@@ -6,12 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\PortalUser;
+use App\Services\StripeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Stripe\Checkout\Session as StripeSession;
+use Stripe\Stripe;
 
 class InvoiceController extends Controller
 {
@@ -51,6 +54,96 @@ class InvoiceController extends Controller
             'invoices' => $invoices,
             'summary' => $summary,
         ]);
+    }
+
+    /**
+     * Start a Stripe Checkout payment for an unpaid invoice. We always
+     * mint a fresh session (Checkout URLs expire ~24h) and hand the browser
+     * off via Inertia::location — a plain redirect to an external host would
+     * be followed by Inertia's XHR and fail.
+     */
+    public function pay(int $id, StripeService $stripe): \Symfony\Component\HttpFoundation\Response
+    {
+        /** @var PortalUser $portalUser */
+        $portalUser = Auth::guard('portal')->user();
+
+        $invoice = Invoice::with('customer.primaryContact')
+            ->where('customer_id', $portalUser->customer_id)
+            ->findOrFail($id);
+
+        if (! in_array($invoice->status, ['sent', 'overdue', 'partially_paid'], true)) {
+            return redirect()
+                ->route('portal.invoices.index')
+                ->with('error', 'This invoice is not awaiting payment.');
+        }
+
+        $session = $stripe->createCheckoutSession($invoice);
+
+        $invoice->update([
+            'stripe_payment_link' => $session->url,
+            'stripe_checkout_session_id' => $session->id,
+        ]);
+
+        return Inertia::location($session->url);
+    }
+
+    /**
+     * Stripe success_url landing page. The webhook is the authoritative
+     * settlement path, but it can arrive after the customer's browser does,
+     * so we also verify the returned session directly with Stripe and settle
+     * on the spot if it's paid and the webhook hasn't beaten us to it. Both
+     * paths short-circuit on an already-paid invoice, so there's no double
+     * settle.
+     */
+    public function paid(int $id, Request $request, StripeService $stripe): Response
+    {
+        /** @var PortalUser $portalUser */
+        $portalUser = Auth::guard('portal')->user();
+
+        $invoice = Invoice::where('customer_id', $portalUser->customer_id)->findOrFail($id);
+
+        $sessionId = (string) $request->query('session_id', '');
+        if ($invoice->status !== 'paid' && $sessionId !== '') {
+            $this->confirmFromSession($invoice, $sessionId, $stripe);
+            $invoice->refresh();
+        }
+
+        return Inertia::render('Portal/InvoicePaid', [
+            'invoice' => [
+                'id' => $invoice->id,
+                'number' => $invoice->number,
+                'total' => round((float) $invoice->total, 2),
+                'status' => $invoice->status,
+                'paid_at' => $invoice->paid_at?->format('j M Y'),
+            ],
+        ]);
+    }
+
+    /**
+     * Retrieve the Checkout session from Stripe and, if it genuinely paid
+     * for THIS invoice, settle it. Verifying server-side (not trusting the
+     * redirect) is what makes the success page safe — a customer can't mark
+     * an invoice paid just by visiting the URL.
+     */
+    private function confirmFromSession(Invoice $invoice, string $sessionId, StripeService $stripe): void
+    {
+        Stripe::setApiKey((string) config('services.stripe.secret'));
+
+        try {
+            $session = StripeSession::retrieve($sessionId);
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        $matchesInvoice = (string) ($session->metadata->invoice_id ?? $session->client_reference_id ?? '') === (string) $invoice->id;
+
+        if ($session->payment_status === 'paid' && $matchesInvoice) {
+            $stripe->markInvoicePaid(
+                $invoice,
+                (string) $session->id,
+                (string) ($session->payment_intent ?? ''),
+            );
+        }
     }
 
     public function downloadPdf(int $id, Request $request): \Symfony\Component\HttpFoundation\Response

@@ -19,6 +19,9 @@ import {
     IconClock,
     IconRefresh,
     IconX,
+    IconLink,
+    IconCopy,
+    IconExternalLink,
 } from '@tabler/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -201,6 +204,27 @@ function scrollToRecord() {
 function submitPayment() {
     paymentForm.post(`/invoices/${inv.value.id}/mark-paid`, {
         preserveScroll: true,
+    });
+}
+
+/* ─── Stripe payment link ─── */
+const generatingLink = ref(false);
+const linkCopied = ref(false);
+
+function generatePaymentLink() {
+    generatingLink.value = true;
+    router.post(`/invoices/${inv.value.id}/payment-link`, {}, {
+        preserveScroll: true,
+        onFinish: () => { generatingLink.value = false; },
+    });
+}
+
+function copyPaymentLink() {
+    const url = inv.value.stripe_payment_link;
+    if (!url) return;
+    navigator.clipboard?.writeText(url).then(() => {
+        linkCopied.value = true;
+        setTimeout(() => { linkCopied.value = false; }, 2000);
     });
 }
 
@@ -557,7 +581,10 @@ const icons = {
                         </div>
                         <div v-if="invoice.status === 'paid' && invoice.payment_method" class="inv-stat-row">
                             <span class="k">Method</span>
-                            <span class="v">{{ PAYMENT_METHOD_LABELS[invoice.payment_method] || invoice.payment_method }}</span>
+                            <span class="v">
+                                {{ PAYMENT_METHOD_LABELS[invoice.payment_method] || invoice.payment_method }}
+                                <template v-if="invoice.paid_via === 'stripe'"> · via Stripe</template>
+                            </span>
                         </div>
 
                         <!-- Action buttons (per-status) -->
@@ -586,6 +613,28 @@ const icons = {
                                     <IconCheck :size="15" stroke-width="1.75" />
                                     Mark as paid
                                 </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary"
+                                    :disabled="generatingLink"
+                                    @click="generatePaymentLink"
+                                >
+                                    <IconLink :size="15" stroke-width="1.75" />
+                                    {{ generatingLink ? 'Generating…' : (invoice.stripe_payment_link ? 'Regenerate payment link' : 'Generate payment link') }}
+                                </button>
+                                <div v-if="invoice.stripe_payment_link" class="inv-payment-link">
+                                    <div class="payment-link-url" :title="invoice.stripe_payment_link">{{ invoice.stripe_payment_link }}</div>
+                                    <div class="payment-link-actions">
+                                        <button type="button" class="btn btn-ghost btn-sm" @click="copyPaymentLink">
+                                            <IconCopy :size="14" stroke-width="1.75" />
+                                            {{ linkCopied ? 'Copied' : 'Copy' }}
+                                        </button>
+                                        <a :href="invoice.stripe_payment_link" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">
+                                            <IconExternalLink :size="14" stroke-width="1.75" />
+                                            Open
+                                        </a>
+                                    </div>
+                                </div>
                                 <button
                                     type="button"
                                     class="btn btn-secondary"
