@@ -1,0 +1,11 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/whitedas/hub.whitedash.com/
+    - /usr/local/bin/composer install --no-dev --optimize-autoloader
+    - /usr/local/bin/php artisan key:generate --force
+    - /usr/local/bin/php artisan migrate --force
+    - /usr/local/bin/php artisan storage:link
+    - /usr/local/bin/php artisan config:cache
+    - /usr/local/bin/php artisan route:cache
+    - /usr/local/bin/php artisan view:cache
