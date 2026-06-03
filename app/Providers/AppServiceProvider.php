@@ -60,10 +60,20 @@ class AppServiceProvider extends ServiceProvider
      *   - Force the https scheme so every generated URL (Stripe success/
      *     cancel/return URLs, password-reset links, signed routes) and the
      *     session/CSRF cookies are emitted as secure behind a TLS proxy.
-     *   - Fail closed if a *test* Stripe key slipped into a production
-     *     deploy — otherwise live checkout silently runs against Stripe
-     *     test mode: customers "pay", invoices flip to paid, products
-     *     reinstate, but no money ever moves.
+     *
+     * NOTE: this method must NEVER throw. It runs inside every provider
+     * boot — i.e. on every web request (including the /up health check and
+     * every other route) AND during the deploy pipeline's `artisan
+     * config:cache`, `route:cache`, `view:cache` and composer's
+     * `package:discover`. A throw here is catastrophic: the framework fails
+     * to boot before the HTTP exception handler / logger is fully online, so
+     * EVERY request — health checks included — returns an empty 500 with no
+     * Laravel log entry, and the deploy's cache-warming commands abort
+     * leaving no compiled config/routes behind. The "fail closed on a test
+     * Stripe key" guard that used to live here did exactly that; it now lives
+     * at the payment boundary (App\Services\StripeService::configureStripe),
+     * which is the only place a test key can actually move (or fail to move)
+     * money. A misconfigured key now breaks checkout, not the whole site.
      */
     private function enforceProductionSecurity(): void
     {
@@ -73,9 +83,12 @@ class AppServiceProvider extends ServiceProvider
 
         URL::forceScheme('https');
 
+        // Surface the misconfiguration loudly (this reaches Sentry via the
+        // logging breadcrumbs/handler) without taking the application down.
         if (str_starts_with((string) config('services.stripe.secret'), 'sk_test_')) {
-            throw new \RuntimeException(
-                'Refusing to boot: a Stripe TEST key (sk_test_) is configured in production.'
+            Log::critical(
+                'A Stripe TEST key (sk_test_) is configured in production. '
+                .'Live checkout is disabled until a live key is set — see StripeService.'
             );
         }
     }

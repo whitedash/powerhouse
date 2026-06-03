@@ -3,9 +3,28 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home/whitedas/hub.whitedash.com/
     - /usr/local/bin/composer install --no-dev --optimize-autoloader
-    - /usr/local/bin/php artisan key:generate --force
+
+    # APP_KEY must be generated ONCE and then left alone. The previous
+    # `key:generate --force` rotated it on EVERY deploy, which silently
+    # invalidates every active session and makes every `encrypted`-cast
+    # column (2FA secrets, QBO tokens, …) undecryptable. Only generate when
+    # the key is genuinely missing.
+    - grep -q '^APP_KEY=base64:' .env || /usr/local/bin/php artisan key:generate --no-interaction --force
+
+    # Passport's OAuth signing keys live in storage/ and are gitignored, so
+    # they never arrive via the git checkout. Without them every /oauth/*
+    # route 500s. Generate them once; `||true` keeps re-deploys idempotent
+    # (the command refuses to overwrite existing keys without --force).
+    - /usr/local/bin/php artisan passport:keys --no-interaction || true
+
     - /usr/local/bin/php artisan migrate --force
-    - /usr/local/bin/php artisan storage:link
+
+    - /usr/local/bin/php artisan storage:link || true
+
+    # Cache-warming runs LAST and each step boots the framework. Keep
+    # application boot side-effect-free (no throws in service providers) or
+    # these abort and leave the app with no compiled config/routes — which
+    # surfaces as an empty 500 on every request, health checks included.
     - /usr/local/bin/php artisan config:cache
     - /usr/local/bin/php artisan route:cache
     - /usr/local/bin/php artisan view:cache

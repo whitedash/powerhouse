@@ -33,7 +33,7 @@ class StripeService
      */
     public function createCheckoutSession(Invoice $invoice): Session
     {
-        Stripe::setApiKey((string) config('services.stripe.secret'));
+        $this->configureStripe();
 
         return Session::create([
             ...$this->baseSessionParams($invoice),
@@ -52,7 +52,7 @@ class StripeService
      */
     public function createEmbeddedCheckoutSession(Invoice $invoice): string
     {
-        Stripe::setApiKey((string) config('services.stripe.secret'));
+        $this->configureStripe();
 
         $session = Session::create([
             ...$this->baseSessionParams($invoice),
@@ -67,6 +67,30 @@ class StripeService
         ]);
 
         return (string) $session->client_secret;
+    }
+
+    /**
+     * Set the Stripe API key and fail closed if a *test* key is configured in
+     * production. This guard used to live in AppServiceProvider::boot(), but
+     * throwing there took the entire application (and the deploy's
+     * config:cache/route:cache steps) down — health checks included. Here it
+     * only fires when we are about to actually move money, which is the only
+     * place a test key matters: it stops live checkout from silently running
+     * against Stripe test mode (customer "pays", invoice flips to paid,
+     * product reinstates, but no money ever moves) while leaving the rest of
+     * the site fully operational.
+     */
+    private function configureStripe(): void
+    {
+        $secret = (string) config('services.stripe.secret');
+
+        if (app()->isProduction() && str_starts_with($secret, 'sk_test_')) {
+            throw new \RuntimeException(
+                'Refusing to charge: a Stripe TEST key (sk_test_) is configured in production.'
+            );
+        }
+
+        Stripe::setApiKey($secret);
     }
 
     /**
