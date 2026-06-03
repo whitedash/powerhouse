@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
     Menu,
@@ -179,24 +179,27 @@ const productItems = computed(() => {
 const hasMaavelus = computed(() => (page.props.nav_products ?? []).some((p) => p.slug === 'maavelus'));
 
 /*
- * Collapsible nav groups (Clients / Billing / Operations). Expand
- * state is persisted in localStorage so it survives Inertia
- * navigations and full reloads. A group is *always* shown expanded
- * when the current page (activeNav) is one of its children, so the
- * operator never lands on a page whose nav entry is hidden — the
- * persisted flag only governs groups you're not currently inside.
+ * Collapsible nav groups (Clients / Billing / Operations). The sidebar
+ * reflects WHERE YOU ARE: on every navigation we reset so only the
+ * group owning the current route is open (see the page.url watch
+ * below). A manual toggle lets the operator peek into another group,
+ * but navigating away collapses it again. No localStorage — persisting
+ * a stale "open" flag is exactly what used to keep unrelated groups
+ * expanded after you'd moved on.
  */
-const expandedGroups = ref(JSON.parse(localStorage.getItem('nav_groups') ?? '{}'));
+const expandedGroups = ref({});
+
+// Drop the persisted state from earlier builds so a stale flag can't
+// keep a group open after this change ships.
+localStorage.removeItem('nav_groups');
 
 const toggleGroup = (key) => {
     // Accordion behaviour: opening one group collapses every other.
     // Clicking an already-open group closes it. The group containing
     // the active route is force-open via isGroupExpanded regardless of
-    // this persisted state, so the operator never loses sight of where
-    // they are.
+    // this state, so the operator never loses sight of where they are.
     const wasOpen = expandedGroups.value[key] ?? false;
     expandedGroups.value = wasOpen ? {} : { [key]: true };
-    localStorage.setItem('nav_groups', JSON.stringify(expandedGroups.value));
 };
 
 const isGroupExpanded = (key, children) => {
@@ -287,6 +290,32 @@ const sections = computed(() => {
         },
     ];
 });
+
+/*
+ * Auto-collapse on navigation. Inertia bumps page.url on every visit;
+ * we reset the open group to whichever one owns the current route — or
+ * none, for top-level pages like Overview. immediate:true seeds the
+ * correct group on first paint. A manual toggleGroup() can still open a
+ * sibling mid-page; the next navigation resets it.
+ */
+const getActiveGroupKey = () => {
+    for (const section of sections.value) {
+        for (const item of section.items) {
+            if (item.type === 'group' && item.children.some((c) => c.key === props.activeNav)) {
+                return item.key;
+            }
+        }
+    }
+
+    return null;
+};
+
+const resetToActiveGroup = () => {
+    const active = getActiveGroupKey();
+    expandedGroups.value = active ? { [active]: true } : {};
+};
+
+watch(() => page.url, resetToActiveGroup, { immediate: true });
 
 const visibleCrumbs = computed(() => props.breadcrumbs ?? []);
 const lastCrumbIndex = computed(() => visibleCrumbs.value.length - 1);
