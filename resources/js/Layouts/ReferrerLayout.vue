@@ -55,21 +55,15 @@ function logout() {
 }
 
 /*
- * Exit preview: attempt to close the impersonation tab (super_admin
- * opens it via window.open from the internal dashboard, so the tab
- * has an opener and CAN be closed via window.close). If the close
- * call no-ops — because the user navigated and back-buttoned, or
- * opened the URL directly — fall back to logging out the referrer
- * guard, which clears the impersonation session.
+ * Exit preview: referrers share the staff 'web' guard, so entering
+ * preview replaced the operator's session. Exit must therefore RESTORE
+ * the admin, not log out — hit the exit route, which swaps the web
+ * guard back to the stored admin id and redirects into Powerhouse.
+ * Full navigation (not Inertia/window.close) because we cross the
+ * guard + layout boundary in the same tab.
  */
 function exitPreview() {
-    window.close();
-    setTimeout(() => {
-        // Still here? window.close() was blocked — POST to the staff
-        // logout route to drop the impersonation session. Plain
-        // location.href would 405 because /logout is POST-only.
-        router.post('/logout');
-    }, 150);
+    window.location.href = '/referrer/preview/exit';
 }
 </script>
 
