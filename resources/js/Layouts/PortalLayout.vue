@@ -77,13 +77,15 @@ function logout() {
 
 /*
  * Exit preview: super_admin opens the impersonation tab via window.open,
- * so window.close() usually works. If it doesn't (back-button, direct
- * URL), fall back to POSTing the portal logout endpoint — a plain
- * location.href would 405 because that route is POST-only.
+ * so window.close() usually works (best UX — drops them back on their
+ * original Powerhouse tab). If it's blocked (back-button, direct URL),
+ * fall back to the exit route, which clears the portal-guard session
+ * and returns the operator to the internal dashboard — the staff 'web'
+ * session is untouched, so they land back as admin, not on portal login.
  */
 function exitPreview() {
     window.close();
-    setTimeout(() => router.post('/portal/logout'), 150);
+    setTimeout(() => { window.location.href = '/portal/preview/exit'; }, 150);
 }
 </script>
 

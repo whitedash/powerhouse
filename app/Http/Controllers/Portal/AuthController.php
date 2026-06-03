@@ -144,6 +144,49 @@ class AuthController extends Controller
         return redirect()->route('portal.dashboard');
     }
 
+    /**
+     * Exit a portal preview. Unlike the referrer side, portal preview
+     * runs on the isolated 'portal' guard, so the operator's 'web'
+     * (staff) session was never touched — we only need to drop the
+     * portal session and send them back into Powerhouse. The banner's
+     * JS tries window.close() first (the preview opens in a new tab);
+     * this route is the fallback when the tab can't self-close.
+     */
+    public function exitPreview(Request $request): RedirectResponse
+    {
+        $user = Auth::guard('portal')->user();
+
+        // Only tear down the portal guard if it's actually populated —
+        // logout() fires a Logout event whose listener dereferences the
+        // user, so calling it with no portal session would 500.
+        if ($user instanceof PortalUser) {
+            Auth::guard('portal')->logout();
+        }
+        $request->session()->forget(['portal_preview_mode', 'portal_preview_admin_id']);
+
+        if ($user instanceof PortalUser) {
+            ActivityLog::create([
+                'user_id' => $user->id,
+                'user_role' => 'portal',
+                'action' => 'portal.preview_exited',
+                'entity_type' => PortalUser::class,
+                'entity_id' => $user->id,
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 500),
+            ]);
+        }
+
+        // Staff web session is independent of the portal guard, so if
+        // the operator is still signed in there (same browser) drop
+        // them back on the internal dashboard rather than the portal
+        // login screen.
+        if (Auth::guard('web')->check()) {
+            return redirect()->route('internal.dashboard')->with('success', 'Preview ended. You are back as admin.');
+        }
+
+        return redirect()->route('portal.login')->with('info', 'Preview session ended.');
+    }
+
     private function logActivity(Request $request, string $action, PortalUser $user): void
     {
         ActivityLog::create([

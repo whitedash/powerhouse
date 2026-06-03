@@ -769,6 +769,11 @@ Route::prefix('portal')->middleware('portal_guest')->group(function () {
 // from an earlier visit — the controller swaps the active user.
 Route::get('/portal/preview', [PortalAuthController::class, 'preview'])->name('portal.preview');
 
+// Exit a portal preview — drops the portal-guard session and returns
+// the operator to Powerhouse. Outside auth.portal: the handler clears
+// the guard itself and must stay reachable as the session unwinds.
+Route::get('/portal/preview/exit', [PortalAuthController::class, 'exitPreview'])->name('portal.preview.exit');
+
 // Authenticated portal area. auth.portal alias maps to EnsurePortalUser —
 // every controller here can rely on Auth::guard('portal')->user() being set.
 Route::prefix('portal')->middleware('auth.portal')->group(function () {
@@ -853,6 +858,12 @@ Route::get('/referrer', fn () => redirect()->route('referrer.dashboard'))
 // handler itself establishes the new session before any role check
 // can read it. Token validation provides the access gate.
 Route::get('/referrer/preview', [ReferrerAuthController::class, 'preview'])->name('referrer.preview');
+
+// Exit a referrer preview — restores the originating super_admin's
+// web-guard session (referrers share that guard, so entering preview
+// replaced it). No role middleware: the request arrives as the
+// referrer and the handler swaps it back to the admin.
+Route::get('/referrer/preview/exit', [ReferrerAuthController::class, 'exitPreview'])->name('referrer.preview.exit');
 
 /*
 |--------------------------------------------------------------------------

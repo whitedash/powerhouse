@@ -37,10 +37,17 @@ class LogSecurityEvent
 
     public function onLogout(Logout $event): void
     {
+        // SessionGuard::logout() fires this event even when no user was
+        // authenticated, so the user is null at runtime despite the
+        // framework's non-nullable docblock. Record a userless logout
+        // rather than dereferencing null and returning a 500.
+        /** @var Authenticatable|null $user */
+        $user = $event->user;
+
         $this->log(
             action: 'auth.logout',
-            userId: $event->user->getAuthIdentifier(),
-            userRole: $this->resolveRole($event->user),
+            userId: $user?->getAuthIdentifier(),
+            userRole: $this->resolveRole($user),
             after: ['guard' => $event->guard],
         );
     }
@@ -54,7 +61,7 @@ class LogSecurityEvent
         );
     }
 
-    private function resolveRole(Authenticatable $user): ?string
+    private function resolveRole(?Authenticatable $user): ?string
     {
         return $user instanceof User ? $user->role : null;
     }
