@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Portal\Concerns\ResolvesProductLaunch;
 use App\Models\ActivityLog;
 use App\Models\CustomerProduct;
 use App\Models\PortalUser;
@@ -36,6 +37,8 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
  */
 class ProductLaunchController extends Controller
 {
+    use ResolvesProductLaunch;
+
     /**
      * Map a product slug to the consumer's token-exchange endpoint.
      * Returns null for products we don't know how to talk to —
@@ -88,6 +91,13 @@ class ProductLaunchController extends Controller
                 'error',
                 "You don't have an active subscription for this product.",
             );
+        }
+
+        // MyOrderPad is a Laravel app with its own HMAC SSO landing page
+        // (/sso?token=), not the WordPress token-exchange the other
+        // consumers use. Provision-on-demand + mint a token + redirect.
+        if (in_array($slug, ['myorderpad', 'orderpad'], true)) {
+            return $this->launchMyOrderPadProduct($cp, $request);
         }
 
         $endpoint = $this->ssoEndpoint($slug);
@@ -188,5 +198,58 @@ class ProductLaunchController extends Controller
         // what we want here because the destination is a different
         // origin (the consumer app), not part of our SPA.
         return Inertia::location($redirect);
+    }
+
+    /**
+     * MyOrderPad launch leg: provision-on-demand, mint the SSO token, and
+     * redirect the browser to the consumer's /sso landing page. A
+     * provisioning failure (no customer email, MyOrderPad down) is logged
+     * and surfaced as a friendly flash rather than a 500.
+     */
+    private function launchMyOrderPadProduct(CustomerProduct $cp, Request $request): RedirectResponse|SymfonyResponse
+    {
+        /** @var PortalUser $portalUser */
+        $portalUser = Auth::guard('portal')->user();
+
+        try {
+            $url = $this->launchMyOrderPad($cp);
+        } catch (\Throwable $e) {
+            ActivityLog::create([
+                'user_id' => $portalUser->id,
+                'user_role' => 'portal',
+                'action' => 'portal.sso_launch_failed',
+                'entity_type' => 'customer_product',
+                'entity_id' => $cp->id,
+                'after' => [
+                    'slug' => 'myorderpad',
+                    'reason' => 'provision_failed',
+                    'message' => substr($e->getMessage(), 0, 240),
+                ],
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 500),
+            ]);
+
+            return back()->with(
+                'error',
+                'Could not open MyOrderPad. Please try again in a moment or contact support.',
+            );
+        }
+
+        ActivityLog::create([
+            'user_id' => $portalUser->id,
+            'user_role' => 'portal',
+            'action' => 'portal.sso_launch',
+            'entity_type' => 'customer_product',
+            'entity_id' => $cp->id,
+            'after' => [
+                'slug' => 'myorderpad',
+                'product_name' => $cp->product?->name,
+                'customer_id' => $portalUser->customer_id,
+            ],
+            'ip_address' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 500),
+        ]);
+
+        return Inertia::location($url);
     }
 }

@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers\Portal\Concerns;
 
+use App\Models\CustomerProduct;
+use App\Services\MyOrderPadProvisioningService;
+use App\Services\SsoService;
+
 /**
  * Shared product-launch URL resolution for the portal. Both the
  * Dashboard ("Open" buttons) and Subscriptions ("Open {product}")
@@ -68,5 +72,33 @@ trait ResolvesProductLaunch
             'maavelus-hospitality',
             'myorderpad',
         ], true);
+    }
+
+    /**
+     * Build the MyOrderPad auto-login URL for a subscription. MyOrderPad
+     * is a Laravel app (not the WordPress token-exchange the other
+     * consumers use), so we provision-on-demand if needed, then mint a
+     * short-lived HMAC SSO token and hand back the /sso landing URL. The
+     * caller does the browser redirect (Inertia::location).
+     *
+     * Provisioning here is the safety net for the launch path — the
+     * activate hook normally provisions ahead of time via the queue, but
+     * a customer who clicks "Open" before that job lands (or after it
+     * failed) still gets in.
+     */
+    protected function launchMyOrderPad(CustomerProduct $subscription): string
+    {
+        if (! $subscription->external_user_id) {
+            app(MyOrderPadProvisioningService::class)->provisionUser($subscription);
+            $subscription->refresh();
+        }
+
+        $token = app(SsoService::class)->mintToken(
+            $subscription->customer_id,
+            (string) $subscription->external_user_id,
+            'myorderpad',
+        );
+
+        return rtrim((string) config('services.myorderpad.url'), '/').'/sso?token='.$token;
     }
 }

@@ -71,6 +71,27 @@ return [
     ],
 
     /*
+     * Cross-app SSO. POWERHOUSE_SSO_SECRET is the HMAC-SHA256 key shared
+     * verbatim with each consumer app (same value in both .env files);
+     * SsoService signs short-lived launch tokens with it.
+     */
+    'sso' => [
+        'secret' => env('POWERHOUSE_SSO_SECRET'),
+    ],
+
+    /*
+     * MyOrderPad provisioning API. `url` falls back to the existing
+     * products.myorderpad_url so there's a single hostname source of
+     * truth — set MYORDERPAD_URL only to override the SSO/provision base
+     * independently. `api_key` is the bearer token the provisioning
+     * endpoint (POST /api/powerhouse/provision) authenticates.
+     */
+    'myorderpad' => [
+        'url' => env('MYORDERPAD_URL', env('MYORDERPAD_APP_URL', 'https://app.myorderpad.co.uk')),
+        'api_key' => env('MYORDERPAD_API_KEY'),
+    ],
+
+    /*
      * cPanel / WHM (040hosting.eu reseller) + Google PageSpeed Insights.
      * One global WHM root token drives suspend/unsuspend across accounts;
      * per-site cPanel tokens live on the websites table (encrypted). The

@@ -358,6 +358,12 @@ class CustomerController extends Controller
                     'suspension_reason' => $cp->suspension_reason,
                     'suspended_at' => $cp->suspended_at?->toIso8601String(),
                     'suspended_by_system' => $cp->suspended_by_system,
+                    // External-account provisioning (MyOrderPad). Null/ignored
+                    // for products that don't provision an external account.
+                    'provisionable' => in_array($cp->product?->slug, ['myorderpad', 'orderpad'], true),
+                    'provision_status' => $cp->provision_status,
+                    'provisioned_at' => $cp->provisioned_at?->diffForHumans(),
+                    'external_email' => $cp->external_email,
                     'plan' => $cp->plan,
                     // Optional per-instance label — distinguishes multiple
                     // subscriptions of the same product.

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Observers\CustomerProductObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +13,10 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $customer_id
  * @property int $product_id
+ * @property string|null $external_user_id
+ * @property string|null $external_email
+ * @property Carbon|null $provisioned_at
+ * @property string $provision_status
  * @property int|null $plan_id
  * @property int|null $plan_price_id
  * @property string|null $label
@@ -56,11 +62,16 @@ use Illuminate\Support\Carbon;
  * @property-read BillingEntity|null $billingEntity
  * @property-read BillingEntity|null $autoInvoiceEntity
  */
+#[ObservedBy([CustomerProductObserver::class])]
 class CustomerProduct extends Model
 {
     protected $fillable = [
         'customer_id',
         'product_id',
+        'external_user_id',
+        'external_email',
+        'provisioned_at',
+        'provision_status',
         'plan_id',
         'plan_price_id',
         'label',
@@ -99,6 +110,7 @@ class CustomerProduct extends Model
             'price_monthly' => 'decimal:2',
             'interval_count' => 'integer',
             'discount_pct' => 'decimal:2',
+            'provisioned_at' => 'datetime',
             'trial_ends_at' => 'datetime',
             'started_at' => 'datetime',
             'next_billing_date' => 'date',
