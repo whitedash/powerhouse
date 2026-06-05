@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Schema;
  * User::wantsNotification() treats a missing key as true, so an existing
  * user with no row stays fully opted-in until they save preferences.
  */
-return new class extends Migration
+return new class() extends Migration
 {
     public function up(): void
     {

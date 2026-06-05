@@ -11,7 +11,10 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
- * @property int $customer_id
+ * @property int|null $customer_id
+ * @property string|null $guest_name
+ * @property string|null $guest_email
+ * @property string|null $guest_phone
  * @property int|null $contact_id
  * @property int|null $product_id
  * @property string $subject
@@ -35,6 +38,9 @@ class SupportTicket extends Model
 {
     protected $fillable = [
         'customer_id',
+        'guest_name',
+        'guest_email',
+        'guest_phone',
         'contact_id',
         'product_id',
         'subject',

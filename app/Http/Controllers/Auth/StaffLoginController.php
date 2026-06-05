@@ -48,7 +48,7 @@ class StaffLoginController extends Controller
         // straight to their partner portal instead.
         $destination = match ($request->user()->role) {
             'referrer' => route('referrer.dashboard'),
-            default => '/',
+            default => route('internal.dashboard'),
         };
 
         return redirect()->intended($destination);

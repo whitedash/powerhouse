@@ -44,6 +44,19 @@ return [
         'token' => env('CLOUDFLARE_API_TOKEN'),
     ],
 
+    /*
+     * Cloudflare Turnstile — bot protection on the public submit-ticket
+     * form. site_key is rendered in the widget; secret verifies the token
+     * server-side. bypass skips verification entirely and MUST stay false
+     * in production — it is set true only in phpunit.xml and keyless local
+     * dev so the feature test and a fresh checkout work without keys.
+     */
+    'turnstile' => [
+        'site_key' => env('TURNSTILE_SITE_KEY'),
+        'secret' => env('TURNSTILE_SECRET'),
+        'bypass' => env('TURNSTILE_BYPASS', false),
+    ],
+
     'postmark_token' => env('POSTMARK_TOKEN'),
 
     'stripe' => [

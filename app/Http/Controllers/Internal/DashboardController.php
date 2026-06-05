@@ -295,7 +295,7 @@ class DashboardController extends Controller
                     'title' => 'SLA breached: '.Str::limit((string) $t->subject, 40),
                     'sub' => $t->customer->name,
                     'action' => 'View →',
-                    'href' => '/support/'.$t->id,
+                    'href' => '/helpdesk/'.$t->id,
                 ]);
             });
 
@@ -408,7 +408,7 @@ class DashboardController extends Controller
                         // resolves when customer_id is set.
                         'sub' => $t->customer_id !== null ? $t->customer->name : '—',
                         'action' => 'View →',
-                        'href' => $t->customer_id !== null ? '/customers/'.$t->customer_id : '/',
+                        'href' => $t->customer_id !== null ? '/customers/'.$t->customer_id : '/dashboard',
                     ]);
                 });
         }

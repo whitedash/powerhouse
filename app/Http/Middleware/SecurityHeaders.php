@@ -27,9 +27,13 @@ class SecurityHeaders
         // ('unsafe-inline' stays: Inertia's initial-page <script> and Vue
         // scoped styles are inline; removing it needs per-request nonces,
         // tracked as a follow-up.)
+        // Cloudflare Turnstile (public submit-ticket) loads its widget script
+        // from challenges.cloudflare.com and the analytics beacon from
+        // static.cloudflareinsights.com.
+        $cf = 'https://challenges.cloudflare.com https://static.cloudflareinsights.com';
         $scriptSrc = app()->environment('production')
-            ? "script-src 'self' 'unsafe-inline' https://fonts.bunny.net https://js.stripe.com https://*.stripe.com"
-            : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.bunny.net https://js.stripe.com https://*.stripe.com";
+            ? "script-src 'self' 'unsafe-inline' https://fonts.bunny.net https://js.stripe.com https://*.stripe.com {$cf}"
+            : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.bunny.net https://js.stripe.com https://*.stripe.com {$cf}";
 
         $response->headers->set('Content-Security-Policy', implode('; ', [
             "default-src 'self'",
@@ -43,7 +47,9 @@ class SecurityHeaders
             // Stripe API calls + the Embedded Checkout iframe (js.stripe.com
             // mounts frames from *.stripe.com / hooks.stripe.com).
             "connect-src 'self' https://api.stripe.com https://*.stripe.com",
-            "frame-src 'self' https://*.stripe.com https://hooks.stripe.com",
+            // Turnstile renders its challenge inside an iframe from
+            // challenges.cloudflare.com.
+            "frame-src 'self' https://*.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com",
             "frame-ancestors 'none'",
         ]));
 

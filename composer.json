@@ -19,6 +19,8 @@
         "spatie/laravel-activitylog": "^5.0",
         "spatie/laravel-responsecache": "^8.4",
         "stripe/stripe-php": "^20.2",
+        "symfony/html-sanitizer": "^7.0",
+        "symfony/http-client": "^8.1",
         "symfony/postmark-mailer": "^8.1",
         "tightenco/ziggy": "^2.6"
     },

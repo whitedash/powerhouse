@@ -10,11 +10,13 @@ use App\Models\BillingEntity;
 use App\Models\CommissionLedger;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Person;
 use App\Models\Product;
 use App\Policies\BillingEntityPolicy;
 use App\Policies\CommissionLedgerPolicy;
 use App\Policies\CustomerPolicy;
 use App\Policies\InvoicePolicy;
+use App\Policies\PersonPolicy;
 use App\Policies\ProductPolicy;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
@@ -187,6 +189,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Invoice::class, InvoicePolicy::class);
         Gate::policy(Product::class, ProductPolicy::class);
         Gate::policy(CommissionLedger::class, CommissionLedgerPolicy::class);
+        Gate::policy(Person::class, PersonPolicy::class);
     }
 
     private function configurePassport(): void
