@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $project_id
  * @property int|null $milestone_id
  * @property int|null $lead_id
+ * @property int|null $ticket_id
  * @property int|null $contact_id
  * @property int|null $parent_task_id
  * @property int|null $assigned_to
@@ -44,6 +45,7 @@ use Illuminate\Support\Carbon;
  * @property-read Project|null $project
  * @property-read Milestone|null $milestone
  * @property-read Contact|null $contact
+ * @property-read SupportTicket|null $ticket
  * @property-read Task|null $parentTask
  * @property-read Collection<int, Task> $childTasks
  * @property-read Collection<int, Note> $notes
@@ -65,6 +67,7 @@ class Task extends Model
         'project_id',
         'milestone_id',
         'lead_id',
+        'ticket_id',
         'contact_id',
         'parent_task_id',
         'assigned_to',
@@ -121,6 +124,17 @@ class Task extends Model
     public function contact(): BelongsTo
     {
         return $this->belongsTo(Contact::class);
+    }
+
+    /**
+     * The support ticket this task was spawned from. Set by
+     * TicketIntakeService on the triage task; null for every other
+     * task (PM, CRM, calendar). Lets the activity detail + MyWork
+     * surfaces offer a one-click jump back to the ticket.
+     */
+    public function ticket(): BelongsTo
+    {
+        return $this->belongsTo(SupportTicket::class);
     }
 
     public function assignedTo(): BelongsTo

@@ -255,8 +255,13 @@ class SupportController extends Controller
             'status' => ['nullable', 'in:open,in_progress,awaiting_customer,resolved,closed'],
         ]);
 
+        // Default after-status: "awaiting_customer" so the queue reflects
+        // that the ball is in the customer's court. Resolved here (not in
+        // the closure) so the post-commit triage-task cleanup can read it.
+        $newStatusForTask = $data['status'] ?? 'awaiting_customer';
+
         $message = null;
-        DB::transaction(function () use ($ticket, $data, $request, &$message) {
+        DB::transaction(function () use ($ticket, $data, $request, &$message, $newStatusForTask) {
             $message = SupportMessage::create([
                 'ticket_id' => $ticket->id,
                 'sender_type' => 'staff',
@@ -265,9 +270,7 @@ class SupportController extends Controller
                 'is_internal_note' => false,
             ]);
 
-            // Default after-status: "awaiting_customer" so the queue
-            // reflects that the ball is in the customer's court.
-            $newStatus = $data['status'] ?? 'awaiting_customer';
+            $newStatus = $newStatusForTask;
             $before = ['status' => $ticket->status];
 
             $update = ['status' => $newStatus];
@@ -287,11 +290,23 @@ class SupportController extends Controller
 
         $this->forgetNavCaches();
 
-        // Email the reply to the customer's primary contact, with a
-        // ticket-tagged Reply-To so their response threads back in.
-        $contactEmail = $ticket->customer?->primaryContact?->email;
-        if ($contactEmail && $message !== null) {
-            Mail::to($contactEmail)->send(new SupportTicketReply($ticket, $message));
+        // Email the reply with a ticket-tagged Reply-To so the response
+        // threads back in via InboundEmailController. Customer tickets go
+        // to the primary contact; GUEST tickets (customer_id null) fall
+        // back to guest_email — without this, guests heard nothing back.
+        $to = $ticket->customer?->primaryContact?->email;
+        if (! $to) {
+            $to = $ticket->guest_email;
+        }
+        if ($to && $message !== null) {
+            Mail::to($to)->send(new SupportTicketReply($ticket, $message));
+        }
+
+        // A resolved/closed ticket no longer needs its triage task in the
+        // queue — clear it so MyWork stops surfacing done work. No-op for
+        // legacy triage tasks that predate the ticket_id link.
+        if (in_array($newStatusForTask, ['resolved', 'closed'], true)) {
+            $this->completeLinkedTriageTask($ticket->id);
         }
 
         return back()->with('success', 'Reply sent.');
@@ -418,7 +433,30 @@ class SupportController extends Controller
             app(NotificationService::class)->notifySupportAssigned($ticket, $request->user());
         }
 
+        // Mirror the lifecycle onto the linked triage task so a resolved/
+        // closed ticket drops out of MyWork.
+        if (in_array($data['status'], ['resolved', 'closed'], true)) {
+            $this->completeLinkedTriageTask($ticket->id);
+        }
+
         return back()->with('success', 'Ticket updated.');
+    }
+
+    /**
+     * Mark any triage task(s) linked to this ticket complete. Called when
+     * a ticket reaches resolved/closed so MyWork stops surfacing triage
+     * for finished work. Scoped by ticket_id (set by TicketIntakeService)
+     * and skips already-terminal tasks — a no-op for legacy triage tasks
+     * created before the ticket_id link existed.
+     */
+    private function completeLinkedTriageTask(int $ticketId): void
+    {
+        Task::where('ticket_id', $ticketId)
+            ->whereNotIn('status', ['complete', 'cancelled'])
+            ->update([
+                'status' => 'complete',
+                'completed_at' => now(),
+            ]);
     }
 
     /**

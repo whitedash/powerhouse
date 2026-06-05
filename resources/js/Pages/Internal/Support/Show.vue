@@ -32,7 +32,7 @@ const props = defineProps({
 const page = usePage();
 
 const breadcrumbs = computed(() => [
-    { label: 'Support', href: '/support' },
+    { label: 'Support', href: '/helpdesk' },
     { label: `#${props.ticket.id}` },
 ]);
 
@@ -101,7 +101,7 @@ const replyForm = useForm({
     status: 'awaiting_customer',
 });
 function submitReply() {
-    replyForm.post(`/support/${props.ticket.id}/reply`, {
+    replyForm.post(`/helpdesk/${props.ticket.id}/reply`, {
         preserveScroll: true,
         onSuccess: () => replyForm.reset(),
     });
@@ -113,11 +113,11 @@ const statusForm = useForm({
     assigned_to: props.ticket.assigned_to_id ?? null,
 });
 function submitStatus() {
-    statusForm.post(`/support/${props.ticket.id}/status`, { preserveScroll: true });
+    statusForm.post(`/helpdesk/${props.ticket.id}/status`, { preserveScroll: true });
 }
 
 function back() {
-    router.visit('/support');
+    router.visit('/helpdesk');
 }
 
 /* ─── Create task from ticket ─── */
@@ -150,7 +150,7 @@ function openTaskForm() {
     showTaskForm.value = true;
 }
 function submitTask() {
-    taskForm.post(`/support/${props.ticket.id}/task`, {
+    taskForm.post(`/helpdesk/${props.ticket.id}/task`, {
         preserveScroll: true,
         onSuccess: () => {
             showTaskForm.value = false;
@@ -160,7 +160,7 @@ function submitTask() {
 }
 function viewAllTicketsForCustomer() {
     if (props.ticket.customer?.id) {
-        router.visit(`/support?customer_id=${props.ticket.customer.id}`);
+        router.visit(`/helpdesk?customer_id=${props.ticket.customer.id}`);
     }
 }
 </script>

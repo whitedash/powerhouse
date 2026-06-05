@@ -34,7 +34,7 @@ class SupportTicketAssigned extends Notification
             'type' => 'support_ticket_assigned',
             'title' => 'Support ticket assigned',
             'message' => 'Support ticket assigned: '.$this->ticket->subject,
-            'url' => '/support/'.$this->ticket->id,
+            'url' => '/helpdesk/'.$this->ticket->id,
             'icon' => 'ti-headset',
             'colour' => '#F59E0B',
             'entity_type' => 'support_ticket',

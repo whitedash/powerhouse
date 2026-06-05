@@ -141,7 +141,7 @@ watch(searchInput, (v) => {
 });
 
 function applyFilters(patch = {}) {
-    router.get('/support', {
+    router.get('/helpdesk', {
         search: searchInput.value || null,
         status: statusFilter.value || null,
         priority: priorityFilter.value || null,
@@ -196,7 +196,7 @@ function openNewTicket() {
     showNewTicket.value = true;
 }
 function submitNewTicket() {
-    newForm.post('/support', {
+    newForm.post('/helpdesk', {
         preserveScroll: true,
         onSuccess: () => { showNewTicket.value = false; },
     });
@@ -206,13 +206,13 @@ function submitNewTicket() {
 function assignToMe(ticket) {
     const me = page.props.auth?.user?.id;
     if (! me) return;
-    router.post(`/support/${ticket.id}/status`, {
+    router.post(`/helpdesk/${ticket.id}/status`, {
         status: ticket.status,
         assigned_to: me,
     }, { preserveScroll: true });
 }
 function changeStatusTo(ticket, status) {
-    router.post(`/support/${ticket.id}/status`, {
+    router.post(`/helpdesk/${ticket.id}/status`, {
         status,
         assigned_to: ticket.assigned_to_id ?? null,
     }, { preserveScroll: true });
@@ -310,7 +310,7 @@ const nextUrl = computed(() => props.tickets.next_page_url);
                         </tr>
                         <tr v-for="t in tickets.data" :key="t.id">
                             <td>
-                                <Link :href="`/support/${t.id}`" class="ticket-cell">
+                                <Link :href="`/helpdesk/${t.id}`" class="ticket-cell">
                                     <span :class="['pri-dot', priorityDotClass(t.priority)]" />
                                     <div>
                                         <div class="ticket-subject">{{ t.subject }}</div>
@@ -349,7 +349,7 @@ const nextUrl = computed(() => props.tickets.next_page_url);
                                     </MenuButton>
                                     <MenuItems class="dd-popover right-align">
                                         <MenuItem v-slot="{ active }">
-                                            <Link :class="['dd-option', { active }]" :href="`/support/${t.id}`">View ticket</Link>
+                                            <Link :class="['dd-option', { active }]" :href="`/helpdesk/${t.id}`">View ticket</Link>
                                         </MenuItem>
                                         <MenuItem v-slot="{ active }">
                                             <button type="button" :class="['dd-option', { active }]" @click="assignToMe(t)">Assign to me</button>

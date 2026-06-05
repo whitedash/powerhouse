@@ -86,6 +86,9 @@ class MyWorkController extends Controller
             'project_title' => $t->project?->title,
             'project_colour' => $t->project?->colour,
             'customer_name' => $t->customer?->name,
+            // Support-triage tasks carry their ticket id so the row can
+            // link straight to the helpdesk thread. Null for every other.
+            'ticket_id' => $t->ticket_id,
         ];
 
         $summary = [

@@ -720,6 +720,24 @@ const statusLabel = computed(() => {
                         </div>
                     </div>
 
+                    <!-- Linked support ticket (triage tasks only) -->
+                    <div v-if="task.ticket" class="card">
+                        <div class="card-header">
+                            <div class="h-icon"><IconHeadset :size="16" stroke-width="1.75" /></div>
+                            <div>
+                                <h3>Support ticket</h3>
+                                <div class="sub">This task came from a ticket</div>
+                            </div>
+                        </div>
+                        <div class="act-show-customer-body">
+                            <Link :href="`/helpdesk/${task.ticket.id}`" class="act-show-customer-row">
+                                <div class="act-show-customer-name">#{{ task.ticket.id }} — {{ task.ticket.subject }}</div>
+                                <div class="act-show-customer-sub">Status: {{ task.ticket.status }}</div>
+                                <span class="act-show-customer-link">Open ticket<IconArrowRight :size="13" stroke-width="1.75" /></span>
+                            </Link>
+                        </div>
+                    </div>
+
                     <!-- Customer context -->
                     <div v-if="task.customer" class="card">
                         <div class="card-header">
@@ -752,9 +770,9 @@ const statusLabel = computed(() => {
                                 </div>
                             </div>
                             <div class="act-show-quick-actions">
-                                <Link :href="`/support?customer=${task.customer.id}`" class="act-show-quick">
+                                <Link :href="`/helpdesk?search=${encodeURIComponent(task.customer.name)}`" class="act-show-quick">
                                     <IconHeadset :size="14" stroke-width="1.75" />
-                                    Open support ticket
+                                    Support tickets
                                     <IconArrowRight :size="12" stroke-width="1.75" />
                                 </Link>
                                 <Link :href="`/invoices?customer=${task.customer.id}`" class="act-show-quick">

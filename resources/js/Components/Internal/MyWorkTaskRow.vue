@@ -6,7 +6,8 @@
  * `completing` flag and the mutations; this just emits intent.
  */
 import { computed, ref } from 'vue';
-import { IconCircle, IconLoader2, IconVideo, IconCalendar } from '@tabler/icons-vue';
+import { Link } from '@inertiajs/vue3';
+import { IconCircle, IconLoader2, IconVideo, IconCalendar, IconHeadset } from '@tabler/icons-vue';
 
 const props = defineProps({
     task: { type: Object, required: true },
@@ -56,6 +57,15 @@ function pickDate(value) {
                     :style="{ borderColor: task.project_colour, color: task.project_colour }"
                 >{{ task.project_title }}</span>
                 <span v-if="task.customer_name" class="mw-type-badge">{{ task.customer_name }}</span>
+                <Link
+                    v-if="task.ticket_id"
+                    :href="`/helpdesk/${task.ticket_id}`"
+                    class="mw-type-badge mw-ticket-chip"
+                    title="Open support ticket"
+                    @click.stop
+                >
+                    <IconHeadset :size="12" stroke-width="2" /> #{{ task.ticket_id }}
+                </Link>
                 <span v-if="task.type === 'meeting'" class="mw-type-badge">
                     <IconVideo :size="12" stroke-width="2" /> Meeting
                 </span>
@@ -88,3 +98,21 @@ function pickDate(value) {
         <span class="mw-due-time" :class="{ overdue: isOverdue }">{{ task.due_at }}</span>
     </div>
 </template>
+
+<style scoped>
+/* Triage-task → ticket link. Reuses the .mw-type-badge shape but reads
+   as an interactive accent chip rather than a static label. */
+.mw-ticket-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    text-decoration: none;
+    color: var(--accent);
+    border-color: var(--accent);
+    cursor: pointer;
+}
+.mw-ticket-chip:hover {
+    background: var(--accent);
+    color: #fff;
+}
+</style>

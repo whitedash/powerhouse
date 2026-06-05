@@ -43,6 +43,7 @@ class TaskController extends Controller
             'contact:id,customer_id,name,email,phone,job_title',
             'assignedTo:id,name,avatar_colour,role',
             'createdBy:id,name',
+            'ticket:id,subject,status',
             'parentTask:id,title,type',
             'notes' => fn ($q) => $q->orderBy('created_at')
                 ->with('author:id,name,avatar_colour'),
@@ -135,6 +136,14 @@ class TaskController extends Controller
                 // PM task returns to its board, a CRM task to its customer.
                 'project_id' => $task->project_id,
                 'customer_id' => $task->customer_id,
+                // Support ticket this task was spawned from (triage tasks
+                // only) — drives the "Open ticket" affordance. Null for
+                // every non-support task and legacy triage tasks.
+                'ticket' => $task->ticket ? [
+                    'id' => $task->ticket->id,
+                    'subject' => $task->ticket->subject,
+                    'status' => $task->ticket->status,
+                ] : null,
                 'customer' => $task->customer ? [
                     'id' => $task->customer->id,
                     'name' => $task->customer->name,
