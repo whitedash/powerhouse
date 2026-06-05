@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Enums\ReferralStatus;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Contact;
@@ -10,6 +11,8 @@ use App\Models\Lead;
 use App\Models\Note;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\AttributionService;
+use App\Services\DealRegistrationService;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -64,8 +67,13 @@ class LeadController extends Controller
             ->with([
                 'assignedTo:id,name,avatar_colour',
                 'createdBy:id,name',
+                'referrer.user:id,name',
             ])
             ->whereNull('customer_id')
+            // Deal-registration leads only enter the sales kanban once
+            // approved; pending_review / rejected / expired are handled in
+            // the referral-review queue, not here. NULL = house lead.
+            ->where(fn ($q) => $q->whereNull('referral_status')->orWhere('referral_status', 'approved'))
             ->when($request->string('status')->toString() !== '', fn ($q) => $q->where('status', $request->string('status')))
             ->when($request->boolean('assigned_to_me'), fn ($q) => $q->where('assigned_to', $userId))
             ->when($request->string('source')->toString() !== '', fn ($q) => $q->where('source', $request->string('source')))
@@ -93,18 +101,34 @@ class LeadController extends Controller
             ->map(fn (Lead $l): array => $this->mapLead($l))
             ->values();
 
+        // KPIs describe the working pipeline, so they exclude unreviewed /
+        // rejected / expired registrations the same way the kanban does.
+        $pipeline = fn ($q) => $q->whereNull('customer_id')
+            ->where(fn ($q2) => $q2->whereNull('referral_status')->orWhere('referral_status', 'approved'));
+
         $summary = [
-            'total' => Lead::whereNull('customer_id')->count(),
-            'new' => Lead::where('status', 'new')->whereNull('customer_id')->count(),
-            'qualified_plus' => Lead::whereIn('status', ['qualified', 'proposal', 'negotiation'])
-                ->whereNull('customer_id')->count(),
-            'total_pipeline_value' => (float) Lead::whereNull('customer_id')
+            'total' => Lead::where($pipeline)->count(),
+            'new' => Lead::where($pipeline)->where('status', 'new')->count(),
+            'qualified_plus' => Lead::where($pipeline)
+                ->whereIn('status', ['qualified', 'proposal', 'negotiation'])->count(),
+            'total_pipeline_value' => (float) Lead::where($pipeline)
                 ->whereNotIn('status', ['lost', 'won'])
                 ->sum('estimated_value'),
             'converted_this_month' => Lead::whereNotNull('customer_id')
                 ->where('converted_at', '>=', now()->startOfMonth())
                 ->count(),
+            'pending_review' => Lead::whereNull('customer_id')
+                ->where('referral_status', 'pending_review')->count(),
         ];
+
+        // Referral-review queue — pending_review deals awaiting approval.
+        $referralReview = Lead::whereNull('customer_id')
+            ->where('referral_status', ReferralStatus::PendingReview->value)
+            ->with('referrer.user:id,name')
+            ->orderBy('registered_at')
+            ->get()
+            ->map(fn (Lead $l): array => $this->mapReferralReview($l))
+            ->values();
 
         $staff = User::whereIn('role', ['super_admin', 'staff'])
             ->orderBy('name')
@@ -113,6 +137,7 @@ class LeadController extends Controller
         return Inertia::render('Internal/Leads/Index', [
             'leads' => $leads,
             'summary' => $summary,
+            'referral_review' => $referralReview,
             'staff' => $staff,
             'statuses' => self::STATUSES,
             'sources' => self::SOURCES,
@@ -332,6 +357,12 @@ class LeadController extends Controller
                 'converted_at' => now(),
             ]);
 
+            // If the lead carried a referrer (captured at public-form
+            // submission), create the immutable CustomerReferral now.
+            // No-op when the lead has no referrer. This is the path that
+            // used to silently drop referral identity at conversion.
+            app(AttributionService::class)->attributeFromLead($customer, $lead);
+
             $this->log($request, 'lead.converted', $lead->id, after: [
                 'customer_id' => $customer->id,
                 'customer_name' => $customer->name,
@@ -342,6 +373,45 @@ class LeadController extends Controller
 
         return redirect('/customers/'.$customer->id)
             ->with('success', $lead->name.' converted to customer '.$customer->name.'.');
+    }
+
+    /**
+     * Approve a registered deal from the referral-review queue. Opens the
+     * fixed 90-day protection window (clock starts now).
+     */
+    public function approveReferral(int $id, Request $request, DealRegistrationService $service): RedirectResponse
+    {
+        Gate::authorize('review', Lead::class);
+
+        $lead = Lead::findOrFail($id);
+        if ($lead->referral_status !== ReferralStatus::PendingReview) {
+            return back()->with('error', 'This deal is not awaiting review.');
+        }
+
+        $service->approve($lead, $request->user());
+
+        return back()->with('success', 'Deal approved — protected for '.config('referrals.protection_days', 90).' days.');
+    }
+
+    /**
+     * Reject a registered deal with a reason (stored on the lead).
+     */
+    public function rejectReferral(int $id, Request $request, DealRegistrationService $service): RedirectResponse
+    {
+        Gate::authorize('review', Lead::class);
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $lead = Lead::findOrFail($id);
+        if ($lead->referral_status !== ReferralStatus::PendingReview) {
+            return back()->with('error', 'This deal is not awaiting review.');
+        }
+
+        $service->reject($lead, $request->user(), $data['reason']);
+
+        return back()->with('success', 'Deal rejected.');
     }
 
     public function destroy(int $id, Request $request): RedirectResponse
@@ -426,8 +496,34 @@ class LeadController extends Controller
             'is_converted' => $l->is_converted,
             'customer_id' => $l->customer_id,
             'notes' => $l->notes,
+            // Deal-registration: surfaced so the kanban card / detail can
+            // show the "Protected — {referrer} until {date}" badge.
+            'referral_status' => $l->referral_status?->value,
+            'referrer_name' => $l->referrer?->user?->name,
+            'protected_until' => $l->protected_until?->format('d M Y'),
             'created_at' => $l->created_at?->format('d M Y'),
             'created_at_diff' => $l->created_at?->diffForHumans(),
+        ];
+    }
+
+    /**
+     * Row mapping for the referral-review queue (pending_review deals).
+     *
+     * @return array<string, mixed>
+     */
+    private function mapReferralReview(Lead $l): array
+    {
+        return [
+            'id' => $l->id,
+            'company' => $l->company,
+            'contact_name' => $l->name,
+            'email' => $l->email,
+            'phone' => $l->phone,
+            'product' => $l->source_detail,
+            'referrer_name' => $l->referrer?->user?->name,
+            'registered_at' => $l->registered_at?->format('d M Y'),
+            'registered_at_diff' => $l->registered_at?->diffForHumans(),
+            'notes' => $l->notes,
         ];
     }
 

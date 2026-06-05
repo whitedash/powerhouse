@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ReferralStatus;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -20,6 +21,15 @@ use Illuminate\Support\Carbon;
  * @property string $status
  * @property string $source
  * @property string|null $source_detail
+ * @property int|null $referrer_id
+ * @property string|null $referral_code
+ * @property ReferralStatus|null $referral_status
+ * @property Carbon|null $registered_at
+ * @property Carbon|null $protected_until
+ * @property int|null $reviewed_by
+ * @property Carbon|null $reviewed_at
+ * @property string|null $review_notes
+ * @property Carbon|null $referral_consent_at
  * @property int|null $assigned_to
  * @property string|null $estimated_value
  * @property string|null $notes
@@ -32,6 +42,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read User|null $assignedTo
  * @property-read User $createdBy
+ * @property-read User|null $reviewedBy
+ * @property-read Referrer|null $referrer
  * @property-read Customer|null $customer
  * @property-read FormSubmission|null $formSubmission
  * @property-read Collection<int, Task> $tasks
@@ -55,6 +67,15 @@ class Lead extends Model
         'status',
         'source',
         'source_detail',
+        'referrer_id',
+        'referral_code',
+        'referral_status',
+        'registered_at',
+        'protected_until',
+        'reviewed_by',
+        'reviewed_at',
+        'review_notes',
+        'referral_consent_at',
         'assigned_to',
         'estimated_value',
         'notes',
@@ -70,6 +91,11 @@ class Lead extends Model
         return [
             'converted_at' => 'datetime',
             'estimated_value' => 'decimal:2',
+            'referral_status' => ReferralStatus::class,
+            'registered_at' => 'datetime',
+            'protected_until' => 'datetime',
+            'reviewed_at' => 'datetime',
+            'referral_consent_at' => 'datetime',
         ];
     }
 
@@ -83,9 +109,27 @@ class Lead extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /**
+     * Staff member who approved/rejected this registered deal.
+     * Null until reviewed (and for non-deal-registration leads).
+     */
+    public function reviewedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Referrer captured at lead creation (?ref / wd_ref cookie on a
+     * public form submission). Null for the majority of leads.
+     */
+    public function referrer(): BelongsTo
+    {
+        return $this->belongsTo(Referrer::class);
     }
 
     /**

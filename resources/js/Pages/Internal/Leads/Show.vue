@@ -12,7 +12,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     IconX, IconEdit, IconUserPlus, IconMail, IconPhone, IconBuilding,
     IconBriefcase, IconCircleCheck, IconAlertTriangle, IconPlus,
-    IconExternalLink, IconArrowRight,
+    IconExternalLink, IconArrowRight, IconShieldCheck,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -195,6 +195,13 @@ function submitConvert() {
                     <h1>{{ lead.name }}</h1>
                     <div v-if="lead.company || lead.job_title" class="muted">
                         {{ lead.company }}{{ lead.company && lead.job_title ? ' · ' : '' }}{{ lead.job_title }}
+                    </div>
+                    <div
+                        v-if="lead.referral_status === 'approved' && lead.protected_until"
+                        class="lead-protected-badge"
+                    >
+                        <IconShieldCheck :size="14" stroke-width="2" />
+                        Protected by {{ lead.referrer_name }} until {{ lead.protected_until }}
                     </div>
                 </div>
                 <div class="lead-header-status">
@@ -513,3 +520,16 @@ function submitConvert() {
         </Teleport>
     </InternalLayout>
 </template>
+
+<style scoped>
+/* Deal-registration protection flag in the lead header. */
+.lead-protected-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 8px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(16, 185, 129, .12);
+    color: #047857;
+    font: 600 12px/1.3 'Inter', sans-serif;
+}
+</style>

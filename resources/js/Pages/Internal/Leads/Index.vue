@@ -17,7 +17,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     IconPlus, IconSearch, IconX, IconUserPlus, IconLayoutKanban,
     IconList, IconTrophy, IconBan, IconChevronLeft, IconChevronRight,
-    IconDots, IconTrash, IconArrowRight,
+    IconDots, IconTrash, IconArrowRight, IconShieldCheck, IconCircleCheck,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -25,6 +25,7 @@ import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 const props = defineProps({
     leads: { type: Array, required: true },
     summary: { type: Object, required: true },
+    referral_review: { type: Array, default: () => [] },
     staff: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
     sources: { type: Array, default: () => [] },
@@ -215,6 +216,26 @@ function confirmDelete() {
     });
 }
 
+/* ─── Referral review queue (deal registration) ─── */
+function approveDeal(id) {
+    router.post(`/leads/${id}/referral/approve`, {}, {
+        preserveScroll: true,
+        only: ['leads', 'summary', 'referral_review'],
+    });
+}
+const showReject = ref(false);
+const rejectId = ref(null);
+const rejectReason = ref('');
+function openReject(id) { rejectId.value = id; rejectReason.value = ''; showReject.value = true; }
+function confirmReject() {
+    if (! rejectReason.value.trim() || ! rejectId.value) return;
+    router.post(`/leads/${rejectId.value}/referral/reject`, { reason: rejectReason.value.trim() }, {
+        preserveScroll: true,
+        only: ['leads', 'summary', 'referral_review'],
+        onFinish: () => { showReject.value = false; rejectId.value = null; },
+    });
+}
+
 function money(n) { return `£${Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`; }
 function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(0, 2).join('').toUpperCase(); }
 </script>
@@ -264,6 +285,36 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
                 <div v-if="summary.qualified_plus > 0" class="stat-pill"><span class="d"></span><span class="n">{{ summary.qualified_plus }}</span><span class="l">Qualified+</span></div>
                 <div class="stat-pill"><span class="d"></span><span class="n">{{ money(summary.total_pipeline_value) }}</span><span class="l">Pipeline value</span></div>
                 <div v-if="summary.converted_this_month > 0" class="stat-pill"><span class="d green"></span><span class="n">{{ summary.converted_this_month }}</span><span class="l">Converted this month</span></div>
+            </div>
+
+            <!-- ─── Referral review queue (deal registration) ─── -->
+            <div v-if="referral_review.length" class="referral-review">
+                <div class="referral-review-head">
+                    <span class="rr-title"><IconShieldCheck :size="15" stroke-width="2" /> Referral review</span>
+                    <span class="rr-count">{{ referral_review.length }} pending</span>
+                </div>
+                <div class="referral-review-list">
+                    <div v-for="d in referral_review" :key="d.id" class="rr-row">
+                        <div class="rr-main">
+                            <div class="rr-co">{{ d.company || d.contact_name }}</div>
+                            <div class="rr-meta">
+                                <template v-if="d.company && d.contact_name">{{ d.contact_name }} · </template>
+                                <template v-if="d.email">{{ d.email }} · </template>
+                                <template v-if="d.product">{{ d.product }} · </template>
+                                by <strong>{{ d.referrer_name }}</strong> · {{ d.registered_at_diff }}
+                            </div>
+                            <div v-if="d.notes" class="rr-notes">{{ d.notes }}</div>
+                        </div>
+                        <div class="rr-actions">
+                            <button type="button" class="btn btn-secondary btn-sm" @click="openReject(d.id)">
+                                <IconBan :size="14" stroke-width="2" /> Reject
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm" @click="approveDeal(d.id)">
+                                <IconCircleCheck :size="14" stroke-width="2" /> Approve
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Filter bar -->
@@ -328,6 +379,10 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
                                     </div>
                                 </div>
                                 <span class="lead-source-chip">{{ SOURCE_LABEL[lead.source] }}</span>
+                                <div v-if="lead.referral_status === 'approved' && lead.protected_until" class="lead-protected" :title="`Protected by ${lead.referrer_name} until ${lead.protected_until}`">
+                                    <IconShieldCheck :size="12" stroke-width="2" />
+                                    {{ lead.referrer_name }} · until {{ lead.protected_until }}
+                                </div>
                                 <div class="lead-card-footer">
                                     <span v-if="lead.estimated_value" class="lead-card-value">{{ money(lead.estimated_value) }}</span>
                                     <span v-else class="muted small">—</span>
@@ -553,6 +608,38 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
             </div>
         </Teleport>
 
+        <!-- Reject deal — reason required -->
+        <Teleport to="body">
+            <div v-if="showReject" class="slide-over-overlay" @click.self="showReject = false">
+                <div class="slide-over" style="width: 440px;">
+                    <div class="slide-over-head">
+                        <h2>Reject this deal</h2>
+                        <button type="button" class="icon-btn" @click="showReject = false">
+                            <IconX :size="18" stroke-width="2" />
+                        </button>
+                    </div>
+                    <form @submit.prevent="confirmReject" class="slide-over-body">
+                        <div class="form-section">
+                            <label class="form-label">Reason for rejection <span class="req">*</span></label>
+                            <textarea
+                                v-model="rejectReason"
+                                class="form-input"
+                                rows="3"
+                                maxlength="1000"
+                                placeholder="e.g. Already an active customer / not net-new / out of territory"
+                                autofocus
+                            />
+                            <p class="muted small">Stored against the deal; the partner can see the outcome.</p>
+                        </div>
+                    </form>
+                    <div class="slide-over-foot">
+                        <button type="button" class="btn btn-ghost" @click="showReject = false">Cancel</button>
+                        <button type="button" class="btn btn-primary" :disabled="!rejectReason.trim()" @click="confirmReject">Reject deal</button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
+
         <ConfirmModal
             v-model:show="showDelete"
             variant="danger"
@@ -563,3 +650,53 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
         />
     </InternalLayout>
 </template>
+
+<style scoped>
+/* Deal-registration: review queue + protection badge. */
+.referral-review {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+.referral-review-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-soft);
+    background: var(--neutral-bg);
+}
+.rr-title { display: inline-flex; align-items: center; gap: 7px; font: 600 13px/1 'Inter', sans-serif; color: var(--text-primary); }
+.rr-count { font: 600 11.5px/1 'Inter', sans-serif; color: #B45309; background: rgba(245, 158, 11, .14); padding: 3px 9px; border-radius: 999px; }
+.referral-review-list { display: flex; flex-direction: column; }
+.rr-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-soft);
+}
+.rr-row:last-child { border-bottom: 0; }
+.rr-main { min-width: 0; }
+.rr-co { font: 600 13.5px/1.3 'Inter', sans-serif; color: var(--text-primary); }
+.rr-meta { font: 400 12px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin-top: 2px; }
+.rr-notes { font: 400 12px/1.5 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 4px; font-style: italic; }
+.rr-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+.lead-protected {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-top: 8px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(16, 185, 129, .12);
+    color: #047857;
+    font: 600 10.5px/1.3 'Inter', sans-serif;
+    max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+    .rr-row { flex-direction: column; align-items: flex-start; }
+    .rr-actions { width: 100%; }
+}
+</style>

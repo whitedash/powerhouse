@@ -50,6 +50,16 @@ Schedule::command('support:close-inactive')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Expire lapsed deal-registration protections: approved deals past their
+// 90-day protected_until that never closed flip to `expired`. Idempotent,
+// so a single small-hours run (after the close-inactive sweep) suffices —
+// won/converted deals are left untouched (earned).
+Schedule::command('referrals:expire-protections')
+    ->dailyAt('03:30')
+    ->timezone('Europe/London')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Auto-suspend customer products with invoices overdue beyond the
 // configured threshold (Settings → Billing). Runs after the 09:00
 // reminder sweep so a final-notice sent this morning is already on
