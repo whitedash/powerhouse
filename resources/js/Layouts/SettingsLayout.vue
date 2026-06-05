@@ -12,6 +12,7 @@ import {
     IconRobot,
     IconFileText,
     IconLayoutGrid,
+    IconCoin,
     IconTrash,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
@@ -32,6 +33,7 @@ const items = computed(() => [
     { key: 'integrations', label: 'Integrations', href: '/settings/integrations', icon: IconPlug },
     { key: 'audit-log', label: 'Audit log', href: '/settings/audit-log', icon: IconFileText },
     { key: 'products', label: 'Products', href: '/settings/products', icon: IconLayoutGrid },
+    { key: 'commission-rules', label: 'Commission rules', href: '/settings/commission-rules', icon: IconCoin },
     { key: 'danger', label: 'Danger zone', href: '/settings/danger', icon: IconTrash, danger: true },
 ]);
 

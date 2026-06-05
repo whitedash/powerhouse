@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\StaffLoginController;
 use App\Http\Controllers\Internal\AnalyticsController as InternalAnalyticsController;
 use App\Http\Controllers\Internal\BillingEntityController as InternalBillingEntityController;
+use App\Http\Controllers\Internal\CommissionRuleController as InternalCommissionRuleController;
 use App\Http\Controllers\Internal\ContactController as InternalContactController;
 use App\Http\Controllers\Internal\ContractController as InternalContractController;
 use App\Http\Controllers\Internal\CustomerController as InternalCustomerController;
@@ -25,6 +26,7 @@ use App\Http\Controllers\Internal\MyWorkController as InternalMyWorkController;
 use App\Http\Controllers\Internal\NoteController as InternalNoteController;
 use App\Http\Controllers\Internal\NotificationController as InternalNotificationController;
 use App\Http\Controllers\Internal\PaymentScheduleController as InternalPaymentScheduleController;
+use App\Http\Controllers\Internal\PersonController as InternalPersonController;
 use App\Http\Controllers\Internal\ProductController as InternalProductController;
 use App\Http\Controllers\Internal\ProductOverviewController as InternalProductOverviewController;
 use App\Http\Controllers\Internal\ProductPlanCategoryController as InternalProductPlanCategoryController;
@@ -35,6 +37,7 @@ use App\Http\Controllers\Internal\ProjectController as InternalProjectController
 use App\Http\Controllers\Internal\ProjectFileController as InternalProjectFileController;
 use App\Http\Controllers\Internal\ProposalController as InternalProposalController;
 use App\Http\Controllers\Internal\ProvisioningController as InternalProvisioningController;
+use App\Http\Controllers\Internal\ReferralLedgerController as InternalReferralLedgerController;
 use App\Http\Controllers\Internal\ReferrerController as InternalReferrerController;
 use App\Http\Controllers\Internal\SearchController as InternalSearchController;
 use App\Http\Controllers\Internal\SettingsController as InternalSettingsController;
@@ -61,13 +64,18 @@ use App\Http\Controllers\Portal\SupportController as PortalSupportController;
 use App\Http\Controllers\Public\EmbedController as PublicEmbedController;
 use App\Http\Controllers\Public\FormController as PublicFormController;
 use App\Http\Controllers\Public\InboundEmailController as PublicInboundEmailController;
+use App\Http\Controllers\Public\KnowledgeBaseController as PublicKnowledgeBaseController;
+use App\Http\Controllers\Public\LandingController as PublicLandingController;
 use App\Http\Controllers\Public\ProposalAcceptanceController as PublicProposalAcceptanceController;
+use App\Http\Controllers\Public\ReferralRedirectController as PublicReferralRedirectController;
+use App\Http\Controllers\Public\SupportTicketController as PublicSupportTicketController;
 use App\Http\Controllers\Public\WebhookController as PublicWebhookController;
 use App\Http\Controllers\Referrer\AccountController as ReferrerAccountController;
 use App\Http\Controllers\Referrer\AuthController as ReferrerAuthController;
 use App\Http\Controllers\Referrer\CommissionController as ReferrerCommissionController;
 use App\Http\Controllers\Referrer\CustomerController as ReferrerCustomerController;
 use App\Http\Controllers\Referrer\DashboardController as ReferrerDashboardController;
+use App\Http\Controllers\Referrer\ReferralDealController;
 use App\Http\Controllers\Webhooks\StripeWebhookController;
 use App\Http\Middleware\VerifyStripeWebhook;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -78,8 +86,33 @@ use Illuminate\Support\Facades\Route;
 | Group 1 — Internal (staff)
 |--------------------------------------------------------------------------
 */
+// Public hub front door. Branches by auth state in the controller: guests see
+// the marketing landing; authenticated users are redirected to their role home.
+// No auth middleware — it must be reachable logged-out.
+Route::get('/', PublicLandingController::class)->name('home');
+
+// Public knowledge base. Read-only, unauthenticated; controller scopes every
+// query to is_public && is_published. show() throttled since each hit writes
+// a views counter.
+Route::get('/kb', [PublicKnowledgeBaseController::class, 'index'])->name('kb.index');
+Route::get('/kb/{slug}', [PublicKnowledgeBaseController::class, 'show'])
+    ->where('slug', '[a-z0-9-]+')
+    ->middleware('throttle:60,1')
+    ->name('kb.show');
+
+// Public submit-ticket. Unauthenticated; honeypot + Turnstile + throttle
+// guard the POST. Creation is handled by TicketIntakeService.
+Route::get('/support', [PublicSupportTicketController::class, 'create'])->name('support.create');
+Route::post('/support', [PublicSupportTicketController::class, 'store'])
+    ->middleware('throttle:10,1')
+    ->name('support.store');
+Route::get('/support/submitted', [PublicSupportTicketController::class, 'submitted'])->name('support.submitted');
+
 Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(function () {
-    Route::get('/', [InternalDashboardController::class, 'index'])->name('internal.dashboard');
+    // Internal dashboard moved off "/" (now the public front door). The name
+    // stays internal.dashboard so every route('internal.dashboard') caller is
+    // unaffected; only the path changed.
+    Route::get('/dashboard', [InternalDashboardController::class, 'index'])->name('internal.dashboard');
     Route::get('/export/dashboard', [InternalDashboardController::class, 'export'])->name('internal.dashboard.export');
 
     // List/search endpoints — 60/min/user to slow bulk scraping
@@ -87,6 +120,9 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         Route::get('/customers', [InternalCustomerController::class, 'index'])->name('internal.customers.index');
         Route::get('/invoices', [InternalInvoiceController::class, 'index'])->name('internal.invoices.index');
         Route::get('/referrers', [InternalReferrerController::class, 'index'])->name('internal.referrers.index');
+        // Referral attribution ledger — every customer_referrals row,
+        // filterable. Read-only; same scraping throttle as the lists.
+        Route::get('/referrals', [InternalReferralLedgerController::class, 'index'])->name('internal.referrals.index');
         Route::get('/referrers/{id}', [InternalReferrerController::class, 'show'])
             ->whereNumber('id')
             ->name('internal.referrers.show');
@@ -94,6 +130,9 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         // models with LIKE. Cheap enough at our scale to live under
         // the same throttle as the list endpoints.
         Route::get('/search', [InternalSearchController::class, 'search'])->name('internal.search');
+        // People — cross-company human identity. List sits under the
+        // same scraping throttle as /customers.
+        Route::get('/people', [InternalPersonController::class, 'index'])->name('internal.people.index');
     });
 
     // Mutations live outside the throttle group — bulk approvals can
@@ -162,6 +201,29 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::delete('/customer-groups/{id}/members/{customerId}', [InternalCustomerGroupController::class, 'removeMember'])
         ->where(['id' => '[0-9]+', 'customerId' => '[0-9]+'])
         ->name('internal.customer-groups.members.remove');
+    // People — cross-company human identity (the "one person owns many
+    // companies" layer). CRUD plus company association endpoints; the
+    // customer_person pivot carries the role + job_title.
+    Route::get('/people/{id}', [InternalPersonController::class, 'show'])
+        ->whereNumber('id')
+        ->name('internal.people.show');
+    Route::post('/people', [InternalPersonController::class, 'store'])->name('internal.people.store');
+    Route::put('/people/{id}', [InternalPersonController::class, 'update'])
+        ->whereNumber('id')
+        ->name('internal.people.update');
+    Route::delete('/people/{id}', [InternalPersonController::class, 'destroy'])
+        ->whereNumber('id')
+        ->name('internal.people.destroy');
+    Route::post('/people/{id}/companies', [InternalPersonController::class, 'attachCompany'])
+        ->whereNumber('id')
+        ->name('internal.people.companies.attach');
+    Route::put('/people/{id}/companies/{customerId}', [InternalPersonController::class, 'setRole'])
+        ->where(['id' => '[0-9]+', 'customerId' => '[0-9]+'])
+        ->name('internal.people.companies.role');
+    Route::delete('/people/{id}/companies/{customerId}', [InternalPersonController::class, 'detachCompany'])
+        ->where(['id' => '[0-9]+', 'customerId' => '[0-9]+'])
+        ->name('internal.people.companies.detach');
+
     Route::post('/customers/{id}/tasks', [InternalCustomerController::class, 'storeTask'])->name('internal.customers.tasks.store');
 
     // Global task endpoints — for the dashboard New-task slide-over and
@@ -285,6 +347,11 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
             ->whereNumber('id')->name('status');
         Route::post('/{id}/convert', [InternalLeadController::class, 'convert'])
             ->whereNumber('id')->name('convert');
+        // Deal-registration review actions.
+        Route::post('/{id}/referral/approve', [InternalLeadController::class, 'approveReferral'])
+            ->whereNumber('id')->name('referral.approve');
+        Route::post('/{id}/referral/reject', [InternalLeadController::class, 'rejectReferral'])
+            ->whereNumber('id')->name('referral.reject');
         Route::delete('/{id}', [InternalLeadController::class, 'destroy'])
             ->whereNumber('id')->name('destroy');
     });
@@ -529,14 +596,18 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // the sidebar Products section. Lives outside the settings group
     // because it's read-only for staff (no super_admin gate).
     Route::get('/products/{slug}', [InternalProductOverviewController::class, 'show'])->name('internal.products.show');
-    Route::get('/support', [InternalSupportController::class, 'index'])->name('internal.support.index');
-    Route::post('/support', [InternalSupportController::class, 'store'])->name('internal.support.store');
-    Route::get('/support/{id}', [InternalSupportController::class, 'show'])->name('internal.support.show');
-    Route::post('/support/{id}/reply', [InternalSupportController::class, 'reply'])->name('internal.support.reply');
-    Route::post('/support/{id}/status', [InternalSupportController::class, 'updateStatus'])->name('internal.support.status');
+    // Staff support desk. Moved off /support → /helpdesk so the bare
+    // /support path can host the PUBLIC submit-ticket form. Route NAMES stay
+    // internal.support.* so every route() reference is unaffected; only the
+    // paths changed (same approach as the / → /dashboard move).
+    Route::get('/helpdesk', [InternalSupportController::class, 'index'])->name('internal.support.index');
+    Route::post('/helpdesk', [InternalSupportController::class, 'store'])->name('internal.support.store');
+    Route::get('/helpdesk/{id}', [InternalSupportController::class, 'show'])->name('internal.support.show');
+    Route::post('/helpdesk/{id}/reply', [InternalSupportController::class, 'reply'])->name('internal.support.reply');
+    Route::post('/helpdesk/{id}/status', [InternalSupportController::class, 'updateStatus'])->name('internal.support.status');
     // Spin a CRM activity off a ticket — the new task is scoped to
     // the ticket's customer and an internal note is appended.
-    Route::post('/support/{id}/task', [InternalSupportController::class, 'createTask'])->name('internal.support.task.create');
+    Route::post('/helpdesk/{id}/task', [InternalSupportController::class, 'createTask'])->name('internal.support.task.create');
 
     // Help & docs — staff editor + viewer for the support_knowledge_base
     // articles. The customer portal has its own help routes (TBD) that
@@ -642,6 +713,17 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         Route::post('/plan-prices', [InternalProductPlanPriceController::class, 'store'])->name('plan-prices.store');
         Route::put('/plan-prices/{id}', [InternalProductPlanPriceController::class, 'update'])->name('plan-prices.update');
         Route::delete('/plan-prices/{id}', [InternalProductPlanPriceController::class, 'destroy'])->name('plan-prices.destroy');
+
+        // Commission rules — admin front-end to the commission engine's
+        // rule/config contract (super_admin, inherited from this group).
+        Route::get('/commission-rules', [InternalCommissionRuleController::class, 'index'])->name('commission-rules.index');
+        Route::post('/commission-rules', [InternalCommissionRuleController::class, 'store'])->name('commission-rules.store');
+        Route::put('/commission-rules/{id}', [InternalCommissionRuleController::class, 'update'])
+            ->whereNumber('id')->name('commission-rules.update');
+        Route::post('/commission-rules/{id}/toggle', [InternalCommissionRuleController::class, 'toggleActive'])
+            ->whereNumber('id')->name('commission-rules.toggle');
+        Route::delete('/commission-rules/{id}', [InternalCommissionRuleController::class, 'destroy'])
+            ->whereNumber('id')->name('commission-rules.destroy');
     });
 
     // Maavelus monthly revenue statements — internal-only, super_admin
@@ -685,6 +767,14 @@ Route::post('/proposals/accept/{token}', [PublicProposalAcceptanceController::cl
 Route::get('/forms/{slug}/embed.js', [PublicEmbedController::class, 'script'])
     ->where('slug', '[a-z0-9-]+')
     ->name('form.embed.script');
+
+// Canonical referral hub link. Public + throttled (writes a click row
+// per hit). {code} is constrained to 8 alphanumerics; the controller
+// normalises to the Crockford alphabet and validates against referrers.
+Route::get('/r/{code}', PublicReferralRedirectController::class)
+    ->where('code', '[0-9A-Za-z]{8}')
+    ->middleware('throttle:30,1')
+    ->name('referral.redirect');
 Route::post('/forms/{slug}/submit', [PublicFormController::class, 'submit'])
     ->where('slug', '[a-z0-9-]+')
     ->middleware('throttle:30,1')
@@ -843,6 +933,10 @@ Route::middleware(['auth', 'role:referrer'])
         Route::get('/dashboard', ReferrerDashboardController::class)->name('dashboard');
         Route::get('/commissions', [ReferrerCommissionController::class, 'index'])->name('commissions');
         Route::get('/customers', [ReferrerCustomerController::class, 'index'])->name('customers');
+
+        // Deal registration — register → (staff review) → 90-day protection.
+        Route::get('/referrals', [ReferralDealController::class, 'index'])->name('referrals');
+        Route::post('/referrals', [ReferralDealController::class, 'store'])->name('referrals.store');
 
         Route::get('/account', [ReferrerAccountController::class, 'index'])->name('account');
         Route::put('/account', [ReferrerAccountController::class, 'update'])->name('account.update');

@@ -821,7 +821,7 @@ class SettingsController extends Controller
             'customer' => '/customers/'.$log->entity_id,
             'invoice' => '/invoices/'.$log->entity_id,
             'task' => '/activities/'.$log->entity_id,
-            'support_ticket' => '/support/'.$log->entity_id,
+            'support_ticket' => '/helpdesk/'.$log->entity_id,
             'referrer' => '/referrers/'.$log->entity_id,
             default => null,
         };
