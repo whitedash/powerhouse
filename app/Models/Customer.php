@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PersonRole;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -26,7 +27,6 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $billing_address
  * @property string $pipeline_stage
  * @property int|null $assigned_to
- * @property int|null $referred_by
  * @property Carbon|null $archived_at
  * @property Carbon|null $portal_last_login_at
  * @property int $portal_login_count
@@ -40,7 +40,6 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read User|null $assignedTo
  * @property-read User|null $erasureRequestedBy
- * @property-read Referrer|null $referredBy
  * @property-read Collection<int, Contact> $contacts
  * @property-read Contact|null $primaryContact
  * @property-read Collection<int, PortalUser> $portalUsers
@@ -54,6 +53,8 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Task> $tasks
  * @property-read CustomerReferral|null $referral
  * @property-read Collection<int, AccountGroup> $groups
+ * @property-read Collection<int, Person> $people
+ * @property-read Collection<int, Person> $owners
  */
 class Customer extends Model
 {
@@ -75,7 +76,6 @@ class Customer extends Model
         'acquisition_channel',
         'channel_detail',
         'assigned_to',
-        'referred_by',
         'archived_at',
         // Portal-login activity. Aggregated across every portal_user
         // that belongs to this customer; bumped in Portal\AuthController::login().
@@ -116,11 +116,6 @@ class Customer extends Model
     public function erasureRequestedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'erasure_requested_by');
-    }
-
-    public function referredBy(): BelongsTo
-    {
-        return $this->belongsTo(Referrer::class, 'referred_by');
     }
 
     public function contacts(): HasMany
@@ -204,6 +199,28 @@ class Customer extends Model
         // so withTimestamps() is intentionally NOT chained here.
         return $this->belongsToMany(AccountGroup::class, 'customer_group_memberships', 'customer_id', 'group_id')
             ->withPivot('role', 'created_at');
+    }
+
+    /**
+     * People associated with this company (owners, directors, etc.) via
+     * the customer_person pivot. Mirror of Person::companies(). This is
+     * the "one person owning multiple companies" layer — distinct from
+     * contacts(), which stays a per-company operational one-to-many.
+     */
+    public function people(): BelongsToMany
+    {
+        return $this->belongsToMany(Person::class, 'customer_person')
+            ->withPivot('role', 'job_title')
+            ->withTimestamps()
+            ->using(CustomerPerson::class);
+    }
+
+    /**
+     * Convenience: just the people whose pivot role is "owner".
+     */
+    public function owners(): BelongsToMany
+    {
+        return $this->people()->wherePivot('role', PersonRole::Owner->value);
     }
 
     /**

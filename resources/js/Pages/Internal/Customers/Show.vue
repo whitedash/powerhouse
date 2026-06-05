@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     Dialog,
@@ -76,6 +76,8 @@ const props = defineProps({
     billing_entities: { type: Array, default: () => [] },
     pipeline_stages: { type: Array, default: () => [] },
     contact_roles: { type: Array, default: () => [] },
+    // Person-role options (value/label) for the People/Owners card.
+    person_roles: { type: Array, default: () => [] },
     note_types: { type: Array, default: () => [] },
     types: { type: Array, default: () => [] },
     // Empty when a referral is already attached; otherwise carries
@@ -685,6 +687,117 @@ function setContactPrimary(c) {
     router.post(`/contacts/${c.id}/primary`, {}, { preserveScroll: true });
 }
 
+/* ─── People / Owners (cross-company identity) ─────────────────────── */
+const PERSON_ROLE_COLOURS = {
+    owner: '#0D9488', director: '#7C3AED', shareholder: '#3B82F6',
+    partner: '#06B6D4', manager: '#F59E0B', accounts: '#10B981',
+    signatory: '#EF4444', other: '#64748B',
+};
+function personRoleChipStyle(role) {
+    const c = PERSON_ROLE_COLOURS[role] ?? '#64748B';
+    return { background: c + '22', color: c, borderColor: c };
+}
+
+// Attach slide-over — two modes: link an existing person (search) or
+// create a brand-new one. Both end up associated with this company.
+const showAttachPerson = ref(false);
+const attachMode = ref('existing'); // 'existing' | 'new'
+
+const linkForm = useForm({ customer_id: props.customer.id, role: 'owner', job_title: '' });
+const newPersonForm = useForm({
+    name: '', email: '', phone: '', notes: '',
+    attach_customer_id: props.customer.id, attach_role: 'owner', attach_job_title: '',
+});
+
+const personQuery = ref('');
+const personResults = ref([]);
+const personSearching = ref(false);
+const selectedPerson = ref(null);
+let personTimer = null;
+// Set when we populate the query from a picked result, so the watch below
+// doesn't immediately clear the selection + re-search.
+let skipPersonSearch = false;
+
+watch(personQuery, (v) => {
+    if (skipPersonSearch) { skipPersonSearch = false; return; }
+    selectedPerson.value = null;
+    clearTimeout(personTimer);
+    if (! v || v.length < 2) { personResults.value = []; return; }
+    personTimer = setTimeout(async () => {
+        personSearching.value = true;
+        try {
+            const res = await fetch(`/search?q=${encodeURIComponent(v)}`, {
+                headers: { Accept: 'application/json' }, credentials: 'same-origin',
+            });
+            const data = await res.json();
+            personResults.value = (data.results ?? [])
+                .filter((r) => r.type === 'person')
+                .map((r) => ({ id: Number(r.url.split('/').pop()), name: r.title, sub: r.sub }));
+        } catch (e) {
+            personResults.value = [];
+        } finally {
+            personSearching.value = false;
+        }
+    }, 300);
+});
+
+function pickPerson(p) {
+    selectedPerson.value = p;
+    personResults.value = [];
+    skipPersonSearch = true;
+    personQuery.value = p.name;
+}
+
+function openAttachPerson() {
+    attachMode.value = 'existing';
+    linkForm.reset();
+    linkForm.customer_id = props.customer.id;
+    linkForm.role = 'owner';
+    linkForm.clearErrors();
+    newPersonForm.reset();
+    newPersonForm.attach_customer_id = props.customer.id;
+    newPersonForm.attach_role = 'owner';
+    newPersonForm.clearErrors();
+    personQuery.value = '';
+    personResults.value = [];
+    selectedPerson.value = null;
+    showAttachPerson.value = true;
+}
+
+function submitAttachPerson() {
+    if (attachMode.value === 'existing') {
+        if (! selectedPerson.value) return;
+        linkForm.post(`/people/${selectedPerson.value.id}/companies`, {
+            preserveScroll: true,
+            onSuccess: () => { showAttachPerson.value = false; },
+        });
+    } else {
+        newPersonForm.post('/people', {
+            preserveScroll: true,
+            onSuccess: () => { showAttachPerson.value = false; },
+        });
+    }
+}
+
+function changePersonRole(person, role) {
+    if (role === person.role) return;
+    router.put(`/people/${person.id}/companies/${props.customer.id}`,
+        { customer_id: props.customer.id, role, job_title: person.job_title ?? null },
+        { preserveScroll: true });
+}
+
+const detachPersonTarget = ref(null);
+const detachingPerson = ref(false);
+function askDetachPerson(person) { detachPersonTarget.value = person; }
+function performDetachPerson() {
+    if (! detachPersonTarget.value) return;
+    detachingPerson.value = true;
+    router.delete(`/people/${detachPersonTarget.value.id}/companies/${props.customer.id}`, {
+        preserveScroll: true,
+        onFinish: () => { detachingPerson.value = false; detachPersonTarget.value = null; },
+    });
+}
+
 const deleteContactMessage = computed(() =>
     deleteContactTarget.value
         ? `'${deleteContactTarget.value.name}' will be removed permanently. This cannot be undone.`
@@ -844,29 +957,49 @@ const canPreviewPortal = computed(() =>
  * returns a JSON {url}, and Inertia's router would try to follow it
  * as a page navigation. CSRF token comes from the blade meta tag.
  */
+/*
+ * The CSRF token from the live XSRF-TOKEN cookie. Unlike the static
+ * <meta name="csrf-token"> (rendered once at page load), the cookie is
+ * refreshed on every response — so it stays valid after a guard switch
+ * (e.g. opening a referrer preview, then a customer preview without a
+ * page refresh), which is what used to cause a 419.
+ */
+function xsrfToken() {
+    const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+}
+
 async function openPortalPreview() {
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+    // Open the tab synchronously inside the click. A window.open called
+    // AFTER an await is outside the user-gesture stack and popup blockers
+    // silently kill it — which made this button look dead.
+    const tab = window.open('', '_blank');
     try {
         const res = await fetch(`/impersonate/portal/${props.customer.id}`, {
             method: 'POST',
             headers: {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrf,
+                'X-XSRF-TOKEN': xsrfToken(),
                 'X-Requested-With': 'XMLHttpRequest',
             },
             credentials: 'same-origin',
         });
         const data = await res.json().catch(() => ({}));
         if (! res.ok) {
+            tab?.close();
             window.alert(data?.error ?? `Preview failed (HTTP ${res.status}).`);
 
             return;
         }
         if (data?.url) {
-            window.open(data.url, '_blank', 'noopener');
+            tab.location = data.url;
+        } else {
+            tab?.close();
+            window.alert('Preview failed.');
         }
     } catch (e) {
+        tab?.close();
         window.alert('Could not open preview.');
     }
 }
@@ -1877,6 +2010,64 @@ function confirmDeleteWebsite() {
                             <button type="button" class="btn btn-primary" @click="openAddContact" style="margin-top: 8px;">
                                 <IconPlus :size="14" stroke-width="1.75" />
                                 Add first contact
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- People / Owners (cross-company identity via customer_person) -->
+                    <section class="card">
+                        <header class="card-header">
+                            <div class="h-icon"><IconUser :size="16" stroke-width="1.75" /></div>
+                            <div>
+                                <h3>People / Owners</h3>
+                                <div class="sub">{{ customer.people.length }} linked</div>
+                            </div>
+                            <div class="right">
+                                <button type="button" class="ghost-link" @click="openAttachPerson">
+                                    <IconPlus :size="14" stroke-width="1.75" />
+                                    Link person
+                                </button>
+                            </div>
+                        </header>
+
+                        <div v-if="customer.people.length" style="padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px;">
+                            <article v-for="p in customer.people" :key="p.id" class="person-row">
+                                <Link :href="`/people/${p.id}`" class="person-row-link">
+                                    <div class="avatar av-teal" style="width: 32px; height: 32px;">{{ userInitials(p.name) }}</div>
+                                    <div class="person-row-main">
+                                        <div class="person-row-name">{{ p.name }}</div>
+                                        <div v-if="p.job_title || p.email" class="person-row-sub">{{ p.job_title || p.email }}</div>
+                                    </div>
+                                </Link>
+                                <span class="badge badge-sm" :style="personRoleChipStyle(p.role)">{{ p.role_label }}</span>
+                                <Menu as="div" class="dd-menu">
+                                    <MenuButton class="icon-btn" aria-label="Person actions">
+                                        <IconDots :size="16" stroke-width="1.75" />
+                                    </MenuButton>
+                                    <MenuItems class="dd-popover right-align">
+                                        <MenuItem v-for="o in person_roles" :key="o.value" v-slot="{ active }">
+                                            <button
+                                                type="button"
+                                                :class="['dd-option', { active }]"
+                                                :disabled="o.value === p.role"
+                                                @click="changePersonRole(p, o.value)"
+                                            >
+                                                Set role: {{ o.label }}
+                                            </button>
+                                        </MenuItem>
+                                        <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
+                                        <MenuItem v-slot="{ active }">
+                                            <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDetachPerson(p)">Unlink person</button>
+                                        </MenuItem>
+                                    </MenuItems>
+                                </Menu>
+                            </article>
+                        </div>
+                        <div v-else class="tab-empty" style="padding: 32px 18px;">
+                            <p>No people linked. Use this to record an owner who runs several companies.</p>
+                            <button type="button" class="btn btn-primary" @click="openAttachPerson" style="margin-top: 8px;">
+                                <IconPlus :size="14" stroke-width="1.75" />
+                                Link first person
                             </button>
                         </div>
                     </section>
@@ -3488,6 +3679,123 @@ function confirmDeleteWebsite() {
             @confirm="performDeleteContact"
         />
 
+        <!-- Link person slide-over (existing person or create new) -->
+        <Teleport to="body">
+            <transition name="slide-over">
+                <div v-if="showAttachPerson" class="slide-over">
+                    <div class="slide-over-backdrop" @click="showAttachPerson = false" />
+                    <aside class="slide-over-panel" style="width: 440px;" role="dialog" aria-modal="true">
+                        <form class="slide-over-form" @submit.prevent="submitAttachPerson">
+                            <header class="slide-over-header">
+                                <h2>Link a person</h2>
+                                <button type="button" class="icon-btn" aria-label="Close" @click="showAttachPerson = false">
+                                    <IconX :size="18" stroke-width="1.75" />
+                                </button>
+                            </header>
+                            <div class="slide-over-body">
+                                <div class="seg-toggle">
+                                    <button type="button" :class="{ active: attachMode === 'existing' }" @click="attachMode = 'existing'">Existing person</button>
+                                    <button type="button" :class="{ active: attachMode === 'new' }" @click="attachMode = 'new'">New person</button>
+                                </div>
+
+                                <!-- Existing -->
+                                <div v-if="attachMode === 'existing'" class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Find person<span class="req">*</span></label>
+                                            <input v-model="personQuery" type="search" placeholder="Search name or email…" autocomplete="off">
+                                            <ul v-if="personResults.length" class="ppl-results">
+                                                <li v-for="r in personResults" :key="r.id">
+                                                    <button type="button" @click="pickPerson(r)">
+                                                        <strong>{{ r.name }}</strong><span class="muted small">{{ r.sub }}</span>
+                                                    </button>
+                                                </li>
+                                            </ul>
+                                            <p v-else-if="personSearching" class="muted small">Searching…</p>
+                                            <p v-if="selectedPerson" class="cust-chosen">Selected: <strong>{{ selectedPerson.name }}</strong></p>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Role<span class="req">*</span></label>
+                                            <select v-model="linkForm.role">
+                                                <option v-for="o in person_roles" :key="o.value" :value="o.value">{{ o.label }}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Job title</label>
+                                            <input v-model="linkForm.job_title" type="text" maxlength="100" placeholder="e.g. Managing Director">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- New -->
+                                <div v-else class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Name<span class="req">*</span></label>
+                                            <input v-model="newPersonForm.name" type="text" required maxlength="255" :class="{ 'has-err': newPersonForm.errors.name }">
+                                            <div v-if="newPersonForm.errors.name" class="err">{{ newPersonForm.errors.name }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Email</label>
+                                            <input v-model="newPersonForm.email" type="email" maxlength="255" :class="{ 'has-err': newPersonForm.errors.email }">
+                                            <div v-if="newPersonForm.errors.email" class="err">{{ newPersonForm.errors.email }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Phone</label>
+                                            <input v-model="newPersonForm.phone" type="text" maxlength="50">
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Role<span class="req">*</span></label>
+                                            <select v-model="newPersonForm.attach_role">
+                                                <option v-for="o in person_roles" :key="o.value" :value="o.value">{{ o.label }}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Job title</label>
+                                            <input v-model="newPersonForm.attach_job_title" type="text" maxlength="100" placeholder="e.g. Managing Director">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <footer class="slide-over-footer">
+                                <button type="button" class="btn btn-secondary" @click="showAttachPerson = false">Cancel</button>
+                                <button
+                                    type="submit"
+                                    class="btn btn-primary"
+                                    :disabled="(attachMode === 'existing' && (! selectedPerson || linkForm.processing)) || (attachMode === 'new' && newPersonForm.processing)"
+                                >
+                                    {{ (linkForm.processing || newPersonForm.processing) ? 'Saving…' : 'Link person' }}
+                                </button>
+                            </footer>
+                        </form>
+                    </aside>
+                </div>
+            </transition>
+        </Teleport>
+
+        <ConfirmModal
+            :show="!! detachPersonTarget"
+            :title="detachPersonTarget ? `Unlink ${detachPersonTarget.name}?` : 'Unlink person?'"
+            message="The person stays on file and keeps any other company links. Only the link to this company is removed."
+            confirm-label="Unlink"
+            variant="warning"
+            :loading="detachingPerson"
+            @confirm="performDetachPerson"
+            @update:show="(v) => { if (! v) detachPersonTarget = null; }"
+        />
+
         <ConfirmModal
             v-model:show="showRevokePortal"
             :title="revokePortalTarget ? `Revoke portal access for ${revokePortalTarget.email}?` : 'Revoke portal access?'"
@@ -4219,4 +4527,21 @@ function confirmDeleteWebsite() {
 <style scoped>
 .slide-over { position: fixed; inset: 0; z-index: 40; }
 .slide-over-form { height: 100%; display: flex; flex-direction: column; }
+
+/* People / Owners card */
+.person-row { display: flex; align-items: center; gap: 12px; }
+.person-row-link { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.person-row-main { min-width: 0; }
+.person-row-name { font-weight: 600; color: var(--text); }
+.person-row-link:hover .person-row-name { color: var(--accent); }
+.person-row-sub { font-size: 0.8rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Link-person slide-over */
+.seg-toggle { display: flex; gap: 4px; padding: 4px; margin-bottom: 16px; background: var(--surface-2, var(--surface-hover)); border-radius: var(--radius-md); }
+.seg-toggle button { flex: 1; padding: 6px 10px; border: 0; background: none; border-radius: var(--radius-sm); cursor: pointer; color: var(--text-muted); font-weight: 500; }
+.seg-toggle button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.08)); }
+.ppl-results { list-style: none; margin: 6px 0 0; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); max-height: 220px; overflow-y: auto; }
+.ppl-results li button { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 8px 10px; text-align: left; background: none; border: 0; border-radius: var(--radius-sm); cursor: pointer; color: var(--text); }
+.ppl-results li button:hover { background: var(--surface-hover); }
+.cust-chosen { margin: 8px 0 0; font-size: 0.85rem; color: var(--text); }
 </style>

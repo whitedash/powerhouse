@@ -49,6 +49,9 @@ class StoreCustomerRequest extends FormRequest
             'contact_email' => ['required', 'email:rfc,dns', 'max:255'],
             'contact_phone' => ['nullable', 'string', 'max:50'],
             'contact_role' => ['nullable', Rule::in(self::CONTACT_ROLES)],
+            // Optional: the operator picked an existing Person for the main
+            // contact. When absent, store() dedupes/creates a Person by email.
+            'person_id' => ['nullable', 'integer', 'exists:people,id'],
         ];
     }
 }

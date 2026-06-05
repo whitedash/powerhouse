@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Enums\PersonRole;
 use App\Events\PaginatedListAccessed;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCustomerRequest;
@@ -14,10 +15,12 @@ use App\Models\CommissionLedger;
 use App\Models\Contact;
 use App\Models\Contract;
 use App\Models\Customer;
+use App\Models\CustomerPerson;
 use App\Models\CustomerProduct;
 use App\Models\CustomerReferral;
 use App\Models\Lead;
 use App\Models\Note;
+use App\Models\Person;
 use App\Models\PortalUser;
 use App\Models\Product;
 use App\Models\ProductPlan;
@@ -29,6 +32,7 @@ use App\Models\Referrer;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Website;
+use App\Services\PersonService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -234,6 +238,9 @@ class CustomerController extends Controller
                 ->orderByDesc('created_at')
                 ->limit(5),
             'groups.customers:id,name',
+            // People (cross-company owners/associates) linked to this
+            // company via customer_person. Pivot carries role + job_title.
+            'people:id,name,email',
             'contracts' => fn ($q) => $q->orderByDesc('created_at')
                 ->with('uploader:id,name'),
             // Projects belonging to this customer. Active first,
@@ -346,6 +353,25 @@ class CustomerController extends Controller
                     'portal_last_login' => $c->portalUser?->last_login_at?->diffForHumans(),
                     'portal_user_id' => $c->portalUser?->id,
                 ])->values(),
+
+                // People linked to this company (the "one person owns
+                // many companies" layer). Role + job_title live on the
+                // customer_person pivot.
+                'people' => $customer->people->map(function (Person $p): array {
+                    // Larastan can't type the belongsToMany ->using() pivot, so
+                    // narrow it once here; the runtime access is correct.
+                    /** @var CustomerPerson $pivot */
+                    $pivot = $p->pivot; // @phpstan-ignore property.notFound
+
+                    return [
+                        'id' => $p->id,
+                        'name' => $p->name,
+                        'email' => $p->email,
+                        'role' => $pivot->role->value,
+                        'role_label' => $pivot->role->label(),
+                        'job_title' => $pivot->job_title,
+                    ];
+                })->values(),
 
                 'products' => $customer->customerProducts->map(fn ($cp) => [
                     'id' => $cp->id,
@@ -743,6 +769,10 @@ class CustomerController extends Controller
                 ->get(['id', 'name']),
             'pipeline_stages' => self::PIPELINE_STAGES,
             'contact_roles' => self::CONTACT_ROLES,
+            // Person-role options for the People/Owners card's attach +
+            // role-change controls. Sourced from the PersonRole enum so
+            // there's a single source of truth.
+            'person_roles' => PersonRole::options(),
             'note_types' => self::NOTE_TYPES,
             'types' => self::TYPE_VALUES,
             // Every customer group (segment) the operator could add
@@ -758,7 +788,7 @@ class CustomerController extends Controller
     {
         $data = $request->validated();
 
-        $customer = DB::transaction(function () use ($data, $request) {
+        [$customer, $contact] = DB::transaction(function () use ($data, $request) {
             $customer = Customer::create([
                 'name' => $data['name'],
                 'trading_name' => $data['trading_name'] ?? null,
@@ -776,7 +806,7 @@ class CustomerController extends Controller
                 'assigned_to' => $data['assigned_to'] ?? null,
             ]);
 
-            Contact::create([
+            $contact = Contact::create([
                 'customer_id' => $customer->id,
                 'name' => $data['contact_name'],
                 'email' => $data['contact_email'],
@@ -799,8 +829,33 @@ class CustomerController extends Controller
 
             $this->logActivity($request, 'customer.created', $customer, after: ['name' => $customer->name]);
 
-            return $customer;
+            return [$customer, $contact];
         });
+
+        // Additive people-layer link (Layer 1): dedupe the human by email and
+        // tie the primary contact to a Person + a customer_person row. This is
+        // BEST-EFFORT and runs AFTER commit — the Customer + Contact are the
+        // critical records and must never be rolled back by a Person-link
+        // failure. Comms still read customer->primaryContact (untouched).
+        try {
+            $people = app(PersonService::class);
+            $person = $people->createOrLinkFromContact(
+                $data['person_id'] ?? null,
+                $data['contact_name'],
+                $data['contact_email'],
+                $request->user(),
+            );
+            $contact->update(['person_id' => $person->id]);
+            $people->attachCompany(
+                $person,
+                $customer,
+                PersonRole::tryFrom($data['contact_role'] ?? 'owner') ?? PersonRole::Owner,
+                $contact->job_title,
+                $request->user(),
+            );
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return redirect()
             ->route('internal.customers.show', $customer->id)
@@ -1127,8 +1182,14 @@ class CustomerController extends Controller
 
         // Email the invite + temp password to the contact. The flash
         // still carries the credentials so staff can also share them
-        // out-of-band if email delivery is delayed.
-        Mail::to($contact->email)->send(new PortalInvite($customer, $contact, $tempPassword));
+        // out-of-band if email delivery is delayed. A mail-transport
+        // failure must NOT 500 here — the portal user is already created
+        // and the credentials are returned below; just report and move on.
+        try {
+            Mail::to($contact->email)->send(new PortalInvite($customer, $contact, $tempPassword));
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return back()->with('portal_invite', [
             'login_url' => route('portal.login'),

@@ -235,7 +235,62 @@ const form = useForm({
     contact_email: '',
     contact_phone: '',
     contact_role: 'owner',
+    // Set when the operator picks an existing Person for the main contact;
+    // store() then links instead of deduping by email.
+    person_id: null,
 });
+
+/* ─── Main-contact: link an existing Person (dedupe humans) ─── */
+const personQuery = ref('');
+const personResults = ref([]);
+const personSearching = ref(false);
+const linkedPerson = ref(null);
+let personTimer = null;
+let skipPersonSearch = false;
+
+watch(personQuery, (v) => {
+    if (skipPersonSearch) { skipPersonSearch = false; return; }
+    // Typing after a pick means they're choosing someone else.
+    linkedPerson.value = null;
+    form.person_id = null;
+    clearTimeout(personTimer);
+    if (! v || v.length < 2) { personResults.value = []; return; }
+    personTimer = setTimeout(async () => {
+        personSearching.value = true;
+        try {
+            const res = await fetch(`/search?q=${encodeURIComponent(v)}`, {
+                headers: { Accept: 'application/json' }, credentials: 'same-origin',
+            });
+            const data = await res.json();
+            personResults.value = (data.results ?? [])
+                .filter((r) => r.type === 'person')
+                .map((r) => ({ id: Number(r.url.split('/').pop()), name: r.title, email: r.sub }));
+        } catch (e) {
+            personResults.value = [];
+        } finally {
+            personSearching.value = false;
+        }
+    }, 300);
+});
+
+function pickPerson(p) {
+    linkedPerson.value = p;
+    form.person_id = p.id;
+    // Prefill the contact fields from the chosen Person (email may be a
+    // dash placeholder in search results — only copy a real address).
+    form.contact_name = p.name;
+    if (p.email && p.email.includes('@')) form.contact_email = p.email;
+    personResults.value = [];
+    skipPersonSearch = true;
+    personQuery.value = p.name;
+}
+
+function clearLinkedPerson() {
+    linkedPerson.value = null;
+    form.person_id = null;
+    personQuery.value = '';
+    personResults.value = [];
+}
 
 /* ─── Acquisition channel picker ─── */
 const CHANNELS = [
@@ -263,6 +318,7 @@ const channelDetailPlaceholder = computed(() => CHANNEL_DETAIL[form.acquisition_
 function openCreate() {
     form.reset();
     form.clearErrors();
+    clearLinkedPerson();
     if (me.value?.id) form.assigned_to = me.value.id;
     showCreate.value = true;
 }
@@ -686,6 +742,32 @@ onMounted(() => {
                                 <!-- Primary contact -->
                                 <div class="form-section">
                                     <div class="form-section-title">Primary contact</div>
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Link an existing person <span class="muted small">(optional — search to avoid duplicating someone)</span></label>
+                                            <div v-if="linkedPerson" class="person-linked">
+                                                <IconUsers :size="14" stroke-width="1.75" />
+                                                <span>Linked to <strong>{{ linkedPerson.name }}</strong></span>
+                                                <button type="button" class="icon-btn" aria-label="Unlink person" @click="clearLinkedPerson">
+                                                    <IconX :size="14" stroke-width="1.75" />
+                                                </button>
+                                            </div>
+                                            <template v-else>
+                                                <div class="field-search">
+                                                    <span class="search-icon"><IconSearch :size="16" stroke-width="1.75" /></span>
+                                                    <input v-model="personQuery" type="search" placeholder="Search existing people by name or email…" autocomplete="off">
+                                                </div>
+                                                <ul v-if="personResults.length" class="person-results">
+                                                    <li v-for="p in personResults" :key="p.id">
+                                                        <button type="button" @click="pickPerson(p)">
+                                                            <strong>{{ p.name }}</strong><span class="muted small">{{ p.email }}</span>
+                                                        </button>
+                                                    </li>
+                                                </ul>
+                                                <p v-else-if="personSearching" class="muted small">Searching…</p>
+                                            </template>
+                                        </div>
+                                    </div>
                                     <div class="form-row">
                                         <div class="form-field">
                                             <label for="contact_name">Contact name<span class="req">*</span></label>
@@ -785,6 +867,25 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* Main-contact person typeahead */
+.person-results {
+    list-style: none; margin: 6px 0 0; padding: 4px;
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    background: #fff; max-height: 200px; overflow-y: auto;
+}
+.person-results li button {
+    display: flex; flex-direction: column; gap: 2px; width: 100%;
+    padding: 8px 10px; text-align: left; background: none; border: 0;
+    border-radius: var(--radius-sm); cursor: pointer; color: var(--text-primary);
+}
+.person-results li button:hover { background: var(--neutral-bg); }
+.person-linked {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    background: var(--success-bg); border: 1px solid #A7F3D0; border-radius: var(--radius-md);
+    font-size: 13px; color: #047857;
+}
+.person-linked .icon-btn { margin-left: auto; }
+
 .slide-over {
     position: fixed;
     inset: 0;

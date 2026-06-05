@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $customer_id
+ * @property int|null $person_id
  * @property string $name
  * @property string|null $email
  * @property string|null $phone
@@ -21,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Customer|null $customer
+ * @property-read Person|null $person
  * @property-read PortalUser|null $portalUser
  * @property-read string $display_name
  */
@@ -28,6 +30,7 @@ class Contact extends Model
 {
     protected $fillable = [
         'customer_id',
+        'person_id',
         'name',
         'email',
         'phone',
@@ -47,6 +50,15 @@ class Contact extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Optional link to the cross-company Person this contact represents.
+     * Null for the many contacts that aren't tied to a person record.
+     */
+    public function person(): BelongsTo
+    {
+        return $this->belongsTo(Person::class);
     }
 
     /**

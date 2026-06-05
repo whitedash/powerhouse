@@ -30,7 +30,14 @@ class ContactController extends Controller
         $data = $request->validate([
             'customer_id' => ['required', 'integer', 'exists:customers,id'],
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255', 'unique:contacts,email'],
+            // Email is unique PER COMPANY, not globally: the same person
+            // is often the operational contact at several of their
+            // companies (see the people↔companies layer). A global unique
+            // would block that; scoping to customer_id still prevents
+            // duplicate contacts within one company.
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('contacts', 'email')->where(
+                fn ($q) => $q->where('customer_id', $request->input('customer_id'))
+            )],
             'phone' => ['nullable', 'string', 'max:50'],
             'job_title' => ['nullable', 'string', 'max:100'],
             'role' => ['nullable', Rule::in(self::ROLES)],
@@ -78,7 +85,11 @@ class ContactController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255', Rule::unique('contacts', 'email')->ignore($contact->id)],
+            // Per-company uniqueness (see store()): scope to this
+            // contact's customer and ignore the row being edited.
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('contacts', 'email')
+                ->ignore($contact->id)
+                ->where(fn ($q) => $q->where('customer_id', $contact->customer_id))],
             'phone' => ['nullable', 'string', 'max:50'],
             'job_title' => ['nullable', 'string', 'max:100'],
             'role' => ['nullable', Rule::in(self::ROLES)],
