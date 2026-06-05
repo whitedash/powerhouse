@@ -73,6 +73,14 @@ class DashboardController extends Controller
             'referrer' => [
                 'name' => $user->name,
                 'email' => $user->email,
+                // The referrer's canonical share link + lifetime click
+                // count. referral_code is backfilled for every referrer,
+                // but guard for null defensively.
+                'referral_code' => $referrer->referral_code,
+                'referral_link' => $referrer->referral_code
+                    ? rtrim((string) config('app.url'), '/').'/r/'.$referrer->referral_code
+                    : null,
+                'click_count' => $referrer->clicks()->count(),
             ],
             'summary' => $summary,
             'recent_commissions' => $recentCommissions,

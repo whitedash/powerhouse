@@ -1,12 +1,16 @@
 <script setup>
 import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import {
     IconArrowRight,
     IconCoin,
     IconHourglass,
     IconCircleCheck,
     IconUsers,
+    IconCopy,
+    IconCheck,
+    IconClick,
 } from '@tabler/icons-vue';
 import ReferrerLayout from '@/Layouts/ReferrerLayout.vue';
 
@@ -44,6 +48,15 @@ function customerInitials(name) {
     const parts = (name || '').trim().split(/\s+/);
     return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?';
 }
+
+const copied = ref(false);
+function copyLink() {
+    if (! props.referrer.referral_link) return;
+    navigator.clipboard?.writeText(props.referrer.referral_link).then(() => {
+        copied.value = true;
+        setTimeout(() => { copied.value = false; }, 1800);
+    });
+}
 </script>
 
 <template>
@@ -58,6 +71,24 @@ function customerInitials(name) {
                 <template v-if="summary.all_time_paid > 0">
                     · {{ gbp(summary.all_time_paid) }} paid all-time
                 </template>
+            </div>
+        </section>
+
+        <!-- Referral link -->
+        <section v-if="referrer.referral_link" class="referral-link-card">
+            <div class="rlc-main">
+                <div class="rlc-label"><IconClick :size="14" stroke-width="1.75" /> Your referral link</div>
+                <div class="rlc-link">{{ referrer.referral_link }}</div>
+            </div>
+            <div class="rlc-side">
+                <div class="rlc-clicks">
+                    <span class="rlc-clicks-value">{{ referrer.click_count }}</span>
+                    <span class="rlc-clicks-label">click{{ referrer.click_count === 1 ? '' : 's' }}</span>
+                </div>
+                <button type="button" class="btn btn-primary btn-sm" @click="copyLink">
+                    <component :is="copied ? IconCheck : IconCopy" :size="14" stroke-width="1.75" />
+                    {{ copied ? 'Copied' : 'Copy' }}
+                </button>
             </div>
         </section>
 
@@ -177,3 +208,18 @@ function customerInitials(name) {
         </div>
     </ReferrerLayout>
 </template>
+
+<style scoped>
+.referral-link-card {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 16px 18px; margin-bottom: 16px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg, 12px);
+}
+.rlc-main { min-width: 0; flex: 1; }
+.rlc-label { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 4px; }
+.rlc-link { font-family: var(--font-mono, monospace); font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rlc-side { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+.rlc-clicks { text-align: right; line-height: 1.1; }
+.rlc-clicks-value { display: block; font-size: 1.25rem; font-weight: 700; color: var(--text); }
+.rlc-clicks-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+</style>

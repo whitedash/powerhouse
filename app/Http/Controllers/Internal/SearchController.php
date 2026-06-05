@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Person;
 use App\Models\Product;
 use App\Models\SupportTicket;
 use Illuminate\Http\JsonResponse;
@@ -103,6 +104,24 @@ class SearchController extends Controller
             ->all();
         $results = array_merge($results, $contacts);
 
+        // ── People — cross-company human identities. Matched by name or
+        //    email; routes to the person detail page. Also feeds the
+        //    "link existing person" picker on the customer People card.
+        $people = Person::where('name', 'like', "%{$q}%")
+            ->orWhere('email', 'like', "%{$q}%")
+            ->take(4)
+            ->get(['id', 'name', 'email'])
+            ->map(fn (Person $p): array => [
+                'type' => 'person',
+                'icon' => 'user',
+                'colour' => '#0D9488',
+                'title' => $p->name,
+                'sub' => $p->email ?? '—',
+                'url' => '/people/'.$p->id,
+            ])
+            ->all();
+        $results = array_merge($results, $people);
+
         // ── Open / in-progress / awaiting tickets. Resolved tickets
         //    aren't in the result set because they're not actionable
         //    work — search them via the Support page filter instead.
@@ -117,7 +136,7 @@ class SearchController extends Controller
                 'colour' => '#3B82F6',
                 'title' => $t->subject,
                 'sub' => $t->customer->name.' · '.str_replace('_', ' ', $t->status),
-                'url' => '/support/'.$t->id,
+                'url' => '/helpdesk/'.$t->id,
             ])
             ->all();
         $results = array_merge($results, $tickets);

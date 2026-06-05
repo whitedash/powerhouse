@@ -209,29 +209,43 @@ function submitEditReferrer() {
  * would try to follow the response as a page nav. The CSRF token is
  * pulled from the meta tag the blade root layout writes.
  */
+// Live XSRF-TOKEN cookie — stays valid across a guard switch, unlike the
+// static <meta> token which goes stale (the old 419 cause).
+function xsrfToken() {
+    const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+}
+
 async function openReferrerPreview(id) {
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+    // Open the tab synchronously inside the click so popup blockers don't
+    // kill it (they block window.open called after an await).
+    const tab = window.open('', '_blank');
     try {
         const res = await fetch(`/impersonate/referrer/${id}`, {
             method: 'POST',
             headers: {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrf,
+                'X-XSRF-TOKEN': xsrfToken(),
                 'X-Requested-With': 'XMLHttpRequest',
             },
             credentials: 'same-origin',
         });
         const data = await res.json().catch(() => ({}));
         if (! res.ok) {
+            tab?.close();
             window.alert(data?.error ?? `Preview failed (HTTP ${res.status}).`);
 
             return;
         }
         if (data?.url) {
-            window.open(data.url, '_blank', 'noopener');
+            tab.location = data.url;
+        } else {
+            tab?.close();
+            window.alert('Preview failed.');
         }
     } catch (e) {
+        tab?.close();
         window.alert('Could not open preview.');
     }
 }

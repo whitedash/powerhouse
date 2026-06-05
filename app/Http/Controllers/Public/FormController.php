@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Form;
 use App\Models\FormSubmission;
+use App\Services\AttributionService;
 use App\Services\WorkflowEngine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -115,7 +116,12 @@ class FormController extends Controller
             ->filter(fn ($v) => $v !== null)
             ->all();
 
-        DB::transaction(function () use ($form, $payload, $request, $engine): void {
+        // Resolve any referral attribution riding on this submission
+        // (?ref param or the wd_ref cookie) so a lead created downstream
+        // carries the referrer. Null for the overwhelming majority.
+        $referrer = app(AttributionService::class)->referrerFromRequest($request);
+
+        DB::transaction(function () use ($form, $payload, $request, $engine, $referrer): void {
             $submission = FormSubmission::create([
                 'form_id' => $form->id,
                 'data' => $payload,
@@ -140,6 +146,10 @@ class FormController extends Controller
                     'form_name' => $form->name,
                     'submission_id' => $submission->id,
                     'ip' => $request->ip(),
+                    // Referral attribution context — consumed by
+                    // WorkflowEngine::actionCreateLead. Null when absent.
+                    'referrer_id' => $referrer?->id,
+                    'referral_code' => $referrer?->referral_code,
                 ]),
                 triggerEntityId: $submission->id,
             );

@@ -7,6 +7,7 @@ use App\Models\FormSubmission;
 use App\Models\Lead;
 use App\Models\Note;
 use App\Models\Task;
+use App\Models\User;
 use App\Models\Workflow;
 use App\Models\WorkflowAction;
 use Illuminate\Support\Facades\DB;
@@ -89,6 +90,10 @@ class WorkflowEngine
                     'trigger' => $triggerType,
                     'error' => $e->getMessage(),
                 ]);
+                // Surface to the exception handler / Sentry too — a swallowed
+                // throw here silently drops the lead/ticket the workflow would
+                // have created.
+                report($e);
             }
         }
     }
@@ -136,6 +141,7 @@ class WorkflowEngine
     {
         return match ($action->action_type) {
             'create_lead' => $this->actionCreateLead($action->config, $context),
+            'create_ticket' => $this->actionCreateTicket($action->config, $context),
             'create_task' => $this->actionCreateTask($action->config, $context),
             'add_note' => $this->actionAddNote($action->config, $context),
             'update_lead_status' => $this->actionUpdateLeadStatus($action->config, $context),
@@ -162,6 +168,20 @@ class WorkflowEngine
             $firstName = 'Web lead';
         }
 
+        // leads.created_by is NOT NULL (FK→users). Resolve to a guaranteed-real
+        // user — the configured one if it exists, else the first super_admin —
+        // never a magic "1" that may not exist (which would FK-fail and, caught
+        // by trigger(), silently drop the lead). If none resolves, skip + report
+        // rather than throw.
+        $createdBy = $this->resolveWorkflowActorId(
+            isset($config['created_by']) ? (int) $config['created_by'] : null
+        );
+        if ($createdBy === null) {
+            report(new \RuntimeException('actionCreateLead: no valid created_by (config user or super_admin) — lead not created.'));
+
+            return $context;
+        }
+
         $lead = Lead::create([
             'first_name' => $firstName,
             'last_name' => $this->resolveField($config['last_name_field'] ?? 'last_name', $context),
@@ -170,6 +190,11 @@ class WorkflowEngine
             'company' => $this->resolveField($config['company_field'] ?? 'company', $context),
             'source' => $config['source'] ?? 'other',
             'source_detail' => $this->resolveField($config['source_detail_field'] ?? null, $context),
+            // Referral attribution captured at form submission (null when
+            // the submission carried no ?ref / wd_ref). Existing behaviour
+            // is unchanged when these keys are absent.
+            'referrer_id' => $context['referrer_id'] ?? null,
+            'referral_code' => $context['referral_code'] ?? null,
             'status' => $config['status'] ?? 'new',
             'assigned_to' => $config['assigned_to'] ?? null,
             'form_submission_id' => $context['submission_id'] ?? null,
@@ -206,6 +231,50 @@ class WorkflowEngine
      * @param  array<string, mixed>  $context
      * @return array<string, mixed>
      */
+    /**
+     * Create a support ticket from a form submission, via the shared
+     * TicketIntakeService (same path as the public /support form). Skips
+     * silently when there's no message body to file.
+     *
+     * @param  array<string, mixed>  $config
+     * @param  array<string, mixed>  $context
+     * @return array<string, mixed>
+     */
+    /**
+     * A guaranteed-real users.id for workflow-fired records that need a
+     * NOT-NULL created_by: the configured id if it exists, else the first
+     * super_admin. Null only when no super_admin exists at all.
+     */
+    private function resolveWorkflowActorId(?int $configured): ?int
+    {
+        if ($configured !== null && User::whereKey($configured)->exists()) {
+            return $configured;
+        }
+
+        return User::where('role', 'super_admin')->orderBy('id')->value('id');
+    }
+
+    private function actionCreateTicket(array $config, array $context): array
+    {
+        $subject = $this->resolveField($config['subject_field'] ?? 'subject', $context) ?: 'Support request';
+        $message = $this->resolveField($config['message_field'] ?? 'message', $context);
+
+        if ($message === null || trim($message) === '') {
+            return $context;
+        }
+
+        $ticket = app(TicketIntakeService::class)->create([
+            'subject' => $subject,
+            'message' => $message,
+            'priority' => $config['priority'] ?? 'medium',
+            'guest_name' => $this->resolveField($config['name_field'] ?? 'name', $context),
+            'guest_email' => $this->resolveField($config['email_field'] ?? 'email', $context),
+            'guest_phone' => $this->resolveField($config['phone_field'] ?? 'phone', $context),
+        ], $config['source'] ?? 'workflow');
+
+        return array_merge($context, ['ticket_id' => $ticket->id]);
+    }
+
     private function actionCreateTask(array $config, array $context): array
     {
         $title = $this->renderTemplate(

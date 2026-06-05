@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,6 +13,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $user_id
+ * @property string|null $referral_code
  * @property array<string, mixed>|null $payment_details
  * @property bool $is_active
  * @property int $customer_count
@@ -20,13 +22,17 @@ use Illuminate\Support\Carbon;
  * @property-read User|null $user
  * @property-read Collection<int, CustomerReferral> $referrals
  * @property-read Collection<int, Customer> $customers
+ * @property-read Collection<int, ReferralClick> $clicks
  * @property-read Collection<int, CommissionRule> $commissionRules
  * @property-read Collection<int, CommissionLedger> $ledgerEntries
  */
 class Referrer extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'user_id',
+        'referral_code',
         'payment_details',
         'is_active',
     ];
@@ -53,6 +59,11 @@ class Referrer extends Model
     public function referrals(): HasMany
     {
         return $this->hasMany(CustomerReferral::class);
+    }
+
+    public function clicks(): HasMany
+    {
+        return $this->hasMany(ReferralClick::class);
     }
 
     public function customers(): HasManyThrough

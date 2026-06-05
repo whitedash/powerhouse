@@ -9,6 +9,7 @@ use App\Models\CommissionRule;
 use App\Models\CustomerReferral;
 use App\Models\Referrer;
 use App\Models\User;
+use App\Services\ReferralCodeGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -354,6 +355,7 @@ class ReferrerController extends Controller
 
             $referrer = Referrer::create([
                 'user_id' => $user->id,
+                'referral_code' => app(ReferralCodeGenerator::class)->generate(),
                 'is_active' => true,
             ]);
 
