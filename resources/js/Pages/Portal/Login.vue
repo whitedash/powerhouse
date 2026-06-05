@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { IconAlertCircle, IconLock } from '@tabler/icons-vue';
+import { IconAlertCircle, IconArrowLeft, IconLock } from '@tabler/icons-vue';
 
 const form = useForm({
     email: '',
@@ -19,11 +19,11 @@ function submit() {
     <Head title="Sign in · Whitedash" />
     <div class="portal-login">
         <div class="portal-login-card">
-            <div class="portal-login-brand">
+            <a href="/" class="portal-login-brand" style="text-decoration:none;color:inherit;" aria-label="Whitedash hub">
                 <div class="brand-mark">W</div>
                 <div class="portal-login-brand-name">Whitedash</div>
                 <div class="portal-login-brand-sub">customer portal</div>
-            </div>
+            </a>
 
             <h1 class="portal-login-title">Sign in to your account</h1>
             <p class="portal-login-subtitle">
@@ -87,6 +87,13 @@ function submit() {
 
             <div class="portal-login-footer">
                 Need access? Ask your account manager to invite you.
+            </div>
+
+            <div style="text-align:center;margin-top:14px;">
+                <a href="/" class="portal-back-link">
+                    <IconArrowLeft :size="14" stroke-width="1.75" />
+                    Back to hub
+                </a>
             </div>
         </div>
 

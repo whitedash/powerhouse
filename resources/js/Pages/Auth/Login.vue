@@ -1,7 +1,7 @@
 <script setup>
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { IconAlertCircle } from '@tabler/icons-vue';
+import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-vue';
 
 const page = usePage();
 
@@ -27,13 +27,13 @@ function submit() {
 
     <div class="login-screen">
         <form class="login-card" @submit.prevent="submit">
-            <div class="login-brand">
+            <a href="/" class="login-brand" aria-label="Whitedash hub">
                 <div class="brand-mark">W</div>
                 <div class="login-brand-text">
                     <div class="login-title">Powerhouse</div>
                     <div class="login-sub">Whitedash</div>
                 </div>
-            </div>
+            </a>
 
             <div v-if="generalError" class="login-error">
                 <IconAlertCircle :size="18" stroke-width="2" />
@@ -75,6 +75,11 @@ function submit() {
                 Whitedash Holdings · Internal access only
             </div>
         </form>
+
+        <a href="/" class="login-back">
+            <IconArrowLeft :size="14" stroke-width="1.75" />
+            Back to hub
+        </a>
     </div>
 </template>
 
@@ -105,6 +110,7 @@ function submit() {
     align-items: center;
     gap: 10px;
     margin-bottom: 32px;
+    text-decoration: none;
 }
 
 .login-brand-text {
@@ -196,4 +202,17 @@ function submit() {
     font: 400 12px/1.4 'Inter', sans-serif;
     margin-top: 24px;
 }
+
+/* Below the card, on the navy backdrop — back to the public hub. */
+.login-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 24px;
+    color: rgba(255, 255, 255, .7);
+    font: 500 13px/1 'Inter', sans-serif;
+    text-decoration: none;
+    transition: color .15s;
+}
+.login-back:hover { color: #fff; }
 </style>
