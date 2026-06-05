@@ -72,6 +72,7 @@ function formatPeriod(c) {
         </div>
 
         <div v-else class="card">
+            <div class="referrer-table-scroll">
             <table class="referrer-table">
                 <thead>
                     <tr>
@@ -118,6 +119,7 @@ function formatPeriod(c) {
                     </tr>
                 </tbody>
             </table>
+            </div>
         </div>
 
         <!-- Pagination -->

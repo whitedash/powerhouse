@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
     Menu,
@@ -14,6 +14,7 @@ import {
     IconCreditCard,
     IconChartLine,
     IconUsersGroup,
+    IconShare,
     IconToolsKitchen2,
     IconFileInvoice,
     IconClipboardList,
@@ -48,6 +49,8 @@ import {
     IconCheck,
     IconBuildingFactory2,
     IconBrandWordpress,
+    IconMenu2,
+    IconX,
 } from '@tabler/icons-vue';
 import ToastContainer from '@/Components/UI/ToastContainer.vue';
 
@@ -232,7 +235,7 @@ const sections = computed(() => {
         {
             label: 'Workspace',
             items: [
-                { key: 'overview',      label: 'Overview',      href: '/',           icon: IconLayoutDashboard },
+                { key: 'overview',      label: 'Overview',      href: '/dashboard',  icon: IconLayoutDashboard },
                 { key: 'my-work',       label: 'My Work',       href: '/my-work',    icon: IconCheckbox },
                 { key: 'projects',      label: 'Projects',      href: '/projects',   icon: IconLayoutKanban },
                 { key: 'leads',         label: 'Leads',         href: '/leads',      icon: IconUserPlus },
@@ -243,7 +246,9 @@ const sections = computed(() => {
                     icon: IconUsers,
                     children: [
                         { key: 'customers', label: 'Customers', href: '/customers', icon: IconUsers },
+                        { key: 'people', label: 'People', href: '/people', icon: IconUser },
                         { key: 'referrers', label: 'Referrers', href: '/referrers', icon: IconUsersGroup },
+                        { key: 'referrals', label: 'Referrals', href: '/referrals', icon: IconShare },
                     ],
                 },
                 {
@@ -283,7 +288,7 @@ const sections = computed(() => {
         {
             label: 'Account',
             items: [
-                { key: 'support',  label: 'Support',     href: '/support',  icon: IconHeadset,   badge: supportBadge.value },
+                { key: 'support',  label: 'Support',     href: '/helpdesk', icon: IconHeadset,   badge: supportBadge.value },
                 { key: 'settings', label: 'Settings',    href: '/settings', icon: IconSettings },
                 { key: 'help',     label: 'Help & docs', href: '/help',     icon: IconHelpCircle },
             ],
@@ -323,6 +328,54 @@ const lastCrumbIndex = computed(() => visibleCrumbs.value.length - 1);
 function logout() {
     router.post('/logout');
 }
+
+/* ─────────────────────────────────────────────────────────────────
+ * MOBILE SHELL (≤720px)
+ *
+ * The fixed 240px sidebar becomes a burger-triggered off-canvas drawer.
+ * Desktop is untouched — these refs only drive classes the mobile media
+ * query reads. Because this layout PERSISTS across Inertia visits, the
+ * drawer is closed on every navigate (router.on) as well as on backdrop
+ * click, Escape, and a resize back to desktop. No browser storage.
+ * ──────────────────────────────────────────────────────────────── */
+const drawerOpen = ref(false);
+const searchExpanded = ref(false);
+
+function toggleDrawer() {
+    drawerOpen.value = ! drawerOpen.value;
+    if (drawerOpen.value) searchExpanded.value = false;
+}
+function closeDrawer() {
+    drawerOpen.value = false;
+}
+
+// On mobile the inline search collapses to an icon; tapping it expands the
+// input as a full-width overlay and focuses it.
+function toggleSearch() {
+    searchExpanded.value = ! searchExpanded.value;
+    if (searchExpanded.value) {
+        drawerOpen.value = false;
+        nextTick(() => searchInput.value?.focus());
+    } else {
+        showResults.value = false;
+    }
+}
+
+// Lock body scroll while the drawer is open so the page behind stays put.
+watch(drawerOpen, (isOpen) => {
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+});
+
+// Growing back to desktop must drop any mobile-only open state (and the
+// scroll lock) so nothing is left stranded.
+function onResize() {
+    if (window.innerWidth > 720) {
+        drawerOpen.value = false;
+        searchExpanded.value = false;
+    }
+}
+
+let removeNavigateListener = null;
 
 /* ─────────────────────────────────────────────────────────────────
  * GLOBAL SEARCH (⌘K)
@@ -439,8 +492,10 @@ function onKeydown(e) {
 
         return;
     }
-    if (e.key === 'Escape' && showResults.value) {
-        showResults.value = false;
+    if (e.key === 'Escape') {
+        if (drawerOpen.value) drawerOpen.value = false;
+        if (searchExpanded.value) searchExpanded.value = false;
+        if (showResults.value) showResults.value = false;
     }
 }
 
@@ -457,17 +512,29 @@ function onDocClick(e) {
 onMounted(() => {
     document.addEventListener('keydown', onKeydown);
     document.addEventListener('click', onDocClick);
+    window.addEventListener('resize', onResize);
+    // Layout persists across visits, so close the drawer on every navigate.
+    removeNavigateListener = router.on('navigate', () => {
+        drawerOpen.value = false;
+        searchExpanded.value = false;
+    });
 });
 onBeforeUnmount(() => {
     document.removeEventListener('keydown', onKeydown);
     document.removeEventListener('click', onDocClick);
+    window.removeEventListener('resize', onResize);
+    removeNavigateListener?.();
+    document.body.style.overflow = '';
     clearTimeout(searchTimer);
 });
 </script>
 
 <template>
     <div class="app">
-        <aside class="sidebar">
+        <!-- Mobile (≤720px): backdrop closes the off-canvas drawer. -->
+        <div v-if="drawerOpen" class="sidebar-backdrop" aria-hidden="true" @click="closeDrawer" />
+
+        <aside id="app-sidebar" class="sidebar" :class="{ 'is-open': drawerOpen }">
             <Link href="/" class="logo">
                 <div class="brand-mark">W</div>
                 <div>
@@ -567,6 +634,19 @@ onBeforeUnmount(() => {
 
         <main class="main">
             <div class="topbar">
+                <!-- Mobile (≤720px) only: toggles the off-canvas drawer. -->
+                <button
+                    type="button"
+                    class="topbar-burger"
+                    :aria-label="drawerOpen ? 'Close menu' : 'Open menu'"
+                    :aria-expanded="drawerOpen"
+                    aria-controls="app-sidebar"
+                    @click="toggleDrawer"
+                >
+                    <IconX v-if="drawerOpen" :size="22" stroke-width="1.75" />
+                    <IconMenu2 v-else :size="22" stroke-width="1.75" />
+                </button>
+
                 <div>
                     <div class="breadcrumb">
                         <template v-for="(crumb, i) in visibleCrumbs" :key="i">
@@ -585,7 +665,18 @@ onBeforeUnmount(() => {
                     <slot name="topbar-actions" />
                     <div v-if="$slots['topbar-actions']" class="divider-v" />
 
-                    <div class="search-wrapper">
+                    <!-- Mobile (≤720px) only: expands the search overlay. -->
+                    <button
+                        type="button"
+                        class="topbar-search-toggle"
+                        :aria-label="searchExpanded ? 'Close search' : 'Search'"
+                        :aria-expanded="searchExpanded"
+                        @click="toggleSearch"
+                    >
+                        <IconSearch :size="20" stroke-width="1.75" />
+                    </button>
+
+                    <div class="search-wrapper" :class="{ 'is-expanded': searchExpanded }">
                         <div class="topbar-search">
                             <span class="search-icon"><IconSearch :size="18" stroke-width="1.75" /></span>
                             <input
