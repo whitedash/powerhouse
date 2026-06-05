@@ -19,7 +19,8 @@ acquisition_channel ENUM(direct|google|social_media|landing_page|
 channel_detail VARCHAR(255) nullable
   -- Free-text follow-up (campaign name, platform, event, etc.).
 assigned_to BIGINT FK users nullable,
-referred_by BIGINT FK referrers nullable,
+-- referred_by: DROPPED 2026-06-03. Was a dead, FK-less, never-read
+--   column; canonical attribution is the customer_referrals pivot.
 qbo_customer_id VARCHAR(100) nullable UNIQUE
   -- QuickBooks Online customer id. Populated by a future QBO sync.
 exempt_from_auto_suspend BOOLEAN NOT NULL DEFAULT false
@@ -39,13 +40,41 @@ archived_at nullable, created_at, updated_at
 id, customer_id FK, name, email, phone nullable,
 role ENUM(owner|manager|accounts|other),
 is_primary BOOLEAN DEFAULT false, created_at, updated_at
+-- plus (2026_05_29): job_title nullable(100), notes nullable;
+   email is now nullable.
+-- plus (2026_06_03): person_id FK->people nullable (set null) —
+   optional link from an operational contact to a cross-company person.
+   No backfill; one-to-many on customer_id is unchanged.
+-- NOTE: contact email uniqueness is enforced PER customer_id (not
+   global) in ContactController, so one person can be a contact at
+   several companies.
 
 ## account_groups
 id, name, created_at, updated_at
+-- plus (2026_05_30): description nullable, colour nullable(7),
+   created_by FK->users nullable (set null)
 
 ## customer_group_memberships
 id, group_id FK, customer_id FK,
 role ENUM(owner|member), created_at
+
+## people
+id, name, email nullable UNIQUE, phone nullable(50),
+notes nullable, created_by FK->users nullable (set null),
+created_at, updated_at
+-- Cross-company human identity (the "one person owns many companies"
+   layer). Sits alongside contacts; does NOT replace it. email is the
+   dedupe key, so it is UNIQUE (nullable allows email-less people).
+
+## customer_person   (pivot: person <-> the companies they own/associate with)
+id, customer_id FK->customers (cascade),
+person_id FK->people (cascade),
+role VARCHAR(32) default 'owner', job_title nullable(100),
+created_at, updated_at
+UNIQUE (customer_id, person_id)
+-- role is NOT a DB enum: App\Enums\PersonRole is the single source of
+   truth (owner|director|shareholder|partner|manager|accounts|
+   signatory|other). The CustomerPerson pivot model casts it.
 
 ## portal_users
 id, customer_id FK, name, email, password,
@@ -215,31 +244,75 @@ order_count INT UNSIGNED nullable, created_at, updated_at
 
 ## referrers
 id, user_id FK users,
-payment_details JSON nullable,
+referral_code VARCHAR(16) nullable UNIQUE
+  -- 8-char Crockford base32 (no I/L/O/U). The referrer's one universal
+  -- /r/{code} link. Backfilled for existing rows; minted on create.
+payment_details JSON nullable (encrypted:array, LONGTEXT),
 is_active BOOLEAN DEFAULT true, created_at, updated_at
 
 ## customer_referrals
+-- This IS the spec's "referrals" record — extended in place, NOT a new
+-- table. One immutable attribution per customer (UNIQUE customer_id);
+-- last-touch is resolved before insert by AttributionService.
 id, customer_id BIGINT UNIQUE FK,
-referrer_id FK, attributed_at, created_at
+referrer_id FK,
+lead_id FK leads nullable (set null),
+click_id FK referral_clicks nullable (set null),
+product VARCHAR(30) nullable,            -- ProductKey value
+source VARCHAR(20) NOT NULL DEFAULT 'manual'  -- AttributionSource enum
+campaign VARCHAR(100) nullable,
+attributed_at, converted_at nullable,
+created_at, updated_at nullable          -- rows immutable; $timestamps=false
+
+## referral_clicks
+-- Immutable click events on /r/{code}. Source for last-touch attribution
+-- within the 60-day window. One row per VALID-code hit (invalid codes
+-- are not logged).
+id, referrer_id FK referrers (cascade),
+referral_code VARCHAR(16),               -- denormalised for fast lookup
+product VARCHAR(30) nullable,            -- the `p` param (ProductKey)
+campaign VARCHAR(100) nullable,          -- the `c` param (length-capped)
+utm_source / utm_medium / utm_campaign VARCHAR(255) nullable,
+landing_url VARCHAR(2048) nullable,
+ip_address VARCHAR(45) nullable,
+user_agent VARCHAR(512) nullable,
+created_at (useCurrent)                  -- no updated_at
+INDEX (referrer_id), (referral_code), (created_at)
 
 ## commission_rules
-id, referrer_id FK nullable,
+id, referrer_id FK nullable,   -- NULL = product-wide default; referrer-specific wins
 product_id FK,
 type ENUM(one_off_pct|recurring_tiered|hybrid),
 config JSON,
-valid_from DATE, valid_until DATE nullable,
+  -- Commission-engine config keys (shared CommissionService::calculate):
+  --   flat_amount        : fixed payout; TAKES PRECEDENCE over any percentage
+  --   percentage         : one_off_pct → % of gross
+  --   recurring_percentage : hybrid → % of recurring gross
+  --   recurring_months   : recurring duration cap (N). null/0/absent = lifetime
+  -- recurring_tiered is DEFERRED (Sprint 2) — calculate() stubs it to 0.
+valid_from DATE, valid_until DATE nullable,   -- effective-dating for resolution
 is_active BOOLEAN DEFAULT true, created_at, updated_at
 
 ## commission_ledger
 id, referrer_id FK, customer_id FK,
 invoice_id FK nullable, rule_id FK, product_id FK,
 trigger_type ENUM(onboarding|invoice_paid|monthly_recurring),
+  -- onboarding = one-off (first sale, once per customer×product);
+  -- invoice_paid = recurring (subscription-invoice) accrual;
+  -- monthly_recurring = the Maavelus statement flow.
 gross_amount DECIMAL(10,2), commission_amount DECIMAL(10,2),
 status ENUM(pending|approved|paid|voided),
 period_start DATE nullable, period_end DATE nullable,
 approved_by BIGINT FK users nullable, approved_at nullable,
 paid_at nullable, voided_reason VARCHAR(500) nullable,
 created_at, updated_at
+-- UNIQUE (invoice_id, referrer_id, product_id)
+--   commission_ledger_invoice_referrer_product_unique (Commission engine Sprint 1)
+--   Idempotency backstop: never credit the same invoice×referrer×product twice
+--   (webhook retries + multi-path settle). invoice_id NULLable → MySQL treats
+--   NULLs as distinct, so Maavelus null-invoice rows never collide.
+-- Engine writes are gated by config('referrals.commission_excluded_slugs')
+--   (Maavelus products are skipped — they accrue via their statement flow).
 
 ## expenses (6-fixes sprint)
 id,
@@ -487,7 +560,15 @@ pdf_path VARCHAR(500) nullable,
 notes TEXT nullable, created_at, updated_at
 
 ## support_tickets
-id, customer_id FK, contact_id FK nullable,
+id,
+customer_id FK nullable (cascade)
+  -- nullable since 2026-06-03: public/guest tickets have no customer.
+guest_name VARCHAR(255) nullable,
+guest_email VARCHAR(255) nullable (indexed),
+guest_phone VARCHAR(50) nullable
+  -- submitter details for guest tickets (public /support form). Populated
+  -- only when customer_id is null. Staff/portal tickets leave these null.
+contact_id FK nullable,
 product_id FK nullable, subject VARCHAR(500),
 status ENUM(open|in_progress|awaiting_customer|resolved|closed),
 priority ENUM(low|medium|high|urgent),
@@ -531,6 +612,22 @@ status ENUM(new|contacted|qualified|proposal|negotiation
 source ENUM(manual|landing_page|facebook|google|referral
   |email|phone|event|word_of_mouth|other) DEFAULT 'manual',
 source_detail VARCHAR(255) nullable,
+referrer_id FK referrers nullable SET NULL
+  -- Captured at public-form submission (?ref / wd_ref cookie); fed to
+  -- AttributionService at convert() to create the CustomerReferral.
+referral_code VARCHAR(16) nullable,
+-- Deal registration (Deal-Registration sprint). referral_status is the
+-- registration lifecycle, SEPARATE from `status` above. NULL = not a
+-- deal-registration (manual + cookie-attributed leads are unaffected).
+referral_status ENUM(pending_review|approved|rejected|expired) nullable,
+registered_at TIMESTAMP nullable,        -- set at submission
+protected_until TIMESTAMP nullable,      -- = approval time + 90d (set on approval)
+reviewed_by FK users nullable SET NULL,  -- staff approver/rejecter
+reviewed_at TIMESTAMP nullable,
+review_notes TEXT nullable,              -- holds the rejection reason
+referral_consent_at TIMESTAMP nullable,  -- referrer's GDPR attestation
+-- INDEX (referral_status)              leads_referral_status_idx
+-- INDEX (protected_until)             leads_protected_until_idx
 assigned_to FK users nullable SET NULL,
 estimated_value DECIMAL(10,2) nullable,
 notes TEXT nullable,

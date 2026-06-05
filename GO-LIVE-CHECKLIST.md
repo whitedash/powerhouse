@@ -39,6 +39,10 @@ is all ✅.
 - [ ] **Rotate** `CLOUDFLARE_API_TOKEN` + `PAGESPEED_API_KEY` —
       the dev values were committed and must not be reused
 - [ ] `composer install --no-dev --optimize-autoloader`
+- [ ] Prefer deploying a full `composer install --no-dev --optimize-autoloader`
+      vendor bundle over surgical per-package uploads, so runtime
+      transitive/suggested deps (e.g. `symfony/http-client`, needed by the
+      Postmark mailer) are never missed
 - [ ] `php artisan setup:production`
 - [ ] Import production SQL dump
 - [ ] Upload `storage/app` files (logos, PDFs)
@@ -59,6 +63,12 @@ is all ✅.
 
 ## Postmark
 - [ ] `POSTMARK_TOKEN` = server token
+- [ ] Verify `symfony/http-client` is present in the deployed `vendor/` —
+      the Postmark mailer needs it at runtime but does NOT hard-require it,
+      so its absence makes ALL outbound mail throw "HttpClient component is
+      not installed". Confirm on prod:
+      `php artisan tinker --execute="var_dump(class_exists(Symfony\\Component\\HttpClient\\HttpClient::class));"`
+      → must be `true`
 - [ ] Inbound webhook configured (with `POSTMARK_INBOUND_SECRET`)
 - [ ] Send a test email from Settings
 
