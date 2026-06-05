@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
 use App\Models\CommissionLedger;
-use App\Models\CommissionRule;
 use App\Models\MaavelusStatement;
 use App\Models\Product;
 use App\Models\User;
@@ -48,12 +47,13 @@ class MaavelusStatementService
                     continue;
                 }
 
-                $rule = $this->resolveRule($referrer->id, $maavelus->id, $statement);
+                $rule = app(CommissionRuleResolver::class)
+                    ->resolve($referrer->id, $maavelus->id, $statement->period_start, $statement->period_end);
                 if (! $rule) {
                     continue;
                 }
 
-                $amount = $this->calculateCommission($rule, (float) $line->total_fees);
+                $amount = app(CommissionService::class)->calculate($rule, (float) $line->total_fees);
                 if ($amount <= 0) {
                     continue;
                 }
@@ -157,50 +157,13 @@ class MaavelusStatementService
     }
 
     /**
-     * Resolve the best-matching active rule for a referrer/product/period.
-     * Referrer-specific rule wins over the default (referrer_id IS NULL).
-     */
-    private function resolveRule(int $referrerId, int $productId, MaavelusStatement $statement): ?CommissionRule
-    {
-        return CommissionRule::where('product_id', $productId)
-            ->where('is_active', true)
-            ->where(function ($q) use ($referrerId) {
-                $q->where('referrer_id', $referrerId)
-                    ->orWhereNull('referrer_id');
-            })
-            ->where('valid_from', '<=', $statement->period_start)
-            ->where(function ($q) use ($statement) {
-                $q->whereNull('valid_until')
-                    ->orWhere('valid_until', '>=', $statement->period_end);
-            })
-            ->orderByDesc('referrer_id')
-            ->first();
-    }
-
-    private function calculateCommission(CommissionRule $rule, float $fees): float
-    {
-        $config = $rule->config ?? [];
-
-        if ($rule->type === 'hybrid') {
-            $pct = (float) ($config['recurring_percentage'] ?? 0);
-
-            return round($fees * $pct / 100, 2);
-        }
-
-        if ($rule->type === 'one_off_pct') {
-            $pct = (float) ($config['percentage'] ?? 0);
-
-            return round($fees * $pct / 100, 2);
-        }
-
-        // recurring_tiered: not applicable to the per-restaurant flat-fee
-        // statement model. Returning 0 effectively skips this referrer
-        // for this period — flag to the user via empty commission list
-        // rather than silently using the wrong calc.
-        return 0;
-    }
-
-    /**
+     * Rule resolution + commission math now live in the shared
+     * CommissionRuleResolver + CommissionService::calculate(), used by both
+     * this statement flow and the invoice-paid engine so they compute
+     * identically. (Maavelus still writes its own ledger rows here — it is
+     * NOT routed through the invoice engine, and is excluded from it via
+     * referrals.commission_excluded_slugs — so revenue is never double-counted.)
+     *
      * @return array<int, array{referrer_name: string, total: float}>
      */
     private function getCommissionTotals(MaavelusStatement $statement): array

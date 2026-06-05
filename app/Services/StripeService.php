@@ -151,7 +151,8 @@ class StripeService
      */
     public function markInvoicePaid(Invoice $invoice, string $sessionId, string $paymentIntentId): array
     {
-        $reinstated = DB::transaction(function () use ($invoice, $sessionId, $paymentIntentId): array {
+        $transitioned = false;
+        $reinstated = DB::transaction(function () use ($invoice, $sessionId, $paymentIntentId, &$transitioned): array {
             // Re-read the invoice under a row lock and re-check status INSIDE
             // the transaction. Stripe fires checkout.session.completed and
             // payment_intent.succeeded for the same payment, retries
@@ -193,8 +194,22 @@ class StripeService
                 'user_agent' => 'stripe-webhook',
             ]);
 
+            $transitioned = true;
+
             return $this->autoReinstate($invoice);
         });
+
+        // Accrue referral commission AFTER commit, and ONLY on the real
+        // unpaid→paid transition (the idempotent no-op path leaves
+        // $transitioned false, so webhook retries never re-accrue). Guarded
+        // so a commission failure can NEVER roll back or break the payment.
+        if ($transitioned) {
+            try {
+                app(CommissionService::class)->accrueForInvoice($invoice);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
 
         return $reinstated;
     }
