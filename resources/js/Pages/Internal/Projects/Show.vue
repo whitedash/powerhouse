@@ -255,18 +255,34 @@ function deleteMilestone(id) {
 /* ─── Quick-add task per column ─── */
 const quickAddOpen = reactive({});
 const quickAddTitle = reactive({});
+const quickAddDue = reactive({});
+const quickAddError = reactive({});
 
-function openQuickAdd(key) { quickAddOpen[key] = true; quickAddTitle[key] = ''; }
-function closeQuickAdd(key) { quickAddOpen[key] = false; }
+function openQuickAdd(key) {
+    quickAddOpen[key] = true;
+    quickAddTitle[key] = '';
+    quickAddDue[key] = '';
+    quickAddError[key] = '';
+}
+function closeQuickAdd(key) { quickAddOpen[key] = false; quickAddError[key] = ''; }
 
 function submitQuickAdd(milestoneId) {
     const key = milestoneId ?? 'unassigned';
     const title = (quickAddTitle[key] ?? '').trim();
     if (! title) return;
 
+    // due_at is mandatory for an actionable task (Part A). Guard client-side
+    // so the quick-add can't fire a request the server is bound to 422 — the
+    // exact regression this introduced before a due field existed here.
+    if (! quickAddDue[key]) {
+        quickAddError[key] = 'A due date is required.';
+        return;
+    }
+
     router.post('/tasks', {
         title,
         type: 'task',
+        due_at: quickAddDue[key],
         project_id: props.project.id,
         milestone_id: milestoneId,
         assigned_to: null,
@@ -274,7 +290,12 @@ function submitQuickAdd(milestoneId) {
         preserveScroll: true,
         onSuccess: () => {
             quickAddTitle[key] = '';
+            quickAddDue[key] = '';
+            quickAddError[key] = '';
             closeQuickAdd(key);
+        },
+        onError: (errors) => {
+            quickAddError[key] = errors.due_at ?? errors.title ?? 'Could not create the task.';
         },
     });
 }
@@ -941,6 +962,15 @@ function actionLabel(action) {
                                     @keyup.enter="submitQuickAdd(m.id)"
                                     @keyup.esc="closeQuickAdd(m.id)"
                                 />
+                                <input
+                                    v-model="quickAddDue[m.id]"
+                                    type="date"
+                                    required
+                                    aria-label="Due date"
+                                    @keyup.enter="submitQuickAdd(m.id)"
+                                    @keyup.esc="closeQuickAdd(m.id)"
+                                />
+                                <div v-if="quickAddError[m.id]" class="err">{{ quickAddError[m.id] }}</div>
                                 <div class="qa-actions">
                                     <button class="btn btn-primary btn-sm" @click="submitQuickAdd(m.id)">Add</button>
                                     <button class="btn btn-ghost btn-sm" @click="closeQuickAdd(m.id)">Cancel</button>
@@ -1011,6 +1041,8 @@ function actionLabel(action) {
                             </button>
                             <div v-else class="kanban-quick-add">
                                 <input v-model="quickAddTitle.unassigned" type="text" placeholder="Task title…" @keyup.enter="submitQuickAdd(null)" @keyup.esc="closeQuickAdd('unassigned')" />
+                                <input v-model="quickAddDue.unassigned" type="date" required aria-label="Due date" @keyup.enter="submitQuickAdd(null)" @keyup.esc="closeQuickAdd('unassigned')" />
+                                <div v-if="quickAddError.unassigned" class="err">{{ quickAddError.unassigned }}</div>
                                 <div class="qa-actions">
                                     <button class="btn btn-primary btn-sm" @click="submitQuickAdd(null)">Add</button>
                                     <button class="btn btn-ghost btn-sm" @click="closeQuickAdd('unassigned')">Cancel</button>

@@ -33,6 +33,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\Website;
 use App\Services\PersonService;
+use App\Support\TaskDueDate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -913,10 +914,17 @@ class CustomerController extends Controller
 
         $data = $request->validate([
             'title' => ['required', 'string', 'max:500'],
-            'due_date' => ['nullable', 'date'],
-        ]);
+            // This form only ever creates an actionable task (it posts no
+            // type), so the shared rule requires a due date. Writes the
+            // canonical due_at; the legacy due_date column is left untouched.
+            'due_at' => TaskDueDate::rule(),
+        ], TaskDueDate::messages());
 
-        DB::transaction(function () use ($customer, $data, $request) {
+        // resolve() bumps a bare YYYY-MM-DD to 09:00 so the slot reads like
+        // a working day.
+        $dueAt = TaskDueDate::resolve($data);
+
+        DB::transaction(function () use ($customer, $data, $request, $dueAt) {
             Task::create([
                 'customer_id' => $customer->id,
                 'assigned_to' => $request->user()->id,
@@ -925,7 +933,7 @@ class CustomerController extends Controller
                 // 'todo' is the post-PM equivalent of the old 'open'
                 // — the entry state for the kanban workflow.
                 'status' => 'todo',
-                'due_date' => $data['due_date'] ?? null,
+                'due_at' => $dueAt,
             ]);
 
             $this->logActivity($request, 'customer.task_added', $customer, after: ['title' => $data['title']]);

@@ -14,9 +14,9 @@ use App\Models\Task;
 use App\Models\User;
 use App\Services\NotificationService;
 use App\Services\SupportSlaService;
+use App\Support\TaskDueDate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -339,26 +339,18 @@ class SupportController extends Controller
             'description' => ['nullable', 'string', 'max:5000'],
             'priority' => ['required', 'in:low,medium,high'],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
-            'due_at' => ['nullable', 'date'],
-        ]);
+            // This is a USER form (staff fill it on Support/Show) — route
+            // through the shared rule, not a silent default: actionable
+            // types require a due date, a note nulls it.
+            'due_at' => TaskDueDate::rule(),
+        ], TaskDueDate::messages());
 
         $userId = $request->user()->id;
         $assigneeId = $data['assigned_to'] ?? $userId;
+        // resolve() forces note → null and bumps a bare date to 09:00.
+        $dueAt = TaskDueDate::resolve($data);
 
-        DB::transaction(function () use ($ticket, $data, $userId, $assigneeId, $request) {
-            // Bare YYYY-MM-DD lands at midnight — bump to 09:00 so the
-            // dashboard list slot reads like a working day. due_at is now
-            // mandatory on tasks, so default a staff follow-up to +2 days
-            // when none was supplied (never null).
-            if (! empty($data['due_at'])) {
-                $dueAt = Carbon::parse($data['due_at']);
-                if ($dueAt->isStartOfDay() && ! str_contains((string) $data['due_at'], ':')) {
-                    $dueAt->setTime(9, 0, 0);
-                }
-            } else {
-                $dueAt = now()->addDays(2)->setTime(9, 0, 0);
-            }
-
+        DB::transaction(function () use ($ticket, $data, $userId, $assigneeId, $request, $dueAt) {
             $task = Task::create([
                 'customer_id' => $ticket->customer_id,
                 'title' => $data['title'],

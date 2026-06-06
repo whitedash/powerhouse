@@ -560,6 +560,7 @@ function submitCreateTask() {
                         <div v-if="createForm.is_all_day" class="form-field">
                             <label>Date</label>
                             <input v-model="createForm.due_at" type="date" required />
+                            <div v-if="createForm.errors.due_at" class="err">{{ createForm.errors.due_at }}</div>
                         </div>
                         <template v-else>
                             <div class="form-field">

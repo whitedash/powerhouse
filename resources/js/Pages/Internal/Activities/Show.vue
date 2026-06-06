@@ -895,8 +895,9 @@ const statusLabel = computed(() => {
                                 <div class="form-section">
                                     <div class="form-row">
                                         <div class="form-field">
-                                            <label>Due date</label>
-                                            <input v-model="subTaskForm.due_at" type="date" :min="todayIso">
+                                            <label>Due date<span v-if="!['note', 'email'].includes(subTaskForm.type)" class="req">*</span></label>
+                                            <input v-model="subTaskForm.due_at" type="date" :min="todayIso" :required="!['note', 'email'].includes(subTaskForm.type)">
+                                            <div v-if="subTaskForm.errors.due_at" class="err">{{ subTaskForm.errors.due_at }}</div>
                                         </div>
                                         <div class="form-field">
                                             <label>Time (optional)</label>
@@ -1007,8 +1008,8 @@ const statusLabel = computed(() => {
                                 <div v-if="editForm.type !== 'note'" class="form-section">
                                     <div class="form-row">
                                         <div class="form-field">
-                                            <label>Due</label>
-                                            <input v-model="editForm.due_at" type="datetime-local">
+                                            <label>Due<span v-if="!['note', 'email'].includes(editForm.type)" class="req">*</span></label>
+                                            <input v-model="editForm.due_at" type="datetime-local" :required="!['note', 'email'].includes(editForm.type)">
                                             <div v-if="editForm.errors.due_at" class="err">{{ editForm.errors.due_at }}</div>
                                         </div>
                                         <div class="form-field">

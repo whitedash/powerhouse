@@ -1091,6 +1091,7 @@ function performComplete() {
                                                 v-model="taskForm.due_at"
                                                 type="date"
                                                 :min="todayIso"
+                                                :required="!['note', 'email'].includes(taskForm.type)"
                                                 :class="{ 'has-err': taskForm.errors.due_at }"
                                             >
                                             <div v-if="taskForm.errors.due_at" class="err">{{ taskForm.errors.due_at }}</div>

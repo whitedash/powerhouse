@@ -8,6 +8,7 @@ use App\Models\Milestone;
 use App\Models\Project;
 use App\Models\Task;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -147,6 +148,14 @@ class SyncTasksCommand extends Command
 
         $assigneeId = (int) ($this->readPowerhouseJson('default_assignee_id') ?? 1);
 
+        // due_at is mandatory on tasks. Synced project tasks inherit the
+        // milestone's due date, else the project's, else +7 days (09:00).
+        $dueSource = ($milestoneId ? Milestone::whereKey($milestoneId)->value('due_date') : null)
+            ?? Project::whereKey($projectId)->value('due_date');
+        $defaultDueAt = $dueSource
+            ? Carbon::parse((string) $dueSource)->setTime(9, 0, 0)
+            : now()->addDays(7)->setTime(9, 0, 0);
+
         $created = 0;
         $skipped = 0;
         $taskIds = [];
@@ -172,7 +181,7 @@ class SyncTasksCommand extends Command
                 continue;
             }
 
-            $newTask = DB::transaction(function () use ($task, $projectId, $milestoneId, $assigneeId) {
+            $newTask = DB::transaction(function () use ($task, $projectId, $milestoneId, $assigneeId, $defaultDueAt) {
                 $t = Task::create([
                     'project_id' => $projectId,
                     'milestone_id' => $milestoneId,
@@ -183,6 +192,7 @@ class SyncTasksCommand extends Command
                     'estimated_hours' => $task['hours'],
                     'assigned_to' => $assigneeId,
                     'created_by' => 1,
+                    'due_at' => $defaultDueAt,
                 ]);
 
                 $this->logActivity('task.created', 'task', $t->id, [

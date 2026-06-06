@@ -79,6 +79,9 @@ class TicketIntakeService
                 'type' => 'task',
                 'priority' => $priority === 'urgent' ? 'high' : ($priority === 'low' ? 'low' : 'medium'),
                 'status' => 'todo',
+                // due_at is mandatory on tasks; the triage task is due by the
+                // ticket's first-response SLA deadline (never "now"/overdue).
+                'due_at' => now()->addHours(SupportTicket::firstResponseHours($priority)),
                 'assigned_to' => $triageUserId,
                 'created_by' => $triageUserId,
             ]);

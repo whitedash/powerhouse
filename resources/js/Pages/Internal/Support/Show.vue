@@ -469,9 +469,16 @@ function viewAllTicketsForCustomer() {
                                                 >{{ p.charAt(0).toUpperCase() + p.slice(1) }}</button>
                                             </div>
                                         </div>
-                                        <div class="form-field">
-                                            <label>Due date</label>
-                                            <input v-model="taskForm.due_at" type="date" :min="todayIso">
+                                        <div v-if="taskForm.type !== 'note'" class="form-field">
+                                            <label>Due date<span v-if="!['note', 'email'].includes(taskForm.type)" class="req">*</span></label>
+                                            <input
+                                                v-model="taskForm.due_at"
+                                                type="date"
+                                                :min="todayIso"
+                                                :required="!['note', 'email'].includes(taskForm.type)"
+                                                :class="{ 'has-err': taskForm.errors.due_at }"
+                                            >
+                                            <div v-if="taskForm.errors.due_at" class="err">{{ taskForm.errors.due_at }}</div>
                                         </div>
                                     </div>
                                 </div>

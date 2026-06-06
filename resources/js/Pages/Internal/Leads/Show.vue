@@ -420,7 +420,11 @@ function submitConvert() {
                             </div>
                         </div>
                         <div class="form-section"><label class="form-label">Title</label><input v-model="activityForm.title" type="text" class="form-input" maxlength="500" required /></div>
-                        <div class="form-section"><label class="form-label">Due</label><input v-model="activityForm.due_at" type="datetime-local" class="form-input" /></div>
+                        <div class="form-section">
+                            <label class="form-label">Due<span v-if="!['note', 'email'].includes(activityForm.type)" class="req">*</span></label>
+                            <input v-model="activityForm.due_at" type="datetime-local" class="form-input" :required="!['note', 'email'].includes(activityForm.type)" />
+                            <div v-if="activityForm.errors.due_at" class="err">{{ activityForm.errors.due_at }}</div>
+                        </div>
                         <div class="form-section"><label class="form-label">Assigned to</label>
                             <select v-model="activityForm.assigned_to" class="form-input">
                                 <option :value="null">Unassigned</option>

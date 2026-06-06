@@ -3933,10 +3933,11 @@ function confirmDeleteWebsite() {
                                 <div v-if="taskForm.type !== 'note'" class="form-section">
                                     <div class="form-row">
                                         <div class="form-field">
-                                            <label>{{ scheduleLabelForType(taskForm.type) }} date</label>
+                                            <label>{{ scheduleLabelForType(taskForm.type) }} date<span v-if="!['note', 'email'].includes(taskForm.type)" class="req">*</span></label>
                                             <input
                                                 v-model="taskForm.due_at"
                                                 type="date"
+                                                :required="!['note', 'email'].includes(taskForm.type)"
                                                 :class="{ 'has-err': taskForm.errors.due_at }"
                                             >
                                             <div v-if="taskForm.errors.due_at" class="err">{{ taskForm.errors.due_at }}</div>

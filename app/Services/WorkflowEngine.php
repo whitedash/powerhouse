@@ -282,9 +282,9 @@ class WorkflowEngine
             $context,
         );
 
-        $dueAt = isset($config['due_in_days'])
-            ? now()->addDays((int) $config['due_in_days'])->setTime(9, 0, 0)
-            : null;
+        // due_at is mandatory on tasks — default to +3 days when the workflow
+        // config doesn't specify a window (never null).
+        $dueAt = now()->addDays((int) ($config['due_in_days'] ?? 3))->setTime(9, 0, 0);
 
         Task::create([
             'lead_id' => $context['lead_id'] ?? null,

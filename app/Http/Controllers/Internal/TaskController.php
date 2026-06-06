@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\FileUploadService;
 use App\Services\GoogleCalendarService;
 use App\Services\NotificationService;
+use App\Support\TaskDueDate;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -221,7 +222,7 @@ class TaskController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate($this->rules());
+        $data = $request->validate($this->rules(), $this->messages());
 
         $userId = $request->user()->id;
         $this->guardContactBelongsToCustomer($data);
@@ -247,8 +248,9 @@ class TaskController extends Controller
                 // start here and the operator can later progress them
                 // through the workflow.
                 'status' => 'todo',
-                // Notes are open-ended by design — no schedule.
-                'due_at' => $data['type'] === 'note' ? null : $this->parseDueAt($data['due_at'] ?? null),
+                // Notes are open-ended by design — no schedule (resolve()
+                // forces note → null and bumps a bare date to 09:00).
+                'due_at' => TaskDueDate::resolve($data),
                 'duration_minutes' => $data['duration_minutes'] ?? null,
                 // Calendar scheduling. Default to an all-day task; a
                 // timed event (meeting) carries explicit start/end.
@@ -286,7 +288,7 @@ class TaskController extends Controller
             abort(403, 'You can only edit activities you own or are assigned to.');
         }
 
-        $data = $request->validate($this->rules(forUpdate: true));
+        $data = $request->validate($this->rules(forUpdate: true), $this->messages());
         $this->guardContactBelongsToCustomer($data);
 
         $before = $task->only(['title', 'type', 'priority', 'description', 'due_at', 'duration_minutes']);
@@ -301,7 +303,7 @@ class TaskController extends Controller
                 'customer_id' => $data['customer_id'] ?? $task->customer_id,
                 'contact_id' => $data['contact_id'] ?? null,
                 'assigned_to' => $data['assigned_to'] ?? $task->assigned_to,
-                'due_at' => $data['type'] === 'note' ? null : $this->parseDueAt($data['due_at'] ?? null),
+                'due_at' => TaskDueDate::resolve($data),
                 'duration_minutes' => $data['duration_minutes'] ?? null,
                 ...$this->scheduleAttributes($data),
             ])->save();
@@ -884,7 +886,11 @@ class TaskController extends Controller
             'contact_id' => ['nullable', 'integer', 'exists:contacts,id'],
             'parent_task_id' => ['nullable', 'integer', 'exists:tasks,id'],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
-            'due_at' => ['nullable', 'date'],
+            // Due-date policy lives in one place — App\Support\TaskDueDate —
+            // so this surface can never drift from the support / customer
+            // creators. (Actionable types require it; note/email + timed
+            // events are exempt.)
+            'due_at' => TaskDueDate::rule(),
             'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:480'],
             // PM Sprint 1 fields. Validation lists them so
             // $request->validate() doesn't strip them from $data —
@@ -900,6 +906,14 @@ class TaskController extends Controller
             'end_at' => ['nullable', 'date', 'after_or_equal:start_at'],
             'location' => ['nullable', 'string', 'max:255'],
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function messages(): array
+    {
+        return TaskDueDate::messages();
     }
 
     /**
@@ -961,29 +975,6 @@ class TaskController extends Controller
             ->exists();
 
         abort_unless($matches, 422, 'Selected contact does not belong to the chosen customer.');
-    }
-
-    /**
-     * Coerce a date-string-or-datetime into a Carbon instance. A bare
-     * "2026-06-10" lands at 09:00 local time (a reasonable working-day
-     * slot); anything carrying a time component is kept verbatim.
-     */
-    private function parseDueAt(?string $value): ?Carbon
-    {
-        if (! $value) {
-            return null;
-        }
-
-        $parsed = Carbon::parse($value);
-
-        // Bare YYYY-MM-DD parses at midnight — bump it to 09:00 so the
-        // schedule isn't "due at start of day" which feels off for any
-        // human-facing surface.
-        if ($parsed->isStartOfDay() && ! str_contains($value, ':')) {
-            $parsed->setTime(9, 0, 0);
-        }
-
-        return $parsed;
     }
 
     /**
