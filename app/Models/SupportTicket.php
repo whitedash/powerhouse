@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SlaState;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,6 +24,9 @@ use Illuminate\Support\Carbon;
  * @property int|null $assigned_to
  * @property string|null $sentiment_score
  * @property Carbon|null $sla_breach_at
+ * @property Carbon|null $first_responded_at
+ * @property Carbon|null $reopened_at
+ * @property int $reopen_count
  * @property Carbon|null $resolved_at
  * @property Carbon|null $closed_at
  * @property Carbon|null $created_at
@@ -49,6 +53,9 @@ class SupportTicket extends Model
         'assigned_to',
         'sentiment_score',
         'sla_breach_at',
+        'first_responded_at',
+        'reopened_at',
+        'reopen_count',
         'resolved_at',
         'closed_at',
     ];
@@ -58,9 +65,73 @@ class SupportTicket extends Model
         return [
             'sentiment_score' => 'decimal:2',
             'sla_breach_at' => 'datetime',
+            'first_responded_at' => 'datetime',
+            'reopened_at' => 'datetime',
+            'reopen_count' => 'integer',
             'resolved_at' => 'datetime',
             'closed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * First-response SLA target (hours from creation) for a priority.
+     * Single source of truth in config/support.php so the deadline math,
+     * the badge and analytics can't drift.
+     */
+    public static function firstResponseHours(string $priority): int
+    {
+        $map = (array) config('support.first_response_hours', []);
+
+        return (int) ($map[$priority] ?? $map['medium'] ?? 24);
+    }
+
+    /**
+     * Derived first-response SLA state — computed on read, never stored.
+     * Null when the ticket carries no deadline (legacy rows).
+     */
+    public function slaState(): ?SlaState
+    {
+        if ($this->sla_breach_at === null) {
+            return null;
+        }
+
+        if ($this->first_responded_at !== null) {
+            return $this->first_responded_at->lessThanOrEqualTo($this->sla_breach_at)
+                ? SlaState::Met
+                : SlaState::Breached;
+        }
+
+        // Resolved/closed without ever responding: settle the SLA at the
+        // resolution time (never a live "due" countdown on a terminal ticket).
+        if (in_array($this->status, ['resolved', 'closed'], true)) {
+            $settledAt = $this->resolved_at ?? $this->closed_at;
+
+            return $settledAt !== null && $settledAt->lessThanOrEqualTo($this->sla_breach_at)
+                ? SlaState::Met
+                : SlaState::Breached;
+        }
+
+        return now()->lessThan($this->sla_breach_at) ? SlaState::Due : SlaState::Breached;
+    }
+
+    /**
+     * Seconds left until the first-response deadline — only while still Due
+     * (unresponded, deadline in the future). Null otherwise.
+     */
+    public function slaRemainingSeconds(): ?int
+    {
+        if ($this->sla_breach_at === null || $this->first_responded_at !== null) {
+            return null;
+        }
+
+        // Terminal tickets are settled, not counting down.
+        if (in_array($this->status, ['resolved', 'closed'], true)) {
+            return null;
+        }
+
+        $seconds = (int) round(now()->diffInSeconds($this->sla_breach_at, false));
+
+        return $seconds > 0 ? $seconds : null;
     }
 
     public function customer(): BelongsTo

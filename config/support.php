@@ -15,4 +15,18 @@ return [
      * the resolved triage user's email when unset.
      */
     'notify_email' => env('SUPPORT_NOTIFY_EMAIL'),
+
+    /*
+     * First-RESPONSE SLA targets, in hours from ticket creation, keyed by
+     * priority. sla_breach_at = created_at + this, and is treated as the
+     * first-response deadline. Tunable here (single source of truth — read
+     * via SupportTicket::firstResponseHours()); can later key on
+     * product/tier. Resolution time is measured, not committed (no target).
+     */
+    'first_response_hours' => [
+        'urgent' => 4,
+        'high' => 8,
+        'medium' => 24,
+        'low' => 72,
+    ],
 ];

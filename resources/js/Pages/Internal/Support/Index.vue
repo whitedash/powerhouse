@@ -101,32 +101,37 @@ function timeAgo(iso) {
 }
 
 /*
- * Always compute SLA from the raw sla_breach_at ISO. The server-side
- * is_breached / hours_until_breach are useful flags but Carbon's
- * diffInHours returns a float in Carbon 3 — without rounding the cell
- * was rendering "-3.452347234" days. Recomputing client-side keeps the
- * number nice and lets us bucket by hour vs day automatically.
+ * First-RESPONSE SLA badge, driven by the server-derived sla_state
+ * (met / due / breached — computed on read from first_responded_at vs
+ * sla_breach_at). For a still-DUE ticket we render a live countdown from
+ * sla_remaining_seconds (rounded; Carbon diffs are floats).
  */
 function slaCellLabel(ticket) {
-    if (! ticket.sla_breach_at) return { label: '—', cls: 'muted' };
+    const state = ticket.sla_state;
+    if (! state) return { label: '—', cls: 'muted' };
 
-    const breachMs = new Date(ticket.sla_breach_at).getTime();
-    const diffMs = breachMs - Date.now();
-    const diffHours = Math.round(diffMs / 3600000);
+    if (state === 'met') return { label: 'Met', cls: 'met' };
 
-    if (diffMs < 0) {
-        const hoursAgo = Math.abs(diffHours);
-        if (hoursAgo < 24) return { label: `Breached ${hoursAgo}h ago`, cls: 'breached' };
-        const daysAgo = Math.round(hoursAgo / 24);
+    if (state === 'breached') {
+        // Unresponded + overdue → show how long ago; responded-late → just "Breached".
+        if (! ticket.first_responded_at && ticket.sla_breach_at) {
+            const hoursAgo = Math.max(0, Math.round((Date.now() - new Date(ticket.sla_breach_at).getTime()) / 3600000));
+            if (hoursAgo < 24) return { label: `Breached ${hoursAgo}h ago`, cls: 'breached' };
 
-        return { label: `Breached ${daysAgo}d ago`, cls: 'breached' };
+            return { label: `Breached ${Math.round(hoursAgo / 24)}d ago`, cls: 'breached' };
+        }
+
+        return { label: 'Breached', cls: 'breached' };
     }
 
-    if (diffHours <= 4) return { label: `${diffHours}h left`, cls: 'urgent' };
-    if (diffHours <= 24) return { label: `${diffHours}h left`, cls: 'normal' };
-    const days = Math.round(diffHours / 24);
+    // due — countdown to first-response deadline.
+    const secs = ticket.sla_remaining_seconds
+        ?? Math.max(0, Math.round((new Date(ticket.sla_breach_at).getTime() - Date.now()) / 1000));
+    const hrs = Math.round(secs / 3600);
+    if (hrs <= 4) return { label: `Breaches in ${hrs}h`, cls: 'urgent' };
+    if (hrs <= 24) return { label: `Breaches in ${hrs}h`, cls: 'normal' };
 
-    return { label: `${days}d left`, cls: 'normal' };
+    return { label: `Breaches in ${Math.round(hrs / 24)}d`, cls: 'normal' };
 }
 
 /* ─── Filters ─── */

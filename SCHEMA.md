@@ -574,7 +574,19 @@ status ENUM(open|in_progress|awaiting_customer|resolved|closed),
 priority ENUM(low|medium|high|urgent),
 assigned_to BIGINT FK users nullable,
 sentiment_score DECIMAL(3,2) nullable,
-sla_breach_at nullable, resolved_at nullable,
+sla_breach_at nullable
+  -- = created_at + first-response hours (config/support.php, per priority).
+  -- Treated as the first-RESPONSE deadline. Breach is COMPUTED ON READ
+  -- (SupportTicket::slaState → App\Enums\SlaState met|due|breached); no
+  -- stored breach flag, no sweep.
+first_responded_at nullable (SLA sprint)
+  -- Stamped once, on the FIRST staff non-internal reply (SupportSlaService).
+reopened_at nullable, reopen_count INT default 0 (SLA sprint)
+  -- Stamped/incremented on a resolved|closed → open transition (reply,
+  -- status change, or inbound-email reply), via SupportSlaService.
+resolved_at nullable
+  -- Resolution time is MEASURED, not committed: avg raw (resolved_at −
+  -- created_at), no pause, surfaced in Analytics.
 closed_at nullable, created_at, updated_at
 
 ## support_messages

@@ -24,14 +24,6 @@ use Illuminate\Support\Str;
  */
 class TicketIntakeService
 {
-    /** SLA deadline per priority, in hours (mirrors Internal\SupportController). */
-    private const SLA_HOURS = [
-        'urgent' => 4,
-        'high' => 8,
-        'medium' => 24,
-        'low' => 72,
-    ];
-
     /**
      * @param  array{
      *     subject: string,
@@ -58,7 +50,7 @@ class TicketIntakeService
                 'subject' => $data['subject'],
                 'status' => 'open',
                 'priority' => $priority,
-                'sla_breach_at' => now()->addHours(self::SLA_HOURS[$priority] ?? self::SLA_HOURS['medium']),
+                'sla_breach_at' => now()->addHours(SupportTicket::firstResponseHours($priority)),
             ]);
 
             SupportMessage::create([

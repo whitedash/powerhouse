@@ -5907,6 +5907,8 @@ h3 .opt {
 .support-show .sla-cell.breached { color: var(--danger); font-weight: 600; }
 .support-list .sla-cell.muted,
 .support-show .sla-cell.muted { color: var(--text-tertiary); }
+.support-list .sla-cell.met,
+.support-show .sla-cell.met { color: var(--success); font-weight: 600; }
 /* Pulsing dot next to "{n}h left" when ≤ 4h until breach. */
 .support-list .sla-pulse {
     width: 7px;

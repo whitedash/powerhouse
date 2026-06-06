@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Contact;
 use App\Models\SupportMessage;
 use App\Models\SupportTicket;
+use App\Services\SupportSlaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -55,8 +56,11 @@ class InboundEmailController extends Controller
                     'source' => 'email',
                 ]);
 
-                // A customer reply reopens the ticket.
+                // A customer reply brings the ticket back to open; if it was
+                // resolved/closed that's a genuine reopen (stamped + counted).
+                $previousStatus = $ticket->status;
                 $ticket->update(['status' => 'open']);
+                app(SupportSlaService::class)->recordReopen($ticket, $previousStatus, null, 'inbound_email');
 
                 return;
             }
@@ -71,7 +75,7 @@ class InboundEmailController extends Controller
                 'subject' => Str::limit($subject, 255) ?: 'Email inquiry',
                 'status' => 'open',
                 'priority' => 'medium',
-                'sla_breach_at' => now()->addHours(24),
+                'sla_breach_at' => now()->addHours(SupportTicket::firstResponseHours('medium')),
             ]);
 
             // support_tickets has no body column — the opening message is a

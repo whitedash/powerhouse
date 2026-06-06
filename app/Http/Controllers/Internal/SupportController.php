@@ -13,6 +13,7 @@ use App\Models\SupportTicket;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Services\SupportSlaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -28,20 +29,6 @@ class SupportController extends Controller
     private const STATUSES = ['open', 'in_progress', 'awaiting_customer', 'resolved', 'closed'];
 
     private const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
-
-    /**
-     * Hours-from-creation budget per priority. Used to compute
-     * sla_breach_at on ticket creation. Source of truth lives here so
-     * the spec and the badge logic can't drift.
-     *
-     * @var array<string, int>
-     */
-    private const SLA_HOURS = [
-        'urgent' => 4,
-        'high' => 8,
-        'medium' => 24,
-        'low' => 72,
-    ];
 
     public function index(Request $request): Response
     {
@@ -93,6 +80,11 @@ class SupportController extends Controller
                     'is_breached' => $isBreached,
                     'is_breaching_soon' => $hoursUntilBreach !== null && $hoursUntilBreach <= 4,
                     'hours_until_breach' => $hoursUntilBreach,
+                    // Derived first-response SLA (computed on read).
+                    'sla_state' => $t->slaState()?->value,
+                    'sla_remaining_seconds' => $t->slaRemainingSeconds(),
+                    'first_responded_at' => $t->first_responded_at?->toIso8601String(),
+                    'reopen_count' => $t->reopen_count,
                     'last_reply_at' => $t->updated_at?->toIso8601String(),
                     'message_count' => $t->messages_count,
                     'created_at' => $t->created_at?->toIso8601String(),
@@ -154,6 +146,11 @@ class SupportController extends Controller
                 'assigned_to_id' => $ticket->assigned_to,
                 'assigned_to_name' => $ticket->assignedTo?->name,
                 'sla_breach_at' => $ticket->sla_breach_at?->toIso8601String(),
+                'sla_state' => $ticket->slaState()?->value,
+                'sla_remaining_seconds' => $ticket->slaRemainingSeconds(),
+                'first_responded_at' => $ticket->first_responded_at?->toIso8601String(),
+                'reopened_at' => $ticket->reopened_at?->toIso8601String(),
+                'reopen_count' => $ticket->reopen_count,
                 'resolved_at' => $ticket->resolved_at?->toIso8601String(),
                 'closed_at' => $ticket->closed_at?->toIso8601String(),
                 'created_at' => $ticket->created_at?->toIso8601String(),
@@ -207,7 +204,7 @@ class SupportController extends Controller
                 'status' => 'open',
                 'priority' => $data['priority'],
                 'assigned_to' => $data['assigned_to'] ?? null,
-                'sla_breach_at' => now()->addHours(self::SLA_HOURS[$data['priority']]),
+                'sla_breach_at' => now()->addHours(SupportTicket::firstResponseHours($data['priority'])),
             ]);
 
             // First message records who opened it — staff conversations
@@ -259,9 +256,10 @@ class SupportController extends Controller
         // that the ball is in the customer's court. Resolved here (not in
         // the closure) so the post-commit triage-task cleanup can read it.
         $newStatusForTask = $data['status'] ?? 'awaiting_customer';
+        $previousStatus = $ticket->status;
 
         $message = null;
-        DB::transaction(function () use ($ticket, $data, $request, &$message, $newStatusForTask) {
+        DB::transaction(function () use ($ticket, $data, $request, &$message, $newStatusForTask, $previousStatus) {
             $message = SupportMessage::create([
                 'ticket_id' => $ticket->id,
                 'sender_type' => 'staff',
@@ -286,6 +284,13 @@ class SupportController extends Controller
             $this->logActivity($request, 'support.reply_sent', $ticket->id, $before, [
                 'status' => $newStatus,
             ]);
+
+            // This reply is staff + non-internal, so it's a candidate for the
+            // first-response stamp (idempotent — only the first one lands).
+            $sla = app(SupportSlaService::class);
+            $sla->stampFirstResponse($ticket, $request->user()?->id);
+            // A reply that flips a resolved/closed ticket back to open reopens it.
+            $sla->recordReopen($ticket, $previousStatus, $request->user()?->id, 'reply');
         });
 
         $this->forgetNavCaches();
@@ -342,13 +347,16 @@ class SupportController extends Controller
 
         DB::transaction(function () use ($ticket, $data, $userId, $assigneeId, $request) {
             // Bare YYYY-MM-DD lands at midnight — bump to 09:00 so the
-            // dashboard list slot reads like a working day.
-            $dueAt = null;
+            // dashboard list slot reads like a working day. due_at is now
+            // mandatory on tasks, so default a staff follow-up to +2 days
+            // when none was supplied (never null).
             if (! empty($data['due_at'])) {
                 $dueAt = Carbon::parse($data['due_at']);
                 if ($dueAt->isStartOfDay() && ! str_contains((string) $data['due_at'], ':')) {
                     $dueAt->setTime(9, 0, 0);
                 }
+            } else {
+                $dueAt = now()->addDays(2)->setTime(9, 0, 0);
             }
 
             $task = Task::create([
@@ -359,10 +367,10 @@ class SupportController extends Controller
                 'priority' => $data['priority'],
                 'assigned_to' => $assigneeId,
                 'created_by' => $userId,
-                // Task status enum is open/complete — "pending" was a
-                // historic name; the create form on every other surface
-                // uses 'open' here too.
-                'status' => 'open',
+                // tasks.status enum is todo|in_progress|in_review|blocked|
+                // complete|cancelled — 'todo' is the open/new state ('open'
+                // is NOT in the enum and truncates → 500).
+                'status' => 'todo',
                 'due_at' => $dueAt,
             ]);
 
@@ -399,8 +407,9 @@ class SupportController extends Controller
         ]);
 
         $previousAssignee = $ticket->assigned_to;
+        $previousStatus = $ticket->status;
 
-        DB::transaction(function () use ($ticket, $data, $request) {
+        DB::transaction(function () use ($ticket, $data, $request, $previousStatus) {
             $before = ['status' => $ticket->status, 'assigned_to' => $ticket->assigned_to];
 
             $update = [
@@ -425,6 +434,9 @@ class SupportController extends Controller
                 'status' => $data['status'],
                 'assigned_to' => $data['assigned_to'] ?? null,
             ]);
+
+            // resolved/closed → open is a reopen (stamps reopened_at + count).
+            app(SupportSlaService::class)->recordReopen($ticket, $previousStatus, $request->user()?->id, 'status_change');
         });
 
         $this->forgetNavCaches();

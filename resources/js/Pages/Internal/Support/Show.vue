@@ -81,18 +81,21 @@ function formatDate(iso) {
     if (! iso) return '—';
     return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
+// First-RESPONSE SLA, from the server-derived sla_state.
 function slaLabel() {
-    const iso = props.ticket.sla_breach_at;
-    if (! iso) return { label: 'No SLA', cls: '' };
-    const d = new Date(iso);
-    const now = new Date();
-    if (d < now) {
-        const hours = Math.floor((now - d) / 3600000);
-        return { label: `Breached ${hours}h ago`, cls: 'breached' };
+    const state = props.ticket.sla_state;
+    if (! state) return { label: 'No SLA', cls: 'muted' };
+    if (state === 'met') return { label: 'First response met', cls: 'met' };
+    if (state === 'breached') {
+        if (! props.ticket.first_responded_at && props.ticket.sla_breach_at) {
+            const hours = Math.max(0, Math.floor((Date.now() - new Date(props.ticket.sla_breach_at).getTime()) / 3600000));
+            return { label: `Breached ${hours}h ago`, cls: 'breached' };
+        }
+        return { label: 'First response breached', cls: 'breached' };
     }
-    const hoursLeft = Math.ceil((d - now) / 3600000);
-    if (hoursLeft <= 4) return { label: `${hoursLeft}h left`, cls: 'urgent' };
-    return { label: `${hoursLeft}h left`, cls: 'normal' };
+    const secs = props.ticket.sla_remaining_seconds ?? 0;
+    const hoursLeft = Math.max(0, Math.round(secs / 3600));
+    return { label: `Breaches in ${hoursLeft}h`, cls: hoursLeft <= 4 ? 'urgent' : 'normal' };
 }
 
 /* ─── Reply form ─── */
@@ -287,7 +290,8 @@ function viewAllTicketsForCustomer() {
                             <div class="ticket-meta-row">
                                 <span class="ticket-meta-label">SLA</span>
                                 <span :class="['sla-cell', slaLabel().cls]">
-                                    <IconClock v-if="slaLabel().cls === 'normal'" :size="13" stroke-width="1.75" />
+                                    <IconCheck v-if="slaLabel().cls === 'met'" :size="13" stroke-width="1.75" />
+                                    <IconClock v-else-if="slaLabel().cls === 'normal'" :size="13" stroke-width="1.75" />
                                     <IconAlertTriangle v-else-if="slaLabel().cls === 'urgent'" :size="13" stroke-width="1.75" />
                                     <IconAlertTriangle v-else-if="slaLabel().cls === 'breached'" :size="13" stroke-width="1.75" />
                                     {{ slaLabel().label }}
