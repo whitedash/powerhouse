@@ -50,8 +50,7 @@
         return node;
     }
 
-    function injectStyles() {
-        if (document.getElementById("pw-form-styles")) return;
+    function buildStyleEl() {
         var css = ""
             + ".pw-form{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;max-width:560px;}"
             + ".pw-form .pw-row{margin-bottom:14px;}"
@@ -72,7 +71,7 @@
         var style = document.createElement("style");
         style.id = "pw-form-styles";
         style.appendChild(document.createTextNode(css));
-        document.head.appendChild(style);
+        return style;
     }
 
     function renderField(field) {
@@ -115,8 +114,14 @@
     }
 
     function render(root) {
-        injectStyles();
         var form = el("form", { class: "pw-form", novalidate: "novalidate" });
+
+        // Error nodes live inside the form, so query through it rather
+        // than document.getElementById — once the form is inside a shadow
+        // root the document-level lookup can't see it.
+        function errNode(key) {
+            return form.querySelector('[id="pw-err-' + key + '"]');
+        }
 
         CONFIG.fields.forEach(function (f) {
             form.appendChild(renderField(f));
@@ -146,7 +151,7 @@
 
             // Clear previous errors.
             CONFIG.fields.forEach(function (f) {
-                var ne = document.getElementById("pw-err-" + f.field_key);
+                var ne = errNode(f.field_key);
                 if (ne) ne.textContent = "";
             });
 
@@ -161,7 +166,7 @@
             }).then(function (r) {
                 if (r.status === 422 && r.json && r.json.errors) {
                     Object.keys(r.json.errors).forEach(function (k) {
-                        var ne = document.getElementById("pw-err-" + k);
+                        var ne = errNode(k);
                         if (ne) ne.textContent = r.json.errors[k][0];
                     });
                     btn.disabled = false;
@@ -183,11 +188,29 @@
             }).catch(function () {
                 btn.disabled = false;
                 btn.textContent = CONFIG.submit_button_text;
-                var generic = document.getElementById("pw-err-" + (CONFIG.fields[0] && CONFIG.fields[0].field_key));
+                var generic = errNode(CONFIG.fields[0] && CONFIG.fields[0].field_key);
                 if (generic) generic.textContent = "Submission failed. Please try again.";
             });
         });
 
+        // Shadow DOM isolation (preferred): render the <style> AND the
+        // form inside a shadow root attached to the mount point. This
+        // stops host-page CSS bleeding in (or our CSS leaking out) and
+        // gives every form its own style copy — so a second form on the
+        // same page is no longer left unstyled by a shared-<head> guard.
+        if (typeof root.attachShadow === "function") {
+            var shadow = root.shadowRoot || root.attachShadow({ mode: "open" });
+            shadow.innerHTML = "";
+            shadow.appendChild(buildStyleEl());
+            shadow.appendChild(form);
+            return;
+        }
+
+        // Fallback (no Shadow DOM support): original behaviour — inject
+        // the shared stylesheet into <head> once, render into the host DOM.
+        if (!document.getElementById("pw-form-styles")) {
+            document.head.appendChild(buildStyleEl());
+        }
         root.innerHTML = "";
         root.appendChild(form);
     }
