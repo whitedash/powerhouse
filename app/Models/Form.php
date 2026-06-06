@@ -33,10 +33,12 @@ use Illuminate\Support\Carbon;
  * @property string|null $gdpr_consent_text
  * @property string $webhook_secret
  * @property int $submission_count
+ * @property int|null $theme_id
  * @property int $created_by
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read User $createdBy
+ * @property-read FormTheme|null $theme
  * @property-read Collection<int, FormField> $fields
  * @property-read Collection<int, FormSubmission> $submissions
  * @property-read string $embed_url
@@ -58,6 +60,7 @@ class Form extends Model
         'gdpr_consent_text',
         'webhook_secret',
         'submission_count',
+        'theme_id',
         'created_by',
     ];
 
@@ -72,6 +75,15 @@ class Form extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Optional visual theme. Null means the form renders with the default
+     * tokens (App\Support\FormThemeTokens::defaults() — today's look).
+     */
+    public function theme(): BelongsTo
+    {
+        return $this->belongsTo(FormTheme::class, 'theme_id');
     }
 
     /**

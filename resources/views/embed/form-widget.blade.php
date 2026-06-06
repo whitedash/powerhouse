@@ -25,6 +25,10 @@
         'gdpr_enabled' => (bool) $form->gdpr_consent_enabled,
         'gdpr_text' => $form->gdpr_consent_text,
         'fields' => $fields,
+        // Effective design tokens resolved by the controller (default set
+        // for an un-themed form, or defaults merged with a theme). Drives
+        // the --pw-* CSS variables on the shadow root.
+        'theme' => $tokens,
     ];
     $json = json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES);
 @endphp
@@ -50,24 +54,68 @@
         return node;
     }
 
+    // Design tokens resolved server-side (default set == the original
+    // hardcoded look, so an un-themed form is pixel-identical to before).
+    var THEME = CONFIG.theme || {};
+
     function buildStyleEl() {
-        var css = ""
-            + ".pw-form{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;max-width:560px;}"
+        var t = THEME;
+
+        // CSS custom properties on .pw-form — children read them via var().
+        // With the default token values these resolve to exactly the old
+        // literals, so the rendered form is unchanged.
+        var vars = ".pw-form{"
+            + "--pw-font-family:" + t.font_family + ";"
+            + "--pw-font-size:" + t.font_size + ";"
+            + "--pw-text:" + t.text + ";"
+            + "--pw-label:" + t.label + ";"
+            + "--pw-accent:" + t.accent + ";"
+            + "--pw-focus-ring:" + t.focus_ring + ";"
+            + "--pw-bg:" + t.background + ";"
+            + "--pw-surface:" + t.surface + ";"
+            + "--pw-border:" + t.border + ";"
+            + "--pw-border-width:" + t.border_width + ";"
+            + "--pw-radius:" + t.radius + ";"
+            + "--pw-button-bg:" + t.button_bg + ";"
+            + "--pw-button-bg-hover:" + t.button_bg_hover + ";"
+            + "--pw-button-text:" + t.button_text + ";"
+            + "--pw-error:" + t.error + ";"
+            + "--pw-success-bg:" + t.success_bg + ";"
+            + "--pw-success-border:" + t.success_border + ";"
+            + "--pw-success-text:" + t.success_text + ";"
+            + "}";
+
+        var css = vars
+            + ".pw-form{font-family:var(--pw-font-family);color:var(--pw-text);background:var(--pw-bg);max-width:560px;}"
+            + ".pw-logo{max-height:48px;margin-bottom:16px;display:block;}"
+            + ".pw-heading{font-size:18px;font-weight:600;margin:0 0 16px;color:var(--pw-text);}"
             + ".pw-form .pw-row{margin-bottom:14px;}"
-            + ".pw-form label{display:block;font-weight:600;font-size:13px;margin-bottom:6px;color:#374151;}"
-            + ".pw-form .pw-req{color:#ef4444;}"
-            + ".pw-form input,.pw-form textarea,.pw-form select{width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;font-family:inherit;background:#fff;box-sizing:border-box;}"
-            + ".pw-form input:focus,.pw-form textarea:focus,.pw-form select:focus{outline:none;border-color:#6366F1;box-shadow:0 0 0 3px rgba(99,102,241,0.15);}"
+            + ".pw-form label{display:block;font-weight:600;font-size:13px;margin-bottom:6px;color:var(--pw-label);}"
+            + ".pw-form .pw-req{color:var(--pw-error);}"
+            + ".pw-form input,.pw-form textarea,.pw-form select{width:100%;padding:10px 12px;border:var(--pw-border-width) solid var(--pw-border);border-radius:var(--pw-radius);font-size:var(--pw-font-size);font-family:inherit;background:var(--pw-surface);box-sizing:border-box;}"
+            + ".pw-form input:focus,.pw-form textarea:focus,.pw-form select:focus{outline:none;border-color:var(--pw-accent);box-shadow:0 0 0 3px var(--pw-focus-ring);}"
             + ".pw-form textarea{min-height:96px;resize:vertical;}"
             + ".pw-form .pw-hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;}"
-            + ".pw-form button{background:#0F172A;color:#fff;border:none;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;}"
-            + ".pw-form button:hover{background:#1f2937;}"
+            // Solid button keeps border:none (pixel-identical default); the
+            // outline variant adds its own border below.
+            + ".pw-form button{background:var(--pw-button-bg);color:var(--pw-button-text);border:none;border-radius:var(--pw-radius);padding:10px 18px;font-size:var(--pw-font-size);font-weight:600;cursor:pointer;font-family:inherit;}"
+            + ".pw-form button:hover{background:var(--pw-button-bg-hover);}"
+            + ".pw-form button.pw-btn-block{width:100%;}"
+            + ".pw-form button.pw-btn-outline{background:transparent;color:var(--pw-button-bg);border:var(--pw-border-width) solid var(--pw-button-bg);}"
+            + ".pw-form button.pw-btn-outline:hover{background:var(--pw-button-bg);color:var(--pw-button-text);}"
             + ".pw-form button:disabled{opacity:0.6;cursor:not-allowed;}"
-            + ".pw-form .pw-err{color:#ef4444;font-size:12px;margin-top:4px;}"
-            + ".pw-form .pw-success{padding:16px;background:#ecfdf5;border:1px solid #10b981;border-radius:6px;color:#065f46;}"
+            + ".pw-form .pw-err{color:var(--pw-error);font-size:12px;margin-top:4px;}"
+            + ".pw-form .pw-success{padding:16px;background:var(--pw-success-bg);border:var(--pw-border-width) solid var(--pw-success-border);border-radius:var(--pw-radius);color:var(--pw-success-text);}"
             + ".pw-form .pw-gdpr{font-size:12px;color:#6b7280;margin-top:8px;}"
             + ".pw-form .pw-gdpr label{font-weight:400;font-size:12px;display:flex;gap:8px;align-items:flex-start;}"
             + ".pw-form .pw-gdpr input{width:auto;}";
+
+        // Optional per-theme custom CSS, injected AFTER the variable styles
+        // (inside the shadow root, so it can't leak to the host page).
+        if (t.custom_css) {
+            css += String(t.custom_css);
+        }
+
         var style = document.createElement("style");
         style.id = "pw-form-styles";
         style.appendChild(document.createTextNode(css));
@@ -141,7 +189,14 @@
             form.appendChild(consent);
         }
 
-        var btn = el("button", { type: "submit" }, [CONFIG.submit_button_text || "Submit"]);
+        // Button style + width come from the theme (defaults: solid, auto).
+        var btnClass = "";
+        if (THEME.button_style === "outline") btnClass += "pw-btn-outline ";
+        if (THEME.full_width) btnClass += "pw-btn-block";
+        btnClass = btnClass.trim();
+        var btnAttrs = { type: "submit" };
+        if (btnClass) btnAttrs.class = btnClass;
+        var btn = el("button", btnAttrs, [CONFIG.submit_button_text || "Submit"]);
         form.appendChild(btn);
 
         form.addEventListener("submit", function (e) {
@@ -193,6 +248,20 @@
             });
         });
 
+        // Optional theme chrome rendered ABOVE the form (logo, then heading).
+        // Both default to null → nothing rendered → identical to before.
+        var lead = [];
+        if (THEME.logo_url) {
+            lead.push(el("img", {
+                class: "pw-logo",
+                src: THEME.logo_url,
+                alt: THEME.heading || CONFIG.name || "",
+            }));
+        }
+        if (THEME.heading) {
+            lead.push(el("div", { class: "pw-heading" }, [THEME.heading]));
+        }
+
         // Shadow DOM isolation (preferred): render the <style> AND the
         // form inside a shadow root attached to the mount point. This
         // stops host-page CSS bleeding in (or our CSS leaking out) and
@@ -202,6 +271,7 @@
             var shadow = root.shadowRoot || root.attachShadow({ mode: "open" });
             shadow.innerHTML = "";
             shadow.appendChild(buildStyleEl());
+            lead.forEach(function (n) { shadow.appendChild(n); });
             shadow.appendChild(form);
             return;
         }
@@ -212,6 +282,7 @@
             document.head.appendChild(buildStyleEl());
         }
         root.innerHTML = "";
+        lead.forEach(function (n) { root.appendChild(n); });
         root.appendChild(form);
     }
 

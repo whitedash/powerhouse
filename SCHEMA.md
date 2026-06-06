@@ -816,6 +816,9 @@ slug VARCHAR(100) UNIQUE
   -- Used in /forms/{slug}/embed.js, /forms/{slug}/submit,
   -- and /webhooks/{slug}. Regex: ^[a-z0-9-]+$.
 status ENUM(active|inactive|draft) DEFAULT 'draft',
+theme_id FK form_themes nullable nullOnDelete
+  -- Forms theming Phase 2a. NULL = default design tokens
+  -- (the widget's original hardcoded look). See form_themes.
 submit_button_text VARCHAR(100) DEFAULT 'Submit',
 success_message TEXT nullable,
 redirect_url VARCHAR(500) nullable,
@@ -859,6 +862,26 @@ lead_id FK leads nullable SET NULL
 created_at, updated_at
 -- INDEX (form_id, status, created_at) form_submissions_funnel_idx
 -- INDEX (lead_id)                     form_submissions_lead_idx
+
+## form_themes (Forms theming — Phase 2a)
+id,
+name VARCHAR(255),
+tokens JSON
+  -- PARTIAL override set of design tokens, e.g.
+  -- {"accent":"#0ea5e9","radius":"12px","full_width":true}.
+  -- Effective values = App\Support\FormThemeTokens::defaults()
+  -- merged with these (theme wins; absent/null keys fall back),
+  -- so a theme only carries the keys it changes. Token keys:
+  -- font_family, font_size, text, label, accent, focus_ring,
+  -- background, surface, border, border_width, radius,
+  -- button_bg, button_bg_hover, button_text, error,
+  -- success_bg, success_border, success_text,
+  -- button_style(solid|outline), full_width(bool),
+  -- logo_url, heading, custom_css.
+created_by FK users RESTRICT,
+created_at, updated_at
+-- Standalone + reusable: NOT coupled to the websites module.
+-- Linked from forms.theme_id (nullable, nullOnDelete).
 
 ## workflows (Forms sprint)
 id, name VARCHAR(255), description TEXT nullable,

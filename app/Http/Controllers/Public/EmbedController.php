@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\Form;
+use App\Support\FormThemeTokens;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -35,12 +36,18 @@ class EmbedController extends Controller
     {
         $form = Form::where('slug', $slug)
             ->where('status', 'active')
-            ->with('fields')
+            ->with(['fields', 'theme'])
             ->firstOrFail();
+
+        // Resolve the form's effective design tokens through the single
+        // source of truth: the default token set (today's look) for an
+        // un-themed form, or defaults merged with the theme's overrides.
+        $tokens = FormThemeTokens::resolve($form->theme);
 
         $js = view('embed.form-widget', [
             'form' => $form,
             'submit_url' => rtrim((string) config('app.url'), '/').'/forms/'.$form->slug.'/submit',
+            'tokens' => $tokens,
         ])->render();
 
         return response($js)
