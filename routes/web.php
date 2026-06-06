@@ -764,9 +764,26 @@ Route::post('/proposals/accept/{token}', [PublicProposalAcceptanceController::cl
 |
 | Slug regex matches the form builder's validation rule.
 */
-Route::get('/forms/{slug}/embed.js', [PublicEmbedController::class, 'script'])
-    ->where('slug', '[a-z0-9-]+')
-    ->name('form.embed.script');
+// Public embeddable forms — embed.js + submit share ONE open,
+// credential-less CORS policy (forms.cors) so any site can embed them.
+// (The credentialed global config/cors.php can't use '*'.)
+Route::middleware('forms.cors')->group(function () {
+    Route::get('/forms/{slug}/embed.js', [PublicEmbedController::class, 'script'])
+        ->where('slug', '[a-z0-9-]+')
+        ->name('form.embed.script');
+
+    Route::post('/forms/{slug}/submit', [PublicFormController::class, 'submit'])
+        ->where('slug', '[a-z0-9-]+')
+        ->middleware('throttle:30,1')
+        ->name('form.submit');
+
+    // CORS preflight for the cross-origin submit POST. forms.cors answers
+    // OPTIONS directly; this route just makes the request matchable so the
+    // middleware runs instead of the router 405-ing an unknown method.
+    Route::options('/forms/{slug}/submit', fn () => response('', 204))
+        ->where('slug', '[a-z0-9-]+')
+        ->name('form.submit.preflight');
+});
 
 // Canonical referral hub link. Public + throttled (writes a click row
 // per hit). {code} is constrained to 8 alphanumerics; the controller
@@ -775,10 +792,6 @@ Route::get('/r/{code}', PublicReferralRedirectController::class)
     ->where('code', '[0-9A-Za-z]{8}')
     ->middleware('throttle:30,1')
     ->name('referral.redirect');
-Route::post('/forms/{slug}/submit', [PublicFormController::class, 'submit'])
-    ->where('slug', '[a-z0-9-]+')
-    ->middleware('throttle:30,1')
-    ->name('form.submit');
 // Stripe payment webhooks. MUST precede the /webhooks/{slug} catch-all
 // below — the slug regex would otherwise swallow "stripe". Signature is
 // verified in VerifyStripeWebhook (fail-closed); idempotency + handling

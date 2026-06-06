@@ -10,6 +10,12 @@ return [
     | Restricted to the three first-party origins. NEVER use a wildcard '*'.
     | When credentials are supported, browsers reject wildcard origins anyway.
     |
+    | NB: the PUBLIC embeddable forms (the embed.js + submit endpoints under
+    | forms/{slug}) are deliberately NOT covered here — they need an OPEN,
+    | credential-less '*' policy so any site can embed them, which '*' +
+    | supports_credentials below forbids. That policy lives in the
+    | App\Http\Middleware\FormCors middleware on the forms public route group.
+    |
     */
 
     'paths' => ['api/*', 'oauth/*'],

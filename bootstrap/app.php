@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsurePortalDataOwnership;
 use App\Http\Middleware\EnsurePortalUser;
 use App\Http\Middleware\EnsureRole;
+use App\Http\Middleware\FormCors;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RedirectIfPortalAuthenticated;
 use App\Http\Middleware\RedirectIfReferrer;
@@ -74,6 +75,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'portal_guest' => RedirectIfPortalAuthenticated::class,
             'block_referrer' => RedirectIfReferrer::class,
             'form.webhook' => VerifyFormWebhookSignature::class,
+            'forms.cors' => FormCors::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
