@@ -11,6 +11,7 @@ import {
     IconAward,
     IconTag,
     IconArrowRight,
+    IconHeadset,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 
@@ -21,8 +22,35 @@ const props = defineProps({
     customer_growth: { type: Array, default: () => [] },
     top_referrers: { type: Array, default: () => [] },
     plan_popularity: { type: Array, default: () => [] },
+    support: { type: Object, default: () => ({}) },
     range: { type: Number, default: 90 },
 });
+
+const STATUS_LABELS = {
+    open: 'Open', in_progress: 'In progress', awaiting_customer: 'Awaiting customer',
+    resolved: 'Resolved', closed: 'Closed',
+};
+const PRIORITY_LABELS = { urgent: 'Urgent', high: 'High', medium: 'Medium', low: 'Low' };
+
+// No-data guards: an absent average reads as "—", never "0h"/"0%".
+const fmtHours = (v) => (v === null || v === undefined ? '—' : `${v}h`);
+const fmtPct = (v) => (v === null || v === undefined ? '—' : `${v}%`);
+
+// Turn a {key: count} map into sorted rows with a proportion (bar scaled to
+// the largest count in the group, mirroring the Revenue-by-product bars).
+function distRows(map, labels = null) {
+    const entries = Object.entries(map || {});
+    const max = Math.max(1, ...entries.map(([, n]) => Number(n)));
+
+    return entries
+        .map(([key, n]) => ({
+            key,
+            label: labels ? (labels[key] ?? key) : key,
+            n: Number(n),
+            pct: Math.round((Number(n) / max) * 100),
+        }))
+        .sort((a, b) => b.n - a.n);
+}
 
 const breadcrumbs = [{ label: 'Analytics' }];
 
@@ -393,8 +421,179 @@ function planBarWidth(p) {
                             </div>
                         </template>
                     </section>
+
+                    <!-- ─── Support — first-response SLA & volume ─── -->
+                    <section v-if="support && support.total !== undefined" class="card" style="margin-top: 16px;">
+                        <header class="card-header">
+                            <div class="h-icon gold"><IconHeadset :size="16" stroke-width="1.75" /></div>
+                            <div>
+                                <h3>Support — first-response SLA &amp; volume</h3>
+                                <div class="sub">{{ support.total }} ticket{{ support.total === 1 ? '' : 's' }} · resolution time is raw (no pause)</div>
+                            </div>
+                        </header>
+
+                        <!-- KPI row: equal label heights, "Within SLA" featured -->
+                        <div class="sla-kpis">
+                            <div class="sla-kpi sla-kpi--feature">
+                                <div class="sla-kpi-label">Within first-response SLA</div>
+                                <div class="sla-kpi-value">{{ fmtPct(support.pct_within_sla) }}</div>
+                            </div>
+                            <div class="sla-kpi">
+                                <div class="sla-kpi-label">Avg first response</div>
+                                <div class="sla-kpi-value">{{ fmtHours(support.avg_first_response_hours) }}</div>
+                            </div>
+                            <div class="sla-kpi">
+                                <div class="sla-kpi-label">Breaches</div>
+                                <div class="sla-kpi-value" :class="{ 'is-danger': support.breached > 0 }">
+                                    {{ support.breached }}<span v-if="support.breach_rate !== null" class="sla-kpi-foot">{{ support.breach_rate }}%</span>
+                                </div>
+                            </div>
+                            <div class="sla-kpi">
+                                <div class="sla-kpi-label">Avg resolution</div>
+                                <div class="sla-kpi-value">{{ fmtHours(support.avg_resolution_hours) }}</div>
+                            </div>
+                            <div class="sla-kpi">
+                                <div class="sla-kpi-label">Reopen rate</div>
+                                <div class="sla-kpi-value">{{ fmtPct(support.reopen_rate) }}</div>
+                            </div>
+                        </div>
+
+                        <div class="sla-divider" />
+
+                        <!-- Breakdown: three mini bar-lists (proportion bar + aligned count) -->
+                        <div class="sla-dists">
+                            <div class="sla-dist">
+                                <div class="sla-dist-title">By status</div>
+                                <div v-for="row in distRows(support.by_status, STATUS_LABELS)" :key="`st-${row.key}`" class="sla-dist-row">
+                                    <span class="sla-dist-label">{{ row.label }}</span>
+                                    <span class="sla-dist-track"><span class="sla-dist-fill" :style="{ width: row.pct + '%' }" /></span>
+                                    <span class="sla-dist-count">{{ row.n }}</span>
+                                </div>
+                            </div>
+                            <div class="sla-dist">
+                                <div class="sla-dist-title">By priority</div>
+                                <div v-for="row in distRows(support.by_priority, PRIORITY_LABELS)" :key="`pr-${row.key}`" class="sla-dist-row">
+                                    <span class="sla-dist-label">{{ row.label }}</span>
+                                    <span class="sla-dist-track"><span class="sla-dist-fill" :style="{ width: row.pct + '%' }" /></span>
+                                    <span class="sla-dist-count">{{ row.n }}</span>
+                                </div>
+                            </div>
+                            <div class="sla-dist">
+                                <div class="sla-dist-title">By product</div>
+                                <div v-for="row in distRows(support.by_product)" :key="`pd-${row.key}`" class="sla-dist-row">
+                                    <span class="sla-dist-label">{{ row.label }}</span>
+                                    <span class="sla-dist-track"><span class="sla-dist-fill" :style="{ width: row.pct + '%' }" /></span>
+                                    <span class="sla-dist-count">{{ row.n }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </div>
         </div>
     </InternalLayout>
 </template>
+
+<style scoped>
+/* KPI row — tiles wrap; every label reserves the same height so all value
+   baselines align regardless of 1-, 2- or 3-line labels. */
+.sla-kpis {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+    padding: 16px 18px;
+}
+.sla-kpi {
+    background: var(--neutral-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+}
+.sla-kpi-label {
+    font: 500 11px/1.3 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--text-tertiary);
+    min-height: 2.6em; /* equalises 1–2 line labels → aligned value baselines */
+}
+.sla-kpi-value {
+    margin-top: auto;
+    padding-top: 8px;
+    font: 700 22px/1.1 'Inter', sans-serif;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+.sla-kpi-value.is-danger { color: var(--danger); }
+.sla-kpi-foot { font: 600 12px/1 'Inter', sans-serif; color: var(--text-tertiary); }
+
+/* "Within SLA" is the headline metric — subtle accent emphasis. */
+.sla-kpi--feature {
+    background: rgba(245, 158, 11, .06);
+    border-color: rgba(245, 158, 11, .35);
+}
+.sla-kpi--feature .sla-kpi-label { color: #B45309; }
+.sla-kpi--feature .sla-kpi-value { color: var(--accent); }
+
+.sla-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0 18px;
+}
+
+/* Three mini bar-lists — proportion bar + right-aligned count, even rows. */
+.sla-dists {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+    padding: 16px 18px 18px;
+}
+.sla-dist-title {
+    font: 600 11px/1 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+.sla-dist-row {
+    display: grid;
+    grid-template-columns: 84px 1fr 28px;
+    align-items: center;
+    gap: 10px;
+    height: 26px;
+}
+.sla-dist-label {
+    font: 400 12.5px/1 'Inter', sans-serif;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sla-dist-track {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--neutral-bg);
+    overflow: hidden;
+}
+.sla-dist-fill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--accent);
+}
+.sla-dist-count {
+    font: 600 12.5px/1 'Inter', sans-serif;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+@media (max-width: 920px) {
+    .sla-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sla-dists { grid-template-columns: 1fr; }
+}
+</style>

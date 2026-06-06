@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Enums\SlaState;
 use App\Http\Controllers\Controller;
 use App\Models\CommissionLedger;
 use App\Models\Customer;
@@ -9,8 +10,10 @@ use App\Models\CustomerProduct;
 use App\Models\Product;
 use App\Models\ProductPlan;
 use App\Models\Referrer;
+use App\Models\SupportTicket;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -37,6 +40,7 @@ class AnalyticsController extends Controller
                 'customer_growth' => $this->buildCustomerGrowth(),
                 'top_referrers' => $this->buildTopReferrers(),
                 'plan_popularity' => $this->buildPlanPopularity(),
+                'support' => $this->buildSupport(),
                 'range' => $range,
             ];
         });
@@ -281,5 +285,78 @@ class AnalyticsController extends Controller
             ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution);
 
         return round($mrr / $paying, 2);
+    }
+
+    /**
+     * Support SLA + volume metrics. First-response is the hard SLA; breach
+     * is computed in SQL with the same rule as SupportTicket::slaState
+     * (responded-late OR unresponded-past-deadline). Resolution time is RAW
+     * (resolved_at − created_at, no pause). CSAT joins this panel in Sprint 2.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildSupport(): array
+    {
+        $total = SupportTicket::count();
+
+        // First-response SLA buckets — reduced via SupportTicket::slaState()
+        // so analytics can never drift from the badge logic (and so the
+        // "resolved/closed without a response" tickets settle at resolution,
+        // not as a live countdown). Excludes still-due from "decided".
+        $met = $breached = 0;
+        SupportTicket::query()
+            ->whereNotNull('sla_breach_at')
+            ->get(['id', 'status', 'sla_breach_at', 'first_responded_at', 'resolved_at', 'closed_at'])
+            ->each(function (SupportTicket $t) use (&$met, &$breached): void {
+                match ($t->slaState()) {
+                    SlaState::Met => $met++,
+                    SlaState::Breached => $breached++,
+                    default => null, // due → not yet decided
+                };
+            });
+        $decided = $met + $breached;
+
+        // FRT average EXCLUDES unresponded tickets (no response to measure).
+        // avg() is null with no matching rows → surfaced as null so the UI
+        // shows "—" rather than a misleading "0h". MySQL TIMESTAMPDIFF.
+        $frtSeconds = SupportTicket::whereNotNull('first_responded_at')
+            ->avg(DB::raw('TIMESTAMPDIFF(SECOND, created_at, first_responded_at)'));
+        $resolutionSeconds = SupportTicket::whereNotNull('resolved_at')
+            ->avg(DB::raw('TIMESTAMPDIFF(SECOND, created_at, resolved_at)'));
+
+        $reopened = SupportTicket::where('reopen_count', '>', 0)->count();
+
+        return [
+            'total' => $total,
+            'avg_first_response_hours' => $frtSeconds !== null ? round((float) $frtSeconds / 3600, 1) : null,
+            'avg_resolution_hours' => $resolutionSeconds !== null ? round((float) $resolutionSeconds / 3600, 1) : null,
+            'met' => $met,
+            'breached' => $breached,
+            'pct_within_sla' => $decided > 0 ? round($met / $decided * 100, 1) : null,
+            'breach_rate' => $decided > 0 ? round($breached / $decided * 100, 1) : null,
+            'reopen_rate' => $total > 0 ? round($reopened / $total * 100, 1) : 0.0,
+            'by_status' => $this->countBy('status'),
+            'by_priority' => $this->countBy('priority'),
+            'by_product' => SupportTicket::query()
+                ->leftJoin('products', 'support_tickets.product_id', '=', 'products.id')
+                ->selectRaw("COALESCE(products.name, 'Unassigned') as label, COUNT(*) as total")
+                ->groupBy('label')
+                ->orderByDesc('total')
+                ->pluck('total', 'label')
+                ->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function countBy(string $column): array
+    {
+        return SupportTicket::query()
+            ->selectRaw("{$column} as label, COUNT(*) as total")
+            ->groupBy($column)
+            ->pluck('total', 'label')
+            ->map(fn ($n): int => (int) $n)
+            ->all();
     }
 }
