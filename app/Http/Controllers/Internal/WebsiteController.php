@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Internal;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Customer;
+use App\Models\CustomerProduct;
+use App\Models\Domain;
+use App\Models\Project;
 use App\Models\Website;
 use App\Services\CpanelService;
 use App\Services\MainWPService;
@@ -13,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Websites — CRUD plus the two on-demand sync actions (cPanel usage,
@@ -28,6 +32,8 @@ class WebsiteController extends Controller
 
         $customer = Customer::findOrFail($data['customer_id']);
         Gate::authorize('update', $customer);
+
+        $this->guardLinksBelongToCustomer($data);
 
         DB::transaction(function () use ($data, $request): void {
             $website = Website::create([
@@ -51,6 +57,8 @@ class WebsiteController extends Controller
         Gate::authorize('update', $website->customer);
 
         $data = $this->validateRow($request);
+
+        $this->guardLinksBelongToCustomer($data);
 
         // The token is never sent back to the client (encrypted). On edit
         // a blank field means "keep the existing token" — drop it so we
@@ -169,6 +177,49 @@ class WebsiteController extends Controller
             'ga4_property_id' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
+    }
+
+    /**
+     * Block a forged domain_id / customer_product_id / project_id that points
+     * at a row owned by a different customer. The Rule\Exists checks in
+     * validateRow confirm each link exists at all; this confirms each one
+     * belongs to the website's customer (null/absent links are allowed).
+     * Mirrors TaskController::guardContactBelongsToCustomer, but raises a
+     * per-field validation error so each select surfaces its own message.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function guardLinksBelongToCustomer(array $data): void
+    {
+        if (empty($data['customer_id'])) {
+            return;
+        }
+
+        // field => [model, user-facing noun for the message]
+        $links = [
+            'domain_id' => [Domain::class, 'domain'],
+            'customer_product_id' => [CustomerProduct::class, 'hosting plan'],
+            'project_id' => [Project::class, 'project'],
+        ];
+
+        $errors = [];
+        foreach ($links as $field => [$model, $label]) {
+            if (empty($data[$field])) {
+                continue;
+            }
+
+            $belongs = $model::where('id', $data[$field])
+                ->where('customer_id', $data['customer_id'])
+                ->exists();
+
+            if (! $belongs) {
+                $errors[$field] = "Selected {$label} does not belong to the chosen customer.";
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     /**
