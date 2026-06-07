@@ -62,6 +62,11 @@ class FormThemeTokensTest extends TestCase
         $this->assertSame('solid', $d['button_style']);
         $this->assertFalse($d['full_width']);
         $this->assertNull($d['logo_url']);
+        // Form-container tokens default to NO effect (no padding/border/radius).
+        $this->assertSame('0', $d['form_padding']);
+        $this->assertSame('0', $d['form_border_width']);
+        $this->assertSame('0', $d['form_border_radius']);
+        $this->assertSame('#d1d5db', $d['form_border_color']);
     }
 
     public function test_theme_overrides_apply_and_missing_keys_fall_back(): void
@@ -138,5 +143,46 @@ class FormThemeTokensTest extends TestCase
         $this->assertStringContainsString('"label":"#374151"', $body); // fell back to default
         // Variable wiring still present (rules consume the vars).
         $this->assertStringContainsString('var(--pw-button-bg)', $body);
+    }
+
+    public function test_form_container_tokens_emit_pw_form_variables(): void
+    {
+        $theme = $this->theme([
+            'form_padding' => '24px',
+            'form_border_width' => '1px',
+            'form_border_radius' => '12px',
+            'form_border_color' => '#0ea5e9',
+        ]);
+        $form = $this->activeForm($theme);
+
+        $body = (string) $this->get("/forms/{$form->slug}/embed.js")->assertOk()->getContent();
+
+        // Values flow into CONFIG.theme and the .pw-form rule consumes the vars.
+        $this->assertStringContainsString('"form_padding":"24px"', $body);
+        $this->assertStringContainsString('"form_border_radius":"12px"', $body);
+        $this->assertStringContainsString('"form_border_color":"#0ea5e9"', $body);
+        $this->assertStringContainsString('"--pw-form-padding:"', $body);
+        $this->assertStringContainsString('var(--pw-form-padding)', $body);
+        $this->assertStringContainsString('var(--pw-form-border-width) solid var(--pw-form-border-color)', $body);
+        $this->assertStringContainsString('border-radius:var(--pw-form-border-radius)', $body);
+    }
+
+    public function test_existing_theme_without_container_keys_renders_no_effect_defaults(): void
+    {
+        // Backward compat: a theme stored BEFORE these keys existed (its
+        // tokens carry none of them) back-fills to the no-effect defaults,
+        // so the widget renders an un-styled container exactly as before.
+        $theme = $this->theme(['accent' => '#0ea5e9']); // no form_* keys
+
+        $resolved = FormThemeTokens::resolve($theme);
+        $this->assertSame('0', $resolved['form_padding']);
+        $this->assertSame('0', $resolved['form_border_width']);
+        $this->assertSame('0', $resolved['form_border_radius']);
+        $this->assertSame('#d1d5db', $resolved['form_border_color']);
+
+        $form = $this->activeForm($theme);
+        $body = (string) $this->get("/forms/{$form->slug}/embed.js")->assertOk()->getContent();
+        $this->assertStringContainsString('"form_padding":"0"', $body);
+        $this->assertStringContainsString('"form_border_width":"0"', $body);
     }
 }

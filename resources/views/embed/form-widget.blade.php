@@ -92,6 +92,10 @@
             + "--pw-border:" + t.border + ";"
             + "--pw-border-width:" + t.border_width + ";"
             + "--pw-radius:" + t.radius + ";"
+            + "--pw-form-padding:" + t.form_padding + ";"
+            + "--pw-form-border-width:" + t.form_border_width + ";"
+            + "--pw-form-border-radius:" + t.form_border_radius + ";"
+            + "--pw-form-border-color:" + t.form_border_color + ";"
             + "--pw-button-bg:" + t.button_bg + ";"
             + "--pw-button-bg-hover:" + t.button_bg_hover + ";"
             + "--pw-button-text:" + t.button_text + ";"
@@ -102,7 +106,7 @@
             + "}";
 
         var css = vars
-            + ".pw-form{font-family:var(--pw-font-family);color:var(--pw-text);background:var(--pw-bg);max-width:560px;}"
+            + ".pw-form{font-family:var(--pw-font-family);color:var(--pw-text);background:var(--pw-bg);max-width:560px;padding:var(--pw-form-padding);border:var(--pw-form-border-width) solid var(--pw-form-border-color);border-radius:var(--pw-form-border-radius);box-sizing:border-box;}"
             + ".pw-logo{max-height:48px;margin-bottom:16px;display:block;}"
             + ".pw-heading{font-size:18px;font-weight:600;margin:0 0 16px;color:var(--pw-text);}"
             // Fields lay out on a 12-col grid; the gap replaces the old

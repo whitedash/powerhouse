@@ -21,6 +21,9 @@ use App\Models\FormTheme;
  *     success bg/border/text
  *   - typography: font_family, font_size (base input/button size)
  *   - shape: radius, border_width
+ *   - form container: form_padding, form_border_width, form_border_radius,
+ *     form_border_color (defaults are no-effect: 0 / 0 / 0 / neutral, so an
+ *     existing theme renders unchanged — resolve() back-fills them)
  *   - button: button_style (solid|outline), full_width (bool)
  *   - chrome: logo_url, heading (both optional/null), custom_css (optional
  *     raw CSS injected into the shadow root AFTER the variable styles)
@@ -58,6 +61,14 @@ class FormThemeTokens
             // shape
             'radius' => '6px',
             'border_width' => '1px',
+
+            // form container — defaults are NO-EFFECT (no padding / no border /
+            // no radius), so existing themes + forms are pixel-identical. The
+            // border colour is moot at width 0; it mirrors the field border.
+            'form_padding' => '0',
+            'form_border_width' => '0',
+            'form_border_radius' => '0',
+            'form_border_color' => '#d1d5db',
 
             // button behaviour
             'button_style' => 'solid', // solid | outline

@@ -882,7 +882,10 @@ tokens JSON
   -- button_bg, button_bg_hover, button_text, error,
   -- success_bg, success_border, success_text,
   -- button_style(solid|outline), full_width(bool),
-  -- logo_url, heading, custom_css.
+  -- logo_url, heading, custom_css,
+  -- form_padding, form_border_width, form_border_radius,
+  -- form_border_color (form-container box; defaults 0/0/0/neutral
+  --   = no effect, so existing themes render unchanged).
 created_by FK users RESTRICT,
 created_at, updated_at
 -- Standalone + reusable: NOT coupled to the websites module.
