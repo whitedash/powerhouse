@@ -882,6 +882,9 @@ tokens JSON
   -- button_bg, button_bg_hover, button_text, error,
   -- success_bg, success_border, success_text,
   -- button_style(solid|outline), full_width(bool),
+  -- button_hover(none|lift|glow|shine|fill; default lift),
+  -- button_icon(none|arrow|send|chevron|check|download; default none),
+  -- button_icon_position(leading|trailing; default trailing),
   -- logo_url, heading, custom_css,
   -- form_padding, form_border_width, form_border_radius,
   -- form_border_color (form-container box; defaults 0/0/0/neutral

@@ -24,7 +24,10 @@ use App\Models\FormTheme;
  *   - form container: form_padding, form_border_width, form_border_radius,
  *     form_border_color (defaults are no-effect: 0 / 0 / 0 / neutral, so an
  *     existing theme renders unchanged — resolve() back-fills them)
- *   - button: button_style (solid|outline), full_width (bool)
+ *   - button: button_style (solid|outline), full_width (bool),
+ *     button_hover (none|lift|glow|shine|fill; default lift),
+ *     button_icon (none|arrow|send|chevron|check|download; default none),
+ *     button_icon_position (leading|trailing; default trailing)
  *   - chrome: logo_url, heading (both optional/null), custom_css (optional
  *     raw CSS injected into the shadow root AFTER the variable styles)
  */
@@ -73,6 +76,11 @@ class FormThemeTokens
             // button behaviour
             'button_style' => 'solid', // solid | outline
             'full_width' => false,
+            // Hover effect: none | lift | glow | shine | fill.
+            'button_hover' => 'lift',
+            // Optional submit-button icon + its position.
+            'button_icon' => 'none', // none | arrow | send | chevron | check | download
+            'button_icon_position' => 'trailing', // leading | trailing
 
             // optional chrome
             'logo_url' => null,

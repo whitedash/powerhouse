@@ -61,6 +61,9 @@ class FormThemeTokensTest extends TestCase
         $this->assertSame('6px', $d['radius']);
         $this->assertSame('solid', $d['button_style']);
         $this->assertFalse($d['full_width']);
+        $this->assertSame('lift', $d['button_hover']);
+        $this->assertSame('none', $d['button_icon']);
+        $this->assertSame('trailing', $d['button_icon_position']);
         $this->assertNull($d['logo_url']);
         // Form-container tokens default to NO effect (no padding/border/radius).
         $this->assertSame('0', $d['form_padding']);
@@ -184,5 +187,73 @@ class FormThemeTokensTest extends TestCase
         $body = (string) $this->get("/forms/{$form->slug}/embed.js")->assertOk()->getContent();
         $this->assertStringContainsString('"form_padding":"0"', $body);
         $this->assertStringContainsString('"form_border_width":"0"', $body);
+    }
+
+    public function test_default_form_emits_lift_hover_class(): void
+    {
+        $form = $this->activeForm(); // no theme → default tokens
+
+        $body = (string) $this->get("/forms/{$form->slug}/embed.js")->assertOk()->getContent();
+
+        $this->assertStringContainsString('"button_hover":"lift"', $body);
+        // The hover class is built at runtime: "pw-btn-hover-" + button_hover.
+        $this->assertStringContainsString('pw-btn-hover-', $body);
+        $this->assertStringContainsString('.pw-form button.pw-btn-hover-lift:hover', $body);
+        // Default = no icon.
+        $this->assertStringContainsString('"button_icon":"none"', $body);
+        // Baseline modern affordances present on all buttons.
+        $this->assertStringContainsString('transition:transform .2s cubic-bezier(.4,0,.2,1)', $body);
+        $this->assertStringContainsString(':focus-visible', $body);
+    }
+
+    public function test_themed_form_emits_chosen_hover_mode(): void
+    {
+        $form = $this->activeForm($this->theme(['button_hover' => 'glow']));
+
+        $body = (string) $this->get("/forms/{$form->slug}/embed.js")->assertOk()->getContent();
+
+        $this->assertStringContainsString('"button_hover":"glow"', $body);
+        $this->assertStringContainsString('.pw-form button.pw-btn-hover-glow:hover', $body);
+        $this->assertStringContainsString('color-mix(in srgb,var(--pw-button-bg)', $body);
+    }
+
+    public function test_shine_and_fill_hover_css_present(): void
+    {
+        $body = (string) $this->get("/forms/{$this->activeForm()->slug}/embed.js")->assertOk()->getContent();
+
+        // The modern shine + fill pseudo-element effects are in the stylesheet.
+        $this->assertStringContainsString('.pw-form button.pw-btn-hover-shine::after', $body);
+        $this->assertStringContainsString('.pw-form button.pw-btn-hover-fill::before', $body);
+    }
+
+    public function test_chosen_button_icon_and_position_flow_through(): void
+    {
+        $form = $this->activeForm($this->theme([
+            'button_icon' => 'arrow',
+            'button_icon_position' => 'leading',
+        ]));
+
+        $body = (string) $this->get("/forms/{$form->slug}/embed.js")->assertOk()->getContent();
+
+        // Resolved tokens drive the runtime render (iconName/position).
+        $this->assertStringContainsString('"button_icon":"arrow"', $body);
+        $this->assertStringContainsString('"button_icon_position":"leading"', $body);
+        // The icon set + directional-slide plumbing are present.
+        $this->assertStringContainsString('pw-btn-icon-dir', $body);
+        $this->assertStringContainsString('DIRECTIONAL_ICONS', $body);
+    }
+
+    public function test_existing_theme_with_no_button_tokens_renders_no_icon(): void
+    {
+        // Backward compat: a theme stored before icons existed back-fills to
+        // no-icon, and the widget renders no submit-button icon.
+        $theme = $this->theme(['accent' => '#0ea5e9']); // no button_icon key
+
+        $resolved = FormThemeTokens::resolve($theme);
+        $this->assertSame('none', $resolved['button_icon']);
+        $this->assertSame('trailing', $resolved['button_icon_position']);
+
+        $body = (string) $this->get("/forms/{$this->activeForm($theme)->slug}/embed.js")->assertOk()->getContent();
+        $this->assertStringContainsString('"button_icon":"none"', $body);
     }
 }

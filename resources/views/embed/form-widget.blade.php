@@ -128,12 +128,34 @@
             + ".pw-form .pw-hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;}"
             // Solid button keeps border:none (pixel-identical default); the
             // outline variant adds its own border below.
-            + ".pw-form button{background:var(--pw-button-bg);color:var(--pw-button-text);border:none;border-radius:var(--pw-radius);padding:10px 18px;font-size:var(--pw-font-size);font-weight:600;cursor:pointer;font-family:inherit;}"
-            + ".pw-form button:hover{background:var(--pw-button-bg-hover);}"
+            // Modern easing/timing across transform/shadow/background/colour.
+            + ".pw-form button{background:var(--pw-button-bg);color:var(--pw-button-text);border:none;border-radius:var(--pw-radius);padding:10px 18px;font-size:var(--pw-font-size);font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .2s cubic-bezier(.4,0,.2,1),box-shadow .2s cubic-bezier(.4,0,.2,1),background .2s cubic-bezier(.4,0,.2,1),color .2s cubic-bezier(.4,0,.2,1);}"
+            + ".pw-form button:focus-visible{outline:2px solid var(--pw-accent);outline-offset:2px;}"
+            + ".pw-form button:active{transform:translateY(1px);}"
+            + ".pw-form button:disabled{opacity:0.6;cursor:not-allowed;}"
             + ".pw-form button.pw-btn-block{width:100%;}"
             + ".pw-form button.pw-btn-outline{background:transparent;color:var(--pw-button-bg);border:var(--pw-border-width) solid var(--pw-button-bg);}"
-            + ".pw-form button.pw-btn-outline:hover{background:var(--pw-button-bg);color:var(--pw-button-text);}"
-            + ".pw-form button:disabled{opacity:0.6;cursor:not-allowed;}"
+            // Submit-button icon: inherits text colour, scales with font, and
+            // directional icons slide subtly on hover.
+            + ".pw-form .pw-btn-icon{display:inline-flex;align-items:center;transition:transform .2s cubic-bezier(.4,0,.2,1);}"
+            + ".pw-form .pw-btn-icon svg{width:1em;height:1em;display:block;}"
+            + ".pw-form button:hover .pw-btn-icon-dir.pw-btn-icon-trail{transform:translateX(3px);}"
+            + ".pw-form button:hover .pw-btn-icon-dir.pw-btn-icon-lead{transform:translateX(-3px);}"
+            // Hover: lift — rise + soft elevation.
+            + ".pw-form button.pw-btn-hover-lift:hover{transform:translateY(-2px);box-shadow:0 6px 16px -4px rgba(0,0,0,0.25);}"
+            + ".pw-form button.pw-btn-hover-lift:active{transform:translateY(0);box-shadow:none;}"
+            // Hover: glow — translucent coloured ring + halo from the button colour.
+            + ".pw-form button.pw-btn-hover-glow:hover{box-shadow:0 0 0 4px color-mix(in srgb,var(--pw-button-bg) 28%,transparent),0 4px 14px -2px color-mix(in srgb,var(--pw-button-bg) 45%,transparent);}"
+            // Hover: shine — a light sheen sweeps across (clipped pseudo-element).
+            + ".pw-form button.pw-btn-hover-shine{position:relative;overflow:hidden;}"
+            + ".pw-form button.pw-btn-hover-shine::after{content:'';position:absolute;top:0;left:-150%;width:60%;height:100%;background:linear-gradient(120deg,transparent,rgba(255,255,255,0.35),transparent);transform:skewX(-20deg);transition:left .5s cubic-bezier(.4,0,.2,1);pointer-events:none;}"
+            + ".pw-form button.pw-btn-hover-shine:hover::after{left:150%;}"
+            // Hover: fill — colour overlay wipes in from the left (behind the text).
+            + ".pw-form button.pw-btn-hover-fill{position:relative;overflow:hidden;z-index:0;}"
+            + ".pw-form button.pw-btn-hover-fill::before{content:'';position:absolute;inset:0;background:var(--pw-button-bg-hover);transform:scaleX(0);transform-origin:left;transition:transform .2s cubic-bezier(.4,0,.2,1);z-index:-1;}"
+            + ".pw-form button.pw-btn-hover-fill:hover::before{transform:scaleX(1);}"
+            + ".pw-form button.pw-btn-outline.pw-btn-hover-fill::before{background:var(--pw-button-bg);}"
+            + ".pw-form button.pw-btn-outline.pw-btn-hover-fill:hover{color:var(--pw-button-text);}"
             + ".pw-form .pw-err{color:var(--pw-error);font-size:12px;margin-top:4px;}"
             + ".pw-form .pw-success{padding:16px;background:var(--pw-success-bg);border:var(--pw-border-width) solid var(--pw-success-border);border-radius:var(--pw-radius);color:var(--pw-success-text);}"
             + ".pw-form .pw-gdpr{font-size:12px;color:#6b7280;margin-top:8px;}"
@@ -154,6 +176,18 @@
 
     // Field width → 12-col grid span class.
     var WIDTH_COLS = { full: "pw-col-12", half: "pw-col-6", third: "pw-col-4" };
+
+    // Inline SVG icon set for the submit button. stroke=currentColor so each
+    // icon inherits the button text colour; 1em so it scales with the font.
+    var ICONS = {
+        arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6l-6 6"/></svg>',
+        send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14l11 -11"/><path d="M21 3l-6.5 18a.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a.55 .55 0 0 1 0 -1z"/></svg>',
+        chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6l-6 6"/></svg>',
+        check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10 -10"/></svg>',
+        download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4v12"/></svg>',
+    };
+    // Icons that imply direction (slide on hover).
+    var DIRECTIONAL_ICONS = { arrow: true, chevron: true };
 
     function renderField(field) {
         var span = WIDTH_COLS[field.width] || "pw-col-12";
@@ -231,17 +265,38 @@
         // Button style + width come from the theme (defaults: solid, auto).
         var btnClass = "";
         if (THEME.button_style === "outline") btnClass += "pw-btn-outline ";
-        if (THEME.full_width) btnClass += "pw-btn-block";
+        if (THEME.full_width) btnClass += "pw-btn-block ";
+        btnClass += "pw-btn-hover-" + (THEME.button_hover || "lift");
         btnClass = btnClass.trim();
         var btnAttrs = { type: "submit" };
         if (btnClass) btnAttrs.class = btnClass;
-        var btn = el("button", btnAttrs, [CONFIG.submit_button_text || "Submit"]);
+
+        // Label lives in its own span so the submit handler can swap the
+        // text ("Sending…") WITHOUT wiping the icon.
+        var label = CONFIG.submit_button_text || "Submit";
+        var labelSpan = el("span", { class: "pw-btn-label" }, [label]);
+
+        // Optional submit-button icon at the chosen position. none = no icon.
+        var iconName = THEME.button_icon || "none";
+        var position = THEME.button_icon_position === "leading" ? "leading" : "trailing";
+        var children;
+        if (iconName !== "none" && ICONS[iconName]) {
+            var iconCls = "pw-btn-icon";
+            if (DIRECTIONAL_ICONS[iconName]) {
+                iconCls += " pw-btn-icon-dir " + (position === "leading" ? "pw-btn-icon-lead" : "pw-btn-icon-trail");
+            }
+            var iconSpan = el("span", { class: iconCls, html: ICONS[iconName], "aria-hidden": "true" });
+            children = position === "leading" ? [iconSpan, labelSpan] : [labelSpan, iconSpan];
+        } else {
+            children = [labelSpan];
+        }
+        var btn = el("button", btnAttrs, children);
         form.appendChild(btn);
 
         form.addEventListener("submit", function (e) {
             e.preventDefault();
             btn.disabled = true;
-            btn.textContent = "Sending...";
+            labelSpan.textContent = "Sending...";
 
             // Clear previous errors.
             CONFIG.fields.forEach(function (f) {
@@ -264,11 +319,11 @@
                         if (ne) ne.textContent = r.json.errors[k][0];
                     });
                     btn.disabled = false;
-                    btn.textContent = CONFIG.submit_button_text;
+                    labelSpan.textContent = CONFIG.submit_button_text;
                     return;
                 }
                 if (r.status === 429) {
-                    btn.textContent = "Try again later";
+                    labelSpan.textContent = "Try again later";
                     return;
                 }
                 if (r.json && r.json.redirect) {
@@ -281,7 +336,7 @@
                 form.parentNode.replaceChild(success, form);
             }).catch(function () {
                 btn.disabled = false;
-                btn.textContent = CONFIG.submit_button_text;
+                labelSpan.textContent = CONFIG.submit_button_text;
                 var generic = errNode(CONFIG.fields[0] && CONFIG.fields[0].field_key);
                 if (generic) generic.textContent = "Submission failed. Please try again.";
             });
