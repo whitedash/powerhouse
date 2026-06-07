@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Enums\FieldWidth;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Form;
@@ -93,6 +94,7 @@ class FormBuilderController extends Controller
                     'default_value' => $field['default_value'] ?? null,
                     'options' => $field['options'] ?? null,
                     'is_required' => (bool) ($field['is_required'] ?? false),
+                    'width' => $field['width'] ?? FieldWidth::Full->value,
                     'sort_order' => $i,
                 ]);
             }
@@ -147,6 +149,7 @@ class FormBuilderController extends Controller
                     'default_value' => $field['default_value'] ?? null,
                     'options' => $field['options'] ?? null,
                     'is_required' => (bool) ($field['is_required'] ?? false),
+                    'width' => $field['width'] ?? FieldWidth::Full->value,
                     'sort_order' => $i,
                 ]);
             }
@@ -267,6 +270,8 @@ class FormBuilderController extends Controller
             'fields.*.options' => ['nullable', 'array'],
             'fields.*.options.*' => ['string', 'max:255'],
             'fields.*.is_required' => ['nullable', 'boolean'],
+            // Layout width; null/blank => full (today's single-column stack).
+            'fields.*.width' => ['nullable', Rule::enum(FieldWidth::class)],
         ]);
     }
 
@@ -296,6 +301,7 @@ class FormBuilderController extends Controller
                 'default_value' => $field->default_value,
                 'options' => $field->options,
                 'is_required' => $field->is_required,
+                'width' => $field->width->value,
                 'sort_order' => $field->sort_order,
             ])->values(),
             'fields_count' => $f->fields->count(),

@@ -844,6 +844,11 @@ default_value VARCHAR(255) nullable,
 options JSON nullable
   -- For select/radio: ["Option 1","Option 2"].
 is_required BOOLEAN DEFAULT false,
+width VARCHAR(16) DEFAULT 'full'
+  -- Layout width in the widget's 12-col grid: full|half|third
+  -- (App\Enums\FieldWidth → 12/6/4). DEFAULT 'full' = today's
+  -- single-column stack. Grid collapses to 1 col on narrow
+  -- CONTAINERS (CSS @container), not viewport.
 validation_rules JSON nullable,
 sort_order INT DEFAULT 0, created_at, updated_at
 -- INDEX (form_id, sort_order) form_fields_order_idx

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\FieldWidth;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -21,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $default_value
  * @property array<int, string>|null $options
  * @property bool $is_required
+ * @property FieldWidth $width
  * @property array<string, mixed>|null $validation_rules
  * @property int $sort_order
  * @property Carbon|null $created_at
@@ -40,6 +42,7 @@ class FormField extends Model
         'default_value',
         'options',
         'is_required',
+        'width',
         'validation_rules',
         'sort_order',
     ];
@@ -50,6 +53,7 @@ class FormField extends Model
             'options' => 'array',
             'validation_rules' => 'array',
             'is_required' => 'boolean',
+            'width' => FieldWidth::class,
             'sort_order' => 'integer',
         ];
     }

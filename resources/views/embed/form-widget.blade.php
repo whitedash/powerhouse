@@ -13,6 +13,8 @@
         'default_value' => $f->default_value,
         'options' => $f->options,
         'is_required' => (bool) $f->is_required,
+        // Layout width within the widget's 12-col grid (full/half/third).
+        'width' => $f->width->value,
     ])->values()->all();
 
     $config = [
@@ -54,6 +56,20 @@
         return node;
     }
 
+    // Responsive by CONTAINER width: CSS @container collapses half/third to
+    // full below ~480px of grid width. Where @container is unsupported, fall
+    // back to a ResizeObserver that toggles the same collapse class.
+    function watchGridWidth(grid) {
+        var supported = window.CSS && CSS.supports && CSS.supports("container-type: inline-size");
+        if (supported || typeof ResizeObserver === "undefined") return;
+        var ro = new ResizeObserver(function (entries) {
+            for (var i = 0; i < entries.length; i++) {
+                grid.classList.toggle("pw-grid--narrow", entries[i].contentRect.width < 480);
+            }
+        });
+        ro.observe(grid);
+    }
+
     // Design tokens resolved server-side (default set == the original
     // hardcoded look, so an un-themed form is pixel-identical to before).
     var THEME = CONFIG.theme || {};
@@ -89,7 +105,17 @@
             + ".pw-form{font-family:var(--pw-font-family);color:var(--pw-text);background:var(--pw-bg);max-width:560px;}"
             + ".pw-logo{max-height:48px;margin-bottom:16px;display:block;}"
             + ".pw-heading{font-size:18px;font-weight:600;margin:0 0 16px;color:var(--pw-text);}"
-            + ".pw-form .pw-row{margin-bottom:14px;}"
+            // Fields lay out on a 12-col grid; the gap replaces the old
+            // per-row margin (single-column all-full = same rhythm as before).
+            + ".pw-form .pw-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;container-type:inline-size;margin-bottom:14px;}"
+            + ".pw-form .pw-row{margin:0;min-width:0;}"
+            + ".pw-form .pw-col-12{grid-column:span 12;}"
+            + ".pw-form .pw-col-6{grid-column:span 6;}"
+            + ".pw-form .pw-col-4{grid-column:span 4;}"
+            // Collapse to one column on a NARROW CONTAINER (not viewport).
+            + "@container (max-width:480px){.pw-form .pw-col-6,.pw-form .pw-col-4{grid-column:span 12;}}"
+            // ResizeObserver fallback toggles this class where @container is unsupported.
+            + ".pw-form .pw-grid.pw-grid--narrow .pw-col-6,.pw-form .pw-grid.pw-grid--narrow .pw-col-4{grid-column:span 12;}"
             + ".pw-form label{display:block;font-weight:600;font-size:13px;margin-bottom:6px;color:var(--pw-label);}"
             + ".pw-form .pw-req{color:var(--pw-error);}"
             + ".pw-form input,.pw-form textarea,.pw-form select{width:100%;padding:10px 12px;border:var(--pw-border-width) solid var(--pw-border);border-radius:var(--pw-radius);font-size:var(--pw-font-size);font-family:inherit;background:var(--pw-surface);box-sizing:border-box;}"
@@ -122,8 +148,12 @@
         return style;
     }
 
+    // Field width → 12-col grid span class.
+    var WIDTH_COLS = { full: "pw-col-12", half: "pw-col-6", third: "pw-col-4" };
+
     function renderField(field) {
-        var row = el("div", { class: "pw-row" });
+        var span = WIDTH_COLS[field.width] || "pw-col-12";
+        var row = el("div", { class: "pw-row " + span });
         var labelChildren = [field.label];
         if (field.is_required) labelChildren.push(el("span", { class: "pw-req" }, [" *"]));
         if (field.type !== "hidden") row.appendChild(el("label", { for: "pw-" + field.field_key }, labelChildren));
@@ -171,11 +201,16 @@
             return form.querySelector('[id="pw-err-' + key + '"]');
         }
 
+        // Fields live in a 12-col grid; per-field width sets the span.
+        var grid = el("div", { class: "pw-grid" });
         CONFIG.fields.forEach(function (f) {
-            form.appendChild(renderField(f));
+            grid.appendChild(renderField(f));
         });
+        form.appendChild(grid);
+        watchGridWidth(grid);
 
-        // Honeypot — invisible to humans, irresistible to bots.
+        // Honeypot — invisible to humans, irresistible to bots. Outside the
+        // grid so it never occupies a column (and stays hidden regardless).
         var hp = el("input", { type: "text", name: "_hp", class: "pw-hp", tabindex: "-1", autocomplete: "off" });
         form.appendChild(hp);
 

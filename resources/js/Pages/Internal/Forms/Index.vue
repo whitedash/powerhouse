@@ -63,6 +63,13 @@ function fieldTypeLabel(type) {
 // Types whose `options` list is meaningful.
 const OPTION_TYPES = ['select', 'radio', 'checkbox'];
 
+// Per-field layout width (12-col grid in the embed widget).
+const FIELD_WIDTHS = [
+    { value: 'full', label: 'Full' },
+    { value: 'half', label: 'Half' },
+    { value: 'third', label: 'Third' },
+];
+
 // Live options for previews — derive from the textarea string so unsaved
 // edits show immediately, falling back to the stored array.
 function fieldOptions(field) {
@@ -145,6 +152,7 @@ function formPayloadFromCard(card) {
             default_value: f.default_value,
             options: f.options,
             is_required: f.is_required,
+            width: f.width ?? 'full',
         })),
     };
 }
@@ -176,7 +184,7 @@ function blankField(type = 'text') {
     return {
         label: '', field_key: '', type,
         placeholder: '', default_value: '',
-        options: null, options_raw: '', is_required: false,
+        options: null, options_raw: '', is_required: false, width: 'full',
     };
 }
 
@@ -193,8 +201,8 @@ function emptyEditor() {
         gdpr_consent_text: '',
         theme_id: null,
         fields: [
-            { label: 'First name', field_key: 'first_name', type: 'text', placeholder: '', default_value: '', options: null, options_raw: '', is_required: true },
-            { label: 'Email', field_key: 'email', type: 'email', placeholder: '', default_value: '', options: null, options_raw: '', is_required: true },
+            { label: 'First name', field_key: 'first_name', type: 'text', placeholder: '', default_value: '', options: null, options_raw: '', is_required: true, width: 'full' },
+            { label: 'Email', field_key: 'email', type: 'email', placeholder: '', default_value: '', options: null, options_raw: '', is_required: true, width: 'full' },
         ],
     };
 }
@@ -216,6 +224,7 @@ function openEdit(form) {
         ...f,
         options: f.options ? [...f.options] : null,
         options_raw: (f.options ?? []).join('\n'),
+        width: f.width ?? 'full',
     }));
     editingFieldIndex.value = null;
     editorOpen.value = true;
@@ -281,6 +290,7 @@ function save() {
                 placeholder: f.placeholder,
                 default_value: f.default_value,
                 is_required: f.is_required,
+                width: f.width ?? 'full',
                 options: OPTION_TYPES.includes(f.type)
                     ? (f.options_raw ?? '')
                         .split('\n')
@@ -552,6 +562,12 @@ const totalSubmissions = computed(() =>
                                             <label class="small">Type</label>
                                             <select v-model="field.type">
                                                 <option v-for="t in FIELD_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-row">
+                                            <label class="small">Width</label>
+                                            <select v-model="field.width">
+                                                <option v-for="w in FIELD_WIDTHS" :key="w.value" :value="w.value">{{ w.label }}</option>
                                             </select>
                                         </div>
                                         <div class="form-row">
