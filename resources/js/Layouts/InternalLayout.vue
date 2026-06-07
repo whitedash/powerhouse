@@ -44,6 +44,7 @@ import {
     IconFileDescription,
     IconUserPlus,
     IconForms,
+    IconPalette,
     IconBolt,
     IconFlag,
     IconCheck,
@@ -274,6 +275,7 @@ const sections = computed(() => {
                         // Provisioning removed from nav — Subscriptions covers the
                         // same use cases. Route + page kept intact (/provisioning).
                         { key: 'forms',        label: 'Forms',        href: '/forms',        icon: IconForms },
+                        { key: 'form-themes',  label: 'Form themes',  href: '/forms/themes', icon: IconPalette },
                         { key: 'workflows',    label: 'Workflows',    href: '/workflows',    icon: IconBolt },
                         // super_admin only — mutates live customer sites.
                         ...(isSuperAdmin.value

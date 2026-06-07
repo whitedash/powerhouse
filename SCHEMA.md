@@ -882,6 +882,10 @@ created_by FK users RESTRICT,
 created_at, updated_at
 -- Standalone + reusable: NOT coupled to the websites module.
 -- Linked from forms.theme_id (nullable, nullOnDelete).
+-- Phase 2b: managed via the design editor (Internal\FormThemeController,
+-- /forms/themes, FormThemePolicy = isStaff). The custom_css token is
+-- super_admin-only (manageCustomCss) — read- AND write-gated, stripped
+-- from non-super-admin payloads and never persisted from them.
 
 ## workflows (Forms sprint)
 id, name VARCHAR(255), description TEXT nullable,

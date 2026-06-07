@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Form;
 use App\Models\FormField;
 use App\Models\FormSubmission;
+use App\Models\FormTheme;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -52,6 +53,9 @@ class FormBuilderController extends Controller
 
         return Inertia::render('Internal/Forms/Index', [
             'forms' => $forms,
+            // Themes for the builder's theme selector. "Default"
+            // (theme_id = null) is rendered client-side.
+            'themes' => FormTheme::orderBy('name')->get(['id', 'name'])->all(),
         ]);
     }
 
@@ -70,6 +74,7 @@ class FormBuilderController extends Controller
                 'redirect_url' => $data['redirect_url'] ?? null,
                 'gdpr_consent_enabled' => (bool) ($data['gdpr_consent_enabled'] ?? false),
                 'gdpr_consent_text' => $data['gdpr_consent_text'] ?? null,
+                'theme_id' => $data['theme_id'] ?? null,
                 // 32 hex chars = 128 bits of entropy. The secret
                 // is rotated by editing the form and saving with
                 // a regenerate-on-save flag (future sprint);
@@ -124,6 +129,7 @@ class FormBuilderController extends Controller
                 'redirect_url' => $data['redirect_url'] ?? null,
                 'gdpr_consent_enabled' => (bool) ($data['gdpr_consent_enabled'] ?? false),
                 'gdpr_consent_text' => $data['gdpr_consent_text'] ?? null,
+                'theme_id' => $data['theme_id'] ?? null,
             ]);
 
             // Field strategy: delete-and-recreate. Fields don't
@@ -249,6 +255,8 @@ class FormBuilderController extends Controller
             'redirect_url' => ['nullable', 'url:http,https', 'max:500'],
             'gdpr_consent_enabled' => ['nullable', 'boolean'],
             'gdpr_consent_text' => ['nullable', 'string', 'max:2000'],
+            // Optional visual theme; null = default tokens (today's look).
+            'theme_id' => ['nullable', 'integer', 'exists:form_themes,id'],
 
             'fields' => ['required', 'array', 'min:1'],
             'fields.*.label' => ['required', 'string', 'max:255'],
@@ -278,6 +286,7 @@ class FormBuilderController extends Controller
             'redirect_url' => $f->redirect_url,
             'gdpr_consent_enabled' => $f->gdpr_consent_enabled,
             'gdpr_consent_text' => $f->gdpr_consent_text,
+            'theme_id' => $f->theme_id,
             'fields' => $f->fields->map(fn (FormField $field): array => [
                 'id' => $field->id,
                 'label' => $field->label,

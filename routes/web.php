@@ -13,6 +13,7 @@ use App\Http\Controllers\Internal\DashboardController as InternalDashboardContro
 use App\Http\Controllers\Internal\DomainController as InternalDomainController;
 use App\Http\Controllers\Internal\ExpenseController as InternalExpenseController;
 use App\Http\Controllers\Internal\FormBuilderController as InternalFormBuilderController;
+use App\Http\Controllers\Internal\FormThemeController as InternalFormThemeController;
 use App\Http\Controllers\Internal\GdprController as InternalGdprController;
 use App\Http\Controllers\Internal\GoogleCalendarAuthController as InternalGoogleCalendarAuthController;
 use App\Http\Controllers\Internal\HelpController as InternalHelpController;
@@ -363,6 +364,19 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::prefix('forms')->name('internal.forms.')->group(function () {
         Route::get('/', [InternalFormBuilderController::class, 'index'])->name('index');
         Route::post('/', [InternalFormBuilderController::class, 'store'])->name('store');
+
+        // Reusable design themes (the design editor). Defined BEFORE the
+        // /{id} routes; the {id} routes are whereNumber so "themes" never
+        // collides with them.
+        Route::prefix('themes')->name('themes.')->group(function () {
+            Route::get('/', [InternalFormThemeController::class, 'index'])->name('index');
+            Route::post('/', [InternalFormThemeController::class, 'store'])->name('store');
+            Route::put('/{id}', [InternalFormThemeController::class, 'update'])
+                ->whereNumber('id')->name('update');
+            Route::delete('/{id}', [InternalFormThemeController::class, 'destroy'])
+                ->whereNumber('id')->name('destroy');
+        });
+
         Route::put('/{id}', [InternalFormBuilderController::class, 'update'])
             ->whereNumber('id')->name('update');
         Route::delete('/{id}', [InternalFormBuilderController::class, 'destroy'])

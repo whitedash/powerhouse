@@ -24,6 +24,7 @@ import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 
 const props = defineProps({
     forms: { type: Array, required: true },
+    themes: { type: Array, default: () => [] },
 });
 
 const FIELD_TYPES = [
@@ -135,6 +136,7 @@ function formPayloadFromCard(card) {
         redirect_url: card.redirect_url,
         gdpr_consent_enabled: card.gdpr_consent_enabled,
         gdpr_consent_text: card.gdpr_consent_text,
+        theme_id: card.theme_id ?? null,
         fields: card.fields.map((f, i) => ({
             label: f.label,
             field_key: f.field_key,
@@ -189,6 +191,7 @@ function emptyEditor() {
         redirect_url: '',
         gdpr_consent_enabled: false,
         gdpr_consent_text: '',
+        theme_id: null,
         fields: [
             { label: 'First name', field_key: 'first_name', type: 'text', placeholder: '', default_value: '', options: null, options_raw: '', is_required: true },
             { label: 'Email', field_key: 'email', type: 'email', placeholder: '', default_value: '', options: null, options_raw: '', is_required: true },
@@ -475,6 +478,19 @@ const totalSubmissions = computed(() =>
                                     <select v-model="editor.status">
                                         <option v-for="s in formStatuses" :key="s" :value="s">{{ statusLabel(s) }}</option>
                                     </select>
+                                </div>
+                                <div class="form-row">
+                                    <label>Theme</label>
+                                    <select v-model="editor.theme_id">
+                                        <option :value="null">Default (built-in look)</option>
+                                        <option v-for="t in themes" :key="t.id" :value="t.id">{{ t.name }}</option>
+                                    </select>
+                                    <small class="muted">
+                                        <Link href="/forms/themes" class="fb-link">Manage themes</Link>
+                                        — editing a theme restyles every form using it; embedded forms
+                                        pick up changes within ~5&nbsp;minutes (embed cache).
+                                    </small>
+                                    <div v-if="editor.errors.theme_id" class="err">{{ editor.errors.theme_id }}</div>
                                 </div>
                             </div>
                         </section>

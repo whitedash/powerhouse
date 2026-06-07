@@ -9,12 +9,14 @@ use App\Listeners\LogSecurityEvent;
 use App\Models\BillingEntity;
 use App\Models\CommissionLedger;
 use App\Models\Customer;
+use App\Models\FormTheme;
 use App\Models\Invoice;
 use App\Models\Person;
 use App\Models\Product;
 use App\Policies\BillingEntityPolicy;
 use App\Policies\CommissionLedgerPolicy;
 use App\Policies\CustomerPolicy;
+use App\Policies\FormThemePolicy;
 use App\Policies\InvoicePolicy;
 use App\Policies\PersonPolicy;
 use App\Policies\ProductPolicy;
@@ -190,6 +192,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Product::class, ProductPolicy::class);
         Gate::policy(CommissionLedger::class, CommissionLedgerPolicy::class);
         Gate::policy(Person::class, PersonPolicy::class);
+        Gate::policy(FormTheme::class, FormThemePolicy::class);
     }
 
     private function configurePassport(): void
