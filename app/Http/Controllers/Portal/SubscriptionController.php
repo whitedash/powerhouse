@@ -82,18 +82,26 @@ class SubscriptionController extends Controller
                 'name' => $p->name,
                 'slug' => $p->slug,
                 'icon_colour' => $p->icon_colour,
-                'plans' => $p->plans->map(fn ($plan): array => [
-                    'id' => $plan->id,
-                    'name' => $plan->name,
-                    'description' => $plan->description,
-                    'prices' => $plan->activePrices->map(fn ($price): array => [
-                        'id' => $price->id,
-                        'price' => round((float) $price->price, 2),
-                        'interval_label' => $price->interval_label,
-                        'is_default' => $price->is_default,
+                // Only plans with at least one active price are subscribable —
+                // there's nothing to pick (or charge) otherwise.
+                'plans' => $p->plans
+                    ->filter(fn ($plan): bool => $plan->activePrices->isNotEmpty())
+                    ->map(fn ($plan): array => [
+                        'id' => $plan->id,
+                        'name' => $plan->name,
+                        'description' => $plan->description,
+                        'prices' => $plan->activePrices->map(fn ($price): array => [
+                            'id' => $price->id,
+                            'price' => round((float) $price->price, 2),
+                            'interval_label' => $price->interval_label,
+                            'is_default' => $price->is_default,
+                        ])->values()->all(),
                     ])->values()->all(),
-                ])->values()->all(),
             ])
+            // Drop products with no subscribable plan so no dead Subscribe CTA
+            // ever reaches the catalogue (safety; the upsell redesign is separate).
+            ->filter(fn (array $p): bool => count($p['plans']) > 0)
+            ->values()
             ->all();
 
         return Inertia::render('Portal/Subscriptions', [

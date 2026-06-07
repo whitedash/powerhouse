@@ -181,7 +181,7 @@ function scrollToCatalogue() {
                                 <div class="pc-fact" style="justify-content:center"><i class="ti ti-clock-hour-4" />Awaiting activation by our team</div>
                             </template>
                             <template v-else>
-                                <button class="btn btn-secondary btn-block" :disabled="launchingId === sub.id" @click="launchSub(sub)">
+                                <button v-if="sub.sso_enabled || sub.sso_url" class="btn btn-secondary btn-block" :disabled="launchingId === sub.id" @click="launchSub(sub)">
                                     {{ launchingId === sub.id ? 'Opening…' : `Open ${sub.product_name}` }}<i class="ti ti-external-link" />
                                 </button>
                                 <button v-if="!sub.cancels_at" class="ghost-link" style="margin-top:10px;color:var(--danger)" @click="askCancel(sub)">Cancel subscription</button>
@@ -240,7 +240,7 @@ function scrollToCatalogue() {
                         <div v-else-if="sub.started_at" class="fact"><i class="ti ti-calendar-event" />Started {{ sub.started_at }}</div>
                     </div>
                     <button v-if="sub.status === 'suspended'" class="btn btn-danger btn-block btn-sm" style="margin-top:12px" @click="router.visit('/portal/invoices')">Pay to reinstate<i class="ti ti-arrow-right" /></button>
-                    <button v-else-if="sub.status !== 'pending'" class="btn btn-secondary btn-block btn-sm" style="margin-top:12px" :disabled="launchingId === sub.id" @click="launchSub(sub)">Open {{ sub.product_name }}<i class="ti ti-external-link" /></button>
+                    <button v-else-if="sub.status !== 'pending' && (sub.sso_enabled || sub.sso_url)" class="btn btn-secondary btn-block btn-sm" style="margin-top:12px" :disabled="launchingId === sub.id" @click="launchSub(sub)">Open {{ sub.product_name }}<i class="ti ti-external-link" /></button>
                 </div>
 
                 <template v-if="available.length">

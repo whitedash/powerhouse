@@ -141,7 +141,7 @@ function invBadge(status) {
                         <div class="section-head" style="margin-top:0">
                             <div class="col-l">
                                 <h2>Your products</h2>
-                                <div class="desc">Click any product to open it — you're signed in automatically.</div>
+                                <div class="desc">Your active products and services. SSO-enabled products open with one click.</div>
                             </div>
                         </div>
 
@@ -164,7 +164,7 @@ function invBadge(status) {
                                     </div>
                                     <div class="pc-plan">{{ p.plan_name }}<span style="color:var(--text-tertiary)"> · </span>£{{ gbp(p.price) }} / month</div>
                                 </div>
-                                <button class="btn btn-secondary btn-sm" :disabled="launchingId === p.id" @click="launchProduct(p)">
+                                <button v-if="p.sso_enabled || p.sso_url" class="btn btn-secondary btn-sm" :disabled="launchingId === p.id" @click="launchProduct(p)">
                                     {{ launchingId === p.id ? 'Opening…' : 'Open' }}<i class="ti ti-external-link" />
                                 </button>
                             </div>
@@ -267,20 +267,21 @@ function invBadge(status) {
 
                 <div class="m-section-title">Your products</div>
                 <div style="display:flex;flex-direction:column;gap:12px">
-                    <button
+                    <component
+                        :is="(p.sso_enabled || p.sso_url) ? 'button' : 'div'"
                         v-for="p in active_products"
                         :key="p.id"
                         class="m-prod"
-                        style="text-align:left;border-width:1px;cursor:pointer"
-                        :disabled="launchingId === p.id"
-                        @click="launchProduct(p)"
+                        :style="{ textAlign: 'left', borderWidth: '1px', cursor: (p.sso_enabled || p.sso_url) ? 'pointer' : 'default' }"
+                        :disabled="(p.sso_enabled || p.sso_url) ? (launchingId === p.id) : null"
+                        @click="(p.sso_enabled || p.sso_url) && launchProduct(p)"
                     >
                         <div class="top">
                             <div class="logo" :style="{ background: p.icon_colour || 'var(--accent)' }">{{ initial(p.product_name) }}</div>
                             <div style="flex:1"><div class="nm">{{ p.product_name }}</div><div class="pl">{{ p.plan_name }} · £{{ gbp(p.price) }}/mo</div></div>
                             <span class="badge badge-active badge-sm">Active</span>
                         </div>
-                    </button>
+                    </component>
                 </div>
 
                 <div class="m-section-title">
