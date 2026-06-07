@@ -1451,6 +1451,9 @@ const websiteForm = useForm({
     // price tier — not from a pre-enabled CustomerProduct.
     plan_id: null,
     plan_price_id: null,
+    // Hosting billing controls (Stage 1b).
+    hosting_auto_invoice: false,
+    hosting_next_billing_date: '',
     domain_id: null,
     project_id: null,
     cpanel_username: '',
@@ -1486,6 +1489,8 @@ function openEditWebsite(w) {
     websiteForm.url = w.url;
     websiteForm.plan_id = w.plan_id ?? null;
     websiteForm.plan_price_id = w.plan_price_id ?? null;
+    websiteForm.hosting_auto_invoice = !! w.hosting_auto_invoice;
+    websiteForm.hosting_next_billing_date = w.hosting_next_billing_date ?? '';
     websiteForm.domain_id = w.domain_id ?? null;
     websiteForm.project_id = w.project_id ?? null;
     websiteForm.cpanel_username = w.cpanel_username ?? '';
@@ -1515,6 +1520,14 @@ function confirmDeleteWebsite() {
         preserveScroll: true,
         onFinish: () => { showWebsiteDelete.value = false; websiteDeleteTarget.value = null; },
     });
+}
+
+/* ─── Hosting suspend / reinstate (Stage 1b) ─── */
+function suspendHosting(w) {
+    router.post(`/websites/${w.id}/suspend-hosting`, {}, { preserveScroll: true });
+}
+function reinstateHosting(w) {
+    router.post(`/websites/${w.id}/reinstate-hosting`, {}, { preserveScroll: true });
 }
 
 /* ─── In-context Add domain (reuses DomainController@store; customer locked) ─── */
@@ -2576,6 +2589,16 @@ function submitProject() {
                                             Edit
                                         </button>
                                     </MenuItem>
+                                    <MenuItem v-if="w.hosting_status === 'active'" v-slot="{ active }">
+                                        <button type="button" :class="['dd-option', { active }]" style="color: var(--warning);" @click="suspendHosting(w)">
+                                            Suspend hosting
+                                        </button>
+                                    </MenuItem>
+                                    <MenuItem v-if="w.hosting_status === 'suspended'" v-slot="{ active }">
+                                        <button type="button" :class="['dd-option', { active }]" @click="reinstateHosting(w)">
+                                            Reinstate hosting
+                                        </button>
+                                    </MenuItem>
                                     <MenuItem v-slot="{ active }">
                                         <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDeleteWebsite(w)">
                                             Delete
@@ -2584,7 +2607,10 @@ function submitProject() {
                                 </MenuItems>
                             </Menu>
                         </div>
-                        <div v-if="w.plan_name" class="cw-plan">{{ w.plan_name }}</div>
+                        <div v-if="w.plan_name" class="cw-plan">
+                            {{ w.plan_name }}
+                            <span v-if="w.hosting_status === 'suspended'" class="badge badge-overdue badge-sm" style="margin-left: 6px;">Hosting suspended</span>
+                        </div>
 
                         <!-- Hosting usage -->
                         <div class="cw-section">
@@ -4518,6 +4544,20 @@ function submitProject() {
                                     <option v-for="t in hostingTierOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
                                 </select>
                                 <p v-if="websiteForm.errors.plan_price_id" class="form-error">{{ websiteForm.errors.plan_price_id }}</p>
+                            </div>
+                        </div>
+                        <div v-if="websiteForm.plan_id" class="form-row-2">
+                            <div class="form-section">
+                                <label class="reimburse-row" style="margin-top: 26px;">
+                                    <input type="checkbox" v-model="websiteForm.hosting_auto_invoice" />
+                                    <span>Bill hosting automatically</span>
+                                </label>
+                                <p class="field-help">Raises a draft hosting invoice on each next-billing date.</p>
+                            </div>
+                            <div class="form-section">
+                                <label class="form-label">Next billing date</label>
+                                <input v-model="websiteForm.hosting_next_billing_date" type="date" class="form-input" :disabled="! websiteForm.hosting_auto_invoice" />
+                                <p v-if="websiteForm.errors.hosting_next_billing_date" class="form-error">{{ websiteForm.errors.hosting_next_billing_date }}</p>
                             </div>
                         </div>
 

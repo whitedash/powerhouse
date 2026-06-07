@@ -544,6 +544,10 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         ->whereNumber('id')->name('internal.websites.check-pagespeed');
     Route::post('/websites/{id}/sync-wordpress', [InternalWebsiteController::class, 'syncWordPress'])
         ->whereNumber('id')->name('internal.websites.sync-wordpress');
+    Route::post('/websites/{id}/suspend-hosting', [InternalWebsiteController::class, 'suspendHosting'])
+        ->whereNumber('id')->name('internal.websites.suspend-hosting');
+    Route::post('/websites/{id}/reinstate-hosting', [InternalWebsiteController::class, 'reinstateHosting'])
+        ->whereNumber('id')->name('internal.websites.reinstate-hosting');
 
     // ─── WordPress bulk plugin updates (MainWP) ───
     // super_admin only — mutates live customer sites. The page lists sites

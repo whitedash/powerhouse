@@ -40,6 +40,16 @@ Schedule::command('invoices:generate-subscriptions')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Per-website hosting billing (Stage 1b). Hosting lives on the website
+// (plan_id/plan_price_id), billed on its own hosting_next_billing_date — NOT
+// via a CustomerProduct. Slotted between the subscription + domain sweeps;
+// idempotent via the in-txn advance of hosting_next_billing_date.
+Schedule::command('invoices:generate-hosting')
+    ->dailyAt('07:45')
+    ->timezone('Europe/London')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Expiry-triggered domain renewals: 14 days before a domain's expiry,
 // raise a draft renewal invoice (auto-renewing + priced domains only).
 // Domains are NOT CustomerProducts, so the subscription sweep above never

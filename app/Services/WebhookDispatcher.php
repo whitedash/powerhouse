@@ -193,6 +193,96 @@ class WebhookDispatcher
     }
 
     /**
+     * Website-hosting suspend (Stage 1b). Hosting now lives on the website
+     * (not a CustomerProduct), so this fires the suspend webhook keyed on the
+     * WEBSITE — to the hosting plan's product (a graceful no-op if that product
+     * has no configured endpoint) — and runs the WHM cascade for THIS website.
+     * The CustomerProduct path (dispatchSuspension) is unchanged for genuine
+     * SaaS products.
+     */
+    public function dispatchHostingSuspension(Website $website): void
+    {
+        $this->dispatch('website.hosting_suspended', $this->hostingProductSlug($website), [
+            'customer_id' => $website->customer_id,
+            'customer_name' => $website->customer?->name,
+            'website_id' => $website->id,
+            'website' => $website->name,
+            'url' => $website->url,
+            'plan' => $website->plan?->name,
+            'suspended_at' => now()->toISOString(),
+        ]);
+
+        $this->suspendWebsiteWhm($website);
+    }
+
+    public function dispatchHostingReinstatement(Website $website): void
+    {
+        $this->dispatch('website.hosting_reinstated', $this->hostingProductSlug($website), [
+            'customer_id' => $website->customer_id,
+            'customer_name' => $website->customer?->name,
+            'website_id' => $website->id,
+            'website' => $website->name,
+            'url' => $website->url,
+            'plan' => $website->plan?->name,
+            'reinstated_at' => now()->toISOString(),
+        ]);
+
+        $this->unsuspendWebsiteWhm($website);
+    }
+
+    /**
+     * The hosting plan's product slug, used to resolve the webhook endpoint.
+     * Empty string when there's no plan/product → dispatch() no-ops cleanly.
+     */
+    private function hostingProductSlug(Website $website): string
+    {
+        $plan = $website->plan;
+
+        return $plan && $plan->product ? (string) $plan->product->slug : '';
+    }
+
+    /**
+     * WHM cascade for a single website (Stage 1b), keyed on the website rather
+     * than on a CustomerProduct's linked websites. WHM failures are logged but
+     * never bubble up — losing the server call must not break the lifecycle
+     * flip or the webhook.
+     */
+    private function suspendWebsiteWhm(Website $website): void
+    {
+        if (! $website->whm_managed || empty($website->cpanel_username)) {
+            return;
+        }
+
+        try {
+            app(WhmService::class)->suspendAccount(
+                (string) $website->cpanel_username,
+                'Hosting suspended by Powerhouse',
+            );
+        } catch (\Throwable $e) {
+            Log::error('WHM suspend failed (website hosting)', [
+                'website_id' => $website->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function unsuspendWebsiteWhm(Website $website): void
+    {
+        if (! $website->whm_managed || empty($website->cpanel_username)) {
+            return;
+        }
+
+        try {
+            app(WhmService::class)->unsuspendAccount((string) $website->cpanel_username);
+        } catch (\Throwable $e) {
+            Log::error('WHM unsuspend failed (website hosting)', [
+                'website_id' => $website->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Suspend the cPanel accounts of any WHM-managed websites tied to this
      * subscription. Centralised here so both the manual suspend
      * (CustomerProductController) and the auto-suspend sweep

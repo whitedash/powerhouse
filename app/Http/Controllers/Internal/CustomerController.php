@@ -544,6 +544,9 @@ class CustomerController extends Controller
                     'plan_name' => $w->plan?->name,
                     'plan_price_label' => $w->planPrice?->display_label,
                     'hosting_status' => $w->hosting_status,
+                    // Hosting billing controls (Stage 1b).
+                    'hosting_auto_invoice' => $w->hosting_auto_invoice,
+                    'hosting_next_billing_date' => $w->hosting_next_billing_date?->toDateString(),
                     'disk_quota_gb' => $w->plan?->disk_quota_gb,
 
                     // Usage

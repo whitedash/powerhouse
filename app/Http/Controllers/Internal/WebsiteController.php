@@ -13,6 +13,7 @@ use App\Models\Website;
 use App\Services\CpanelService;
 use App\Services\MainWPService;
 use App\Services\PageSpeedService;
+use App\Services\WebhookDispatcher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -97,6 +98,59 @@ class WebsiteController extends Controller
         });
 
         return back()->with('success', 'Website removed.');
+    }
+
+    /**
+     * Suspend a website's hosting (Stage 1b): flips hosting_status to
+     * suspended, which excludes it from the billing sweep, and fires the
+     * website-hosting suspend webhook + WHM cascade keyed on the website.
+     */
+    public function suspendHosting(int $id, Request $request, WebhookDispatcher $dispatcher): RedirectResponse
+    {
+        $website = Website::findOrFail($id);
+        Gate::authorize('update', $website->customer);
+
+        if ($website->hosting_status !== 'active') {
+            return back()->with('error', 'Hosting is not active for this website.');
+        }
+
+        DB::transaction(function () use ($website, $request): void {
+            $website->update(['hosting_status' => 'suspended']);
+            $this->log($request, 'website.hosting_suspended', $website->customer_id, after: [
+                'website_id' => $website->id,
+                'name' => $website->name,
+            ]);
+        });
+
+        $dispatcher->dispatchHostingSuspension($website->fresh());
+
+        return back()->with('success', 'Hosting suspended.');
+    }
+
+    /**
+     * Reinstate a website's hosting (Stage 1b): flips suspended -> active so
+     * the billing sweep resumes, and fires the reinstate webhook + WHM cascade.
+     */
+    public function reinstateHosting(int $id, Request $request, WebhookDispatcher $dispatcher): RedirectResponse
+    {
+        $website = Website::findOrFail($id);
+        Gate::authorize('update', $website->customer);
+
+        if ($website->hosting_status !== 'suspended') {
+            return back()->with('error', 'Hosting is not suspended for this website.');
+        }
+
+        DB::transaction(function () use ($website, $request): void {
+            $website->update(['hosting_status' => 'active']);
+            $this->log($request, 'website.hosting_reinstated', $website->customer_id, after: [
+                'website_id' => $website->id,
+                'name' => $website->name,
+            ]);
+        });
+
+        $dispatcher->dispatchHostingReinstatement($website->fresh());
+
+        return back()->with('success', 'Hosting reinstated.');
     }
 
     public function syncHosting(int $id): RedirectResponse
@@ -197,11 +251,17 @@ class WebsiteController extends Controller
             $data['hosting_started_at'] = $website && $website->hosting_started_at !== null
                 ? $website->hosting_started_at
                 : now();
+            // Billing anchors (Stage 1b): carry the toggle + next-billing date.
+            $data['hosting_auto_invoice'] = (bool) ($data['hosting_auto_invoice'] ?? false);
+            $data['hosting_next_billing_date'] = $data['hosting_next_billing_date'] ?? null;
         } else {
             $data['plan_id'] = null;
             $data['plan_price_id'] = null;
             $data['hosting_status'] = 'none';
             $data['hosting_started_at'] = null;
+            // No plan = nothing to bill.
+            $data['hosting_auto_invoice'] = false;
+            $data['hosting_next_billing_date'] = null;
         }
 
         return $data;
@@ -222,6 +282,10 @@ class WebsiteController extends Controller
             // pre-enabled CustomerProduct required (Stage 1a decoupling).
             'plan_id' => ['nullable', 'integer', Rule::exists('product_plans', 'id')->where('is_hosting', true)],
             'plan_price_id' => ['nullable', 'integer', 'exists:product_plan_prices,id'],
+            // Hosting billing controls (Stage 1b) — only meaningful when a
+            // plan is attached; applyHostingState clears them otherwise.
+            'hosting_auto_invoice' => ['nullable', 'boolean'],
+            'hosting_next_billing_date' => ['nullable', 'date'],
             'domain_id' => ['nullable', 'integer', 'exists:domains,id'],
             'project_id' => ['nullable', 'integer', 'exists:projects,id'],
             'cpanel_username' => ['nullable', 'string', 'max:100'],
