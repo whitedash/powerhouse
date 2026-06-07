@@ -54,6 +54,7 @@ use App\Http\Controllers\Internal\WorkflowController as InternalWorkflowControll
 use App\Http\Controllers\OAuth\SuspensionController as OAuthSuspensionController;
 use App\Http\Controllers\OAuth\UserInfoController as OAuthUserInfoController;
 use App\Http\Controllers\Portal\AccountController as PortalAccountController;
+use App\Http\Controllers\Portal\AssetController as PortalAssetController;
 use App\Http\Controllers\Portal\AuthController as PortalAuthController;
 use App\Http\Controllers\Portal\ConnectedAppController as PortalConnectedAppController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
@@ -913,6 +914,10 @@ Route::prefix('portal')->middleware('auth.portal')->group(function () {
     Route::post('/logout', [PortalAuthController::class, 'logout'])->name('portal.logout');
 
     Route::get('/dashboard', PortalDashboardController::class)->name('portal.dashboard');
+
+    // Read-only asset overview (Stage 4): the customer's websites, domains and
+    // services, scoped to their own customer_id. No mutations here.
+    Route::get('/assets', [PortalAssetController::class, 'index'])->name('portal.assets.index');
 
     // SSO sprint — product access map + connected-app revoke.
     Route::get('/products', [PortalProductsController::class, 'index'])->name('portal.products');

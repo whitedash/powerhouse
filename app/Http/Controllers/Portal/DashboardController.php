@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\ResolvesProductLaunch;
 use App\Models\Customer;
 use App\Models\CustomerProduct;
+use App\Models\Domain;
 use App\Models\Invoice;
 use App\Models\PortalUser;
 use App\Models\SupportTicket;
+use App\Models\Website;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -143,6 +145,19 @@ class DashboardController extends Controller
             ->where('status', 'overdue')
             ->count();
 
+        // Fuller asset picture (Stage 4) — all scoped to this customer. Genuine
+        // services only (a hosting/domain CP is an asset, not a service).
+        $assetCounts = [
+            'websites' => Website::where('customer_id', $customer->id)->count(),
+            'domains' => Domain::where('customer_id', $customer->id)->count(),
+            'services' => CustomerProduct::where('customer_id', $customer->id)
+                ->whereIn('status', ['active', 'trial'])
+                ->whereDoesntHave('productPlan', fn ($q) => $q->where(
+                    fn ($qq) => $qq->where('is_hosting', true)->orWhere('is_domain', true)
+                ))
+                ->count(),
+        ];
+
         return Inertia::render('Portal/Dashboard', [
             'customer' => [
                 'id' => $customer->id,
@@ -153,6 +168,7 @@ class DashboardController extends Controller
                 'contact_name' => $customer->primaryContact?->name,
             ],
             'active_products' => $activeProducts,
+            'asset_counts' => $assetCounts,
             'recent_invoices' => $recentInvoices,
             'recent_tickets' => $recentTickets,
             'invoices_paid_count' => $invoicesPaid,

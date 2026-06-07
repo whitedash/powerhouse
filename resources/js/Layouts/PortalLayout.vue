@@ -57,6 +57,7 @@ const me = computed(() => {
  */
 const tabs = computed(() => [
     { key: 'overview', label: 'Overview', href: '/portal/dashboard' },
+    { key: 'assets', label: 'My Assets', href: '/portal/assets' },
     { key: 'subscriptions', label: 'Subscriptions', href: '/portal/subscriptions' },
     { key: 'invoices', label: 'Invoices', href: '/portal/invoices', count: props.counts?.invoices, tone: 'amber' },
     { key: 'support', label: 'Support', href: '/portal/support', count: props.counts?.support, tone: 'blue' },
@@ -65,6 +66,7 @@ const tabs = computed(() => [
 
 const mobileTabs = computed(() => [
     { key: 'overview', icon: 'layout-grid', label: 'Overview', href: '/portal/dashboard' },
+    { key: 'assets', icon: 'box', label: 'Assets', href: '/portal/assets' },
     { key: 'subscriptions', icon: 'stack-2', label: 'Subs', href: '/portal/subscriptions' },
     { key: 'invoices', icon: 'receipt', label: 'Invoices', href: '/portal/invoices', count: props.counts?.invoices },
     { key: 'support', icon: 'lifebuoy', label: 'Support', href: '/portal/support', count: props.counts?.support },

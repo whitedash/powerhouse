@@ -6,6 +6,8 @@ import PortalLayout from '@/Layouts/PortalLayout.vue';
 const props = defineProps({
     customer: { type: Object, required: true },
     active_products: { type: Array, default: () => [] },
+    // { websites, domains, services } — the fuller asset picture (Stage 4).
+    asset_counts: { type: Object, default: () => ({ websites: 0, domains: 0, services: 0 }) },
     recent_invoices: { type: Array, default: () => [] },
     recent_tickets: { type: Array, default: () => [] },
     invoices_paid_count: { type: Number, default: 0 },
@@ -108,11 +110,11 @@ function invBadge(status) {
                 </div>
 
                 <div class="stat-row">
-                    <div class="stat">
-                        <div class="stat-top"><div class="k">Active products</div><div class="ic blue"><i class="ti ti-stack-2" /></div></div>
-                        <div class="v">{{ active_products.length }}</div>
-                        <div class="foot">All running normally</div>
-                    </div>
+                    <Link href="/portal/assets" class="stat" style="text-decoration:none;color:inherit">
+                        <div class="stat-top"><div class="k">My assets</div><div class="ic blue"><i class="ti ti-box" /></div></div>
+                        <div class="v">{{ (asset_counts.websites || 0) + (asset_counts.domains || 0) + (asset_counts.services || 0) }}</div>
+                        <div class="foot">{{ asset_counts.websites || 0 }} websites · {{ asset_counts.domains || 0 }} domains · {{ asset_counts.services || 0 }} services</div>
+                    </Link>
                     <div class="stat">
                         <div class="stat-top"><div class="k">Invoices paid</div><div class="ic green"><i class="ti ti-circle-check" /></div></div>
                         <div class="v">{{ invoices_paid_count }}</div>

@@ -18,6 +18,10 @@
         </include>
     </source>
     <php>
+        <!-- The full suite (RefreshDatabase per test + a Sentry capture path)
+             outgrew PHP's 128M CLI default; raise it so `php artisan test`
+             completes without exhausting memory mid-run. -->
+        <ini name="memory_limit" value="1G"/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
