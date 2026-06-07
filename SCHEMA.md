@@ -525,7 +525,22 @@ id,
 customer_id FK customers (RESTRICT),
 name VARCHAR(255), url VARCHAR(500),
 customer_product_id FK customer_products nullable (SET NULL)
-  -- the hosting plan this site is on
+  -- LEGACY hosting link (Stage 1a: hosting moved onto the website
+  -- below). Kept inert for the WebhookDispatcher cascade; re-routed
+  -- in Stage 1b.
+-- Hosting (Stage 1a) — carried directly on the website, sourced from
+-- the catalog (NO CustomerProduct). Billing-anchor columns mirror
+-- customer_products.{auto_invoice,next_billing_date,last_invoiced_at};
+-- inert until Stage 1b wires the per-website hosting invoice sweep.
+plan_id FK product_plans nullable (SET NULL)
+  -- the active is_hosting plan this site is hosted on
+plan_price_id FK product_plan_prices nullable (SET NULL)
+  -- the chosen active price tier of plan_id
+hosting_status ENUM(none|active|suspended) DEFAULT none,
+hosting_started_at TIMESTAMP nullable,
+hosting_auto_invoice BOOLEAN DEFAULT false,
+hosting_next_billing_date DATE nullable,
+hosting_last_invoiced_at DATE nullable,
 domain_id FK domains nullable (SET NULL),
 project_id FK projects nullable (SET NULL),
 -- cPanel access (per site)

@@ -42,6 +42,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -263,7 +264,9 @@ class CustomerController extends Controller
             // hosting-plan relations feed the SSL line and quota labels.
             'websites' => fn ($q) => $q->with([
                 'domain:id,domain,ssl_status,expiry_date',
-                'customerProduct.productPlan:id,name,disk_quota_gb,email_quota,bandwidth_quota_gb',
+                // Hosting now lives on the website itself (Stage 1a).
+                'plan:id,name,disk_quota_gb,email_quota,bandwidth_quota_gb',
+                'planPrice:id,plan_id,price,interval_count,interval_unit,label',
             ])->orderBy('name'),
         ])->findOrFail($id);
 
@@ -409,26 +412,9 @@ class CustomerController extends Controller
                         : null,
                 ])->values(),
 
-                // Hosting plans only — the website add/edit slide-over's
-                // plan picker. Live (active/trial) subscriptions whose
-                // plan is flagged is_hosting.
-                'hosting_products' => CustomerProduct::where('customer_id', $customer->id)
-                    ->whereIn('status', ['active', 'trial'])
-                    ->whereHas('productPlan', fn ($q) => $q->where('is_hosting', true))
-                    ->with(['product:id,name,slug', 'productPlan:id,name'])
-                    ->get()
-                    ->map(fn (CustomerProduct $cp): array => [
-                        'id' => $cp->id,
-                        // Product · Plan · instance label · price, so staff
-                        // can tell several instances of the same product
-                        // apart in the website hosting-plan picker.
-                        'label' => implode(' · ', array_filter([
-                            $cp->product->name,
-                            $cp->productPlan->name,
-                            $cp->label,
-                            $cp->price_monthly !== null ? '£'.number_format((float) $cp->price_monthly, 2).'/mo' : null,
-                        ])),
-                    ])->values(),
+                // Hosting is now a property of the website, picked from the
+                // catalog (see the top-level `hosting_plans` prop) — no longer
+                // sourced from a pre-enabled CustomerProduct.
 
                 'mrr' => $mrr,
                 'total_spend' => $totalSpend,
@@ -551,9 +537,14 @@ class CustomerController extends Controller
                     'status' => $w->status,
                     'health_status' => $w->health_status,
 
-                    // Hosting plan
-                    'plan_name' => $w->customerProduct?->productPlan?->name,
-                    'disk_quota_gb' => $w->customerProduct?->productPlan?->disk_quota_gb,
+                    // Hosting plan — carried on the website itself (Stage 1a),
+                    // sourced from the catalog, not via a CustomerProduct.
+                    'plan_id' => $w->plan_id,
+                    'plan_price_id' => $w->plan_price_id,
+                    'plan_name' => $w->plan?->name,
+                    'plan_price_label' => $w->planPrice?->display_label,
+                    'hosting_status' => $w->hosting_status,
+                    'disk_quota_gb' => $w->plan?->disk_quota_gb,
 
                     // Usage
                     'disk_used_mb' => $w->disk_used_mb,
@@ -735,7 +726,10 @@ class CustomerController extends Controller
                         'icon_colour' => $p->icon_colour,
                         // Flat list kept for backward compatibility with
                         // selectedPlan() / selectedEnablePlan() lookups.
+                        // is_domain plans are excluded everywhere — a domain is
+                        // an asset, never a CustomerProduct (Stage 1a).
                         'plans' => $p->activePlans
+                            ->where('is_domain', false)
                             ->map(fn (ProductPlan $plan): array => $mapPlan($plan, $plan->category?->name))
                             ->values()
                             ->all(),
@@ -744,6 +738,7 @@ class CustomerController extends Controller
                                 'id' => $cat->id,
                                 'name' => $cat->name,
                                 'plans' => $cat->activePlans
+                                    ->where('is_domain', false)
                                     ->map(fn (ProductPlan $plan): array => $mapPlan($plan, $cat->name))
                                     ->values()
                                     ->all(),
@@ -752,12 +747,33 @@ class CustomerController extends Controller
                             ->all(),
                         'uncategorised_plans' => $p->activePlans
                             ->whereNull('category_id')
+                            ->where('is_domain', false)
                             ->map(fn (ProductPlan $plan): array => $mapPlan($plan, null))
                             ->values()
                             ->all(),
                     ];
                 })
                 ->values(),
+            // Catalog hosting plans for the website slide-over's hosting
+            // picker (Stage 1a): active is_hosting plans + their active price
+            // tiers. Sourced from the CATALOG — no pre-enabled product needed.
+            'hosting_plans' => ProductPlan::where('is_hosting', true)
+                ->where('is_active', true)
+                ->with(['activePrices'])
+                ->orderBy('name')
+                ->get(['id', 'name', 'disk_quota_gb'])
+                ->map(fn (ProductPlan $plan): array => [
+                    'id' => $plan->id,
+                    'name' => $plan->name,
+                    'disk_quota_gb' => $plan->disk_quota_gb,
+                    'prices' => $plan->activePrices->map(fn (ProductPlanPrice $pp): array => [
+                        'id' => $pp->id,
+                        'label' => $pp->display_label,
+                        'price' => (float) $pp->price,
+                    ])->values()->all(),
+                ])
+                ->values()
+                ->all(),
             // How many live (active/trial) subscriptions the customer
             // already has per product — keyed product_id => count — so
             // the Enable Product picker can badge "(2 active)".
@@ -1008,6 +1024,14 @@ class CustomerController extends Controller
         $plan = ! empty($data['plan_id'])
             ? ProductPlan::find($data['plan_id'])
             : ($planPrice ? ProductPlan::find($planPrice->plan_id) : null);
+
+        // A domain is an asset, never a CustomerProduct (Stage 1a) — block it
+        // here too so a crafted request can't recreate a domain subscription.
+        if ($plan && $plan->is_domain) {
+            throw ValidationException::withMessages([
+                'plan_id' => 'Domains are managed as assets, not subscriptions.',
+            ]);
+        }
 
         $planName = $plan ? $plan->name : ($data['plan'] ?? null);
         $price = $planPrice

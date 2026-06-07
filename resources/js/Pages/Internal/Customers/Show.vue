@@ -88,6 +88,9 @@ const props = defineProps({
     // Active is_domain-plan TLDs for the in-context "Add domain" modal's TLD
     // picker (the renewal price/term source). Shape: { tld, plan_name }.
     domain_tlds: { type: Array, default: () => [] },
+    // Catalog hosting plans for the website slide-over (Stage 1a). Shape:
+    // { id, name, disk_quota_gb, prices: [{ id, label, price }] }.
+    hosting_plans: { type: Array, default: () => [] },
 });
 
 const PIPELINE_LABELS = {
@@ -1444,7 +1447,10 @@ const websiteForm = useForm({
     customer_id: props.customer.id,
     name: '',
     url: '',
-    customer_product_id: null,
+    // Hosting is picked from the catalog (Stage 1a) — an is_hosting plan + a
+    // price tier — not from a pre-enabled CustomerProduct.
+    plan_id: null,
+    plan_price_id: null,
     domain_id: null,
     project_id: null,
     cpanel_username: '',
@@ -1454,6 +1460,16 @@ const websiteForm = useForm({
     ga4_property_id: '',
     notes: '',
 });
+
+// Price tiers for the currently-selected hosting plan.
+const hostingTierOptions = computed(
+    () => props.hosting_plans.find((p) => p.id === websiteForm.plan_id)?.prices ?? [],
+);
+function onHostingPlanChange() {
+    // Reset the tier when the plan changes; auto-pick if only one tier.
+    const tiers = hostingTierOptions.value;
+    websiteForm.plan_price_id = tiers.length === 1 ? tiers[0].id : null;
+}
 
 function openCreateWebsite() {
     editingWebsiteId.value = null;
@@ -1468,7 +1484,8 @@ function openEditWebsite(w) {
     websiteForm.customer_id = props.customer.id;
     websiteForm.name = w.name;
     websiteForm.url = w.url;
-    websiteForm.customer_product_id = w.customer_product_id ?? null;
+    websiteForm.plan_id = w.plan_id ?? null;
+    websiteForm.plan_price_id = w.plan_price_id ?? null;
     websiteForm.domain_id = w.domain_id ?? null;
     websiteForm.project_id = w.project_id ?? null;
     websiteForm.cpanel_username = w.cpanel_username ?? '';
@@ -4498,21 +4515,27 @@ function submitProject() {
                             <input type="text" class="form-input" :value="customer.name" readonly disabled />
                         </div>
 
-                        <div class="wf-sec">Connections</div>
-                        <div class="form-section">
-                            <label class="form-label">Hosting plan</label>
-                            <select v-model="websiteForm.customer_product_id" class="form-input">
-                                <option :value="null">— None —</option>
-                                <option v-for="p in (customer.hosting_products ?? [])" :key="p.id" :value="p.id">{{ p.label }}</option>
-                            </select>
-                            <div v-if="! (customer.hosting_products ?? []).length" class="hosting-empty-hint">
-                                <IconInfoCircle :size="14" stroke-width="1.75" />
-                                <span>
-                                    No active hosting subscriptions for this customer.
-                                    <Link href="/provisioning">Activate a hosting plan first →</Link>
-                                </span>
+                        <div class="wf-sec">Hosting</div>
+                        <div class="form-row-2">
+                            <div class="form-section">
+                                <label class="form-label">Hosting plan</label>
+                                <select v-model="websiteForm.plan_id" class="form-input" @change="onHostingPlanChange">
+                                    <option :value="null">— None —</option>
+                                    <option v-for="pl in hosting_plans" :key="pl.id" :value="pl.id">{{ pl.name }}</option>
+                                </select>
+                                <p v-if="websiteForm.errors.plan_id" class="form-error">{{ websiteForm.errors.plan_id }}</p>
+                            </div>
+                            <div class="form-section">
+                                <label class="form-label">Billing tier</label>
+                                <select v-model="websiteForm.plan_price_id" class="form-input" :disabled="! websiteForm.plan_id">
+                                    <option :value="null">— Select tier —</option>
+                                    <option v-for="t in hostingTierOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
+                                </select>
+                                <p v-if="websiteForm.errors.plan_price_id" class="form-error">{{ websiteForm.errors.plan_price_id }}</p>
                             </div>
                         </div>
+
+                        <div class="wf-sec">Connections</div>
                         <div class="form-row-2">
                             <div class="form-section">
                                 <label class="form-label">Domain</label>

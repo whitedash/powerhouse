@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\CustomerProduct;
 use App\Models\Domain;
+use App\Models\ProductPlanPrice;
 use App\Models\Project;
 use App\Models\Website;
 use App\Services\CpanelService;
@@ -16,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -34,6 +36,7 @@ class WebsiteController extends Controller
         Gate::authorize('update', $customer);
 
         $this->guardLinksBelongToCustomer($data);
+        $data = $this->applyHostingState($data, null);
 
         DB::transaction(function () use ($data, $request): void {
             $website = Website::create([
@@ -59,6 +62,7 @@ class WebsiteController extends Controller
         $data = $this->validateRow($request);
 
         $this->guardLinksBelongToCustomer($data);
+        $data = $this->applyHostingState($data, $website);
 
         // The token is never sent back to the client (encrypted). On edit
         // a blank field means "keep the existing token" — drop it so we
@@ -159,6 +163,51 @@ class WebsiteController extends Controller
     }
 
     /**
+     * Derive the hosting lifecycle from the chosen plan (Stage 1a). A plan
+     * present => active hosting (preserving an existing suspended state + the
+     * original start timestamp); no plan => none. Also validates the chosen
+     * tier is an active price of the chosen plan. No "enable product" step.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function applyHostingState(array $data, ?Website $website): array
+    {
+        $planId = $data['plan_id'] ?? null;
+
+        if ($planId) {
+            $priceId = $data['plan_price_id'] ?? null;
+            if ($priceId !== null) {
+                $valid = ProductPlanPrice::where('id', $priceId)
+                    ->where('plan_id', $planId)
+                    ->where('is_active', true)
+                    ->exists();
+
+                if (! $valid) {
+                    throw ValidationException::withMessages([
+                        'plan_price_id' => 'Selected billing tier is not an active price of the chosen hosting plan.',
+                    ]);
+                }
+            }
+
+            $data['plan_price_id'] = $priceId;
+            // Don't re-activate a suspended site on a plain edit; keep its
+            // original start date once set.
+            $data['hosting_status'] = $website && $website->hosting_status === 'suspended' ? 'suspended' : 'active';
+            $data['hosting_started_at'] = $website && $website->hosting_started_at !== null
+                ? $website->hosting_started_at
+                : now();
+        } else {
+            $data['plan_id'] = null;
+            $data['plan_price_id'] = null;
+            $data['hosting_status'] = 'none';
+            $data['hosting_started_at'] = null;
+        }
+
+        return $data;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function validateRow(Request $request): array
@@ -168,6 +217,11 @@ class WebsiteController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'url' => ['required', 'url', 'max:500'],
             'customer_product_id' => ['nullable', 'integer', 'exists:customer_products,id'],
+            // Hosting carried on the website, sourced from the CATALOG (an
+            // active is_hosting plan + one of its active price tiers). No
+            // pre-enabled CustomerProduct required (Stage 1a decoupling).
+            'plan_id' => ['nullable', 'integer', Rule::exists('product_plans', 'id')->where('is_hosting', true)],
+            'plan_price_id' => ['nullable', 'integer', 'exists:product_plan_prices,id'],
             'domain_id' => ['nullable', 'integer', 'exists:domains,id'],
             'project_id' => ['nullable', 'integer', 'exists:projects,id'],
             'cpanel_username' => ['nullable', 'string', 'max:100'],

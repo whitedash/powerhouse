@@ -123,7 +123,10 @@ class ProvisioningController extends Controller
                     'active_count' => CustomerProduct::where('product_id', $p->id)
                         ->where('status', 'active')
                         ->count(),
+                    // is_domain plans are excluded — a domain is an asset, not
+                    // a CustomerProduct (Stage 1a).
                     'plans' => $p->activePlans
+                        ->where('is_domain', false)
                         ->map(fn (ProductPlan $plan): array => $mapPlan($plan, $plan->category?->name))
                         ->values()
                         ->all(),
@@ -132,6 +135,7 @@ class ProvisioningController extends Controller
                             'id' => $cat->id,
                             'name' => $cat->name,
                             'plans' => $cat->activePlans
+                                ->where('is_domain', false)
                                 ->map(fn (ProductPlan $plan): array => $mapPlan($plan, $cat->name))
                                 ->values()
                                 ->all(),
@@ -140,6 +144,7 @@ class ProvisioningController extends Controller
                         ->all(),
                     'uncategorised_plans' => $p->activePlans
                         ->whereNull('category_id')
+                        ->where('is_domain', false)
                         ->map(fn (ProductPlan $plan): array => $mapPlan($plan, null))
                         ->values()
                         ->all(),
@@ -230,6 +235,11 @@ class ProvisioningController extends Controller
             $plan = ! empty($data['plan_id'])
                 ? ProductPlan::find($data['plan_id'])
                 : ($planPrice ? ProductPlan::find($planPrice->plan_id) : null);
+
+            // A domain is an asset, never a CustomerProduct (Stage 1a).
+            if ($plan && $plan->is_domain) {
+                return back()->with('error', 'Domains are managed as assets, not subscriptions.');
+            }
 
             $planName = $plan ? $plan->name : ($data['plan'] ?? null);
             $price = $planPrice ? (float) $planPrice->price : ($data['price_monthly'] ?? 0);

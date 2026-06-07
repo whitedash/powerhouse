@@ -16,6 +16,13 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string $url
  * @property int|null $customer_product_id
+ * @property int|null $plan_id
+ * @property int|null $plan_price_id
+ * @property string $hosting_status
+ * @property Carbon|null $hosting_started_at
+ * @property bool $hosting_auto_invoice
+ * @property Carbon|null $hosting_next_billing_date
+ * @property Carbon|null $hosting_last_invoiced_at
  * @property int|null $domain_id
  * @property int|null $project_id
  * @property string|null $cpanel_username
@@ -61,6 +68,8 @@ use Illuminate\Support\Carbon;
  * @property-read string $health_status
  * @property-read Customer|null $customer
  * @property-read CustomerProduct|null $customerProduct
+ * @property-read ProductPlan|null $plan
+ * @property-read ProductPlanPrice|null $planPrice
  * @property-read Domain|null $domain
  * @property-read Project|null $project
  * @property-read User $createdBy
@@ -74,6 +83,15 @@ class Website extends Model
         'name',
         'url',
         'customer_product_id',
+        // Hosting carried directly on the website (Stage 1a): the catalog
+        // is_hosting plan + chosen tier, lifecycle, and billing anchors.
+        'plan_id',
+        'plan_price_id',
+        'hosting_status',
+        'hosting_started_at',
+        'hosting_auto_invoice',
+        'hosting_next_billing_date',
+        'hosting_last_invoiced_at',
         'domain_id',
         'project_id',
         'cpanel_username',
@@ -131,6 +149,11 @@ class Website extends Model
             'usage_checked_at' => 'datetime',
             'last_backup_at' => 'datetime',
             'analytics_updated_at' => 'datetime',
+            // Hosting (Stage 1a) — mirror CustomerProduct's billing casts.
+            'hosting_started_at' => 'datetime',
+            'hosting_auto_invoice' => 'boolean',
+            'hosting_next_billing_date' => 'date',
+            'hosting_last_invoiced_at' => 'date',
             // Never stored in plaintext — Laravel's built-in encrypted cast.
             'cpanel_token' => 'encrypted',
         ];
@@ -144,6 +167,20 @@ class Website extends Model
     public function customerProduct(): BelongsTo
     {
         return $this->belongsTo(CustomerProduct::class);
+    }
+
+    /**
+     * Hosting plan carried directly on the website (Stage 1a) — sourced from
+     * the catalog, NOT via a CustomerProduct.
+     */
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(ProductPlan::class, 'plan_id');
+    }
+
+    public function planPrice(): BelongsTo
+    {
+        return $this->belongsTo(ProductPlanPrice::class, 'plan_price_id');
     }
 
     public function domain(): BelongsTo
