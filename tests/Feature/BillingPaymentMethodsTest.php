@@ -140,13 +140,13 @@ class BillingPaymentMethodsTest extends TestCase
         $this->assertDatabaseHas('payment_methods', ['customer_id' => $mine->id, 'last4' => '0005']);
     }
 
-    public function test_ensure_stripe_customer_reuses_existing_mapping(): void
+    public function test_resolve_stripe_customer_reuses_existing_mapping(): void
     {
         $c = Customer::create(['name' => 'Acme']);
         StripeCustomer::create(['customer_id' => $c->id, 'stripe_customer_id' => 'cus_existing']);
 
         // No Stripe call needed when a mapping exists.
-        $this->assertSame('cus_existing', app(StripeService::class)->ensureStripeCustomer($c));
+        $this->assertSame('cus_existing', app(StripeService::class)->resolveStripeCustomer($c));
     }
 
     protected function tearDown(): void

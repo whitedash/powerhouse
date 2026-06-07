@@ -9,7 +9,9 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Models\StripeCustomer;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Stripe\Checkout\Session;
 use Stripe\Customer as StripeCustomerApi;
 use Stripe\PaymentMethod as StripePaymentMethodApi;
@@ -121,7 +123,10 @@ class StripeService
 
         $invoice->loadMissing('customer.primaryContact');
 
-        $params = [
+        // The customer-identity keys come from one deterministic builder that
+        // returns EITHER `customer` OR `customer_email` (never both), so the
+        // Stripe conflict that 503'd live checkout cannot be reconstructed here.
+        return [
             'payment_method_types' => ['card'],
             'mode' => 'payment',
             'line_items' => [[
@@ -141,47 +146,136 @@ class StripeService
                 'customer_id' => (string) $invoice->customer_id,
             ],
             'client_reference_id' => (string) $invoice->id,
+            ...$this->checkoutCustomerParams($invoice),
         ];
-
-        if ($invoice->customer !== null) {
-            // Attach to a Stripe Customer and VAULT the card for reuse (P1).
-            // setup_future_usage=off_session saves the card against the customer
-            // so P2 can charge it off-session — we do NOT charge off-session here.
-            $params['customer'] = $this->ensureStripeCustomer($invoice->customer);
-            $params['payment_intent_data'] = ['setup_future_usage' => 'off_session'];
-        }
-        // (Invoices always carry a customer, so the vault branch above always
-        // runs; no customer = a plain on-session payment with no email prefilled.)
-
-        return $params;
     }
 
     /**
-     * Find or create the Stripe Customer for this customer (single GBP
-     * account) and persist the mapping. Returns the stripe_customer_id.
+     * Build the customer-identity portion of a Checkout session.
+     *
+     * Returns EXACTLY ONE of two mutually exclusive shapes, so passing both
+     * `customer` and `customer_email` — which Stripe rejects ("you may only
+     * specify one of these parameters: customer, customer_email") and which
+     * 503'd live checkout — is impossible by construction rather than by a
+     * null-guard that a later edit could undo:
+     *
+     *   - vault:    ['customer' => <id>, 'payment_intent_data' => ['setup_future_usage' => 'off_session']]
+     *   - fallback: ['customer_email' => <email|null>]
+     *
+     * Vaulting the card is a nice-to-have; taking payment is essential. If
+     * resolving the Stripe Customer fails for ANY reason (restricted key,
+     * transient Stripe error, the unique-constraint race) we fall back to the
+     * email-only session so the customer can still pay — a designed, observable
+     * fallback (logged + Sentry-alerted), never a silent swallow.
+     *
+     * @return array<string, mixed>
      */
-    public function ensureStripeCustomer(Customer $customer): string
+    private function checkoutCustomerParams(Invoice $invoice): array
+    {
+        $customer = $invoice->customer;
+
+        if ($customer !== null) {
+            try {
+                return [
+                    'customer' => $this->resolveStripeCustomer($customer),
+                    'payment_intent_data' => ['setup_future_usage' => 'off_session'],
+                ];
+            } catch (\Throwable $e) {
+                $this->reportCustomerResolveFailure($invoice, $e);
+                // fall through to the email-only session below
+            }
+        }
+
+        return ['customer_email' => $customer?->primaryContact?->email];
+    }
+
+    /**
+     * Record a Stripe-Customer resolution failure that forced an email-only
+     * checkout. The customer can still pay; we just couldn't vault the card —
+     * which we want visibility on, so it is both logged and sent to Sentry.
+     */
+    private function reportCustomerResolveFailure(Invoice $invoice, \Throwable $e): void
+    {
+        Log::warning('stripe.customer_resolve_failed', [
+            'invoice_id' => $invoice->id,
+            'customer_id' => $invoice->customer_id,
+            'error' => $e->getMessage(),
+        ]);
+
+        if (function_exists('Sentry\captureException')) {
+            \Sentry\captureException($e);
+        }
+    }
+
+    /**
+     * Resolve THE Stripe Customer for a Powerhouse customer — the single
+     * idempotent, race-safe entry point shared by invoice checkout and the
+     * portal add-card flow, so there is exactly one Stripe Customer per
+     * customer (single GBP account). Returns the stripe_customer_id.
+     *
+     * Idempotency is enforced at two layers:
+     *   1. Mapping-first: an existing stripe_customers row short-circuits with
+     *      no Stripe call at all.
+     *   2. On create, a deterministic Stripe idempotency key derived from the
+     *      customer id means concurrent/retried creates return the SAME Stripe
+     *      Customer rather than minting duplicates.
+     *
+     * The DB mapping has a UNIQUE(customer_id). If two requests both miss the
+     * mapping and race to insert, one wins and the other catches the unique
+     * violation and re-reads the winner — so callers always converge on one
+     * Stripe Customer even under concurrency.
+     */
+    public function resolveStripeCustomer(Customer $customer): string
     {
         $existing = StripeCustomer::where('customer_id', $customer->id)->first();
         if ($existing !== null) {
             return $existing->stripe_customer_id;
         }
 
+        $stripeCustomerId = $this->createStripeCustomer($customer);
+
+        try {
+            StripeCustomer::create([
+                'customer_id' => $customer->id,
+                'stripe_customer_id' => $stripeCustomerId,
+            ]);
+
+            return $stripeCustomerId;
+        } catch (QueryException $e) {
+            // Lost the insert race: another request persisted the mapping first.
+            // UNIQUE(customer_id) guarantees a single row — re-read and use the
+            // winner. (Both creates used the same idempotency key, so it is the
+            // same Stripe Customer regardless.)
+            $winner = StripeCustomer::where('customer_id', $customer->id)->first();
+            if ($winner !== null) {
+                return $winner->stripe_customer_id;
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Create the Stripe Customer object (no DB write). Isolated as its own seam
+     * so resolveStripeCustomer's mapping/race logic is testable without the
+     * Stripe network. The deterministic idempotency key makes concurrent or
+     * retried creates for the same customer return one Stripe Customer.
+     */
+    protected function createStripeCustomer(Customer $customer): string
+    {
         $this->configureStripe();
 
         $customer->loadMissing('primaryContact');
-        $stripeCustomer = StripeCustomerApi::create([
-            'name' => $customer->name,
-            'email' => $customer->primaryContact?->email,
-            'metadata' => ['customer_id' => (string) $customer->id],
-        ]);
+        $stripeCustomer = StripeCustomerApi::create(
+            [
+                'name' => $customer->name,
+                'email' => $customer->primaryContact?->email,
+                'metadata' => ['customer_id' => (string) $customer->id],
+            ],
+            ['idempotency_key' => 'ph_resolve_customer_'.$customer->id],
+        );
 
-        StripeCustomer::create([
-            'customer_id' => $customer->id,
-            'stripe_customer_id' => $stripeCustomer->id,
-        ]);
-
-        return $stripeCustomer->id;
+        return (string) $stripeCustomer->id;
     }
 
     /**
@@ -194,7 +288,7 @@ class StripeService
         $this->configureStripe();
 
         $intent = SetupIntent::create([
-            'customer' => $this->ensureStripeCustomer($customer),
+            'customer' => $this->resolveStripeCustomer($customer),
             'payment_method_types' => ['card'],
             'usage' => 'off_session',
         ]);
@@ -244,7 +338,7 @@ class StripeService
     {
         $this->configureStripe();
 
-        $stripeCustomerId = $this->ensureStripeCustomer($customer);
+        $stripeCustomerId = $this->resolveStripeCustomer($customer);
         $pm = StripePaymentMethodApi::retrieve($stripePaymentMethodId);
 
         // Attach if the SetupIntent flow didn't already; reject a PM that
