@@ -123,10 +123,12 @@ class ProvisioningController extends Controller
                     'active_count' => CustomerProduct::where('product_id', $p->id)
                         ->where('status', 'active')
                         ->count(),
-                    // is_domain plans are excluded — a domain is an asset, not
-                    // a CustomerProduct (Stage 1a).
+                    // Asset plans are excluded — a domain is added via the
+                    // Domains section (Stage 1a) and hosting via a website
+                    // (Stage 1b/3); only genuine service plans are provisionable.
                     'plans' => $p->activePlans
                         ->where('is_domain', false)
+                        ->where('is_hosting', false)
                         ->map(fn (ProductPlan $plan): array => $mapPlan($plan, $plan->category?->name))
                         ->values()
                         ->all(),
@@ -136,6 +138,7 @@ class ProvisioningController extends Controller
                             'name' => $cat->name,
                             'plans' => $cat->activePlans
                                 ->where('is_domain', false)
+                                ->where('is_hosting', false)
                                 ->map(fn (ProductPlan $plan): array => $mapPlan($plan, $cat->name))
                                 ->values()
                                 ->all(),
@@ -145,6 +148,7 @@ class ProvisioningController extends Controller
                     'uncategorised_plans' => $p->activePlans
                         ->whereNull('category_id')
                         ->where('is_domain', false)
+                        ->where('is_hosting', false)
                         ->map(fn (ProductPlan $plan): array => $mapPlan($plan, null))
                         ->values()
                         ->all(),
@@ -236,9 +240,13 @@ class ProvisioningController extends Controller
                 ? ProductPlan::find($data['plan_id'])
                 : ($planPrice ? ProductPlan::find($planPrice->plan_id) : null);
 
-            // A domain is an asset, never a CustomerProduct (Stage 1a).
+            // Assets are never CustomerProducts: domains via the Domains section
+            // (Stage 1a), hosting via a website (Stage 1b/3).
             if ($plan && $plan->is_domain) {
-                return back()->with('error', 'Domains are managed as assets, not subscriptions.');
+                return back()->with('error', 'Domains are managed as assets, not services.');
+            }
+            if ($plan && $plan->is_hosting) {
+                return back()->with('error', 'Hosting is managed on a website, not as a service.');
             }
 
             $planName = $plan ? $plan->name : ($data['plan'] ?? null);

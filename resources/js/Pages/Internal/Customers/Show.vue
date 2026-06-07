@@ -2477,7 +2477,7 @@ function submitProject() {
                                 <button type="button" :class="['dd-option', { active }]" @click="openCreateDomain">Domain</button>
                             </MenuItem>
                             <MenuItem v-slot="{ active }">
-                                <button type="button" :class="['dd-option', { active }]" @click="openEnableProduct">Subscription</button>
+                                <button type="button" :class="['dd-option', { active }]" @click="openEnableProduct">Service</button>
                             </MenuItem>
                             <MenuItem v-slot="{ active }">
                                 <button type="button" :class="['dd-option', { active }]" @click="openCreateWebsite">Website</button>
@@ -2495,8 +2495,8 @@ function submitProject() {
                         <header class="card-header">
                             <div class="h-icon gold"><IconLayoutGrid :size="16" stroke-width="1.75" /></div>
                             <div>
-                                <h3>Subscriptions</h3>
-                                <div class="sub">All product subscriptions for this customer</div>
+                                <h3>Services</h3>
+                                <div class="sub">Recurring services for this customer</div>
                             </div>
                         </header>
                         <div v-if="customer.products.length">
@@ -2556,11 +2556,11 @@ function submitProject() {
                             </div>
                         </div>
                         <div v-else class="tab-empty">
-                            <h3>No products yet</h3>
-                            <p>Enable a product to start tracking subscriptions for this customer.</p>
+                            <h3>No services yet</h3>
+                            <p>Add a service to track recurring revenue for this customer.</p>
                             <button type="button" class="btn btn-primary btn-sm" style="margin-top: 12px;" @click="openEnableProduct">
                                 <IconPlus :size="14" stroke-width="1.75" />
-                                Enable product
+                                Add service
                             </button>
                         </div>
                     </section>
@@ -2608,7 +2608,7 @@ function submitProject() {
                             </Menu>
                         </div>
                         <div v-if="w.plan_name" class="cw-plan">
-                            {{ w.plan_name }}
+                            {{ w.plan_name }}<span v-if="w.plan_price_label" class="cw-muted"> · {{ w.plan_price_label }}</span>
                             <span v-if="w.hosting_status === 'suspended'" class="badge badge-overdue badge-sm" style="margin-left: 6px;">Hosting suspended</span>
                         </div>
 

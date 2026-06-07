@@ -726,10 +726,13 @@ class CustomerController extends Controller
                         'icon_colour' => $p->icon_colour,
                         // Flat list kept for backward compatibility with
                         // selectedPlan() / selectedEnablePlan() lookups.
-                        // is_domain plans are excluded everywhere — a domain is
-                        // an asset, never a CustomerProduct (Stage 1a).
+                        // Asset plans are excluded everywhere — a domain is added
+                        // via the Domains section (Stage 1a) and hosting via a
+                        // website (Stage 1b/3); the Services picker offers only
+                        // genuine service plans.
                         'plans' => $p->activePlans
                             ->where('is_domain', false)
+                            ->where('is_hosting', false)
                             ->map(fn (ProductPlan $plan): array => $mapPlan($plan, $plan->category?->name))
                             ->values()
                             ->all(),
@@ -739,6 +742,7 @@ class CustomerController extends Controller
                                 'name' => $cat->name,
                                 'plans' => $cat->activePlans
                                     ->where('is_domain', false)
+                                    ->where('is_hosting', false)
                                     ->map(fn (ProductPlan $plan): array => $mapPlan($plan, $cat->name))
                                     ->values()
                                     ->all(),
@@ -748,6 +752,7 @@ class CustomerController extends Controller
                         'uncategorised_plans' => $p->activePlans
                             ->whereNull('category_id')
                             ->where('is_domain', false)
+                            ->where('is_hosting', false)
                             ->map(fn (ProductPlan $plan): array => $mapPlan($plan, null))
                             ->values()
                             ->all(),
@@ -1025,11 +1030,17 @@ class CustomerController extends Controller
             ? ProductPlan::find($data['plan_id'])
             : ($planPrice ? ProductPlan::find($planPrice->plan_id) : null);
 
-        // A domain is an asset, never a CustomerProduct (Stage 1a) — block it
-        // here too so a crafted request can't recreate a domain subscription.
+        // Assets are never CustomerProducts — block them here too so a crafted
+        // request can't recreate one. Domains are added via the Domains section
+        // (Stage 1a); hosting is added via a website (Stage 1b/3).
         if ($plan && $plan->is_domain) {
             throw ValidationException::withMessages([
-                'plan_id' => 'Domains are managed as assets, not subscriptions.',
+                'plan_id' => 'Domains are managed as assets, not services.',
+            ]);
+        }
+        if ($plan && $plan->is_hosting) {
+            throw ValidationException::withMessages([
+                'plan_id' => 'Hosting is managed on a website, not as a service.',
             ]);
         }
 
