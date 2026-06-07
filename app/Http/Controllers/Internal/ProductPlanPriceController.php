@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Internal;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\CustomerProduct;
+use App\Models\ProductPlan;
 use App\Models\ProductPlanPrice;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ProductPlanPriceController extends Controller
 {
@@ -25,6 +27,13 @@ class ProductPlanPriceController extends Controller
             'is_active' => ['boolean'],
             'sort_order' => ['nullable', 'integer'],
         ]);
+
+        // A domain plan may carry only ONE active price tier.
+        $this->assertDomainSingleTier(
+            (int) $data['plan_id'],
+            null,
+            ! $request->has('is_active') || $request->boolean('is_active'),
+        );
 
         // is_default is mutually exclusive across a plan's prices —
         // clear the rest before insert so we never end up with two.
@@ -64,6 +73,13 @@ class ProductPlanPriceController extends Controller
             'is_active' => ['boolean'],
             'sort_order' => ['nullable', 'integer'],
         ]);
+
+        // Activating this tier must not give a domain plan a second active one.
+        $this->assertDomainSingleTier(
+            $price->plan_id,
+            $price->id,
+            ! $request->has('is_active') || $request->boolean('is_active'),
+        );
 
         DB::transaction(function () use ($price, $data, $request) {
             // Promoting to default clears any other default on the
@@ -122,6 +138,34 @@ class ProductPlanPriceController extends Controller
         });
 
         return back()->with('success', 'Pricing option deleted.');
+    }
+
+    /**
+     * A domain plan must have exactly one active price tier (its renewal
+     * duration + price). Block adding/activating a second active tier so the
+     * renewal command's match stays unambiguous.
+     */
+    private function assertDomainSingleTier(int $planId, ?int $ignoreId, bool $willBeActive): void
+    {
+        if (! $willBeActive) {
+            return;
+        }
+
+        $plan = ProductPlan::find($planId);
+        if ($plan === null || ! $plan->is_domain) {
+            return;
+        }
+
+        $otherActive = ProductPlanPrice::where('plan_id', $planId)
+            ->where('is_active', true)
+            ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+            ->exists();
+
+        if ($otherActive) {
+            throw ValidationException::withMessages([
+                'price' => 'A domain plan can have only one active price tier (its renewal duration + price). Deactivate the existing tier first.',
+            ]);
+        }
     }
 
     private function logActivity(

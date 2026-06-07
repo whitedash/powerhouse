@@ -159,6 +159,8 @@ const PLAN_DEFAULTS = {
     is_active: true,
     is_public: true,
     is_hosting: false,
+    is_domain: false,
+    tld: '',
     sort_order: 0,
     initial_price: null,
     initial_interval_count: 1,
@@ -202,6 +204,8 @@ function openEditPlan(plan) {
         is_active: !! plan.is_active,
         is_public: !! plan.is_public,
         is_hosting: !! plan.is_hosting,
+        is_domain: !! plan.is_domain,
+        tld: plan.tld ?? '',
         sort_order: Number(plan.sort_order ?? 0),
     });
     planForm.reset();
@@ -915,6 +919,25 @@ function back() {
                                             </div>
                                             <button type="button" class="toggle" :class="{ on: planForm.is_hosting }" aria-label="Toggle hosting plan" @click="planForm.is_hosting = ! planForm.is_hosting" />
                                         </div>
+                                        <div class="set-row">
+                                            <div>
+                                                <div class="nm">Domain plan</div>
+                                                <div class="sb">Prices a TLD's renewals. Domains matching the TLD auto-renew off this plan.</div>
+                                            </div>
+                                            <button type="button" class="toggle" :class="{ on: planForm.is_domain }" aria-label="Toggle domain plan" @click="planForm.is_domain = ! planForm.is_domain" />
+                                        </div>
+                                    </div>
+
+                                    <!-- Domain plan settings -->
+                                    <div v-if="planForm.is_domain" class="set-card">
+                                        <div class="form-row">
+                                            <label>TLD <span class="req">*</span></label>
+                                            <input v-model="planForm.tld" type="text" maxlength="20" placeholder=".com" spellcheck="false" />
+                                            <small class="muted">The top-level domain this plan prices, e.g. <code>.com</code>, <code>.co.uk</code>, <code>.gr</code>. One active plan per TLD.</small>
+                                            <div v-if="planForm.errors.tld" class="err">{{ planForm.errors.tld }}</div>
+                                        </div>
+                                        <p class="muted small">A domain plan has <strong>one</strong> price tier — its duration is the renewal term and its price is the renewal price. Set it below (or as the initial price on create).</p>
+                                        <div v-if="planForm.errors.initial_price" class="err">{{ planForm.errors.initial_price }}</div>
                                     </div>
                                 </div>
                             </div>

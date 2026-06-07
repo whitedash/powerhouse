@@ -32,6 +32,7 @@ const props = defineProps({
     filters: { type: Object, required: true },
     statuses: { type: Array, default: () => [] },
     customers: { type: Array, default: () => [] },
+    domain_tlds: { type: Array, default: () => [] },
     cloudflare_connected: { type: Boolean, default: false },
 });
 
@@ -109,8 +110,22 @@ const form = useForm({
     registered_at: '',
     expiry_date: '',
     auto_renew: false,
+    tld: null,
     cloudflare_zone_id: '',
     notes: '',
+});
+
+// Pre-suggest the TLD parsed from the domain name: pick the longest
+// available TLD the name ends with (handles .co.uk vs .uk). Only fills an
+// empty selection so it never overrides an explicit choice.
+watch(() => form.domain, (name) => {
+    if (form.tld || ! name) return;
+    const lower = String(name).toLowerCase();
+    const match = props.domain_tlds
+        .map((t) => t.tld)
+        .filter((tld) => lower.endsWith(String(tld).toLowerCase()))
+        .sort((a, b) => b.length - a.length)[0];
+    if (match) form.tld = match;
 });
 const customerSearch = ref('');
 const filteredCustomers = computed(() => {
@@ -185,6 +200,7 @@ function openEdit(d) {
     form.registered_at = d.registered_at ?? '';
     form.expiry_date = d.expiry_date ?? '';
     form.auto_renew = !! d.auto_renew;
+    form.tld = d.tld ?? null;
     form.cloudflare_zone_id = d.cloudflare_zone_id ?? '';
     form.notes = d.notes ?? '';
     customerSearch.value = d.customer_name ?? '';
@@ -494,6 +510,19 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true }); }
                                         <div class="form-field">
                                             <label>Expiry</label>
                                             <input v-model="form.expiry_date" type="date">
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-field">
+                                            <label>TLD (renewal pricing)</label>
+                                            <select v-model="form.tld">
+                                                <option :value="null">No automated renewal</option>
+                                                <option v-for="t in domain_tlds" :key="t.tld" :value="t.tld">
+                                                    {{ t.tld }} — {{ t.plan_name }}
+                                                </option>
+                                            </select>
+                                            <small class="muted">Auto-renew + a matching TLD = a draft renewal invoice is raised 14 days before expiry, priced from the TLD's domain plan.</small>
+                                            <div v-if="form.errors.tld" class="err">{{ form.errors.tld }}</div>
                                         </div>
                                     </div>
                                 </div>

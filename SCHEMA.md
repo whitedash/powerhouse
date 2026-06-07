@@ -108,6 +108,17 @@ name VARCHAR(100), description TEXT nullable,
 features JSON nullable,
 is_active BOOLEAN DEFAULT true,
 is_public BOOLEAN DEFAULT true,
+is_hosting BOOLEAN DEFAULT false,
+  -- hosting plan (drives the Websites hosting selector)
+is_domain BOOLEAN DEFAULT false,
+  -- domain-registration plan; the renewal PRICE source for the
+  -- domains table (matched by TLD). Index (is_domain, is_active).
+tld VARCHAR(20) nullable
+  -- TLD this domain plan prices (".com", ".co.uk", ".gr"). Required
+  -- for is_domain plans; ONE active plan per TLD (controller-enforced).
+  -- A domain plan has exactly ONE active product_plan_prices tier: its
+  -- interval IS the renewal duration, its price IS the renewal price
+  -- (no separate renewal-term column — controller-enforced).
 sort_order INT DEFAULT 0,
 disk_quota_gb SMALLINT UNSIGNED nullable,
 email_quota SMALLINT UNSIGNED nullable,
@@ -492,6 +503,18 @@ registrar VARCHAR(100) nullable,
 is_in_cloudflare BOOLEAN DEFAULT false,
 is_proxied BOOLEAN DEFAULT false,
 expiry_date DATE nullable, ssl_expiry_date DATE nullable,
+auto_renew BOOLEAN DEFAULT false,
+product_plan_id FK product_plans nullable (SET NULL)
+  -- DERIVED cached link to the matched is_domain plan (set on save +
+  -- by the renewal command from the TLD). NOT a CustomerProduct —
+  -- the subscription cron never bills domains.
+tld VARCHAR(20) nullable
+  -- User-facing renewal control: matched to an active is_domain plan's
+  -- tld to resolve the renewal price + term. Null = no auto renewal.
+renewal_invoiced_for DATE nullable
+  -- The expiry_date the last renewal invoice covered (idempotency).
+  -- invoices:generate-domain-renewals bills only when this differs
+  -- from the current expiry_date → once per expiry cycle.
 hosting_provider VARCHAR(100) nullable,
 hosting_renewal_date DATE nullable,
 hosting_notes TEXT nullable,
@@ -888,7 +911,7 @@ tokens JSON
   -- logo_url, heading, custom_css,
   -- form_padding, form_border_width, form_border_radius,
   -- form_border_color (form-container box; defaults 0/0/0/neutral
-  --   = no effect, so existing themes render unchanged).
+  -- = no effect, so existing themes render unchanged).
 created_by FK users RESTRICT,
 created_at, updated_at
 -- Standalone + reusable: NOT coupled to the websites module.

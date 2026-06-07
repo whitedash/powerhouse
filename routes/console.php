@@ -40,6 +40,16 @@ Schedule::command('invoices:generate-subscriptions')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Expiry-triggered domain renewals: 14 days before a domain's expiry,
+// raise a draft renewal invoice (auto-renewing + priced domains only).
+// Domains are NOT CustomerProducts, so the subscription sweep above never
+// double-bills them. Idempotent via domains.renewal_invoiced_for.
+Schedule::command('invoices:generate-domain-renewals')
+    ->dailyAt('08:00')
+    ->timezone('Europe/London')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Auto-close support tickets idle in awaiting_customer for longer
 // than the configured threshold (Settings → Notifications). Runs
 // in the small hours so any morning team activity wins the

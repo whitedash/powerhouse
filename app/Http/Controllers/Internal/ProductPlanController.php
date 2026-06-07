@@ -10,12 +10,13 @@ use App\Models\ProductPlanPrice;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ProductPlanController extends Controller
 {
     public function store(Request $request): RedirectResponse
     {
-        $data = $this->validatePayload($request, isUpdate: false);
+        $data = $this->prepareDomainFields($this->validatePayload($request, isUpdate: false), null);
 
         $plan = DB::transaction(function () use ($data, $request) {
             // The validation rules split plan-level fields from
@@ -59,7 +60,7 @@ class ProductPlanController extends Controller
     {
         $plan = ProductPlan::findOrFail($id);
 
-        $data = $this->validatePayload($request, isUpdate: true);
+        $data = $this->prepareDomainFields($this->validatePayload($request, isUpdate: true), $plan->id);
 
         DB::transaction(function () use ($plan, $data, $request) {
             $before = [
@@ -140,6 +141,66 @@ class ProductPlanController extends Controller
     /**
      * @return array<string, mixed>
      */
+    /**
+     * Normalise the TLD (lowercase, leading dot) and enforce ONE active
+     * domain plan per TLD so a domain's TLD → plan match is unambiguous.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function prepareDomainFields(array $data, ?int $ignoreId): array
+    {
+        $isDomain = (bool) ($data['is_domain'] ?? false);
+        if (! $isDomain) {
+            return $data;
+        }
+
+        // Normalise: lowercase + guaranteed single leading dot.
+        if (! empty($data['tld'])) {
+            $data['tld'] = '.'.ltrim(strtolower(trim((string) $data['tld'])), '.');
+        }
+
+        // Only ACTIVE plans must be unique per TLD (inactive ones may share).
+        $isActive = (bool) ($data['is_active'] ?? true);
+        if ($isActive && ! empty($data['tld'])) {
+            $clash = ProductPlan::where('is_domain', true)
+                ->where('is_active', true)
+                ->where('tld', $data['tld'])
+                ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+                ->exists();
+
+            if ($clash) {
+                throw ValidationException::withMessages([
+                    'tld' => "An active domain plan already exists for {$data['tld']}. Deactivate it first or reuse that plan.",
+                ]);
+            }
+        }
+
+        // An ACTIVE domain plan must have EXACTLY ONE active price tier — that
+        // tier is the renewal duration + price (no separate renewal-term field).
+        // Inactive domain plans are exempt (the renewal command only matches
+        // active plans). Active-tier count after this save = existing active
+        // prices (update) plus the initial tier being created (store, active).
+        if ($isActive) {
+            $activeTiers = $ignoreId !== null
+                ? ProductPlanPrice::where('plan_id', $ignoreId)->where('is_active', true)->count()
+                : 0;
+            if (! empty($data['initial_price'])) {
+                $activeTiers++;
+            }
+
+            if ($activeTiers !== 1) {
+                throw ValidationException::withMessages([
+                    'initial_price' => $activeTiers === 0
+                        ? 'A domain plan needs exactly one price tier — set its renewal duration + price.'
+                        : 'A domain plan must have exactly one active price tier (its renewal duration + price). Deactivate the extra tier(s) first.',
+                ]);
+            }
+        }
+
+        return $data;
+    }
+
     private function validatePayload(Request $request, bool $isUpdate): array
     {
         // product_id is fixed at create; on update we keep it pinned
@@ -155,6 +216,14 @@ class ProductPlanController extends Controller
             'is_public' => ['boolean'],
             // Hosting flag — drives the website hosting-plan selector.
             'is_hosting' => ['boolean'],
+            // Domain flag + its TLD (required when is_domain). A domain plan's
+            // single active price tier is its renewal duration + price.
+            'is_domain' => ['boolean'],
+            // Leading dot optional — it's normalised in prepareDomainFields().
+            'tld' => [
+                'nullable', 'string', 'max:20', 'required_if:is_domain,1,true',
+                'regex:/^\.?[a-z0-9]([a-z0-9.\-]*[a-z0-9])?$/i',
+            ],
             'sort_order' => ['integer'],
             // initial_* fields are only honoured on create; the
             // controller drops them on update. Lets staff create a

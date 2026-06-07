@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Domain;
+use App\Models\ProductPlan;
 use App\Services\CloudflareService;
 use App\Services\WhoisService;
 use Illuminate\Http\JsonResponse;
@@ -15,6 +16,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -80,6 +82,18 @@ class DomainController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'city'])
                 ->all(),
+            // TLDs of active is_domain plans for the create/edit TLD picker
+            // (the renewal price/term source). One active plan per TLD.
+            'domain_tlds' => ProductPlan::where('is_domain', true)
+                ->where('is_active', true)
+                ->whereNotNull('tld')
+                ->orderBy('tld')
+                ->get(['id', 'tld', 'name'])
+                ->map(fn (ProductPlan $p): array => [
+                    'tld' => $p->tld,
+                    'plan_name' => $p->name,
+                ])
+                ->all(),
             'cloudflare_connected' => $this->cloudflare->testConnection(),
         ]);
     }
@@ -88,7 +102,7 @@ class DomainController extends Controller
     {
         Gate::authorize('viewAny', Customer::class);
 
-        $data = $this->validateRow($request);
+        $data = $this->withDerivedPlan($this->validateRow($request));
 
         DB::transaction(function () use ($data, $request) {
             $domain = Domain::create($data + [
@@ -115,7 +129,7 @@ class DomainController extends Controller
         $domain = Domain::findOrFail($id);
         Gate::authorize('viewAny', Customer::class);
 
-        $data = $this->validateRow($request, $id);
+        $data = $this->withDerivedPlan($this->validateRow($request, $id));
 
         DB::transaction(function () use ($domain, $data, $request) {
             $before = [
@@ -341,6 +355,9 @@ class DomainController extends Controller
             'expiry_date_display' => $domain->expiry_date?->format('d M Y'),
             'days_until_expiry' => $daysUntilExpiry,
             'auto_renew' => (bool) $domain->auto_renew,
+            'tld' => $domain->tld,
+            'product_plan_id' => $domain->product_plan_id,
+            'renewal_invoiced_for' => $domain->renewal_invoiced_for?->toDateString(),
             'status' => $domain->status,
             'ssl_expiry_date' => $domain->ssl_expiry_date?->toDateString(),
             'ssl_expiry_display' => $domain->ssl_expiry_date?->format('d M Y'),
@@ -352,6 +369,30 @@ class DomainController extends Controller
             'last_synced_at' => $domain->last_synced_at?->diffForHumans(),
             'notes' => $domain->notes,
         ];
+    }
+
+    /**
+     * Derive product_plan_id from the chosen TLD (the authoritative control):
+     * the active is_domain plan for that TLD, else null. Normalises the TLD.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function withDerivedPlan(array $data): array
+    {
+        $tld = ! empty($data['tld'])
+            ? '.'.ltrim(strtolower(trim((string) $data['tld'])), '.')
+            : null;
+
+        $data['tld'] = $tld;
+        $data['product_plan_id'] = $tld === null
+            ? null
+            : ProductPlan::where('is_domain', true)
+                ->where('is_active', true)
+                ->whereRaw('LOWER(tld) = ?', [$tld])
+                ->value('id');
+
+        return $data;
     }
 
     /**
@@ -372,6 +413,15 @@ class DomainController extends Controller
             'registered_at' => ['nullable', 'date'],
             'expiry_date' => ['nullable', 'date'],
             'auto_renew' => ['nullable', 'boolean'],
+            // Renewal control: the domain's TLD, matched to an ACTIVE
+            // is_domain plan (the price/term source). product_plan_id is
+            // derived from this match on save.
+            'tld' => [
+                'nullable', 'string', 'max:20',
+                Rule::exists('product_plans', 'tld')
+                    ->where('is_domain', true)
+                    ->where('is_active', true),
+            ],
             'cloudflare_zone_id' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);

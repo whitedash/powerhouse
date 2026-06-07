@@ -26,9 +26,13 @@ use Illuminate\Support\Carbon;
  * @property string|null $hosting_notes
  * @property string|null $notes
  * @property Carbon|null $last_synced_at
+ * @property int|null $product_plan_id
+ * @property string|null $tld
+ * @property Carbon|null $renewal_invoiced_for
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Customer|null $customer
+ * @property-read ProductPlan|null $plan
  */
 class Domain extends Model
 {
@@ -41,6 +45,12 @@ class Domain extends Model
         'is_proxied',
         'registered_at',
         'auto_renew',
+        // TLD = the user-facing renewal control (matched to an is_domain
+        // plan). product_plan_id is the derived cached link; the expiry
+        // cycle the last renewal invoice covered is the idempotency marker.
+        'tld',
+        'product_plan_id',
+        'renewal_invoiced_for',
         'status',
         'expiry_date',
         'ssl_expiry_date',
@@ -60,6 +70,7 @@ class Domain extends Model
             'is_proxied' => 'boolean',
             'auto_renew' => 'boolean',
             'registered_at' => 'date',
+            'renewal_invoiced_for' => 'date',
             'expiry_date' => 'date',
             'ssl_expiry_date' => 'date',
             'hosting_renewal_date' => 'date',
@@ -71,5 +82,14 @@ class Domain extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * The product plan used as the renewal PRICE source (an is_domain
+     * plan). Null = no automated renewal billing for this domain.
+     */
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(ProductPlan::class, 'product_plan_id');
     }
 }

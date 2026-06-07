@@ -183,6 +183,8 @@ class ProductController extends Controller
             'is_active' => $plan->is_active,
             'is_public' => $plan->is_public,
             'is_hosting' => $plan->is_hosting,
+            'is_domain' => $plan->is_domain,
+            'tld' => $plan->tld,
             'sort_order' => $plan->sort_order,
             'active_customers' => CustomerProduct::where('plan_id', $plan->id)
                 ->whereIn('status', ['active', 'trial'])
