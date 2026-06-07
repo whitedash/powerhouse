@@ -199,15 +199,16 @@ function scrollToCatalogue() {
                         </div>
                     </div>
                     <div class="prod-grid">
-                        <div v-for="product in available" :key="product.id" class="prod-card">
+                        <div v-for="product in available" :key="product.id" class="prod-card upsell-card">
                             <div class="pc-top">
                                 <div class="pc-logo" :style="{ background: product.icon_colour || 'var(--accent)' }">{{ initial(product.name) }}</div>
                             </div>
                             <div class="pc-name">{{ product.name }}</div>
-                            <div class="pc-plan">{{ product.plans.length }} {{ product.plans.length === 1 ? 'plan' : 'plans' }} available</div>
+                            <div v-if="product.description" class="pc-tagline">{{ product.description }}</div>
                             <div class="pc-divider" />
+                            <div v-if="product.from_monthly" class="pc-from">from <strong>£{{ gbp(product.from_monthly) }}</strong><span class="per">/mo</span></div>
                             <div class="pc-foot">
-                                <button class="btn btn-primary btn-block" :disabled="product.plans.length === 0" @click="openSubscribe(product)"><i class="ti ti-plus" />Subscribe</button>
+                                <button class="btn btn-primary btn-block" @click="openSubscribe(product)"><i class="ti ti-plus" />Subscribe</button>
                             </div>
                         </div>
                     </div>
@@ -248,9 +249,13 @@ function scrollToCatalogue() {
                     <div v-for="product in available" :key="product.id" class="m-prod">
                         <div class="top">
                             <div class="logo" :style="{ background: product.icon_colour || 'var(--accent)' }">{{ initial(product.name) }}</div>
-                            <div style="flex:1"><div class="nm">{{ product.name }}</div><div class="pl">{{ product.plans.length }} {{ product.plans.length === 1 ? 'plan' : 'plans' }}</div></div>
+                            <div style="flex:1">
+                                <div class="nm">{{ product.name }}</div>
+                                <div v-if="product.from_monthly" class="pl">from £{{ gbp(product.from_monthly) }}/mo</div>
+                            </div>
                         </div>
-                        <button class="btn btn-primary btn-block btn-sm" style="margin-top:12px" :disabled="product.plans.length === 0" @click="openSubscribe(product)"><i class="ti ti-plus" />Subscribe</button>
+                        <div v-if="product.description" class="m-upsell-tagline">{{ product.description }}</div>
+                        <button class="btn btn-primary btn-block btn-sm" style="margin-top:12px" @click="openSubscribe(product)"><i class="ti ti-plus" />Subscribe</button>
                     </div>
                 </template>
             </div>
@@ -262,9 +267,13 @@ function scrollToCatalogue() {
         <div v-if="subscribeOpen" class="portal-modal-backdrop" @click="closeSubscribe" />
         <div v-if="subscribeOpen" class="portal-modal" role="dialog" aria-modal="true">
             <header class="portal-modal-header">
-                <div>
-                    <div class="portal-modal-eyebrow">Subscribe to</div>
-                    <h2>{{ selectedProduct?.name }}</h2>
+                <div class="upsell-modal-head">
+                    <div class="upsell-modal-logo" :style="{ background: selectedProduct?.icon_colour || 'var(--accent)' }">{{ initial(selectedProduct?.name) }}</div>
+                    <div>
+                        <div class="portal-modal-eyebrow">Subscribe to</div>
+                        <h2>{{ selectedProduct?.name }}</h2>
+                        <p v-if="selectedProduct?.description" class="upsell-modal-desc">{{ selectedProduct.description }}</p>
+                    </div>
                 </div>
                 <button type="button" class="icon-btn" @click="closeSubscribe">×</button>
             </header>
@@ -285,6 +294,9 @@ function scrollToCatalogue() {
                             <div class="portal-plan-info">
                                 <div class="portal-plan-name">{{ plan.name }}</div>
                                 <div v-if="plan.description" class="portal-plan-desc">{{ plan.description }}</div>
+                                <ul v-if="plan.features && plan.features.length" class="upsell-features">
+                                    <li v-for="(f, i) in plan.features" :key="i"><i class="ti ti-check" />{{ f }}</li>
+                                </ul>
                             </div>
                         </label>
                     </div>
@@ -328,3 +340,39 @@ function scrollToCatalogue() {
         @confirm="performCancel"
     />
 </template>
+
+<style scoped>
+/* Upsell catalogue card — pitch over a bare name + plan count. */
+.upsell-card .pc-tagline {
+    font: 400 13px/1.45 'Inter', sans-serif;
+    color: var(--text-secondary, #64748b);
+    margin: 6px 0 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.upsell-card .pc-from {
+    font: 400 13px/1.2 'Inter', sans-serif;
+    color: var(--text-secondary, #64748b);
+    margin: 0 0 12px;
+}
+.upsell-card .pc-from strong { font-weight: 700; font-size: 18px; color: var(--text-primary, #0f172a); }
+.upsell-card .pc-from .per { color: var(--text-tertiary, #94a3b8); }
+.m-upsell-tagline { font: 400 12.5px/1.4 'Inter', sans-serif; color: var(--text-secondary, #64748b); margin-top: 8px; }
+
+/* Subscribe modal — pitch header + comparable plan benefits. */
+.upsell-modal-head { display: flex; gap: 12px; align-items: flex-start; }
+.upsell-modal-logo {
+    width: 40px; height: 40px; border-radius: 9px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font: 700 16px/1 'Inter', sans-serif;
+}
+.upsell-modal-desc { font: 400 13px/1.5 'Inter', sans-serif; color: var(--text-secondary, #64748b); margin: 6px 0 0; }
+.upsell-features { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.upsell-features li {
+    display: flex; align-items: flex-start; gap: 6px;
+    font: 400 12.5px/1.4 'Inter', sans-serif; color: var(--text-primary, #0f172a);
+}
+.upsell-features li i { color: var(--success, #10b981); flex-shrink: 0; margin-top: 1px; }
+</style>

@@ -77,29 +77,47 @@ class SubscriptionController extends Controller
                 ->with(['activePrices' => fn ($qq) => $qq->orderBy('sort_order')])])
             ->orderBy('sort_order')
             ->get()
-            ->map(fn (Product $p): array => [
-                'id' => $p->id,
-                'name' => $p->name,
-                'slug' => $p->slug,
-                'icon_colour' => $p->icon_colour,
+            ->map(function (Product $p): array {
                 // Only plans with at least one active price are subscribable —
                 // there's nothing to pick (or charge) otherwise.
-                'plans' => $p->plans
-                    ->filter(fn ($plan): bool => $plan->activePrices->isNotEmpty())
-                    ->map(fn ($plan): array => [
-                        'id' => $plan->id,
-                        'name' => $plan->name,
-                        'description' => $plan->description,
-                        'prices' => $plan->activePrices->map(fn ($price): array => [
-                            'id' => $price->id,
-                            'price' => round((float) $price->price, 2),
-                            'interval_label' => $price->interval_label,
-                            'is_default' => $price->is_default,
+                $plans = $p->plans->filter(fn ($plan): bool => $plan->activePrices->isNotEmpty());
+
+                // "from £X/mo" headline: the cheapest monthly-equivalent across
+                // every subscribable price (annual ÷12 etc., via mrr_contribution).
+                // Null when nothing is recurring (e.g. one-time only).
+                $fromMonthly = $plans
+                    ->flatMap(fn ($plan) => $plan->activePrices)
+                    ->map(fn ($price): float => (float) $price->mrr_contribution)
+                    ->filter(fn (float $m): bool => $m > 0)
+                    ->min();
+
+                return [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'slug' => $p->slug,
+                    'icon_colour' => $p->icon_colour,
+                    // Existing marketing copy — rendered in the catalogue + modal.
+                    'description' => $p->description,
+                    'from_monthly' => $fromMonthly !== null ? round($fromMonthly, 2) : null,
+                    'plans' => $plans
+                        ->map(fn ($plan): array => [
+                            'id' => $plan->id,
+                            'name' => $plan->name,
+                            'description' => $plan->description,
+                            // Freeform benefit strings already stored on the plan.
+                            'features' => array_values($plan->features ?? []),
+                            'prices' => $plan->activePrices->map(fn ($price): array => [
+                                'id' => $price->id,
+                                'price' => round((float) $price->price, 2),
+                                'interval_label' => $price->interval_label,
+                                'is_default' => $price->is_default,
+                                'label' => $price->label,
+                            ])->values()->all(),
                         ])->values()->all(),
-                    ])->values()->all(),
-            ])
+                ];
+            })
             // Drop products with no subscribable plan so no dead Subscribe CTA
-            // ever reaches the catalogue (safety; the upsell redesign is separate).
+            // ever reaches the catalogue.
             ->filter(fn (array $p): bool => count($p['plans']) > 0)
             ->values()
             ->all();
