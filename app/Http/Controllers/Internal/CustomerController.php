@@ -782,6 +782,20 @@ class CustomerController extends Controller
             'available_groups' => AccountGroup::orderBy('name')
                 ->get(['id', 'name', 'colour'])
                 ->all(),
+            // TLDs of active is_domain plans for the in-context "Add domain"
+            // modal's TLD picker (same source + shape as DomainController@index).
+            // A domain's TLD is the renewal price/term source; auto-renew only
+            // bills when the TLD matches one of these active plans.
+            'domain_tlds' => ProductPlan::where('is_domain', true)
+                ->where('is_active', true)
+                ->whereNotNull('tld')
+                ->orderBy('tld')
+                ->get(['id', 'tld', 'name'])
+                ->map(fn (ProductPlan $p): array => [
+                    'tld' => $p->tld,
+                    'plan_name' => $p->name,
+                ])
+                ->all(),
         ]);
     }
 

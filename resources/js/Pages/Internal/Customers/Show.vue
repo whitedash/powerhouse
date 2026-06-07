@@ -85,6 +85,9 @@ const props = defineProps({
     available_referrers: { type: Array, default: () => [] },
     // All groups the customer could be added to.
     available_groups: { type: Array, default: () => [] },
+    // Active is_domain-plan TLDs for the in-context "Add domain" modal's TLD
+    // picker (the renewal price/term source). Shape: { tld, plan_name }.
+    domain_tlds: { type: Array, default: () => [] },
 });
 
 const PIPELINE_LABELS = {
@@ -1475,6 +1478,102 @@ function confirmDeleteWebsite() {
         onFinish: () => { showWebsiteDelete.value = false; websiteDeleteTarget.value = null; },
     });
 }
+
+/* ─── In-context Add domain (reuses DomainController@store; customer locked) ─── */
+const showDomainForm = ref(false);
+const domainForm = useForm({
+    customer_id: props.customer.id,
+    domain: '',
+    registrar: '',
+    registered_at: '',
+    expiry_date: '',
+    auto_renew: false,
+    tld: null,
+    cloudflare_zone_id: '',
+    notes: '',
+});
+
+// Pre-suggest the TLD parsed from the domain name (longest matching active
+// TLD; handles .co.uk vs .uk), mirroring Domains/Index.vue. Only fills an
+// empty selection so it never overrides an explicit choice.
+watch(() => domainForm.domain, (name) => {
+    if (domainForm.tld || ! name) return;
+    const lower = String(name).toLowerCase();
+    const match = props.domain_tlds
+        .map((t) => t.tld)
+        .filter((tld) => lower.endsWith(String(tld).toLowerCase()))
+        .sort((a, b) => b.length - a.length)[0];
+    if (match) domainForm.tld = match;
+});
+
+// Non-blocking hint: auto-renewal only raises a draft invoice when the
+// domain's TLD matches an active domain plan (the price source). Auto-renew
+// on + no TLD selected = it will never bill. (Validation already blocks a
+// TLD that has no matching active plan, so that case can't be saved.)
+const domainRenewalWarning = computed(
+    () => domainForm.auto_renew && ! domainForm.tld,
+);
+
+function openCreateDomain() {
+    domainForm.reset();
+    domainForm.customer_id = props.customer.id;
+    domainForm.clearErrors();
+    showDomainForm.value = true;
+}
+function submitDomain() {
+    domainForm.post('/domains', {
+        preserveScroll: true,
+        onSuccess: () => {
+            showDomainForm.value = false;
+            domainForm.reset();
+            domainForm.customer_id = props.customer.id;
+        },
+    });
+}
+
+/* ─── In-context Create project (mirrors the enable-product modal) ─── */
+const PROJECT_STATUSES = [
+    { value: 'planning', label: 'Planning' },
+    { value: 'active', label: 'Active' },
+    { value: 'on_hold', label: 'On hold' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'cancelled', label: 'Cancelled' },
+];
+const PROJECT_PRIORITIES = [
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+    { value: 'urgent', label: 'Urgent' },
+];
+
+const showProjectForm = ref(false);
+const projectForm = useForm({
+    customer_id: props.customer.id,
+    title: '',
+    description: '',
+    status: 'planning',
+    priority: 'medium',
+    colour: '#3B82F6',
+    start_date: '',
+    due_date: '',
+});
+
+function openCreateProject() {
+    projectForm.reset();
+    projectForm.customer_id = props.customer.id;
+    projectForm.clearErrors();
+    showProjectForm.value = true;
+}
+function submitProject() {
+    projectForm.post('/projects', {
+        preserveScroll: true,
+        onSuccess: () => {
+            showProjectForm.value = false;
+            projectForm.reset();
+            projectForm.customer_id = props.customer.id;
+        },
+    });
+}
 </script>
 
 <template>
@@ -2289,7 +2388,7 @@ function confirmDeleteWebsite() {
                             <p>No domains tracked.</p>
                         </div>
                         <div class="add-line">
-                            <a href="#" class="ghost-link" @click.prevent><IconPlus :size="14" stroke-width="1.75" />Add domain</a>
+                            <a href="#" class="ghost-link" @click.prevent="openCreateDomain"><IconPlus :size="14" stroke-width="1.75" />Add domain</a>
                         </div>
                     </section>
 
@@ -2720,15 +2819,15 @@ function confirmDeleteWebsite() {
                             <h3>Projects</h3>
                             <p class="card-sub">Active and completed projects for this customer.</p>
                         </div>
-                        <a :href="`/projects?customer_id=${customer.id}`" class="ghost-link" style="margin-left: auto;">
-                            <IconArrowRight :size="14" stroke-width="1.75" />
+                        <button type="button" class="ghost-link" style="margin-left: auto;" @click="openCreateProject">
+                            <IconPlus :size="14" stroke-width="1.75" />
                             New project
-                        </a>
+                        </button>
                     </header>
 
                     <div v-if="(customer.projects ?? []).length === 0" class="cp-empty">
                         <p class="muted">No projects for this customer yet.</p>
-                        <a href="/projects" class="ghost-link">+ Create first project</a>
+                        <button type="button" class="ghost-link" @click="openCreateProject">+ Create first project</button>
                     </div>
 
                     <div v-else class="cust-projects-grid">
@@ -4421,6 +4520,150 @@ function confirmDeleteWebsite() {
             </div>
         </Teleport>
 
+        <!-- ═══ Add domain slide-over (reuses /domains; customer locked) ═══ -->
+        <Teleport to="body">
+            <div v-if="showDomainForm" class="slide-over">
+                <div class="slide-over-backdrop" @click="showDomainForm = false" />
+                <aside class="slide-over-panel website-form" style="width: 560px;" role="dialog" aria-modal="true">
+                    <div class="slide-over-head">
+                        <h2>Add domain</h2>
+                        <button type="button" class="icon-btn" @click="showDomainForm = false"><IconX :size="18" stroke-width="2" /></button>
+                    </div>
+                    <form class="slide-over-body" @submit.prevent="submitDomain">
+                        <div class="wf-sec">Basic</div>
+                        <div class="form-section">
+                            <label class="form-label">Domain <span class="req">*</span></label>
+                            <input v-model="domainForm.domain" type="text" class="form-input" required maxlength="255" placeholder="example.co.uk" />
+                            <p v-if="domainForm.errors.domain" class="form-error">{{ domainForm.errors.domain }}</p>
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Customer</label>
+                            <input type="text" class="form-input" :value="customer.name" readonly disabled />
+                        </div>
+                        <div class="form-row-2">
+                            <div class="form-section">
+                                <label class="form-label">Registrar</label>
+                                <input v-model="domainForm.registrar" type="text" class="form-input" maxlength="100" placeholder="e.g. Cloudflare, GoDaddy" />
+                            </div>
+                            <div class="form-section">
+                                <label class="reimburse-row" style="margin-top: 26px;">
+                                    <input type="checkbox" v-model="domainForm.auto_renew" />
+                                    <span>Auto-renew</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-row-2">
+                            <div class="form-section">
+                                <label class="form-label">Registered</label>
+                                <input v-model="domainForm.registered_at" type="date" class="form-input" />
+                            </div>
+                            <div class="form-section">
+                                <label class="form-label">Expiry</label>
+                                <input v-model="domainForm.expiry_date" type="date" class="form-input" />
+                            </div>
+                        </div>
+
+                        <div class="wf-sec">Renewal</div>
+                        <div class="form-section">
+                            <label class="form-label">TLD (renewal pricing)</label>
+                            <select v-model="domainForm.tld" class="form-input">
+                                <option :value="null">No automated renewal</option>
+                                <option v-for="t in domain_tlds" :key="t.tld" :value="t.tld">{{ t.tld }} — {{ t.plan_name }}</option>
+                            </select>
+                            <p class="field-help">Auto-renew + a matching TLD = a draft renewal invoice is raised 14 days before expiry, priced from the TLD's domain plan.</p>
+                            <div v-if="domainRenewalWarning" class="domain-renewal-warn">
+                                <IconAlertTriangle :size="14" stroke-width="1.75" />
+                                <span>Auto-renew is on but no renewal TLD is selected — no renewal invoice will be raised. Pick a TLD (a matching active domain plan) to enable billing.</span>
+                            </div>
+                            <p v-if="domainForm.errors.tld" class="form-error">{{ domainForm.errors.tld }}</p>
+                        </div>
+
+                        <div class="wf-sec">Cloudflare</div>
+                        <div class="form-section">
+                            <label class="form-label">Zone ID</label>
+                            <input v-model="domainForm.cloudflare_zone_id" type="text" class="form-input" maxlength="50" placeholder="e.g. abc123def456…" style="font-family: 'JetBrains Mono', monospace;" />
+                            <p class="field-help">Cloudflare dashboard → your domain → Overview → API → Zone ID.</p>
+                        </div>
+
+                        <div class="form-section">
+                            <label class="form-label">Notes</label>
+                            <textarea v-model="domainForm.notes" class="form-input" rows="2" maxlength="2000"></textarea>
+                        </div>
+                    </form>
+                    <div class="slide-over-foot">
+                        <button type="button" class="btn btn-ghost" @click="showDomainForm = false">Cancel</button>
+                        <button type="button" class="btn btn-primary" :disabled="domainForm.processing" @click="submitDomain">
+                            {{ domainForm.processing ? 'Saving…' : 'Add domain' }}
+                        </button>
+                    </div>
+                </aside>
+            </div>
+        </Teleport>
+
+        <!-- ═══ Create project slide-over (reuses /projects; customer locked) ═══ -->
+        <Teleport to="body">
+            <div v-if="showProjectForm" class="slide-over">
+                <div class="slide-over-backdrop" @click="showProjectForm = false" />
+                <aside class="slide-over-panel website-form" style="width: 560px;" role="dialog" aria-modal="true">
+                    <div class="slide-over-head">
+                        <h2>New project</h2>
+                        <button type="button" class="icon-btn" @click="showProjectForm = false"><IconX :size="18" stroke-width="2" /></button>
+                    </div>
+                    <form class="slide-over-body" @submit.prevent="submitProject">
+                        <div class="form-section">
+                            <label class="form-label">Title <span class="req">*</span></label>
+                            <input v-model="projectForm.title" type="text" class="form-input" required maxlength="255" placeholder="e.g. Website rebuild" />
+                            <p v-if="projectForm.errors.title" class="form-error">{{ projectForm.errors.title }}</p>
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Customer</label>
+                            <input type="text" class="form-input" :value="customer.name" readonly disabled />
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Description</label>
+                            <textarea v-model="projectForm.description" class="form-input" rows="2" maxlength="5000"></textarea>
+                            <p v-if="projectForm.errors.description" class="form-error">{{ projectForm.errors.description }}</p>
+                        </div>
+                        <div class="form-row-2">
+                            <div class="form-section">
+                                <label class="form-label">Status</label>
+                                <select v-model="projectForm.status" class="form-input">
+                                    <option v-for="s in PROJECT_STATUSES" :key="s.value" :value="s.value">{{ s.label }}</option>
+                                </select>
+                            </div>
+                            <div class="form-section">
+                                <label class="form-label">Priority</label>
+                                <select v-model="projectForm.priority" class="form-input">
+                                    <option v-for="p in PROJECT_PRIORITIES" :key="p.value" :value="p.value">{{ p.label }}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row-2">
+                            <div class="form-section">
+                                <label class="form-label">Start date</label>
+                                <input v-model="projectForm.start_date" type="date" class="form-input" />
+                            </div>
+                            <div class="form-section">
+                                <label class="form-label">Due date</label>
+                                <input v-model="projectForm.due_date" type="date" class="form-input" />
+                                <p v-if="projectForm.errors.due_date" class="form-error">{{ projectForm.errors.due_date }}</p>
+                            </div>
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Colour</label>
+                            <input v-model="projectForm.colour" type="color" class="form-input" style="height: 40px; padding: 4px; width: 80px;" />
+                        </div>
+                    </form>
+                    <div class="slide-over-foot">
+                        <button type="button" class="btn btn-ghost" @click="showProjectForm = false">Cancel</button>
+                        <button type="button" class="btn btn-primary" :disabled="projectForm.processing" @click="submitProject">
+                            {{ projectForm.processing ? 'Saving…' : 'Create project' }}
+                        </button>
+                    </div>
+                </aside>
+            </div>
+        </Teleport>
+
         <!-- ═══ PageSpeed report modal ═══ -->
         <Teleport to="body">
             <div v-if="pageSpeedModal" class="ps-modal-overlay" @click.self="closePageSpeedModal">
@@ -4528,6 +4771,20 @@ function confirmDeleteWebsite() {
 <style scoped>
 .slide-over { position: fixed; inset: 0; z-index: 40; }
 .slide-over-form { height: 100%; display: flex; flex-direction: column; }
+
+/* Non-blocking renewal hint in the Add-domain modal (auto-renew + no TLD). */
+.domain-renewal-warn {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: var(--warning-soft, #fef3c7);
+    color: var(--warning-strong, #92400e);
+    font: 400 12px/1.45 'Inter', sans-serif;
+}
+.domain-renewal-warn svg { flex-shrink: 0; margin-top: 1px; }
 
 /* People / Owners card */
 .person-row { display: flex; align-items: center; gap: 12px; }
