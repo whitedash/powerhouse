@@ -10,6 +10,7 @@ use App\Http\Controllers\Internal\CustomerController as InternalCustomerControll
 use App\Http\Controllers\Internal\CustomerGroupController as InternalCustomerGroupController;
 use App\Http\Controllers\Internal\CustomerProductController as InternalCustomerProductController;
 use App\Http\Controllers\Internal\DashboardController as InternalDashboardController;
+use App\Http\Controllers\Internal\DeploymentController as InternalDeploymentController;
 use App\Http\Controllers\Internal\DomainController as InternalDomainController;
 use App\Http\Controllers\Internal\ExpenseController as InternalExpenseController;
 use App\Http\Controllers\Internal\FormBuilderController as InternalFormBuilderController;
@@ -738,6 +739,17 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
             ->whereNumber('id')->name('commission-rules.toggle');
         Route::delete('/commission-rules/{id}', [InternalCommissionRuleController::class, 'destroy'])
             ->whereNumber('id')->name('commission-rules.destroy');
+
+        // Deployment maintenance — super_admin (inherited). Replaces the old
+        // public migrate.php / clear-cache.php helper scripts. Write actions
+        // are throttled; each is confirmed + logged.
+        Route::get('/deployment', [InternalDeploymentController::class, 'index'])->name('deployment');
+        Route::post('/deployment/migrate', [InternalDeploymentController::class, 'migrate'])
+            ->middleware('throttle:10,1')->name('deployment.migrate');
+        Route::post('/deployment/clear-cache', [InternalDeploymentController::class, 'clearCache'])
+            ->middleware('throttle:10,1')->name('deployment.clear-cache');
+        Route::post('/deployment/run-both', [InternalDeploymentController::class, 'runBoth'])
+            ->middleware('throttle:10,1')->name('deployment.run-both');
     });
 
     // Maavelus monthly revenue statements — internal-only, super_admin

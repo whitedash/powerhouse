@@ -13,6 +13,7 @@ use App\Models\FormTheme;
 use App\Models\Invoice;
 use App\Models\Person;
 use App\Models\Product;
+use App\Models\User;
 use App\Policies\BillingEntityPolicy;
 use App\Policies\CommissionLedgerPolicy;
 use App\Policies\CustomerPolicy;
@@ -193,6 +194,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(CommissionLedger::class, CommissionLedgerPolicy::class);
         Gate::policy(Person::class, PersonPolicy::class);
         Gate::policy(FormTheme::class, FormThemePolicy::class);
+
+        // Deployment maintenance tools (run migrations / clear caches) are
+        // super_admin-only — no model, so a Gate ability rather than a policy.
+        Gate::define('manage-deployment', fn (User $user): bool => $user->isSuperAdmin());
     }
 
     private function configurePassport(): void
