@@ -16,6 +16,7 @@ use App\Services\PageSpeedService;
 use App\Services\WebhookDispatcher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -52,6 +53,9 @@ class WebsiteController extends Controller
             ]);
         });
 
+        // Hosting may contribute to MRR now — refresh the cached figure.
+        Cache::forget('dash.mrr');
+
         return back()->with('success', 'Website added.');
     }
 
@@ -82,6 +86,8 @@ class WebsiteController extends Controller
             ]);
         });
 
+        Cache::forget('dash.mrr');
+
         return back()->with('success', 'Website updated.');
     }
 
@@ -96,6 +102,8 @@ class WebsiteController extends Controller
             $website->delete();
             $this->log($request, 'website.deleted', $customerId, before: $snapshot);
         });
+
+        Cache::forget('dash.mrr');
 
         return back()->with('success', 'Website removed.');
     }
@@ -124,6 +132,9 @@ class WebsiteController extends Controller
 
         $dispatcher->dispatchHostingSuspension($website->fresh());
 
+        // Suspended hosting drops out of MRR — refresh the cached figure.
+        Cache::forget('dash.mrr');
+
         return back()->with('success', 'Hosting suspended.');
     }
 
@@ -149,6 +160,9 @@ class WebsiteController extends Controller
         });
 
         $dispatcher->dispatchHostingReinstatement($website->fresh());
+
+        // Reinstated hosting re-enters MRR — refresh the cached figure.
+        Cache::forget('dash.mrr');
 
         return back()->with('success', 'Hosting reinstated.');
     }

@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
@@ -121,6 +122,9 @@ class DomainController extends Controller
             ]);
         });
 
+        // auto_renew + a matched plan make a domain contribute to MRR.
+        Cache::forget('dash.mrr');
+
         return back()->with('success', 'Domain added.');
     }
 
@@ -152,6 +156,8 @@ class DomainController extends Controller
             ]);
         });
 
+        Cache::forget('dash.mrr');
+
         return back()->with('success', 'Domain updated.');
     }
 
@@ -169,6 +175,8 @@ class DomainController extends Controller
 
             $this->log($request, 'domain.deleted', $snapshot['customer_id'], before: $snapshot);
         });
+
+        Cache::forget('dash.mrr');
 
         return back()->with('success', 'Domain removed.');
     }

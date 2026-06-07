@@ -18,6 +18,9 @@ import InternalLayout from '@/Layouts/InternalLayout.vue';
 const props = defineProps({
     headline: { type: Object, required: true },
     mrr_trend: { type: Array, default: () => [] },
+    // 'subscriptions' = the trend excludes hosting/domains (no historical
+    // status timeline to reconstruct them honestly). The headline MRR is whole.
+    mrr_trend_basis: { type: String, default: 'subscriptions' },
     by_product: { type: Array, default: () => [] },
     customer_growth: { type: Array, default: () => [] },
     top_referrers: { type: Array, default: () => [] },
@@ -267,7 +270,9 @@ function planBarWidth(p) {
                             <div class="h-icon"><IconChartLine :size="16" stroke-width="1.75" /></div>
                             <div>
                                 <h3>MRR trend</h3>
-                                <div class="sub">Last 12 months · point-in-time at month-end</div>
+                                <div class="sub">
+                                    Last 12 months · point-in-time at month-end<template v-if="mrr_trend_basis === 'subscriptions'"> · subscriptions only</template>
+                                </div>
                             </div>
                         </header>
                         <div style="padding: 14px 18px 18px;">

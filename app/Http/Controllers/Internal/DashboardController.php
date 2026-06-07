@@ -17,6 +17,7 @@ use App\Models\SupportTicket;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Website;
+use App\Support\RecurringRevenue;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -187,16 +188,13 @@ class DashboardController extends Controller
                 120,
                 fn () => Customer::whereNull('archived_at')->count(),
             ),
-            // mrr_contribution amortises across interval_count +
-            // interval_unit so a quarterly £75 sub reports £25 here
-            // rather than the full bill amount.
+            // Whole recurring revenue across all three sources (services +
+            // hosting + domains), amortised to a monthly figure. Sourced from
+            // the canonical aggregator so every MRR surface agrees.
             'mrr' => (float) Cache::remember(
                 'dash.mrr',
                 120,
-                fn () => (float) CustomerProduct::where('status', 'active')
-                    ->with('planPrice')
-                    ->get()
-                    ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution),
+                fn (): float => RecurringRevenue::compute()->total,
             ),
             'pending_invoices_count' => Invoice::whereIn('status', ['sent', 'overdue'])->count(),
             'pending_invoices_amount' => (float) Invoice::whereIn('status', ['sent', 'overdue'])->sum('total'),
@@ -219,29 +217,24 @@ class DashboardController extends Controller
      */
     private function buildProducts(): array
     {
+        // Per-product recurring revenue + active-arrangement counts across all
+        // three sources (a Hosting/Domains product now earns via websites /
+        // domains, not CustomerProducts).
+        $rr = RecurringRevenue::compute();
+
         return Product::orderBy('sort_order')
             ->get()
-            ->map(function (Product $p): array {
-                $activeQuery = CustomerProduct::where('product_id', $p->id)->where('status', 'active');
-
-                return [
-                    'id' => $p->id,
-                    'name' => $p->name,
-                    'slug' => $p->slug,
-                    'description' => $p->description,
-                    'icon_colour' => $p->icon_colour,
-                    'is_active' => $p->is_active,
-                    'is_coming_soon' => $p->is_coming_soon,
-                    'customer_count' => $p->is_coming_soon ? 0 : (clone $activeQuery)->count(),
-                    // planPrice eager-loaded so mrr_contribution can use
-                    // the canonical price-row math under
-                    // Model::preventLazyLoading().
-                    'mrr' => $p->is_coming_soon ? 0.0 : (float) (clone $activeQuery)
-                        ->with('planPrice')
-                        ->get()
-                        ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution),
-                ];
-            })
+            ->map(fn (Product $p): array => [
+                'id' => $p->id,
+                'name' => $p->name,
+                'slug' => $p->slug,
+                'description' => $p->description,
+                'icon_colour' => $p->icon_colour,
+                'is_active' => $p->is_active,
+                'is_coming_soon' => $p->is_coming_soon,
+                'customer_count' => $p->is_coming_soon ? 0 : $rr->productCount($p->id),
+                'mrr' => $p->is_coming_soon ? 0.0 : $rr->productMonthly($p->id),
+            ])
             ->all();
     }
 

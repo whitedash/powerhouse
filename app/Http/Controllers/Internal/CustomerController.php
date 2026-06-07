@@ -33,6 +33,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\Website;
 use App\Services\PersonService;
+use App\Support\RecurringRevenue;
 use App\Support\TaskDueDate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -127,7 +128,11 @@ class CustomerController extends Controller
 
         $paginator = $query->paginate($filters['per_page'])->withQueryString();
 
-        $paginator->through(function (Customer $customer): array {
+        // Whole recurring revenue per customer (services + hosting + domains),
+        // computed once for the page rather than per-row.
+        $recurring = RecurringRevenue::compute();
+
+        $paginator->through(function (Customer $customer) use ($recurring): array {
             $products = $customer->customerProducts
                 ->groupBy('product_id')
                 ->map(function ($group): array {
@@ -147,13 +152,7 @@ class CustomerController extends Controller
                 ->values()
                 ->all();
 
-            // mrr_contribution is a model accessor that respects
-            // interval_count + interval_unit, so a quarterly sub at
-            // £75 reports £25/mo instead of inflating MRR with the
-            // full bill.
-            $mrr = (float) $customer->customerProducts
-                ->where('status', 'active')
-                ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution);
+            $mrr = $recurring->forCustomer($customer->id);
 
             $referrerUser = $customer->referral?->referrer?->user;
 
@@ -278,11 +277,9 @@ class CustomerController extends Controller
             ->whereNotIn('status', ['resolved', 'closed'])
             ->count();
 
-        // Same MRR-respects-interval rule as the list page — sum via
-        // the accessor so a quarterly sub at £75 reports £25/mo.
-        $mrr = (float) $customer->customerProducts
-            ->where('status', 'active')
-            ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution);
+        // Whole recurring revenue for this customer — services + hosting +
+        // domains — via the canonical aggregator (interval-amortised).
+        $mrr = RecurringRevenue::compute()->forCustomer($customer->id);
 
         $referrerUser = $customer->referral?->referrer?->user;
         $firstGroup = $customer->groups->first();

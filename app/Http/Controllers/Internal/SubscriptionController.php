@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\ProductPlan;
 use App\Models\ProductPlanPrice;
 use App\Services\WebhookDispatcher;
+use App\Support\RecurringRevenue;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -271,8 +272,12 @@ class SubscriptionController extends Controller
         $activeSubs = CustomerProduct::where('status', 'active')
             ->with('planPrice')
             ->get();
-        $mrr = round($activeSubs->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution), 2);
-        $arr = round($mrr * 12, 2);
+        // Headline = WHOLE recurring revenue (services + hosting + domains) so
+        // it agrees with the dashboard/analytics; the per-product table below
+        // stays subscription-scoped.
+        $rr = RecurringRevenue::compute();
+        $mrr = $rr->total;
+        $arr = $rr->arr();
 
         $trialCount = CustomerProduct::where('status', 'trial')->count();
         $trialConvertingSoon = CustomerProduct::where('status', 'trial')
