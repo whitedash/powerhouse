@@ -2485,12 +2485,6 @@ function submitProject() {
                                 <h3>Subscriptions</h3>
                                 <div class="sub">All product subscriptions for this customer</div>
                             </div>
-                            <div class="right">
-                                <button type="button" class="btn btn-primary btn-sm" @click="openEnableProduct">
-                                    <IconPlus :size="14" stroke-width="1.75" />
-                                    Enable product
-                                </button>
-                            </div>
                         </header>
                         <div v-if="customer.products.length">
                             <div v-for="p in customer.products" :key="p.id" class="prod-row">
@@ -2562,10 +2556,6 @@ function submitProject() {
                     <div class="cust-websites">
                         <div class="cw-head">
                             <h2 class="cw-title">Websites</h2>
-                    <button type="button" class="btn btn-primary btn-sm" @click="openCreateWebsite">
-                        <IconPlus :size="14" stroke-width="1.75" />
-                        Add website
-                    </button>
                 </div>
 
                 <div v-if="(customer.websites ?? []).length" class="cw-grid">
@@ -2731,7 +2721,7 @@ function submitProject() {
                         <div v-else class="tab-empty" style="padding: 28px 18px;">
                             <p>No domains tracked.</p>
                         </div>
-                        <div class="add-line">
+                        <div v-if="! customer.domains.length" class="add-line">
                             <a href="#" class="ghost-link" @click.prevent="openCreateDomain"><IconPlus :size="14" stroke-width="1.75" />Add domain</a>
                         </div>
                     </section>
@@ -2745,10 +2735,6 @@ function submitProject() {
                                     <h3>Projects</h3>
                                     <p class="card-sub">Active and completed projects for this customer.</p>
                                 </div>
-                                <button type="button" class="ghost-link" style="margin-left: auto;" @click="openCreateProject">
-                                    <IconPlus :size="14" stroke-width="1.75" />
-                                    New project
-                                </button>
                             </header>
 
                             <div v-if="(customer.projects ?? []).length === 0" class="cp-empty">
