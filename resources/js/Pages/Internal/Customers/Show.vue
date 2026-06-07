@@ -1196,6 +1196,15 @@ function toggleExemption() {
     showExemptModal.value = true;
 }
 
+/* ─── Auto-collect intent (Billing P1) ─── */
+function toggleAutoCollect() {
+    router.post(
+        `/customers/${props.customer.id}/auto-collect`,
+        { auto_collect: ! props.customer.auto_collect },
+        { preserveScroll: true },
+    );
+}
+
 function submitExemption() {
     exemptForm.post(`/customers/${props.customer.id}/exemption`, {
         preserveScroll: true,
@@ -2365,6 +2374,26 @@ function submitProject() {
                             <button type="button" class="ghost-link" @click="toggleExemption">
                                 {{ customer.exempt_from_auto_suspend ? 'Remove exemption' : 'Mark as exempt' }}
                             </button>
+                        </div>
+
+                        <!-- Billing: auto-collect intent + saved cards (Billing P1) -->
+                        <div class="exemption-row">
+                            <div class="exemption-info">
+                                <span class="exemption-label">Auto-collect</span>
+                                <span class="badge badge-sm" :class="customer.auto_collect ? 'badge-active' : 'badge-inactive'">{{ customer.auto_collect ? 'On' : 'Off' }}</span>
+                            </div>
+                            <button type="button" class="ghost-link" @click="toggleAutoCollect">
+                                {{ customer.auto_collect ? 'Turn off' : 'Turn on' }}
+                            </button>
+                        </div>
+                        <div class="saved-cards">
+                            <template v-if="(customer.payment_methods ?? []).length">
+                                <div v-for="pm in customer.payment_methods" :key="pm.id" class="saved-card">
+                                    <span>{{ pm.label }}</span>
+                                    <span v-if="pm.is_default" class="badge badge-active badge-sm">Default</span>
+                                </div>
+                            </template>
+                            <div v-else class="saved-cards-empty">No saved cards on file.</div>
                         </div>
 
                         <!-- GDPR (super_admin only) — erasure + data export -->
@@ -4878,6 +4907,11 @@ function submitProject() {
 /* Assets tab — stack the four relocated sections (Subscriptions / Websites /
    Domains / Projects) with consistent spacing. */
 .cust-assets .assets-stack { display: flex; flex-direction: column; gap: 24px; }
+
+/* Saved cards (Billing P1) on the customer overview. */
+.saved-cards { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.saved-card { display: flex; align-items: center; justify-content: space-between; gap: 8px; font: 400 13px/1.3 'Inter', sans-serif; color: var(--text-secondary); }
+.saved-cards-empty { font: 400 12.5px/1.3 'Inter', sans-serif; color: var(--text-tertiary); }
 
 /* Non-blocking renewal hint in the Add-domain modal (auto-renew + no TLD). */
 .domain-renewal-warn {

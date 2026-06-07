@@ -14,6 +14,7 @@ use App\Models\BillingEntity;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductPlan;
 use App\Services\InvoicePdfService;
@@ -806,6 +807,19 @@ class InvoiceController extends Controller
                 'paid_at' => $paidAt,
                 'payment_method' => $data['payment_method'],
                 'payment_reference' => $data['reference'] ?? null,
+            ]);
+
+            // Ledger row for this manual settle (Billing P1) — records the
+            // actual amount of THIS payment (supports partials). Additive.
+            Payment::create([
+                'invoice_id' => $invoice->id,
+                'customer_id' => $invoice->customer_id,
+                'amount' => $paymentAmount,
+                'currency' => 'gbp',
+                'rail' => $data['payment_method'] === 'bank_transfer' ? 'bank' : 'manual',
+                'status' => 'succeeded',
+                'attempted_at' => $data['payment_date'],
+                'created_by' => $request->user()?->id,
             ]);
 
             $this->logActivity($request, 'invoice.payment_recorded', $invoice, after: [

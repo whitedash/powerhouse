@@ -60,6 +60,7 @@ const tabs = computed(() => [
     { key: 'assets', label: 'My Assets', href: '/portal/assets' },
     { key: 'subscriptions', label: 'Subscriptions', href: '/portal/subscriptions' },
     { key: 'invoices', label: 'Invoices', href: '/portal/invoices', count: props.counts?.invoices, tone: 'amber' },
+    { key: 'payment-methods', label: 'Payment methods', href: '/portal/payment-methods' },
     { key: 'support', label: 'Support', href: '/portal/support', count: props.counts?.support, tone: 'blue' },
     { key: 'account', label: 'Account', href: '/portal/account' },
 ]);
@@ -69,6 +70,7 @@ const mobileTabs = computed(() => [
     { key: 'assets', icon: 'box', label: 'Assets', href: '/portal/assets' },
     { key: 'subscriptions', icon: 'stack-2', label: 'Subs', href: '/portal/subscriptions' },
     { key: 'invoices', icon: 'receipt', label: 'Invoices', href: '/portal/invoices', count: props.counts?.invoices },
+    { key: 'payment-methods', icon: 'credit-card', label: 'Cards', href: '/portal/payment-methods' },
     { key: 'support', icon: 'lifebuoy', label: 'Support', href: '/portal/support', count: props.counts?.support },
     { key: 'account', icon: 'user', label: 'Account', href: '/portal/account' },
 ]);

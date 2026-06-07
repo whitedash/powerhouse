@@ -3,10 +3,17 @@
 namespace App\Services;
 
 use App\Models\ActivityLog;
+use App\Models\Customer;
 use App\Models\CustomerProduct;
 use App\Models\Invoice;
+use App\Models\Payment;
+use App\Models\PaymentMethod;
+use App\Models\StripeCustomer;
 use Illuminate\Support\Facades\DB;
 use Stripe\Checkout\Session;
+use Stripe\Customer as StripeCustomerApi;
+use Stripe\PaymentMethod as StripePaymentMethodApi;
+use Stripe\SetupIntent;
 use Stripe\Stripe;
 
 /**
@@ -114,7 +121,7 @@ class StripeService
 
         $invoice->loadMissing('customer.primaryContact');
 
-        return [
+        $params = [
             'payment_method_types' => ['card'],
             'mode' => 'payment',
             'line_items' => [[
@@ -129,13 +136,180 @@ class StripeService
                 ],
                 'quantity' => 1,
             ]],
-            'customer_email' => $invoice->customer?->primaryContact?->email,
             'metadata' => [
                 'invoice_id' => (string) $invoice->id,
                 'customer_id' => (string) $invoice->customer_id,
             ],
             'client_reference_id' => (string) $invoice->id,
         ];
+
+        if ($invoice->customer !== null) {
+            // Attach to a Stripe Customer and VAULT the card for reuse (P1).
+            // setup_future_usage=off_session saves the card against the customer
+            // so P2 can charge it off-session — we do NOT charge off-session here.
+            $params['customer'] = $this->ensureStripeCustomer($invoice->customer);
+            $params['payment_intent_data'] = ['setup_future_usage' => 'off_session'];
+        }
+        // (Invoices always carry a customer, so the vault branch above always
+        // runs; no customer = a plain on-session payment with no email prefilled.)
+
+        return $params;
+    }
+
+    /**
+     * Find or create the Stripe Customer for this customer (single GBP
+     * account) and persist the mapping. Returns the stripe_customer_id.
+     */
+    public function ensureStripeCustomer(Customer $customer): string
+    {
+        $existing = StripeCustomer::where('customer_id', $customer->id)->first();
+        if ($existing !== null) {
+            return $existing->stripe_customer_id;
+        }
+
+        $this->configureStripe();
+
+        $customer->loadMissing('primaryContact');
+        $stripeCustomer = StripeCustomerApi::create([
+            'name' => $customer->name,
+            'email' => $customer->primaryContact?->email,
+            'metadata' => ['customer_id' => (string) $customer->id],
+        ]);
+
+        StripeCustomer::create([
+            'customer_id' => $customer->id,
+            'stripe_customer_id' => $stripeCustomer->id,
+        ]);
+
+        return $stripeCustomer->id;
+    }
+
+    /**
+     * Create a SetupIntent for the portal "add a card" flow. The card is
+     * collected client-side (Stripe Elements) against this client_secret and
+     * attached to the customer's Stripe Customer for off-session reuse.
+     */
+    public function createSetupIntent(Customer $customer): string
+    {
+        $this->configureStripe();
+
+        $intent = SetupIntent::create([
+            'customer' => $this->ensureStripeCustomer($customer),
+            'payment_method_types' => ['card'],
+            'usage' => 'off_session',
+        ]);
+
+        return (string) $intent->client_secret;
+    }
+
+    /**
+     * Persist a vaulted card's SAFE metadata. Pure DB — the card itself stays
+     * in Stripe. First active card for the customer becomes the default.
+     * Idempotent on stripe_payment_method_id (a re-vault updates in place).
+     *
+     * @param  array{brand?: ?string, last4?: ?string, exp_month?: ?int, exp_year?: ?int}  $card
+     */
+    public function recordPaymentMethod(Customer $customer, string $stripeCustomerId, string $stripePaymentMethodId, array $card): PaymentMethod
+    {
+        return DB::transaction(function () use ($customer, $stripeCustomerId, $stripePaymentMethodId, $card): PaymentMethod {
+            $hasActive = PaymentMethod::where('customer_id', $customer->id)
+                ->where('status', 'active')
+                ->where('stripe_payment_method_id', '!=', $stripePaymentMethodId)
+                ->exists();
+
+            return PaymentMethod::updateOrCreate(
+                ['stripe_payment_method_id' => $stripePaymentMethodId],
+                [
+                    'customer_id' => $customer->id,
+                    'stripe_customer_id' => $stripeCustomerId,
+                    'brand' => $card['brand'] ?? null,
+                    'last4' => $card['last4'] ?? null,
+                    'exp_month' => $card['exp_month'] ?? null,
+                    'exp_year' => $card['exp_year'] ?? null,
+                    'status' => 'active',
+                    // First card on file is the default.
+                    'is_default' => ! $hasActive,
+                ],
+            );
+        });
+    }
+
+    /**
+     * Retrieve a payment method from Stripe and vault its safe metadata,
+     * confirming it is attached to the customer's own Stripe Customer (so a
+     * crafted pm id can't bind another customer's card). Used by the portal
+     * add-a-card flow.
+     */
+    public function recordPaymentMethodFromStripe(Customer $customer, string $stripePaymentMethodId): PaymentMethod
+    {
+        $this->configureStripe();
+
+        $stripeCustomerId = $this->ensureStripeCustomer($customer);
+        $pm = StripePaymentMethodApi::retrieve($stripePaymentMethodId);
+
+        // Attach if the SetupIntent flow didn't already; reject a PM that
+        // belongs to a different Stripe customer.
+        if (empty($pm->customer)) {
+            $pm = $pm->attach(['customer' => $stripeCustomerId]);
+        } elseif ((string) $pm->customer !== $stripeCustomerId) {
+            throw new \RuntimeException('Payment method does not belong to this customer.');
+        }
+
+        return $this->recordPaymentMethod($customer, $stripeCustomerId, (string) $pm->id, [
+            'brand' => $pm->card->brand ?? null,
+            'last4' => $pm->card->last4 ?? null,
+            'exp_month' => $pm->card->exp_month ?? null,
+            'exp_year' => $pm->card->exp_year ?? null,
+        ]);
+    }
+
+    /**
+     * Detach a saved card from Stripe (best-effort — the local row is the
+     * source of truth for display; a Stripe hiccup shouldn't block removal).
+     */
+    public function detachPaymentMethod(string $stripePaymentMethodId): void
+    {
+        $this->configureStripe();
+
+        $pm = StripePaymentMethodApi::retrieve($stripePaymentMethodId);
+        $pm->detach();
+    }
+
+    /**
+     * Vault the card used in a completed Checkout session (setup_future_usage)
+     * so it's reusable in P2. Best-effort: a vaulting hiccup must NEVER break
+     * payment reconciliation, so the webhook calls this in a guarded block.
+     */
+    public function vaultCardFromSession(Invoice $invoice, string $sessionId): void
+    {
+        if ($invoice->customer === null) {
+            return;
+        }
+
+        $this->configureStripe();
+
+        $session = Session::retrieve(['id' => $sessionId, 'expand' => ['payment_intent']]);
+        $stripeCustomerId = $session->customer ? (string) $session->customer : null;
+        $pi = $session->payment_intent;
+        $paymentMethodId = is_object($pi) ? ($pi->payment_method ?? null) : null;
+
+        if ($stripeCustomerId === null || $paymentMethodId === null) {
+            return;
+        }
+
+        // Keep the mapping in sync with whatever Stripe used for the session.
+        StripeCustomer::firstOrCreate(
+            ['customer_id' => $invoice->customer_id],
+            ['stripe_customer_id' => $stripeCustomerId],
+        );
+
+        $pm = StripePaymentMethodApi::retrieve((string) $paymentMethodId);
+        $this->recordPaymentMethod($invoice->customer, $stripeCustomerId, (string) $pm->id, [
+            'brand' => $pm->card->brand ?? null,
+            'last4' => $pm->card->last4 ?? null,
+            'exp_month' => $pm->card->exp_month ?? null,
+            'exp_year' => $pm->card->exp_year ?? null,
+        ]);
     }
 
     /**
@@ -176,6 +350,20 @@ class StripeService
                 'paid_via' => 'stripe',
                 'stripe_checkout_session_id' => $sessionId,
                 'stripe_payment_intent_id' => $paymentIntentId,
+            ]);
+
+            // Ledger row for this settle (Billing P1) — every settle is recorded
+            // so the ledger is live before P2's off-session charging.
+            Payment::create([
+                'invoice_id' => $invoice->id,
+                'customer_id' => $invoice->customer_id,
+                'amount' => $invoice->total,
+                'currency' => 'gbp',
+                'rail' => 'stripe',
+                'stripe_payment_intent_id' => $paymentIntentId !== '' ? $paymentIntentId : null,
+                'status' => 'succeeded',
+                'attempted_at' => now(),
+                'created_by' => null,
             ]);
 
             ActivityLog::create([

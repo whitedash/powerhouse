@@ -78,6 +78,19 @@ class StripeWebhookController extends Controller
             (string) ($session->payment_intent ?? ''),
         );
 
+        // Vault the card used for this payment (setup_future_usage) so it's
+        // reusable in P2. Guarded: a vaulting failure must NEVER undo the
+        // payment/reinstatement above. NOT a charge — P1 stores only.
+        try {
+            $stripe->vaultCardFromSession($invoice->fresh() ?? $invoice, (string) $session->id);
+        } catch (\Throwable $e) {
+            Log::warning('stripe.vault_failed', [
+                'invoice_id' => $invoice->id,
+                'session_id' => $session->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         Log::info('stripe.checkout_completed', [
             'invoice_id' => $invoice->id,
             'session_id' => $session->id,

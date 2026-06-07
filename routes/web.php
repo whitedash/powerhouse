@@ -60,6 +60,7 @@ use App\Http\Controllers\Portal\ConnectedAppController as PortalConnectedAppCont
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
 use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
 use App\Http\Controllers\Portal\PasswordController as PortalPasswordController;
+use App\Http\Controllers\Portal\PaymentMethodController as PortalPaymentMethodController;
 use App\Http\Controllers\Portal\ProductLaunchController as PortalProductLaunchController;
 use App\Http\Controllers\Portal\ProductsController as PortalProductsController;
 use App\Http\Controllers\Portal\SubscriptionController as PortalSubscriptionController;
@@ -527,6 +528,9 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // Toggle a customer's auto-suspension exemption (super_admin only).
     Route::post('/customers/{id}/exemption', [InternalCustomerController::class, 'toggleExemption'])
         ->whereNumber('id')->middleware('role:super_admin')->name('internal.customers.exemption');
+    // Billing P1: staff toggle of the per-customer auto-collect intent.
+    Route::post('/customers/{id}/auto-collect', [InternalCustomerController::class, 'updateAutoCollect'])
+        ->whereNumber('id')->name('internal.customers.auto-collect');
 
     // Manual re-queue of a failed/abandoned webhook delivery.
     Route::post('/webhooks/deliveries/{id}/retry', [InternalSettingsController::class, 'retryWebhookDelivery'])
@@ -951,6 +955,13 @@ Route::prefix('portal')->middleware('auth.portal')->group(function () {
     Route::post('/support', [PortalSupportController::class, 'store'])->name('portal.support.store');
     Route::get('/support/{id}', [PortalSupportController::class, 'show'])->name('portal.support.show');
     Route::post('/support/{id}/reply', [PortalSupportController::class, 'reply'])->name('portal.support.reply');
+
+    // Saved payment methods (Billing P1) — manage cards; NO charging here.
+    Route::get('/payment-methods', [PortalPaymentMethodController::class, 'index'])->name('portal.payment-methods.index');
+    Route::post('/payment-methods/setup-intent', [PortalPaymentMethodController::class, 'setupIntent'])->name('portal.payment-methods.setup-intent');
+    Route::post('/payment-methods', [PortalPaymentMethodController::class, 'store'])->name('portal.payment-methods.store');
+    Route::post('/payment-methods/{id}/default', [PortalPaymentMethodController::class, 'setDefault'])->whereNumber('id')->name('portal.payment-methods.default');
+    Route::delete('/payment-methods/{id}', [PortalPaymentMethodController::class, 'destroy'])->whereNumber('id')->name('portal.payment-methods.destroy');
 
     Route::get('/account', [PortalAccountController::class, 'index'])->name('portal.account.index');
     Route::put('/account', [PortalAccountController::class, 'update'])->name('portal.account.update');

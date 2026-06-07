@@ -20,6 +20,7 @@ use App\Models\CustomerProduct;
 use App\Models\CustomerReferral;
 use App\Models\Lead;
 use App\Models\Note;
+use App\Models\PaymentMethod;
 use App\Models\Person;
 use App\Models\PortalUser;
 use App\Models\Product;
@@ -417,6 +418,20 @@ class CustomerController extends Controller
                 'total_spend' => $totalSpend,
                 'open_invoices' => $openInvoiceCount,
                 'open_tickets' => $openTicketCount,
+
+                // Billing P1: per-customer auto-collect intent + saved cards
+                // (SAFE meta only — brand/last4/exp via the model accessor).
+                'auto_collect' => (bool) $customer->auto_collect,
+                'payment_methods' => PaymentMethod::where('customer_id', $customer->id)
+                    ->where('status', 'active')
+                    ->orderByDesc('is_default')
+                    ->orderByDesc('id')
+                    ->get()
+                    ->map(fn (PaymentMethod $pm): array => [
+                        'id' => $pm->id,
+                        'label' => $pm->label,
+                        'is_default' => $pm->is_default,
+                    ])->all(),
 
                 'referrer' => $customer->referral && $referrerUser
                     ? [
@@ -1159,6 +1174,30 @@ class CustomerController extends Controller
         return back()->with('success', $data['exempt']
             ? 'Customer exempted from auto-suspension.'
             : 'Auto-suspension exemption removed.');
+    }
+
+    /**
+     * Toggle the per-customer auto-collect intent (Billing P1). Stored only —
+     * nothing charges off-session until P2.
+     */
+    public function updateAutoCollect(int $id, Request $request): RedirectResponse
+    {
+        $customer = Customer::findOrFail($id);
+        Gate::authorize('update', $customer);
+
+        $data = $request->validate([
+            'auto_collect' => ['required', 'boolean'],
+        ]);
+
+        DB::transaction(function () use ($customer, $data, $request): void {
+            $before = ['auto_collect' => (bool) $customer->auto_collect];
+            $customer->update(['auto_collect' => $data['auto_collect']]);
+            $this->logActivity($request, 'customer.auto_collect_changed', $customer, $before, [
+                'auto_collect' => $data['auto_collect'],
+            ]);
+        });
+
+        return back()->with('success', 'Auto-collect '.($data['auto_collect'] ? 'enabled.' : 'disabled.'));
     }
 
     /**

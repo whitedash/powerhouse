@@ -85,6 +85,9 @@ class Customer extends Model
         // sweep skips this customer entirely.
         'exempt_from_auto_suspend',
         'exempt_reason',
+        // Per-customer auto-collect intent (Billing P1). Stored/toggled only;
+        // P2 will charge the default saved card off-session when true.
+        'auto_collect',
         // GDPR (Articles 17 + 20). erasure_* track a right-to-erasure
         // request and its completion; data_export_last_at the last
         // right-to-portability export.
@@ -102,6 +105,7 @@ class Customer extends Model
             'portal_last_login_at' => 'datetime',
             'portal_login_count' => 'integer',
             'exempt_from_auto_suspend' => 'boolean',
+            'auto_collect' => 'boolean',
             'erasure_requested_at' => 'datetime',
             'erasure_completed_at' => 'datetime',
             'data_export_last_at' => 'datetime',
@@ -141,6 +145,23 @@ class Customer extends Model
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    /** The Stripe-customer mapping for the single GBP account (Billing P1). */
+    public function stripeCustomer(): HasOne
+    {
+        return $this->hasOne(StripeCustomer::class);
+    }
+
+    /** Saved (vaulted) cards — active ones usable for collection. */
+    public function paymentMethods(): HasMany
+    {
+        return $this->hasMany(PaymentMethod::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
     }
 
     public function domains(): HasMany

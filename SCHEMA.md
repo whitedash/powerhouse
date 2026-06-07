@@ -27,6 +27,9 @@ exempt_from_auto_suspend BOOLEAN NOT NULL DEFAULT false
   -- When true the invoices:process-suspensions sweep skips this
   -- customer (Webhooks + Auto-Suspension sprint).
 exempt_reason VARCHAR(500) nullable
+auto_collect BOOLEAN DEFAULT false
+  -- Billing P1: per-customer auto-collect intent. Stored/toggled only;
+  -- P2 charges the default saved card off-session when true.
 erasure_requested_at TIMESTAMP nullable
   -- GDPR Art. 17: when a right-to-erasure request was logged.
 erasure_completed_at TIMESTAMP nullable
@@ -235,6 +238,44 @@ discount_value DECIMAL(10,2) DEFAULT 0,
 discount_amount DECIMAL(10,2) DEFAULT 0
   -- Cooked discount £ — stored for audit; never recomputed on read.
 sort_order INT DEFAULT 0, created_at, updated_at
+
+## stripe_customers   (Billing P1)
+id, customer_id FK customers (cascade) UNIQUE,
+stripe_customer_id VARCHAR(100) UNIQUE,
+created_at, updated_at
+-- The Customer ↔ Stripe-Customer mapping for the single GBP Stripe
+-- account. Its own table (not a bare customers column) so a future
+-- per-billing-entity / per-Stripe-account split is ADDITIVE: add
+-- billing_entity_id + relax UNIQUE to (customer_id, billing_entity_id).
+
+## payment_methods   (Billing P1)
+id, customer_id FK customers (cascade),
+stripe_customer_id VARCHAR(100),
+stripe_payment_method_id VARCHAR(100) UNIQUE,
+brand VARCHAR(40) nullable, last4 VARCHAR(4) nullable,
+exp_month TINYINT UNSIGNED nullable, exp_year SMALLINT UNSIGNED nullable,
+is_default BOOLEAN DEFAULT false,
+status ENUM(active|removed) DEFAULT active,
+created_at, updated_at
+INDEX (customer_id, status)
+-- Vaulted cards. SAFE metadata only — NEVER the PAN/CVC/secret; the
+-- card lives in Stripe (stripe_payment_method_id). Future per-entity
+-- split adds billing_entity_id.
+
+## payments   (Billing P1 — payments ledger)
+id, invoice_id FK invoices (cascade),
+customer_id FK customers (cascade),
+amount DECIMAL(10,2), currency CHAR(3) DEFAULT 'gbp',
+rail ENUM(stripe|manual|bank|other) DEFAULT stripe,
+stripe_payment_intent_id VARCHAR(100) nullable,
+status ENUM(pending|succeeded|failed) DEFAULT succeeded,
+attempted_at TIMESTAMP nullable,
+failure_reason VARCHAR(500) nullable,
+created_by FK users nullable (SET NULL),
+created_at, updated_at
+INDEX (invoice_id), (customer_id, status)
+-- One row per settlement (on-session Stripe checkout + manual mark-paid).
+-- Stood up before P2's off-session charging so the ledger is complete.
 
 ## maavelus_statements
 id, period_start DATE UNIQUE, period_end DATE,
