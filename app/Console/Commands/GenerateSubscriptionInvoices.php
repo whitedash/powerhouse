@@ -7,6 +7,7 @@ use App\Models\BillingEntity;
 use App\Models\CustomerProduct;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
+use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -78,6 +79,16 @@ class GenerateSubscriptionInvoices extends Command
             ? BillingEntity::where('is_active', true)->orderBy('id')->value('id')
             : null;
 
+        // invoices.created_by is NOT NULL; a CLI/cron run has no auth user,
+        // so attribute system invoices to a super_admin (else the first user).
+        $systemUserId = User::where('role', 'super_admin')->orderBy('id')->value('id')
+            ?? User::orderBy('id')->value('id');
+        if ($systemUserId === null) {
+            $this->error('No user to attribute system invoices to — aborting.');
+
+            return self::FAILURE;
+        }
+
         $generated = 0;
         $skipped = 0;
 
@@ -120,7 +131,7 @@ class GenerateSubscriptionInvoices extends Command
                     continue;
                 }
 
-                DB::transaction(function () use ($subscription, $entityId, $price, $description, $today): void {
+                DB::transaction(function () use ($subscription, $entityId, $price, $description, $today, $systemUserId): void {
                     $vatRate = self::DEFAULT_VAT_RATE;
                     $vatAmount = round($price * ($vatRate / 100), 2);
                     $total = round($price + $vatAmount, 2);
@@ -146,6 +157,7 @@ class GenerateSubscriptionInvoices extends Command
                         'issue_date' => $today->toDateString(),
                         'due_date' => $dueDate->toDateString(),
                         'notes' => 'Auto-generated from subscription #'.$subscription->id.'.',
+                        'created_by' => $systemUserId,
                     ]);
 
                     InvoiceLine::create([
