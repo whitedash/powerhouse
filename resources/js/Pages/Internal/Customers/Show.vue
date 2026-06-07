@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     Dialog,
@@ -169,19 +169,40 @@ function formatMoney(value) {
 
 /* ─── Tabs ─── */
 const activeTab = ref('overview');
+// Assets consolidates the four asset surfaces (Subscriptions / Websites /
+// Domains / Projects); count is their combined total.
+const assetsCount = computed(() =>
+    props.customer.products.length
+    + (props.customer.websites ?? []).length
+    + props.customer.domains.length
+    + (props.customer.projects ?? []).length
+);
 const tabs = computed(() => [
     { key: 'overview',   label: 'Overview' },
     { key: 'invoices',   label: 'Invoices',   count: props.customer.invoices.length },
-    { key: 'products',   label: 'Products',   count: props.customer.products.length },
-    { key: 'websites',   label: 'Websites',   count: (props.customer.websites ?? []).length },
+    { key: 'assets',     label: 'Assets',     count: assetsCount.value },
     { key: 'contracts',  label: 'Contracts',  count: contracts.value.length },
     { key: 'proposals',  label: 'Proposals',  count: (props.customer.proposals ?? []).length },
-    { key: 'projects',   label: 'Projects',   count: (props.customer.projects ?? []).length },
     { key: 'support',    label: 'Support',    count: props.customer.open_tickets },
     { key: 'activities', label: 'Activities', count: props.customer.tasks.length },
     { key: 'activity',   label: 'Audit log' },
     { key: 'notes',      label: 'Notes',      count: props.customer.notes.length },
 ]);
+
+// Deep-link handling. There was no ?tab= support before; add it so the new
+// consolidated tab is linkable AND stale links don't dead-end: the old asset
+// tab keys (products/websites/projects/domains) fall back to Assets, any other
+// valid key selects that tab, anything else stays on the default (overview).
+const LEGACY_ASSET_TABS = ['products', 'websites', 'projects', 'domains'];
+onMounted(() => {
+    const requested = new URLSearchParams(window.location.search).get('tab');
+    if (! requested) return;
+    if (LEGACY_ASSET_TABS.includes(requested)) {
+        activeTab.value = 'assets';
+    } else if (tabs.value.some((t) => t.key === requested)) {
+        activeTab.value = requested;
+    }
+});
 
 /* ─── Breadcrumbs / header data ─── */
 const breadcrumbs = computed(() => [
@@ -2352,45 +2373,7 @@ function submitProject() {
                         </div>
                     </section>
 
-                    <!-- Domains -->
-                    <section class="card">
-                        <header class="card-header">
-                            <div class="h-icon"><IconWorld :size="16" stroke-width="1.75" /></div>
-                            <div>
-                                <h3>Domains</h3>
-                                <div class="sub">{{ customer.domains.length }} domain{{ customer.domains.length === 1 ? '' : 's' }}</div>
-                            </div>
-                            <div class="right">
-                                <Link href="/domains" class="ghost-link">Manage DNS<IconArrowRight :size="14" stroke-width="1.75" /></Link>
-                            </div>
-                        </header>
-                        <div v-if="customer.domains.length">
-                            <div v-for="d in customer.domains" :key="d.id" class="dom-row">
-                                <IconWorld class="world" :size="18" stroke-width="1.75" />
-                                <div>
-                                    <div class="dom-name">{{ d.domain }}</div>
-                                    <div class="dom-sub">
-                                        <template v-if="d.is_in_cloudflare">Cloudflare</template>
-                                        <template v-else>External</template>
-                                        <template v-if="d.expiry_date"> · expires {{ formatDate(d.expiry_date) }}</template>
-                                    </div>
-                                </div>
-                                <div class="dom-tags">
-                                    <span v-if="d.ssl_expiry_date" class="tiny-badge ssl">
-                                        <IconCheck :size="11" stroke-width="2" />
-                                        SSL
-                                    </span>
-                                    <span class="tiny-badge" :class="domainTagClass(d.status)">{{ d.status }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div v-else class="tab-empty" style="padding: 28px 18px;">
-                            <p>No domains tracked.</p>
-                        </div>
-                        <div class="add-line">
-                            <a href="#" class="ghost-link" @click.prevent="openCreateDomain"><IconPlus :size="14" stroke-width="1.75" />Add domain</a>
-                        </div>
-                    </section>
+                    <!-- Domains moved to the consolidated Assets tab (Slice 2). -->
 
                     <!-- Archive button (deliberately bottom-right of the right col) -->
                     <div style="display: flex; justify-content: flex-end; padding-top: 4px;">
@@ -2448,93 +2431,120 @@ function submitProject() {
                 </section>
             </div>
 
-            <!-- ═══ PRODUCTS TAB ═══ -->
-            <div v-else-if="activeTab === 'products'" style="margin: 0 -24px -24px; padding: 24px;">
-                <section class="card">
-                    <header class="card-header">
-                        <div class="h-icon gold"><IconLayoutGrid :size="16" stroke-width="1.75" /></div>
-                        <div>
-                            <h3>Products</h3>
-                            <div class="sub">All product subscriptions for this customer</div>
+            <!-- Products consolidated into the Assets tab as "Subscriptions" (Slice 2). -->
+
+            <!-- ═══ ASSETS TAB — Subscriptions · Websites · Domains · Projects (Slice 2) ═══ -->
+            <div v-else-if="activeTab === 'assets'" class="cust-assets" style="margin: 0 -24px -24px; padding: 24px;">
+                <div class="cw-head">
+                    <h2 class="cw-title">Assets</h2>
+                    <Menu as="div" class="dd-menu">
+                        <MenuButton class="btn btn-primary btn-sm">
+                            <IconPlus :size="14" stroke-width="1.75" />
+                            Add
+                        </MenuButton>
+                        <MenuItems class="dd-popover right-align">
+                            <MenuItem v-slot="{ active }">
+                                <button type="button" :class="['dd-option', { active }]" @click="openCreateDomain">Domain</button>
+                            </MenuItem>
+                            <MenuItem v-slot="{ active }">
+                                <button type="button" :class="['dd-option', { active }]" @click="openEnableProduct">Subscription</button>
+                            </MenuItem>
+                            <MenuItem v-slot="{ active }">
+                                <button type="button" :class="['dd-option', { active }]" @click="openCreateWebsite">Website</button>
+                            </MenuItem>
+                            <MenuItem v-slot="{ active }">
+                                <button type="button" :class="['dd-option', { active }]" @click="openCreateProject">Project</button>
+                            </MenuItem>
+                        </MenuItems>
+                    </Menu>
+                </div>
+
+                <div class="assets-stack">
+                    <!-- Subscriptions -->
+                    <section class="card">
+                        <header class="card-header">
+                            <div class="h-icon gold"><IconLayoutGrid :size="16" stroke-width="1.75" /></div>
+                            <div>
+                                <h3>Subscriptions</h3>
+                                <div class="sub">All product subscriptions for this customer</div>
+                            </div>
+                            <div class="right">
+                                <button type="button" class="btn btn-primary btn-sm" @click="openEnableProduct">
+                                    <IconPlus :size="14" stroke-width="1.75" />
+                                    Enable product
+                                </button>
+                            </div>
+                        </header>
+                        <div v-if="customer.products.length">
+                            <div v-for="p in customer.products" :key="p.id" class="prod-row">
+                                <div class="prod-logo" :class="pbClassForSlug(p.slug)">{{ p.name?.[0] || '?' }}</div>
+                                <div class="prod-meta">
+                                    <div class="pname">{{ p.name }}<span class="role">· {{ p.plan || 'No plan' }}</span></div>
+                                    <div v-if="p.label" class="cp-label">{{ p.label }}</div>
+                                    <div class="pdesc">
+                                        <template v-if="p.price_monthly">{{ formatGBP(p.price_monthly) }}/mo</template>
+                                        <template v-else>—</template>
+                                    </div>
+                                    <div class="cp-dates">
+                                        <span v-if="p.started_at" class="cp-date">
+                                            <IconCalendarCheck :size="12" stroke-width="1.75" />
+                                            Active since {{ formatDate(p.started_at) }}
+                                        </span>
+                                        <span v-if="p.next_billing_date && p.status === 'active'" class="cp-date cp-date-renew">
+                                            <IconRefresh :size="12" stroke-width="1.75" />
+                                            Renews {{ formatDate(p.next_billing_date) }}
+                                        </span>
+                                        <span v-if="p.trial_ends_at && p.status === 'trial'" class="cp-date cp-date-trial">
+                                            <IconClock :size="12" stroke-width="1.75" />
+                                            Trial ends {{ formatDate(p.trial_ends_at) }}
+                                        </span>
+                                        <span v-if="p.cancels_at" class="cp-date cp-date-cancels">
+                                            <IconCalendarX :size="12" stroke-width="1.75" />
+                                            Cancels {{ formatDate(p.cancels_at) }}
+                                        </span>
+                                        <span v-if="p.cancelled_at && p.status === 'cancelled'" class="cp-date cp-date-cancelled">
+                                            <IconBan :size="12" stroke-width="1.75" />
+                                            Cancelled {{ formatDate(p.cancelled_at) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="prod-actions">
+                                    <span class="badge" :class="{ 'badge-active': p.status === 'active', 'badge-trial': p.status === 'trial', 'badge-inactive': ['suspended', 'cancelled'].includes(p.status) }">{{ p.status }}</span>
+                                    <span v-if="p.status === 'suspended' && p.suspended_by_system" class="badge badge-pending badge-sm" title="Auto-suspended for non-payment">Auto</span>
+                                    <Menu v-if="['active', 'trial', 'suspended'].includes(p.status)" as="div" class="dd-menu">
+                                        <MenuButton class="icon-btn" aria-label="Product actions">
+                                            <IconDots :size="16" stroke-width="1.75" />
+                                        </MenuButton>
+                                        <MenuItems class="dd-popover right-align">
+                                            <MenuItem v-if="p.status === 'suspended'" v-slot="{ active }">
+                                                <button type="button" :class="['dd-option', { active }]" @click="reinstateProduct(p)">
+                                                    Reinstate product
+                                                </button>
+                                            </MenuItem>
+                                            <MenuItem v-else v-slot="{ active }">
+                                                <button type="button" :class="['dd-option', { active }]" style="color: var(--warning);" @click="askSuspend(p)">
+                                                    Suspend product
+                                                </button>
+                                            </MenuItem>
+                                        </MenuItems>
+                                    </Menu>
+                                </div>
+                            </div>
                         </div>
-                        <div class="right">
-                            <button type="button" class="btn btn-primary btn-sm" @click="openEnableProduct">
+                        <div v-else class="tab-empty">
+                            <h3>No products yet</h3>
+                            <p>Enable a product to start tracking subscriptions for this customer.</p>
+                            <button type="button" class="btn btn-primary btn-sm" style="margin-top: 12px;" @click="openEnableProduct">
                                 <IconPlus :size="14" stroke-width="1.75" />
                                 Enable product
                             </button>
                         </div>
-                    </header>
-                    <div v-if="customer.products.length">
-                        <div v-for="p in customer.products" :key="p.id" class="prod-row">
-                            <div class="prod-logo" :class="pbClassForSlug(p.slug)">{{ p.name?.[0] || '?' }}</div>
-                            <div class="prod-meta">
-                                <div class="pname">{{ p.name }}<span class="role">· {{ p.plan || 'No plan' }}</span></div>
-                                <div v-if="p.label" class="cp-label">{{ p.label }}</div>
-                                <div class="pdesc">
-                                    <template v-if="p.price_monthly">{{ formatGBP(p.price_monthly) }}/mo</template>
-                                    <template v-else>—</template>
-                                </div>
-                                <div class="cp-dates">
-                                    <span v-if="p.started_at" class="cp-date">
-                                        <IconCalendarCheck :size="12" stroke-width="1.75" />
-                                        Active since {{ formatDate(p.started_at) }}
-                                    </span>
-                                    <span v-if="p.next_billing_date && p.status === 'active'" class="cp-date cp-date-renew">
-                                        <IconRefresh :size="12" stroke-width="1.75" />
-                                        Renews {{ formatDate(p.next_billing_date) }}
-                                    </span>
-                                    <span v-if="p.trial_ends_at && p.status === 'trial'" class="cp-date cp-date-trial">
-                                        <IconClock :size="12" stroke-width="1.75" />
-                                        Trial ends {{ formatDate(p.trial_ends_at) }}
-                                    </span>
-                                    <span v-if="p.cancels_at" class="cp-date cp-date-cancels">
-                                        <IconCalendarX :size="12" stroke-width="1.75" />
-                                        Cancels {{ formatDate(p.cancels_at) }}
-                                    </span>
-                                    <span v-if="p.cancelled_at && p.status === 'cancelled'" class="cp-date cp-date-cancelled">
-                                        <IconBan :size="12" stroke-width="1.75" />
-                                        Cancelled {{ formatDate(p.cancelled_at) }}
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="prod-actions">
-                                <span class="badge" :class="{ 'badge-active': p.status === 'active', 'badge-trial': p.status === 'trial', 'badge-inactive': ['suspended', 'cancelled'].includes(p.status) }">{{ p.status }}</span>
-                                <span v-if="p.status === 'suspended' && p.suspended_by_system" class="badge badge-pending badge-sm" title="Auto-suspended for non-payment">Auto</span>
-                                <Menu v-if="['active', 'trial', 'suspended'].includes(p.status)" as="div" class="dd-menu">
-                                    <MenuButton class="icon-btn" aria-label="Product actions">
-                                        <IconDots :size="16" stroke-width="1.75" />
-                                    </MenuButton>
-                                    <MenuItems class="dd-popover right-align">
-                                        <MenuItem v-if="p.status === 'suspended'" v-slot="{ active }">
-                                            <button type="button" :class="['dd-option', { active }]" @click="reinstateProduct(p)">
-                                                Reinstate product
-                                            </button>
-                                        </MenuItem>
-                                        <MenuItem v-else v-slot="{ active }">
-                                            <button type="button" :class="['dd-option', { active }]" style="color: var(--warning);" @click="askSuspend(p)">
-                                                Suspend product
-                                            </button>
-                                        </MenuItem>
-                                    </MenuItems>
-                                </Menu>
-                            </div>
-                        </div>
-                    </div>
-                    <div v-else class="tab-empty">
-                        <h3>No products yet</h3>
-                        <p>Enable a product to start tracking subscriptions for this customer.</p>
-                        <button type="button" class="btn btn-primary btn-sm" style="margin-top: 12px;" @click="openEnableProduct">
-                            <IconPlus :size="14" stroke-width="1.75" />
-                            Enable product
-                        </button>
-                    </div>
-                </section>
-            </div>
+                    </section>
 
-            <!-- ═══ WEBSITES TAB ═══ -->
-            <div v-else-if="activeTab === 'websites'" class="cust-websites" style="margin: 0 -24px -24px; padding: 24px;">
-                <div class="cw-head">
-                    <h2 class="cw-title">Websites</h2>
+                    <!-- Websites -->
+                    <div class="cust-websites">
+                        <div class="cw-head">
+                            <h2 class="cw-title">Websites</h2>
                     <button type="button" class="btn btn-primary btn-sm" @click="openCreateWebsite">
                         <IconPlus :size="14" stroke-width="1.75" />
                         Add website
@@ -2659,13 +2669,101 @@ function submitProject() {
                     </div>
                 </div>
 
-                <div v-else class="tab-empty">
-                    <h3>No websites yet</h3>
-                    <p>Add a website to track hosting usage, SSL, and PageSpeed performance.</p>
-                    <button type="button" class="btn btn-primary btn-sm" style="margin-top: 12px;" @click="openCreateWebsite">
-                        <IconPlus :size="14" stroke-width="1.75" />
-                        Add website
-                    </button>
+                        <div v-else class="tab-empty">
+                            <h3>No websites yet</h3>
+                            <p>Add a website to track hosting usage, SSL, and PageSpeed performance.</p>
+                            <button type="button" class="btn btn-primary btn-sm" style="margin-top: 12px;" @click="openCreateWebsite">
+                                <IconPlus :size="14" stroke-width="1.75" />
+                                Add website
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Domains (first-class section; was an overview summary card) -->
+                    <section class="card">
+                        <header class="card-header">
+                            <div class="h-icon"><IconWorld :size="16" stroke-width="1.75" /></div>
+                            <div>
+                                <h3>Domains</h3>
+                                <div class="sub">{{ customer.domains.length }} domain{{ customer.domains.length === 1 ? '' : 's' }}</div>
+                            </div>
+                            <div class="right">
+                                <Link href="/domains" class="ghost-link">Manage DNS<IconArrowRight :size="14" stroke-width="1.75" /></Link>
+                            </div>
+                        </header>
+                        <div v-if="customer.domains.length">
+                            <div v-for="d in customer.domains" :key="d.id" class="dom-row">
+                                <IconWorld class="world" :size="18" stroke-width="1.75" />
+                                <div>
+                                    <div class="dom-name">{{ d.domain }}</div>
+                                    <div class="dom-sub">
+                                        <template v-if="d.is_in_cloudflare">Cloudflare</template>
+                                        <template v-else>External</template>
+                                        <template v-if="d.expiry_date"> · expires {{ formatDate(d.expiry_date) }}</template>
+                                    </div>
+                                </div>
+                                <div class="dom-tags">
+                                    <span v-if="d.ssl_expiry_date" class="tiny-badge ssl">
+                                        <IconCheck :size="11" stroke-width="2" />
+                                        SSL
+                                    </span>
+                                    <span class="tiny-badge" :class="domainTagClass(d.status)">{{ d.status }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="tab-empty" style="padding: 28px 18px;">
+                            <p>No domains tracked.</p>
+                        </div>
+                        <div class="add-line">
+                            <a href="#" class="ghost-link" @click.prevent="openCreateDomain"><IconPlus :size="14" stroke-width="1.75" />Add domain</a>
+                        </div>
+                    </section>
+
+                    <!-- Projects -->
+                    <div class="cust-projects">
+                        <section class="card">
+                            <header class="card-header">
+                                <div class="h-icon"><IconUsersGroup :size="16" stroke-width="1.75" /></div>
+                                <div>
+                                    <h3>Projects</h3>
+                                    <p class="card-sub">Active and completed projects for this customer.</p>
+                                </div>
+                                <button type="button" class="ghost-link" style="margin-left: auto;" @click="openCreateProject">
+                                    <IconPlus :size="14" stroke-width="1.75" />
+                                    New project
+                                </button>
+                            </header>
+
+                            <div v-if="(customer.projects ?? []).length === 0" class="cp-empty">
+                                <p class="muted">No projects for this customer yet.</p>
+                                <button type="button" class="ghost-link" @click="openCreateProject">+ Create first project</button>
+                            </div>
+
+                            <div v-else class="cust-projects-grid">
+                                <a
+                                    v-for="p in customer.projects"
+                                    :key="p.id"
+                                    :href="`/projects/${p.id}`"
+                                    class="cust-project-card"
+                                    :class="{ overdue: p.is_overdue }"
+                                >
+                                    <div class="cust-project-colour" :style="{ background: p.colour }"></div>
+                                    <div class="cust-project-body">
+                                        <div class="cust-project-title">{{ p.title }}</div>
+                                        <div class="cust-project-meta">
+                                            <span class="status-badge" :class="`status-${p.status}`">{{ p.status }}</span>
+                                            <span class="priority-dot" :class="`pri-${p.priority}`"></span>
+                                            <span v-if="p.due_date" :class="['muted', 'small', { 'text-danger': p.is_overdue }]">Due {{ p.due_date }}</span>
+                                        </div>
+                                        <div class="project-progress-bar">
+                                            <div class="project-progress-fill" :style="{ width: p.progress + '%' }"></div>
+                                        </div>
+                                        <div class="muted small">{{ p.completed_count }}/{{ p.tasks_count }} tasks · {{ p.progress }}%</div>
+                                    </div>
+                                </a>
+                            </div>
+                        </section>
+                    </div>
                 </div>
             </div>
 
@@ -2810,51 +2908,7 @@ function submitProject() {
                 </section>
             </div>
 
-            <!-- ═══ PROJECTS TAB ═══ -->
-            <div v-else-if="activeTab === 'projects'" class="cust-projects" style="margin: 0 -24px -24px; padding: 24px;">
-                <section class="card">
-                    <header class="card-header">
-                        <div class="h-icon"><IconUsersGroup :size="16" stroke-width="1.75" /></div>
-                        <div>
-                            <h3>Projects</h3>
-                            <p class="card-sub">Active and completed projects for this customer.</p>
-                        </div>
-                        <button type="button" class="ghost-link" style="margin-left: auto;" @click="openCreateProject">
-                            <IconPlus :size="14" stroke-width="1.75" />
-                            New project
-                        </button>
-                    </header>
-
-                    <div v-if="(customer.projects ?? []).length === 0" class="cp-empty">
-                        <p class="muted">No projects for this customer yet.</p>
-                        <button type="button" class="ghost-link" @click="openCreateProject">+ Create first project</button>
-                    </div>
-
-                    <div v-else class="cust-projects-grid">
-                        <a
-                            v-for="p in customer.projects"
-                            :key="p.id"
-                            :href="`/projects/${p.id}`"
-                            class="cust-project-card"
-                            :class="{ overdue: p.is_overdue }"
-                        >
-                            <div class="cust-project-colour" :style="{ background: p.colour }"></div>
-                            <div class="cust-project-body">
-                                <div class="cust-project-title">{{ p.title }}</div>
-                                <div class="cust-project-meta">
-                                    <span class="status-badge" :class="`status-${p.status}`">{{ p.status }}</span>
-                                    <span class="priority-dot" :class="`pri-${p.priority}`"></span>
-                                    <span v-if="p.due_date" :class="['muted', 'small', { 'text-danger': p.is_overdue }]">Due {{ p.due_date }}</span>
-                                </div>
-                                <div class="project-progress-bar">
-                                    <div class="project-progress-fill" :style="{ width: p.progress + '%' }"></div>
-                                </div>
-                                <div class="muted small">{{ p.completed_count }}/{{ p.tasks_count }} tasks · {{ p.progress }}%</div>
-                            </div>
-                        </a>
-                    </div>
-                </section>
-            </div>
+            <!-- Projects consolidated into the Assets tab (Slice 2). -->
 
             <!-- ═══ SUPPORT TAB ═══ -->
             <div v-else-if="activeTab === 'support'" style="margin: 0 -24px -24px; padding: 24px;">
@@ -4771,6 +4825,10 @@ function submitProject() {
 <style scoped>
 .slide-over { position: fixed; inset: 0; z-index: 40; }
 .slide-over-form { height: 100%; display: flex; flex-direction: column; }
+
+/* Assets tab — stack the four relocated sections (Subscriptions / Websites /
+   Domains / Projects) with consistent spacing. */
+.cust-assets .assets-stack { display: flex; flex-direction: column; gap: 24px; }
 
 /* Non-blocking renewal hint in the Add-domain modal (auto-renew + no TLD). */
 .domain-renewal-warn {
