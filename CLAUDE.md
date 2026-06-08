@@ -32,6 +32,16 @@ both **global**. Do not redefine them per-namespace unless you need
 genuinely different values — a missing namespaced copy used to leave
 pages with zero padding.
 
+### SECTION-PANEL RULE (mandatory)
+Every detail/section panel MUST be `<section class="card">` (global
+`.card`) with a `.card-header`/`.card-head` and a **padded body**.
+NEVER hand-roll a section container with raw/inline-styled divs.
+Empty states, footers, and action rows live **INSIDE** the padded
+body (they inherit the inner horizontal padding) — never as flush
+siblings of `.card`. Full spec + DO/DON'T + the grep guard
+(`composer audit:sections`) live in **CONVENTIONS.md** → "Section
+panels". This is a recurring bug class — read it before adding a panel.
+
 ### NAMESPACING RULE (mandatory)
 Any CSS rule that overrides a shared primitive (`.card-*`, `.form-*`,
 `.table-*`, `.badge-*`, `.btn-*`) MUST be scoped to a page or
