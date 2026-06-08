@@ -70,6 +70,17 @@ Schedule::command('invoices:collect-due')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Dunning (Billing P3) — retry failed off-session collections on a cadence,
+// email the customer on every failed attempt, and escalate exhausted invoices
+// into the existing suspend backbone. Slots in AFTER collect-due (08:30) and
+// BEFORE reminders (09:00), so a recovered invoice is paid before reminders run
+// and an in-dunning invoice is excluded from the generic reminder.
+Schedule::command('billing:process-dunning')
+    ->dailyAt('08:45')
+    ->timezone('Europe/London')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Auto-close support tickets idle in awaiting_customer for longer
 // than the configured threshold (Settings → Notifications). Runs
 // in the small hours so any morning team activity wins the

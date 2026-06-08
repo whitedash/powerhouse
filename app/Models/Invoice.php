@@ -140,6 +140,16 @@ class Invoice extends Model
     }
 
     /**
+     * Settlement attempts against this invoice (Billing P1+ ledger). Dunning
+     * (P3) derives its state from these rows — failed/requires_action attempts
+     * give the attempt count + cadence anchor, with no extra schema.
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    /**
      * The recurring template this invoice was generated from. Children
      * created by invoices:generate-recurring carry this back-pointer
      * so the detail page can render a "generated from" breadcrumb.

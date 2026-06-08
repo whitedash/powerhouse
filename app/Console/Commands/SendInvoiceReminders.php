@@ -63,6 +63,13 @@ class SendInvoiceReminders extends Command
         // reminders_paused, status) compound index covers this scan.
         $invoices = Invoice::whereIn('status', ['sent', 'overdue'])
             ->where('reminders_paused', false)
+            // Suppress generic reminders for invoices in active dunning (Billing
+            // P3): an invoice with a failed/requires_action off-session attempt
+            // gets dunning emails instead — no contradictory "please pay" +
+            // "we're retrying your card". The Step 1 overdue flip still runs.
+            ->whereDoesntHave('payments', fn ($q) => $q
+                ->where('rail', 'stripe')
+                ->whereIn('status', ['failed', 'requires_action']))
             ->where(function ($q) use ($now) {
                 $q->whereNull('next_reminder_at')
                     ->orWhere('next_reminder_at', '<=', $now);

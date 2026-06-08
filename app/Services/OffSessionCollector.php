@@ -257,7 +257,7 @@ class OffSessionCollector
             'payment_intent' => $payment->stripe_payment_intent_id,
         ]);
 
-        // Record + alert (no retry in P2).
+        // Record + alert.
         $this->alert('stripe.collect_failed', [
             'invoice_id' => $invoice->id,
             'customer_id' => $customer->id,
@@ -265,6 +265,11 @@ class OffSessionCollector
             'reason' => $reason,
             'payment_intent' => $payment->stripe_payment_intent_id,
         ]);
+
+        // P3: this is dunning attempt 1 — send the first failed-payment email.
+        // Retries (attempts 2–3) are owned by billing:process-dunning, which
+        // skips this invoice now that it carries a failed stripe attempt.
+        app(DunningService::class)->notifyFailure($invoice, 1, DunningService::MAX_ATTEMPTS);
 
         return $this->result($customer, $invoice, $outstanding, 'failed', $reason ?? 'charge_failed', $payment->stripe_payment_intent_id);
     }
