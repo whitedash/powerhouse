@@ -47,7 +47,7 @@ class StripeWebhookController extends Controller
         match ($event->type) {
             'checkout.session.completed' => $this->handleCheckoutCompleted($event->data->object, $stripe),
             'payment_intent.succeeded' => $this->handlePaymentSucceeded($event->data->object, $stripe),
-            'payment_intent.payment_failed' => $this->handlePaymentFailed($event->data->object),
+            'payment_intent.payment_failed' => $this->handlePaymentFailed($event->data->object, $stripe),
             default => null,
         };
 
@@ -102,14 +102,23 @@ class StripeWebhookController extends Controller
 
     private function handlePaymentSucceeded(StripeObject $intent, StripeService $stripe): void
     {
-        // Reconciles a payment that confirmed asynchronously (e.g. delayed
-        // capture) after checkout.session.completed already matched it by
-        // session id. Find the invoice via the intent we stamped earlier.
+        // Reconciles a payment that confirmed asynchronously. Two cases:
+        //  - on-session: checkout.session.completed already stamped the PI on the
+        //    invoice, so match by column.
+        //  - off-session (P2): the collect-due command created the PI; the
+        //    invoice column isn't set yet, so fall back to metadata.invoice_id.
         $invoice = Invoice::where('stripe_payment_intent_id', $intent->id)->first();
+        if (! $invoice) {
+            $invoiceId = $intent->metadata->invoice_id ?? null;
+            $invoice = $invoiceId ? Invoice::find((int) $invoiceId) : null;
+        }
         if (! $invoice || $invoice->status === 'paid') {
             return;
         }
 
+        // markInvoicePaid is idempotent and upserts the ledger row by PI id, so
+        // the command's inline success and this async event converge on ONE row
+        // and ONE paid mark — never a double-charge or duplicate record.
         $reinstated = $stripe->markInvoicePaid(
             $invoice,
             (string) ($invoice->stripe_checkout_session_id ?? ''),
@@ -119,14 +128,46 @@ class StripeWebhookController extends Controller
         $this->notifyReinstated($reinstated);
     }
 
-    private function handlePaymentFailed(StripeObject $intent): void
+    private function handlePaymentFailed(StripeObject $intent, StripeService $stripe): void
     {
+        // Attribute the failure via PI metadata (off-session) so it's recorded
+        // even when no invoice column was stamped.
+        $invoiceId = $intent->metadata->invoice_id ?? null;
+        $customerId = $intent->metadata->customer_id ?? null;
+        $lastError = $intent->last_payment_error ?? null;
+        $reason = is_object($lastError) ? ($lastError->message ?? 'payment_failed') : 'payment_failed';
+
+        // Record the failure in the ledger (P2) — upsert keyed by PI id so it
+        // converges with any `pending` row the command already wrote, never a
+        // duplicate. The webhook is the source of truth for the outcome.
+        if ($invoiceId !== null) {
+            // amount is in pence on the PI; default 0 if absent. updateOrCreate
+            // updates the command's `pending` row in place (amount already set)
+            // or inserts a complete row for a pure-webhook failure.
+            $amountPence = (int) ($intent['amount'] ?? 0);
+            $stripe->upsertStripePayment((string) $intent->id, [
+                'invoice_id' => (int) $invoiceId,
+                'customer_id' => $customerId !== null ? (int) $customerId : null,
+                'amount' => round($amountPence / 100, 2),
+                'currency' => 'gbp',
+                'status' => 'failed',
+                'failure_reason' => $reason,
+                'attempted_at' => now(),
+            ]);
+        }
+
         Log::warning('stripe.payment_failed', [
             'payment_intent' => $intent->id,
+            'invoice_id' => $invoiceId,
+            'reason' => $reason,
             // amount isn't declared on the base StripeObject; read it via
             // ArrayAccess so static analysis stays happy.
             'amount' => $intent['amount'] ?? null,
         ]);
+
+        if (function_exists('Sentry\captureMessage')) {
+            \Sentry\captureMessage('stripe.payment_failed pi='.$intent->id.' invoice='.($invoiceId ?? 'unknown'));
+        }
     }
 
     /**

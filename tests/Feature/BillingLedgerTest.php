@@ -135,13 +135,17 @@ class BillingLedgerTest extends TestCase
         $this->assertTrue($customer->fresh()->auto_collect);
     }
 
-    public function test_no_off_session_payment_intent_is_created_in_p1(): void
+    public function test_off_session_charging_is_confined_to_one_seam(): void
     {
-        // The only way to charge a saved card off-session is PaymentIntent::create
-        // (confirm + off_session). P1 must not contain it anywhere in the service.
+        // P2 introduces off-session charging, but it must live in exactly ONE
+        // place (chargeOffSession) — the on-session checkout path still vaults
+        // via setup_future_usage and never opts a checkout session into
+        // off_session. (Was: a P1 pin asserting no off-session PI existed at all;
+        // P2 is the stage that adds it, so the assertion is inverted here.)
         $source = file_get_contents(app_path('Services/StripeService.php'));
-        $this->assertStringNotContainsString('PaymentIntent::create', $source);
-        $this->assertStringNotContainsString("'off_session' => true", $source);
+        $this->assertSame(1, substr_count($source, 'PaymentIntent::create'), 'Exactly one off-session charge seam expected.');
+        $this->assertStringContainsString("'off_session' => true", $source);
+        $this->assertStringContainsString('setup_future_usage', $source);
     }
 
     protected function tearDown(): void

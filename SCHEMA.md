@@ -267,15 +267,16 @@ id, invoice_id FK invoices (cascade),
 customer_id FK customers (cascade),
 amount DECIMAL(10,2), currency CHAR(3) DEFAULT 'gbp',
 rail ENUM(stripe|manual|bank|other) DEFAULT stripe,
-stripe_payment_intent_id VARCHAR(100) nullable,
-status ENUM(pending|succeeded|failed) DEFAULT succeeded,
+stripe_payment_intent_id VARCHAR(100) nullable UNIQUE,   -- P2: unique for upsert-by-PI (NULLs allowed for manual/bank)
+status ENUM(pending|succeeded|failed|requires_action) DEFAULT succeeded,   -- requires_action added P2 (SCA)
 attempted_at TIMESTAMP nullable,
 failure_reason VARCHAR(500) nullable,
 created_by FK users nullable (SET NULL),
 created_at, updated_at
 INDEX (invoice_id), (customer_id, status)
--- One row per settlement (on-session Stripe checkout + manual mark-paid).
--- Stood up before P2's off-session charging so the ledger is complete.
+-- One row per settlement attempt. On-session checkout + manual mark-paid (P1)
+-- AND off-session collection (P2). The inline command success and the async
+-- webhook converge on ONE row via the UNIQUE(stripe_payment_intent_id) upsert.
 
 ## maavelus_statements
 id, period_start DATE UNIQUE, period_end DATE,

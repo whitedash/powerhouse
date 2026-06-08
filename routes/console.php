@@ -60,6 +60,16 @@ Schedule::command('invoices:generate-domain-renewals')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Off-session collection (Billing P2). Slots in AFTER all invoice generation
+// (last generator 08:00) and BEFORE reminders (09:00), so a just-collected
+// invoice is already marked paid and won't trigger a reminder. auto_collect is
+// the per-customer master gate; every attempt is recorded in the ledger.
+Schedule::command('invoices:collect-due')
+    ->dailyAt('08:30')
+    ->timezone('Europe/London')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Auto-close support tickets idle in awaiting_customer for longer
 // than the configured threshold (Settings → Notifications). Runs
 // in the small hours so any morning team activity wins the

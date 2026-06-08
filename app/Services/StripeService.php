@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Stripe\Checkout\Session;
 use Stripe\Customer as StripeCustomerApi;
+use Stripe\Exception\ApiErrorException;
+use Stripe\Exception\CardException;
+use Stripe\PaymentIntent;
 use Stripe\PaymentMethod as StripePaymentMethodApi;
 use Stripe\SetupIntent;
 use Stripe\Stripe;
@@ -370,6 +373,89 @@ class StripeService
     }
 
     /**
+     * Charge a saved card OFF-SESSION (Billing P2) and normalise the outcome.
+     *
+     * This is the ONLY place an off-session PaymentIntent is created. It mirrors
+     * the on-session checkout params (customer, card, GBP, metadata) plus
+     * off_session + confirm, and returns a flat, Stripe-free result so the
+     * OffSessionCollector — and its tests — never touch the SDK directly:
+     *
+     *   - succeeded        → the charge cleared synchronously.
+     *   - requires_action  → SCA / 3-D Secure needed; NOT a failure. The caller
+     *                        emails a checkout link so the customer can finish.
+     *   - failed           → declined or errored; failure_reason carries why.
+     *
+     * The deterministic idempotency key (per invoice + outstanding amount) means
+     * a re-run returns the SAME PaymentIntent instead of charging twice.
+     *
+     * @param  array<string, string>  $metadata
+     * @return array{status: string, payment_intent_id: ?string, failure_reason: ?string}
+     */
+    public function chargeOffSession(string $stripeCustomerId, string $paymentMethodId, int $amountPence, array $metadata, string $idempotencyKey): array
+    {
+        $this->configureStripe();
+
+        try {
+            $pi = PaymentIntent::create(
+                [
+                    'amount' => $amountPence,
+                    'currency' => 'gbp',
+                    'customer' => $stripeCustomerId,
+                    'payment_method' => $paymentMethodId,
+                    'off_session' => true,
+                    'confirm' => true,
+                    'payment_method_types' => ['card'],
+                    'metadata' => $metadata,
+                ],
+                ['idempotency_key' => $idempotencyKey],
+            );
+
+            $status = match ((string) $pi->status) {
+                'succeeded' => 'succeeded',
+                'requires_action', 'requires_source_action' => 'requires_action',
+                default => 'failed',
+            };
+
+            return [
+                'status' => $status,
+                'payment_intent_id' => (string) $pi->id,
+                'failure_reason' => $status === 'succeeded' ? null : ('payment_intent status: '.$pi->status),
+            ];
+        } catch (CardException $e) {
+            // A card that needs authentication throws here with code
+            // 'authentication_required' and the PI attached to the error — that
+            // is an SCA prompt, NOT a decline. Any other code is a real decline.
+            $error = $e->getError();
+            $pi = is_object($error) ? ($error->payment_intent ?? null) : null;
+            $piId = is_object($pi) ? (isset($pi->id) ? (string) $pi->id : null) : null;
+            $code = is_object($error) ? ($error->code ?? null) : null;
+
+            if ($code === 'authentication_required') {
+                return ['status' => 'requires_action', 'payment_intent_id' => $piId, 'failure_reason' => 'authentication_required'];
+            }
+
+            return ['status' => 'failed', 'payment_intent_id' => $piId, 'failure_reason' => $code ?? $e->getMessage()];
+        } catch (ApiErrorException $e) {
+            return ['status' => 'failed', 'payment_intent_id' => null, 'failure_reason' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Upsert a stripe ledger row keyed by PaymentIntent id (Billing P2). Used by
+     * the webhook failure handler so a failed off-session PI is recorded exactly
+     * once, converging with any `pending` row the command already wrote.
+     *
+     * @param  array<string, mixed>  $values
+     */
+    public function upsertStripePayment(string $paymentIntentId, array $values): Payment
+    {
+        return Payment::updateOrCreate(
+            ['stripe_payment_intent_id' => $paymentIntentId],
+            $values + ['rail' => 'stripe'],
+        );
+    }
+
+    /**
      * Vault the card used in a completed Checkout session (setup_future_usage)
      * so it's reusable in P2. Best-effort: a vaulting hiccup must NEVER break
      * payment reconciliation, so the webhook calls this in a guarded block.
@@ -446,19 +532,29 @@ class StripeService
                 'stripe_payment_intent_id' => $paymentIntentId,
             ]);
 
-            // Ledger row for this settle (Billing P1) — every settle is recorded
-            // so the ledger is live before P2's off-session charging.
-            Payment::create([
+            // Ledger row for this settle. UPSERT keyed by the PI id (P2): the
+            // off-session command may have already written a `pending` row for
+            // this exact PaymentIntent, and the async webhook settles the same
+            // PI — both must converge on ONE row rather than create duplicates.
+            // On-session checkout (no prior row) simply creates one.
+            $ledger = [
                 'invoice_id' => $invoice->id,
                 'customer_id' => $invoice->customer_id,
                 'amount' => $invoice->total,
                 'currency' => 'gbp',
                 'rail' => 'stripe',
-                'stripe_payment_intent_id' => $paymentIntentId !== '' ? $paymentIntentId : null,
                 'status' => 'succeeded',
                 'attempted_at' => now(),
-                'created_by' => null,
-            ]);
+                'failure_reason' => null,
+            ];
+            if ($paymentIntentId !== '') {
+                Payment::updateOrCreate(
+                    ['stripe_payment_intent_id' => $paymentIntentId],
+                    $ledger,
+                );
+            } else {
+                Payment::create($ledger + ['stripe_payment_intent_id' => null, 'created_by' => null]);
+            }
 
             ActivityLog::create([
                 'user_id' => null,
