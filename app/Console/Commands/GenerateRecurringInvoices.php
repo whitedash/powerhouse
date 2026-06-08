@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
+use App\Support\InvoiceVat;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -46,7 +47,10 @@ class GenerateRecurringInvoices extends Command
                 $q->whereNull('recurring_ends_at')
                     ->orWhere('recurring_ends_at', '>=', $today);
             })
-            ->with(['lines' => fn ($q) => $q->orderBy('sort_order')])
+            ->with([
+                'lines' => fn ($q) => $q->orderBy('sort_order'),
+                'billingEntity',
+            ])
             ->get();
 
         if ($due->isEmpty()) {
@@ -89,6 +93,11 @@ class GenerateRecurringInvoices extends Command
                             : 14,
                     );
 
+                    // Re-derive VAT from the issuing entity rather than copying
+                    // the template's stored figures, so a child can never inherit
+                    // VAT the entity isn't registered to charge.
+                    $vat = InvoiceVat::breakdown((float) $template->subtotal, $template->billingEntity);
+
                     $child = Invoice::create([
                         'number' => $number,
                         'customer_id' => $template->customer_id,
@@ -96,9 +105,9 @@ class GenerateRecurringInvoices extends Command
                         'type' => $template->type,
                         'status' => 'draft',
                         'subtotal' => $template->subtotal,
-                        'vat_rate' => $template->vat_rate,
-                        'vat_amount' => $template->vat_amount,
-                        'total' => $template->total,
+                        'vat_rate' => $vat['vat_rate'],
+                        'vat_amount' => $vat['vat_amount'],
+                        'total' => $vat['total'],
                         'amount_paid' => 0,
                         'issue_date' => $today,
                         'due_date' => $today->copy()->addDays($termDays),

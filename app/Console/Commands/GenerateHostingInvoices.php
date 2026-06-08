@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\User;
 use App\Models\Website;
+use App\Support\InvoiceVat;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -38,9 +39,10 @@ class GenerateHostingInvoices extends Command
     /** @var string */
     protected $description = 'Generate draft hosting invoices for active websites due for billing.';
 
-    private const DEFAULT_VAT_RATE = 20.0;
-
     private const DEFAULT_PAYMENT_TERM_DAYS = 14;
+
+    /** @var array<int, BillingEntity|null> Per-run cache of entities for VAT. */
+    private array $vatEntities = [];
 
     public function handle(): int
     {
@@ -136,10 +138,11 @@ class GenerateHostingInvoices extends Command
                     continue;
                 }
 
-                DB::transaction(function () use ($website, $plan, $tier, $entityId, $price, $description, $today, $systemUserId): void {
-                    $vatRate = self::DEFAULT_VAT_RATE;
-                    $vatAmount = round($price * ($vatRate / 100), 2);
-                    $total = round($price + $vatAmount, 2);
+                // VAT from the issuing entity's single source of truth — a
+                // non-registered entity yields zero VAT (no hardcoded rate).
+                $vat = InvoiceVat::breakdown($price, $this->vatEntity($entityId));
+
+                DB::transaction(function () use ($website, $plan, $tier, $entityId, $price, $vat, $description, $today, $systemUserId): void {
                     $dueDate = $today->copy()->addDays(self::DEFAULT_PAYMENT_TERM_DAYS);
 
                     $invoice = Invoice::create([
@@ -149,9 +152,9 @@ class GenerateHostingInvoices extends Command
                         'type' => 'subscription',
                         'status' => 'draft',
                         'subtotal' => $price,
-                        'vat_rate' => $vatRate,
-                        'vat_amount' => $vatAmount,
-                        'total' => $total,
+                        'vat_rate' => $vat['vat_rate'],
+                        'vat_amount' => $vat['vat_amount'],
+                        'total' => $vat['total'],
                         'amount_paid' => 0,
                         'issue_date' => $today->toDateString(),
                         'due_date' => $dueDate->toDateString(),
@@ -198,13 +201,13 @@ class GenerateHostingInvoices extends Command
                             'customer_id' => $invoice->customer_id,
                             'website_id' => $website->id,
                             'website' => $website->name,
-                            'amount' => $total,
+                            'amount' => $vat['total'],
                         ],
                         'ip_address' => null,
                         'user_agent' => 'artisan:invoices:generate-hosting',
                     ]);
 
-                    $this->info(sprintf('Generated %s for %s — £%s', $invoice->number, $website->name, number_format($total, 2)));
+                    $this->info(sprintf('Generated %s for %s — £%s', $invoice->number, $website->name, number_format($vat['total'], 2)));
                 });
 
                 $generated++;
@@ -223,6 +226,15 @@ class GenerateHostingInvoices extends Command
         ));
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Resolve (and memoise) the billing entity used to compute VAT — fetched
+     * once per entity rather than per invoice.
+     */
+    private function vatEntity(int $entityId): ?BillingEntity
+    {
+        return $this->vatEntities[$entityId] ??= BillingEntity::find($entityId);
     }
 
     private function advance(Carbon $from, int $count, string $unit): Carbon

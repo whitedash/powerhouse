@@ -17,7 +17,9 @@
 
     $entityMetaParts = [];
     if ($entity?->company_number) $entityMetaParts[] = 'Company No. '.$entity->company_number;
-    if ($entity?->vat_number) $entityMetaParts[] = 'VAT No. '.$entity->vat_number;
+    // A non-registered entity must not show a VAT number (it has no standing
+    // to display one), even if the column happens to be populated.
+    if ($entity?->vat_registered && $entity?->vat_number) $entityMetaParts[] = 'VAT No. '.$entity->vat_number;
     $entityMetaLine = implode(' · ', $entityMetaParts);
 
     $entityAddressOrder = ['line1', 'street', 'address_line1', 'address_line2', 'line2', 'city', 'postcode', 'country'];
@@ -79,7 +81,7 @@
     if ($entity) {
         $legalParts[] = $entity->legal_name ?? $entity->name;
         if ($entity->company_number) $legalParts[] = 'Company No. '.$entity->company_number;
-        if ($entity->vat_number) $legalParts[] = 'VAT '.$entity->vat_number;
+        if ($entity->vat_registered && $entity->vat_number) $legalParts[] = 'VAT '.$entity->vat_number;
     }
 @endphp
 <!DOCTYPE html>
@@ -625,10 +627,12 @@
               <td class="t-label">Subtotal</td>
               <td class="t-val">{{ $gbp($subtotal) }}</td>
             </tr>
+            @if ($vatAmount > 0)
             <tr>
               <td class="t-label">VAT ({{ $vatRateDisplay }}%)</td>
               <td class="t-val">{{ $gbp($vatAmount) }}</td>
             </tr>
+            @endif
             <tr class="rule"><td></td><td></td></tr>
             <tr class="total">
               <td class="t-label">TOTAL</td>

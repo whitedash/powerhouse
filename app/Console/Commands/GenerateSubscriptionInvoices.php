@@ -8,6 +8,7 @@ use App\Models\CustomerProduct;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\User;
+use App\Support\InvoiceVat;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -37,8 +38,6 @@ class GenerateSubscriptionInvoices extends Command
 
     /** @var string */
     protected $description = 'Generate draft invoices for active subscriptions due for renewal.';
-
-    private const DEFAULT_VAT_RATE = 20.0;
 
     private const DEFAULT_PAYMENT_TERM_DAYS = 14;
 
@@ -131,11 +130,11 @@ class GenerateSubscriptionInvoices extends Command
                     continue;
                 }
 
-                DB::transaction(function () use ($subscription, $entityId, $price, $description, $today, $systemUserId): void {
-                    $vatRate = self::DEFAULT_VAT_RATE;
-                    $vatAmount = round($price * ($vatRate / 100), 2);
-                    $total = round($price + $vatAmount, 2);
+                // VAT comes from the issuing entity's single source of truth —
+                // a non-registered entity yields zero VAT (no hardcoded rate).
+                $vat = InvoiceVat::breakdown($price, $this->vatEntity($entityId));
 
+                DB::transaction(function () use ($subscription, $entityId, $price, $vat, $description, $today, $systemUserId): void {
                     $dueDate = $today->copy()->addDays(self::DEFAULT_PAYMENT_TERM_DAYS);
 
                     // generateNextNumber pessimistic-locks the latest
@@ -150,9 +149,9 @@ class GenerateSubscriptionInvoices extends Command
                         'type' => 'subscription',
                         'status' => 'draft',
                         'subtotal' => $price,
-                        'vat_rate' => $vatRate,
-                        'vat_amount' => $vatAmount,
-                        'total' => $total,
+                        'vat_rate' => $vat['vat_rate'],
+                        'vat_amount' => $vat['vat_amount'],
+                        'total' => $vat['total'],
                         'amount_paid' => 0,
                         'issue_date' => $today->toDateString(),
                         'due_date' => $dueDate->toDateString(),
@@ -203,7 +202,7 @@ class GenerateSubscriptionInvoices extends Command
                             'number' => $invoice->number,
                             'customer_id' => $invoice->customer_id,
                             'subscription_id' => $subscription->id,
-                            'amount' => $total,
+                            'amount' => $vat['total'],
                         ],
                         'ip_address' => null,
                         'user_agent' => 'artisan:invoices:generate-subscriptions',
@@ -213,7 +212,7 @@ class GenerateSubscriptionInvoices extends Command
                         'Generated %s for %s — £%s',
                         $invoice->number,
                         $subscription->customer->name,
-                        number_format($total, 2),
+                        number_format($vat['total'], 2),
                     ));
                 });
 
@@ -237,6 +236,19 @@ class GenerateSubscriptionInvoices extends Command
         ));
 
         return self::SUCCESS;
+    }
+
+    /** @var array<int, BillingEntity|null> Per-run cache of entities for VAT. */
+    private array $vatEntities = [];
+
+    /**
+     * Resolve (and memoise) the billing entity used to compute VAT. The loop's
+     * eager-load only carries id+name, so the VAT fields are fetched here once
+     * per entity rather than per invoice.
+     */
+    private function vatEntity(int $entityId): ?BillingEntity
+    {
+        return $this->vatEntities[$entityId] ??= BillingEntity::find($entityId);
     }
 
     /**

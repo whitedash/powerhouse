@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\ProductPlan;
 use App\Models\User;
+use App\Support\InvoiceVat;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -42,9 +43,10 @@ class GenerateDomainRenewalInvoices extends Command
     /** @var string */
     protected $description = 'Raise draft renewal invoices for auto-renewing domains within the expiry window.';
 
-    private const DEFAULT_VAT_RATE = 20.0;
-
     private const DEFAULT_PAYMENT_TERM_DAYS = 14;
+
+    /** @var array<int, BillingEntity|null> Per-run cache of entities for VAT. */
+    private array $vatEntities = [];
 
     public function handle(): int
     {
@@ -154,10 +156,11 @@ class GenerateDomainRenewalInvoices extends Command
                     continue;
                 }
 
-                DB::transaction(function () use ($domain, $plan, $entityId, $price, $description, $today, $systemUserId): void {
-                    $vatRate = self::DEFAULT_VAT_RATE;
-                    $vatAmount = round($price * ($vatRate / 100), 2);
-                    $total = round($price + $vatAmount, 2);
+                // VAT from the issuing entity's single source of truth — a
+                // non-registered entity yields zero VAT (no hardcoded rate).
+                $vat = InvoiceVat::breakdown($price, $this->vatEntity($entityId));
+
+                DB::transaction(function () use ($domain, $plan, $entityId, $price, $vat, $description, $today, $systemUserId): void {
                     $dueDate = $today->copy()->addDays(self::DEFAULT_PAYMENT_TERM_DAYS);
 
                     $invoice = Invoice::create([
@@ -167,9 +170,9 @@ class GenerateDomainRenewalInvoices extends Command
                         'type' => 'subscription',
                         'status' => 'draft',
                         'subtotal' => $price,
-                        'vat_rate' => $vatRate,
-                        'vat_amount' => $vatAmount,
-                        'total' => $total,
+                        'vat_rate' => $vat['vat_rate'],
+                        'vat_amount' => $vat['vat_amount'],
+                        'total' => $vat['total'],
                         'amount_paid' => 0,
                         'issue_date' => $today->toDateString(),
                         'due_date' => $dueDate->toDateString(),
@@ -208,13 +211,13 @@ class GenerateDomainRenewalInvoices extends Command
                             'customer_id' => $invoice->customer_id,
                             'domain_id' => $domain->id,
                             'domain' => $domain->domain,
-                            'amount' => $total,
+                            'amount' => $vat['total'],
                         ],
                         'ip_address' => null,
                         'user_agent' => 'artisan:invoices:generate-domain-renewals',
                     ]);
 
-                    $this->info(sprintf('Generated %s for %s — £%s', $invoice->number, $domain->domain, number_format($total, 2)));
+                    $this->info(sprintf('Generated %s for %s — £%s', $invoice->number, $domain->domain, number_format($vat['total'], 2)));
                 });
 
                 $generated++;
@@ -233,5 +236,14 @@ class GenerateDomainRenewalInvoices extends Command
         ));
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Resolve (and memoise) the billing entity used to compute VAT — fetched
+     * once per entity rather than per invoice.
+     */
+    private function vatEntity(int $entityId): ?BillingEntity
+    {
+        return $this->vatEntities[$entityId] ??= BillingEntity::find($entityId);
     }
 }

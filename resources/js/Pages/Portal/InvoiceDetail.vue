@@ -83,7 +83,7 @@ function openPay() {
                     <div class="inv-totals">
                         <div class="box">
                             <div class="ln">Subtotal<span class="v">£{{ gbp(invoice.subtotal) }}</span></div>
-                            <div class="ln">VAT ({{ Math.round(invoice.vat_rate) }}%)<span class="v">£{{ gbp(invoice.vat_amount) }}</span></div>
+                            <div v-if="invoice.vat_amount > 0" class="ln">VAT ({{ Math.round(invoice.vat_rate) }}%)<span class="v">£{{ gbp(invoice.vat_amount) }}</span></div>
                             <div class="rule" />
                             <div class="total"><span class="lbl">Total</span><span class="v">£{{ gbp(invoice.total) }}</span></div>
                             <div v-if="invoice.amount_paid > 0 && !isPaid" class="ln" style="margin-top:6px;color:var(--accent);font-weight:600">Amount due<span class="v" style="color:var(--accent)">£{{ gbp(invoice.amount_due) }}</span></div>
@@ -134,7 +134,7 @@ function openPay() {
                         <div style="height:1px;background:var(--border-soft);margin:16px 0" />
                         <div style="display:flex;flex-direction:column;gap:9px">
                             <div style="display:flex;justify-content:space-between;font:400 13.5px/1 'Inter';color:var(--text-secondary)">Subtotal<span style="color:var(--text-primary);font-weight:500">£{{ gbp(invoice.subtotal) }}</span></div>
-                            <div style="display:flex;justify-content:space-between;font:400 13.5px/1 'Inter';color:var(--text-secondary)">VAT ({{ Math.round(invoice.vat_rate) }}%)<span style="color:var(--text-primary);font-weight:500">£{{ gbp(invoice.vat_amount) }}</span></div>
+                            <div v-if="invoice.vat_amount > 0" style="display:flex;justify-content:space-between;font:400 13.5px/1 'Inter';color:var(--text-secondary)">VAT ({{ Math.round(invoice.vat_rate) }}%)<span style="color:var(--text-primary);font-weight:500">£{{ gbp(invoice.vat_amount) }}</span></div>
                             <div style="height:1px;background:var(--border);margin:3px 0" />
                             <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:700 15px/1 'Inter'">Total</span><span style="font:700 20px/1 'Inter';letter-spacing:-.02em">£{{ gbp(invoice.total) }}</span></div>
                         </div>

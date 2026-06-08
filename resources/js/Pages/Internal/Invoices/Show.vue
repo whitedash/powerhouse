@@ -496,7 +496,7 @@ const icons = {
                         </div>
                         <div class="totals-side">
                             <div>Subtotal: {{ formatGBP(invoice.subtotal) }}</div>
-                            <div>VAT ({{ Math.round(invoice.vat_rate) }}%): {{ formatGBP(invoice.vat_amount) }}</div>
+                            <div v-if="invoice.vat_amount > 0">VAT ({{ Math.round(invoice.vat_rate) }}%): {{ formatGBP(invoice.vat_amount) }}</div>
                             <div class="total-divider" />
                             <div class="total-final">Total {{ formatGBP(invoice.total) }}</div>
                         </div>

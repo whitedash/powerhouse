@@ -20,6 +20,7 @@ use App\Models\ProductPlan;
 use App\Services\InvoicePdfService;
 use App\Services\ReminderTemplateService;
 use App\Services\StripeService;
+use App\Support\InvoiceVat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -389,9 +390,16 @@ class InvoiceController extends Controller
                 fn (float $carry, array $l) => $carry + $this->computeLineDiscount($l)['amount'],
                 0.0,
             );
-            $vatRate = (float) $data['vat_rate'];
-            $vatAmount = round($subtotal * ($vatRate / 100), 2);
-            $total = round($subtotal + $vatAmount, 2);
+            // VAT is gated by the issuing entity's registration status — a
+            // non-registered entity forces 0 regardless of the requested rate.
+            $vat = InvoiceVat::breakdown(
+                $subtotal,
+                BillingEntity::find($data['billing_entity_id']),
+                (float) $data['vat_rate'],
+            );
+            $vatRate = $vat['vat_rate'];
+            $vatAmount = $vat['vat_amount'];
+            $total = $vat['total'];
 
             // Recurring header update. Toggling on for the first time
             // computes recurring_next_date from issue_date; toggling
@@ -539,9 +547,16 @@ class InvoiceController extends Controller
                 fn (float $carry, array $l) => $carry + $this->computeLineDiscount($l)['amount'],
                 0.0,
             );
-            $vatRate = (float) $data['vat_rate'];
-            $vatAmount = round($subtotal * ($vatRate / 100), 2);
-            $total = round($subtotal + $vatAmount, 2);
+            // VAT is gated by the issuing entity's registration status — a
+            // non-registered entity forces 0 regardless of the requested rate.
+            $vat = InvoiceVat::breakdown(
+                $subtotal,
+                BillingEntity::find($data['billing_entity_id']),
+                (float) $data['vat_rate'],
+            );
+            $vatRate = $vat['vat_rate'];
+            $vatAmount = $vat['vat_amount'];
+            $total = $vat['total'];
 
             // Recurring header. The first "next date" lands one
             // interval out from the issue date — the parent invoice
