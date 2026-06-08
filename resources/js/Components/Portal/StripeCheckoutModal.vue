@@ -122,16 +122,26 @@ function gbp(n) {
                     </div>
                     <button type="button" class="icon-btn" aria-label="Close" @click="close"><i class="ti ti-x" /></button>
                 </div>
-                <div class="pay-body">
-                    <div class="stripe-amount"><span class="lbl">Amount due</span><span class="v">{{ gbp(invoiceTotal) }}</span></div>
+                <!-- Two columns on desktop (summary | payment) to cut height
+                     and remove the scroll; collapses to one column on
+                     narrow/mobile widths. -->
+                <div class="pay-body pay-cols">
+                    <aside class="pay-summary">
+                        <div class="stripe-amount"><span class="lbl">Amount due</span><span class="v">{{ gbp(invoiceTotal) }}</span></div>
+                        <dl class="pay-meta">
+                            <div class="pay-meta-row"><dt>Invoice</dt><dd>{{ invoiceNumber }}</dd></div>
+                            <div class="pay-meta-row"><dt>Total</dt><dd>{{ gbp(invoiceTotal) }}</dd></div>
+                        </dl>
+                        <div class="stripe-secure"><i class="ti ti-lock" />Secured by <b>Stripe</b> · your card details are encrypted</div>
+                    </aside>
 
-                    <div v-if="error" class="pay-error"><i class="ti ti-alert-circle" /><span>{{ error }}</span></div>
-                    <div v-else-if="loading" class="pay-loading"><i class="ti ti-loader-2 spin" /><span>Loading secure payment form…</span></div>
+                    <div class="pay-payment">
+                        <div v-if="error" class="pay-error"><i class="ti ti-alert-circle" /><span>{{ error }}</span></div>
+                        <div v-else-if="loading" class="pay-loading"><i class="ti ti-loader-2 spin" /><span>Loading secure payment form…</span></div>
 
-                    <!-- Stripe Embedded Checkout mounts here. -->
-                    <div ref="mountEl" class="stripe-mount" />
-
-                    <div class="stripe-secure"><i class="ti ti-lock" />Secured by <b>Stripe</b> · your card details are encrypted</div>
+                        <!-- Stripe Embedded Checkout mounts here. -->
+                        <div ref="mountEl" class="stripe-mount" />
+                    </div>
                 </div>
             </div>
         </div>
@@ -161,7 +171,70 @@ function gbp(n) {
     left: auto;
     transform: none;
     margin: auto;
+    /* Wider than the 480px handoff so the summary + payment form sit
+       side by side instead of stacking into a tall scroller. */
+    width: min(820px, 100%);
     max-width: 100%;
+}
+
+/* Two-column body: a fixed summary rail + the flexible payment column. */
+.pay-overlay .pay-cols {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 28px;
+    align-items: start;
+}
+.pay-overlay .pay-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+/* In the rail the amount reads as a stacked panel (label over figure),
+   and the secure note left-aligns under it. */
+.pay-overlay .pay-summary .stripe-amount {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 0;
+}
+.pay-overlay .pay-summary .stripe-secure {
+    margin-top: 0;
+    justify-content: flex-start;
+    text-align: left;
+}
+.pay-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+    padding: 14px 16px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+}
+.pay-meta-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font: 400 12.5px/1.3 'Inter', sans-serif;
+}
+.pay-meta-row dt { color: var(--text-secondary); }
+.pay-meta-row dd { margin: 0; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+/* min-width:0 lets the Stripe iframe column shrink instead of forcing
+   the grid wider. */
+.pay-overlay .pay-payment { min-width: 0; }
+
+/* Collapse to a single column on narrow/mobile widths. */
+@media (max-width: 720px) {
+    .pay-overlay .pay-cols {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+    .pay-overlay .pay-summary .stripe-amount {
+        flex-direction: row;
+        align-items: baseline;
+        justify-content: space-between;
+    }
 }
 .pay-error {
     display: flex;
