@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\SchemaMigration;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -37,10 +38,41 @@ class DeploymentMaintenanceTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('Internal/Settings/Deployment')
-                ->has('migrations')
+                ->has('ran_migrations.data')
+                ->has('ran_migrations.links')
                 ->has('pending')
                 ->where('pending_count', fn ($v) => is_int($v))
                 ->has('status_output')
+            );
+    }
+
+    public function test_run_history_is_paginated_ten_per_page_newest_first(): void
+    {
+        // RefreshDatabase has run the full migration set, so the migrations
+        // table is well over one page.
+        $newest = SchemaMigration::orderByDesc('id')->first();
+
+        $this->actingAs($this->superAdmin())
+            ->get('/settings/deployment')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                // DELIBERATE 10/page exception to the app-wide 20.
+                ->where('ran_migrations.per_page', 10)
+                ->has('ran_migrations.data', 10)
+                // Newest-first by run order (migrations.id desc).
+                ->where('ran_migrations.data.0.name', $newest->migration)
+                ->where('ran_migrations.current_page', 1)
+            );
+    }
+
+    public function test_run_history_preserves_the_page_query_string(): void
+    {
+        $this->actingAs($this->superAdmin())
+            ->get('/settings/deployment?page=2')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('ran_migrations.current_page', 2)
+                ->has('ran_migrations.data')
             );
     }
 

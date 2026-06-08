@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\SchemaMigration;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -25,6 +28,13 @@ use Throwable;
  */
 class DeploymentController extends Controller
 {
+    /**
+     * Run-history page size. DELIBERATE exception to the app-wide 20/page
+     * standard — 10 here, per request, since each row is a single migration
+     * name and the history is browsed, not scanned.
+     */
+    private const HISTORY_PER_PAGE = 10;
+
     public function index(Request $request): Response
     {
         Gate::authorize('manage-deployment');
@@ -118,9 +128,10 @@ class DeploymentController extends Controller
     }
 
     /**
-     * Pending + ran migrations, via the migrator (the same data
-     * `migrate:status` shows). Also captures the raw `migrate:status` text
-     * for a familiar preview. Guards the no-migrations-table case (fresh DB).
+     * The pending list + count (via the migrator, the same data
+     * `migrate:status` shows), the raw `migrate:status` text for a familiar
+     * preview, and the paginated run history. Guards the no-migrations-table
+     * case (fresh DB).
      *
      * @return array<string, mixed>
      */
@@ -140,17 +151,49 @@ class DeploymentController extends Controller
             $ran = [];
         }
 
-        $migrations = collect($names)
-            ->map(fn (string $name): array => ['name' => $name, 'ran' => in_array($name, $ran, true)])
+        $pending = collect($names)
+            ->reject(fn (string $name): bool => in_array($name, $ran, true))
+            ->map(fn (string $name): array => ['name' => $name])
             ->values();
-        $pending = $migrations->reject(fn (array $m): bool => $m['ran'])->values();
 
         return [
             'status_output' => $statusOutput,
-            'migrations' => $migrations->all(),
+            'ran_migrations' => $this->ranHistory(),
             'pending' => $pending->all(),
             'pending_count' => $pending->count(),
         ];
+    }
+
+    /**
+     * The run history, NEWEST-FIRST by true run order (migrations.id DESC),
+     * paginated at 10/page with the ?page query string preserved. Guards the
+     * no-migrations-table case (fresh DB, pre-migrate) with an empty paginator
+     * so the page stays reachable immediately after a deploy.
+     *
+     * @return LengthAwarePaginator<int, array{id: int, name: string, batch: int}>
+     */
+    private function ranHistory(): LengthAwarePaginator
+    {
+        try {
+            return SchemaMigration::query()
+                ->orderByDesc('id')
+                ->paginate(self::HISTORY_PER_PAGE)
+                ->withQueryString()
+                ->through(fn (SchemaMigration $m): array => [
+                    'id' => (int) $m->id,
+                    'name' => (string) $m->migration,
+                    'batch' => (int) $m->batch,
+                ]);
+        } catch (Throwable $e) {
+            // migrations table doesn't exist yet → empty history.
+            /** @var LengthAwarePaginator<int, array{id: int, name: string, batch: int}> $empty */
+            $empty = new LengthAwarePaginator([], 0, self::HISTORY_PER_PAGE, 1, [
+                'path' => Paginator::resolveCurrentPath(),
+                'pageName' => 'page',
+            ]);
+
+            return $empty;
+        }
     }
 
     private function log(Request $request, string $action, bool $ok, string $output): void

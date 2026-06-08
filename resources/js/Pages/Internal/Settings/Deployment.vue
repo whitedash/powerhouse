@@ -7,17 +7,30 @@
  */
 import { ref, computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
-import { IconRefresh, IconDatabase, IconTrash, IconPlayerPlay, IconCircleCheck, IconAlertTriangle } from '@tabler/icons-vue';
+import { IconRefresh, IconDatabase, IconTrash, IconPlayerPlay, IconCircleCheck, IconAlertTriangle, IconChevronLeft, IconChevronRight } from '@tabler/icons-vue';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 
 const props = defineProps({
     status_output: { type: String, default: '' },
-    migrations: { type: Array, default: () => [] },
+    // Paginated run history, newest-first (migrations.id desc), 10/page.
+    ran_migrations: { type: Object, default: () => ({ data: [], links: [], from: 0, to: 0, total: 0 }) },
     pending: { type: Array, default: () => [] },
     pending_count: { type: Number, default: 0 },
     last_run: { type: Object, default: null },
 });
+
+/* ─── Pagination (run history) ─── */
+const pageMeta = computed(() => ({
+    from: props.ran_migrations.from ?? 0,
+    to: props.ran_migrations.to ?? 0,
+    total: props.ran_migrations.total ?? 0,
+    links: props.ran_migrations.links ?? [],
+}));
+function navigateToLink(url) {
+    if (!url) return;
+    router.visit(url, { preserveScroll: true, preserveState: true });
+}
 
 const processing = ref(false);
 
@@ -65,7 +78,7 @@ function runConfirmed() {
 }
 
 function refresh() {
-    router.reload({ only: ['status_output', 'migrations', 'pending', 'pending_count'] });
+    router.reload({ only: ['status_output', 'ran_migrations', 'pending', 'pending_count'] });
 }
 </script>
 
@@ -93,18 +106,67 @@ function refresh() {
                     </span>
                 </div>
 
-                <table v-if="migrations.length" class="dep-tbl">
-                    <thead><tr><th>Migration</th><th style="width:110px;">Status</th></tr></thead>
+                <!-- Pending (not yet run) — what `Run migrations` will apply. -->
+                <div v-if="pending.length" class="dep-pending">
+                    <p class="muted small">Pending — applied on next run:</p>
+                    <ul class="dep-pending-list">
+                        <li v-for="p in pending" :key="p.name" class="mono">{{ p.name }}</li>
+                    </ul>
+                </div>
+
+                <!-- Run history — newest-first by run order, 10 per page. -->
+                <table v-if="ran_migrations.data.length" class="dep-tbl">
+                    <thead><tr><th>Migration</th><th style="width:90px;">Batch</th><th style="width:90px;">Status</th></tr></thead>
                     <tbody>
-                        <tr v-for="m in migrations" :key="m.name" :class="{ 'is-pending': !m.ran }">
+                        <tr v-for="m in ran_migrations.data" :key="m.id">
                             <td class="mono">{{ m.name }}</td>
-                            <td>
-                                <span class="badge badge-sm" :class="m.ran ? 'badge-active' : 'badge-pending'">{{ m.ran ? 'Ran' : 'Pending' }}</span>
-                            </td>
+                            <td class="mono">{{ m.batch }}</td>
+                            <td><span class="badge badge-sm badge-active">Ran</span></td>
                         </tr>
                     </tbody>
                 </table>
-                <p v-else class="muted small">No migrations found.</p>
+                <p v-else class="muted small">No migrations have been run yet.</p>
+
+                <!-- Pagination (run history) -->
+                <div v-if="ran_migrations.data.length" class="tbl-foot">
+                    <div class="info">
+                        Showing <strong style="color: var(--text-primary); font-weight: 600;">{{ pageMeta.from }} – {{ pageMeta.to }}</strong>
+                        of <strong style="color: var(--text-primary); font-weight: 600;">{{ pageMeta.total }}</strong> run
+                    </div>
+                    <div class="right">
+                        <template v-for="(link, i) in pageMeta.links" :key="i">
+                            <button
+                                v-if="link.label.includes('Previous')"
+                                type="button"
+                                class="pg-btn"
+                                :disabled="!link.url"
+                                @click="navigateToLink(link.url)"
+                            >
+                                <IconChevronLeft :size="14" stroke-width="1.75" />
+                                Previous
+                            </button>
+                            <button
+                                v-else-if="link.label.includes('Next')"
+                                type="button"
+                                class="pg-btn"
+                                :disabled="!link.url"
+                                @click="navigateToLink(link.url)"
+                            >
+                                Next
+                                <IconChevronRight :size="14" stroke-width="1.75" />
+                            </button>
+                            <span v-else-if="link.label === '...'" style="color: var(--text-tertiary); padding: 0 4px;">…</span>
+                            <button
+                                v-else
+                                type="button"
+                                class="pg-btn"
+                                :class="{ active: link.active }"
+                                :disabled="!link.url"
+                                @click="navigateToLink(link.url)"
+                            >{{ link.label }}</button>
+                        </template>
+                    </div>
+                </div>
             </section>
 
             <!-- Actions -->
@@ -166,7 +228,9 @@ function refresh() {
 .dep-tbl { width: 100%; border-collapse: collapse; }
 .dep-tbl th { text-align: left; font-size: 12px; color: var(--text-secondary); padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .dep-tbl td { padding: 7px 8px; border-bottom: 1px solid var(--border); font-size: 13px; }
-.dep-tbl tr.is-pending td.mono { font-weight: 600; }
+.dep-pending { margin-bottom: 14px; }
+.dep-pending-list { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+.dep-pending-list li { font-weight: 600; color: var(--warning, #b45309); }
 .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; }
 .dep-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .dep-output { background: var(--ink, #111b28); color: var(--on-dark, #eef2f7); border-radius: var(--radius-md, 8px); padding: 12px 14px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; line-height: 1.5; overflow-x: auto; white-space: pre-wrap; word-break: break-word; max-height: 360px; overflow-y: auto; }
