@@ -108,7 +108,7 @@ function handleRemove() {
             </div>
         </div>
 
-        <div style="border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: #fff;">
+        <div class="table-card">
             <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr style="background: #FBFCFE; border-bottom: 1px solid var(--border-soft);">

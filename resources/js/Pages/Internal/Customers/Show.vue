@@ -2363,10 +2363,19 @@ function submitProject() {
                             </span>
                         </div>
 
-                        <!-- Auto-suspension exemption (super_admin only) -->
-                        <div v-if="isAdmin" class="exemption-row">
+                    </section>
+
+                    <!-- Auto-suspension (super_admin only) — own card, matching Referral chrome -->
+                    <section v-if="isAdmin" class="card">
+                        <header class="card-header">
+                            <div class="h-icon"><IconBan :size="16" stroke-width="1.75" /></div>
+                            <div>
+                                <h3>Auto-suspension</h3>
+                                <div class="sub">Non-payment suspension</div>
+                            </div>
+                        </header>
+                        <div class="exemption-row">
                             <div class="exemption-info">
-                                <span class="exemption-label">Auto-suspension</span>
                                 <span v-if="customer.exempt_from_auto_suspend" class="badge badge-pending badge-sm">Exempt</span>
                                 <span v-else class="badge badge-inactive badge-sm">Active</span>
                                 <span v-if="customer.exempt_from_auto_suspend && customer.exempt_reason" class="exemption-reason">{{ customer.exempt_reason }}</span>
@@ -2375,8 +2384,17 @@ function submitProject() {
                                 {{ customer.exempt_from_auto_suspend ? 'Remove exemption' : 'Mark as exempt' }}
                             </button>
                         </div>
+                    </section>
 
-                        <!-- Billing: auto-collect intent + saved cards (Billing P1) -->
+                    <!-- Billing: auto-collect intent + saved cards (Billing P1) — own card -->
+                    <section class="card">
+                        <header class="card-header">
+                            <div class="h-icon"><IconReceipt2 :size="16" stroke-width="1.75" /></div>
+                            <div>
+                                <h3>Billing</h3>
+                                <div class="sub">Auto-collect &amp; saved cards</div>
+                            </div>
+                        </header>
                         <div class="exemption-row">
                             <div class="exemption-info">
                                 <span class="exemption-label">Auto-collect</span>
@@ -2395,13 +2413,22 @@ function submitProject() {
                             </template>
                             <div v-else class="saved-cards-empty">No saved cards on file.</div>
                         </div>
+                    </section>
 
-                        <!-- GDPR (super_admin only) — erasure + data export -->
-                        <div v-if="isAdmin" class="gdpr-row">
+                    <!-- GDPR (super_admin only) — erasure + data export — own card -->
+                    <section v-if="isAdmin" class="card">
+                        <header class="card-header">
+                            <div class="h-icon"><IconShieldLock :size="16" stroke-width="1.75" /></div>
+                            <div>
+                                <h3>GDPR</h3>
+                                <div class="sub">Erasure &amp; data export</div>
+                            </div>
+                        </header>
+                        <div class="gdpr-row">
                             <div class="gdpr-info">
-                                <span class="gdpr-label"><IconShieldLock :size="13" stroke-width="1.75" /> GDPR</span>
                                 <span v-if="customer.erasure_completed_at" class="badge badge-inactive badge-sm">Erased {{ customer.erasure_completed_at }}</span>
                                 <span v-else-if="customer.erasure_requested_at" class="badge badge-pending badge-sm">Erasure requested {{ customer.erasure_requested_at }}</span>
+                                <span v-else class="badge badge-inactive badge-sm">No request</span>
                                 <span v-if="customer.data_export_last_at" class="gdpr-meta">Last export {{ customer.data_export_last_at }}</span>
                             </div>
                             <div class="gdpr-actions">
@@ -4909,7 +4936,9 @@ function submitProject() {
 .cust-assets .assets-stack { display: flex; flex-direction: column; gap: 24px; }
 
 /* Saved cards (Billing P1) on the customer overview. */
-.saved-cards { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+/* Lives inside the Billing card body, below the auto-collect row — carries the
+   canonical inner horizontal padding so cards aren't flush to the card edge. */
+.saved-cards { display: flex; flex-direction: column; gap: 6px; padding: 0 16px 14px; }
 .saved-card { display: flex; align-items: center; justify-content: space-between; gap: 8px; font: 400 13px/1.3 'Inter', sans-serif; color: var(--text-secondary); }
 .saved-cards-empty { font: 400 12.5px/1.3 'Inter', sans-serif; color: var(--text-tertiary); }
 
