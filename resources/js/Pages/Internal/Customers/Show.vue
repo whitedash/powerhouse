@@ -2625,9 +2625,9 @@ function submitProject() {
                                         <th>Domain</th>
                                         <th>Hosting plan</th>
                                         <th>Renewal date</th>
-                                        <th class="num">Mobile</th>
-                                        <th class="num">Desktop</th>
-                                        <th class="cw-tbl-details"></th>
+                                        <th class="cw-col-score" title="Mobile performance">M</th>
+                                        <th class="cw-col-score" title="Desktop performance">D</th>
+                                        <th class="cw-col-details"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -2643,22 +2643,24 @@ function submitProject() {
                                         </td>
                                         <td>
                                             <span v-if="w.plan_name">{{ w.plan_name }}</span>
-                                            <span v-else class="cw-tbl-muted">—</span>
+                                            <span v-else class="cw-tbl-muted">Not hosted</span>
                                         </td>
                                         <td>
                                             <span v-if="w.hosting_next_billing_date">{{ formatDate(w.hosting_next_billing_date) }}</span>
                                             <span v-else class="cw-tbl-muted">—</span>
                                         </td>
-                                        <td class="num">
+                                        <td class="cw-col-score">
                                             <span v-if="w.pagespeed_mobile !== null" class="cw-perf" :class="scoreBand(w.pagespeed_mobile)">{{ w.pagespeed_mobile }}</span>
                                             <span v-else class="cw-tbl-muted">—</span>
                                         </td>
-                                        <td class="num">
+                                        <td class="cw-col-score">
                                             <span v-if="w.pagespeed_desktop !== null" class="cw-perf" :class="scoreBand(w.pagespeed_desktop)">{{ w.pagespeed_desktop }}</span>
                                             <span v-else class="cw-tbl-muted">—</span>
                                         </td>
-                                        <td class="num cw-tbl-details">
-                                            <button type="button" class="btn btn-ghost btn-sm" @click="openWebsiteModal(w)">Details</button>
+                                        <td class="cw-col-details">
+                                            <button type="button" class="icon-btn" aria-label="Details" title="Details" @click="openWebsiteModal(w)">
+                                                <IconEye :size="16" stroke-width="1.75" />
+                                            </button>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -5013,8 +5015,18 @@ function submitProject() {
 .slide-over { position: fixed; inset: 0; z-index: 40; }
 .slide-over-form { height: 100%; display: flex; flex-direction: column; }
 
-/* Assets tab — stack the four relocated sections (Subscriptions / Websites /
-   Domains / Projects) with consistent spacing. */
+/* Assets tab header — title left, "+ Add" right on one row spanning the content
+   width. (The global .cw-head flex rule is scoped to .cust-websites, so the
+   Assets header — which lives under .cust-assets — needs its own.) */
+.cust-assets .cw-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.cust-assets .cw-title { font: 600 18px/1.2 'Inter', sans-serif; letter-spacing: -.01em; color: var(--text-primary); margin: 0; }
+
 /* Assets: 2-col grid — Domains | Websites (top), Services | Projects (bottom).
    Collapses to one column (reading order Domains → Websites → Services →
    Projects) at the app-wide 900px breakpoint, which also covers the Galaxy
@@ -5044,7 +5056,12 @@ function submitProject() {
 .cust-assets .cw-tbl-name { font: 600 13px/1.3 'Inter', sans-serif; color: var(--info); text-decoration: none; word-break: break-all; }
 .cust-assets .cw-tbl-name:hover { text-decoration: underline; }
 .cust-assets .cw-tbl-muted { color: var(--text-tertiary); }
-.cust-assets .cw-tbl-details { text-align: right; white-space: nowrap; }
+/* Narrow, centered M / D / Details columns — header + value both centered (no
+   drift); freed width falls to the auto-sized Domain / Hosting plan / Renewal
+   columns. Applied to both th and td so header sits directly above its values. */
+.cust-assets .cw-col-score { width: 46px; text-align: center; }
+.cust-assets .cw-col-details { width: 48px; text-align: center; }
+.cust-assets .cw-col-details .icon-btn { margin: 0 auto; }
 /* Compact, colour-banded performance score in the table cells. */
 .cust-assets .cw-perf {
     display: inline-block;
