@@ -35,6 +35,10 @@ class RecurringRevenue
      * @param  array<int, float>  $perCustomer  customer_id => monthly
      * @param  array<int, Bucket>  $perPlan  plan_id => {monthly,count}
      * @param  array<int, Bucket>  $perProduct  product_id => {monthly,count}
+     * @param  array<int, array<int, true>>  $serviceCustomersByProduct  product_id => set of customer_ids (service CPs only)
+     * @param  array<int, float>  $serviceMonthlyByProduct  product_id => services-only monthly
+     * @param  array<int, true>  $hostingCustomers  customer_ids with active hosting (website + plan)
+     * @param  array<int, true>  $domainCustomers  customer_ids with a plan-matched auto_renew domain
      */
     private function __construct(
         public readonly float $total,
@@ -42,6 +46,10 @@ class RecurringRevenue
         public readonly array $perCustomer,
         public readonly array $perPlan,
         public readonly array $perProduct,
+        public readonly array $serviceCustomersByProduct,
+        public readonly array $serviceMonthlyByProduct,
+        public readonly array $hostingCustomers,
+        public readonly array $domainCustomers,
     ) {}
 
     public static function compute(): self
@@ -56,6 +64,21 @@ class RecurringRevenue
         $perPlan = [];
         /** @var array<int, array{monthly: float, count: int}> $perProduct */
         $perProduct = [];
+
+        // Per-source customer sets + services-only-per-product monthly. These
+        // let a product overview count DISTINCT customers across the three
+        // sources (services for that product ∪ all hosting ∪ all domains) and
+        // sum MRR as services(product) + hosting + domains — reconciling with
+        // bySource — without perProduct's services/hosting blending getting in
+        // the way (domains are attributed to their own catalog product).
+        /** @var array<int, array<int, true>> $serviceCustomersByProduct */
+        $serviceCustomersByProduct = [];
+        /** @var array<int, float> $serviceMonthlyByProduct */
+        $serviceMonthlyByProduct = [];
+        /** @var array<int, true> $hostingCustomers */
+        $hostingCustomers = [];
+        /** @var array<int, true> $domainCustomers */
+        $domainCustomers = [];
 
         // ── Services ──────────────────────────────────────────────────────
         $cps = CustomerProduct::where('status', 'active')
@@ -73,6 +96,8 @@ class RecurringRevenue
             $monthly = (float) $cp->mrr_contribution;
             $services += $monthly;
             $perCustomer[$cp->customer_id] = ($perCustomer[$cp->customer_id] ?? 0.0) + $monthly;
+            $serviceCustomersByProduct[$cp->product_id][$cp->customer_id] = true;
+            $serviceMonthlyByProduct[$cp->product_id] = ($serviceMonthlyByProduct[$cp->product_id] ?? 0.0) + $monthly;
             if ($cp->plan_id !== null) {
                 self::bump($perPlan, $cp->plan_id, $monthly);
             }
@@ -94,6 +119,7 @@ class RecurringRevenue
             $monthly = (float) $price->mrr_contribution;
             $hosting += $monthly;
             $perCustomer[$website->customer_id] = ($perCustomer[$website->customer_id] ?? 0.0) + $monthly;
+            $hostingCustomers[$website->customer_id] = true;
             if ($website->plan_id !== null) {
                 self::bump($perPlan, $website->plan_id, $monthly);
             }
@@ -120,6 +146,7 @@ class RecurringRevenue
             $monthly = (float) $tier->mrr_contribution;
             $domains += $monthly;
             $perCustomer[$domain->customer_id] = ($perCustomer[$domain->customer_id] ?? 0.0) + $monthly;
+            $domainCustomers[$domain->customer_id] = true;
             self::bump($perPlan, (int) $domain->product_plan_id, $monthly);
             self::bump($perProduct, $plan->product_id, $monthly);
         }
@@ -134,6 +161,10 @@ class RecurringRevenue
             perCustomer: array_map(fn (float $v): float => round($v, 2), $perCustomer),
             perPlan: self::roundBuckets($perPlan),
             perProduct: self::roundBuckets($perProduct),
+            serviceCustomersByProduct: $serviceCustomersByProduct,
+            serviceMonthlyByProduct: array_map(fn (float $v): float => round($v, 2), $serviceMonthlyByProduct),
+            hostingCustomers: $hostingCustomers,
+            domainCustomers: $domainCustomers,
         );
     }
 
@@ -191,6 +222,46 @@ class RecurringRevenue
     public function productCount(int $productId): int
     {
         return $this->perProduct[$productId]['count'] ?? 0;
+    }
+
+    /**
+     * Distinct customers with an active SERVICE CP for this product (assets
+     * excluded — see hostingCustomerIds / domainCustomerIds for those).
+     *
+     * @return list<int>
+     */
+    public function serviceCustomerIds(int $productId): array
+    {
+        return array_keys($this->serviceCustomersByProduct[$productId] ?? []);
+    }
+
+    /**
+     * Services-only monthly for this product (excludes hosting/domain, unlike
+     * productMonthly which folds hosting into the hosting plan's product).
+     */
+    public function serviceMonthly(int $productId): float
+    {
+        return $this->serviceMonthlyByProduct[$productId] ?? 0.0;
+    }
+
+    /**
+     * Distinct customers with active hosting (a website with a plan).
+     *
+     * @return list<int>
+     */
+    public function hostingCustomerIds(): array
+    {
+        return array_keys($this->hostingCustomers);
+    }
+
+    /**
+     * Distinct customers with a plan-matched auto_renew domain.
+     *
+     * @return list<int>
+     */
+    public function domainCustomerIds(): array
+    {
+        return array_keys($this->domainCustomers);
     }
 
     /**

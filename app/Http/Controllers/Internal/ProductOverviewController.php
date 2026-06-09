@@ -5,15 +5,26 @@ namespace App\Http\Controllers\Internal;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\CustomerProduct;
+use App\Models\Domain;
 use App\Models\Product;
 use App\Models\ProductPlan;
 use App\Models\ProductPlanPrice;
+use App\Models\Website;
+use App\Support\RecurringRevenue;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ProductOverviewController extends Controller
 {
+    /**
+     * Whitedash's book isn't just its service CPs — its websites carry hosting
+     * and its customers hold domains. Those asset sources feed this product's
+     * overview KPIs (active customers + MRR + recent customers). Every other
+     * product is service-only and keeps the CP-based figures untouched.
+     */
+    private const WHITEDASH_SLUG = 'whitedash';
+
     /**
      * One overview page per product. Aggregates KPIs, plan distribution,
      * recent customers, recent product-level activity, and a 6-month
@@ -37,6 +48,36 @@ class ProductOverviewController extends Controller
         $monthStart = $now->copy()->startOfMonth();
         $sevenDaysOut = $now->copy()->addDays(7);
 
+        $kpis = $this->buildKpis($product, $monthStart, $sevenDaysOut);
+        $recentCustomers = $this->buildRecentCustomers($product);
+
+        // Whitedash only: fold hosting + domains into the customer-facing KPIs,
+        // drawn from the canonical RecurringRevenue aggregator so this overview
+        // agrees with the customer list / dashboard. Trial / churn / trend stay
+        // subscription-only (assets have no lifecycle history to backfill).
+        if ($product->slug === self::WHITEDASH_SLUG) {
+            $rr = RecurringRevenue::compute();
+
+            // Distinct customers: this product's service CPs ∪ all active
+            // hosting ∪ all plan-matched auto_renew domains.
+            $activeIds = array_unique(array_merge(
+                $rr->serviceCustomerIds($product->id),
+                $rr->hostingCustomerIds(),
+                $rr->domainCustomerIds(),
+            ));
+
+            // MRR = services(this product) + hosting + domains. Uses bySource so
+            // it reconciles exactly with the aggregator regardless of which
+            // catalog product the hosting/domain plans live under.
+            $mrr = round($rr->serviceMonthly($product->id) + $rr->bySource['hosting'] + $rr->bySource['domains'], 2);
+
+            $kpis['active_customers'] = count($activeIds);
+            $kpis['mrr'] = $mrr;
+            $kpis['arr'] = round($mrr * 12, 2);
+
+            $recentCustomers = $this->buildWhitedashRecentCustomers($product);
+        }
+
         return Inertia::render('Internal/Products/Show', [
             'product' => [
                 'id' => $product->id,
@@ -46,13 +87,13 @@ class ProductOverviewController extends Controller
                 'description' => $product->description,
                 'is_active' => $product->is_active,
             ],
-            'kpis' => $this->buildKpis($product, $monthStart, $sevenDaysOut),
+            'kpis' => $kpis,
             'plan_distribution' => $this->buildPlanDistribution($product),
             'no_plan_count' => CustomerProduct::where('product_id', $product->id)
                 ->whereNull('plan_id')
                 ->whereIn('status', ['active', 'trial'])
                 ->count(),
-            'recent_customers' => $this->buildRecentCustomers($product),
+            'recent_customers' => $recentCustomers,
             'activity' => $this->buildActivity($product),
             'trend' => $this->buildTrend($product),
         ]);
@@ -171,6 +212,74 @@ class ProductOverviewController extends Controller
                 'trial_ends_at' => $cp->trial_ends_at?->toIso8601String(),
                 'mrr' => $cp->mrr_contribution,
             ])
+            ->all();
+    }
+
+    /**
+     * Whitedash recent customers — its service CPs PLUS asset customers
+     * (active hosting websites with a plan + plan-matched auto_renew domains),
+     * deduped to DISTINCT customers (most-recent arrangement wins), newest
+     * first, capped at 8. Mirrors the service-CP row shape so the Vue renders
+     * them identically.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildWhitedashRecentCustomers(Product $product): array
+    {
+        $services = collect($this->buildRecentCustomers($product));
+
+        $hosting = Website::where('hosting_status', 'active')
+            ->whereNotNull('plan_price_id')
+            ->with(['customer:id,name,city', 'plan:id,name', 'planPrice:id,price,interval_count,interval_unit'])
+            ->orderByDesc('created_at')
+            ->take(8)
+            ->get()
+            ->map(fn (Website $w): array => [
+                'customer_id' => $w->customer_id,
+                'customer_name' => $w->customer?->name,
+                'customer_city' => $w->customer?->city,
+                'plan_name' => $w->plan?->name ? $w->plan->name.' hosting' : 'Hosting',
+                'interval_label' => $w->planPrice->interval_label,
+                'price' => (float) $w->planPrice->price,
+                'status' => 'active',
+                'started_at' => $w->created_at?->toIso8601String(),
+                'trial_ends_at' => null,
+                'mrr' => (float) $w->planPrice->mrr_contribution,
+            ]);
+
+        $domains = Domain::where('auto_renew', true)
+            ->whereNotNull('product_plan_id')
+            ->with(['customer:id,name,city', 'plan:id,name', 'plan.activePrices'])
+            ->orderByDesc('created_at')
+            ->take(8)
+            ->get()
+            ->map(function (Domain $d): ?array {
+                $tier = $d->plan?->activePrices->first();
+                if ($d->plan === null || $tier === null) {
+                    return null;
+                }
+
+                return [
+                    'customer_id' => $d->customer_id,
+                    'customer_name' => $d->customer?->name,
+                    'customer_city' => $d->customer?->city,
+                    'plan_name' => 'Domain · '.$d->plan->name,
+                    'interval_label' => $tier->interval_label,
+                    'price' => (float) $tier->price,
+                    'status' => 'active',
+                    'started_at' => $d->created_at?->toIso8601String(),
+                    'trial_ends_at' => null,
+                    'mrr' => (float) $tier->mrr_contribution,
+                ];
+            })
+            ->filter();
+
+        return $services->concat($hosting)->concat($domains)
+            ->filter(fn (array $r): bool => $r['customer_id'] !== null)
+            ->sortByDesc('started_at')
+            ->unique('customer_id')
+            ->take(8)
+            ->values()
             ->all();
     }
 
