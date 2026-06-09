@@ -106,7 +106,7 @@
             + "}";
 
         var css = vars
-            + ".pw-form{font-family:var(--pw-font-family);color:var(--pw-text);background:var(--pw-bg);max-width:560px;padding:var(--pw-form-padding);border:var(--pw-form-border-width) solid var(--pw-form-border-color);border-radius:var(--pw-form-border-radius);box-sizing:border-box;}"
+            + ".pw-form{font-family:var(--pw-font-family);color:var(--pw-text);background:var(--pw-bg);padding:var(--pw-form-padding);border:var(--pw-form-border-width) solid var(--pw-form-border-color);border-radius:var(--pw-form-border-radius);box-sizing:border-box;}"
             + ".pw-logo{max-height:48px;margin-bottom:16px;display:block;}"
             + ".pw-heading{font-size:18px;font-weight:600;margin:0 0 16px;color:var(--pw-text);}"
             // Fields lay out on a 12-col grid; the gap replaces the old
@@ -117,7 +117,7 @@
             + ".pw-form .pw-col-6{grid-column:span 6;}"
             + ".pw-form .pw-col-4{grid-column:span 4;}"
             // Collapse to one column on a NARROW CONTAINER (not viewport).
-            + "@container (max-width:480px){.pw-form .pw-col-6,.pw-form .pw-col-4{grid-column:span 12;}}"
+            + "@container (max-width:400px){.pw-form .pw-col-6,.pw-form .pw-col-4{grid-column:span 12;}}"
             // ResizeObserver fallback toggles this class where @container is unsupported.
             + ".pw-form .pw-grid.pw-grid--narrow .pw-col-6,.pw-form .pw-grid.pw-grid--narrow .pw-col-4{grid-column:span 12;}"
             + ".pw-form label{display:block;font-weight:600;font-size:13px;margin-bottom:6px;color:var(--pw-label);}"
