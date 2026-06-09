@@ -524,6 +524,8 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         ->whereNumber('id')->name('internal.customer-products.suspend');
     Route::post('/customer-products/{id}/reinstate', [InternalCustomerProductController::class, 'reinstate'])
         ->whereNumber('id')->name('internal.customer-products.reinstate');
+    Route::put('/customer-products/{id}', [InternalCustomerProductController::class, 'update'])
+        ->whereNumber('id')->name('internal.customer-products.update');
 
     // Toggle a customer's auto-suspension exemption (super_admin only).
     Route::post('/customers/{id}/exemption', [InternalCustomerController::class, 'toggleExemption'])

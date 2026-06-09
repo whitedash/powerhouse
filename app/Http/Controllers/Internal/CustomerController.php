@@ -401,6 +401,9 @@ class CustomerController extends Controller
                     'provisioned_at' => $cp->provisioned_at?->diffForHumans(),
                     'external_email' => $cp->external_email,
                     'plan' => $cp->plan,
+                    // Plan / price ids so the edit-service form can pre-select.
+                    'plan_id' => $cp->plan_id,
+                    'plan_price_id' => $cp->plan_price_id,
                     // Optional per-instance label — distinguishes multiple
                     // subscriptions of the same product.
                     'label' => $cp->label,

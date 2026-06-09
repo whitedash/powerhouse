@@ -1143,6 +1143,84 @@ function submitEnableProduct() {
     });
 }
 
+/* ─── Edit service slide-over ───
+ * Edits an existing CustomerProduct (the product is fixed; plan/price/active-
+ * since/renewal/status are editable). Mirrors the enable form's plan→price
+ * resolution but scoped to the service's own product. */
+const showEditService = ref(false);
+const editServiceForm = useForm({
+    id: null,
+    product_id: null,
+    product_name: '',
+    plan_id: null,
+    plan_price_id: null,
+    plan: '',
+    price_monthly: null,
+    interval_count: 1,
+    interval_unit: 'month',
+    started_at: '',
+    next_billing_date: '',
+    status: 'active',
+    label: '',
+    trial_ends_at: '',
+});
+
+function openEditService(p) {
+    editServiceForm.reset();
+    editServiceForm.clearErrors();
+    editServiceForm.id = p.id;
+    editServiceForm.product_id = p.product_id;
+    editServiceForm.product_name = p.name;
+    editServiceForm.plan_id = p.plan_id ?? null;
+    editServiceForm.plan_price_id = p.plan_price_id ?? null;
+    editServiceForm.plan = p.plan ?? '';
+    editServiceForm.price_monthly = p.price_monthly ?? null;
+    editServiceForm.interval_count = p.interval_count ?? 1;
+    editServiceForm.interval_unit = p.interval_unit ?? 'month';
+    editServiceForm.started_at = p.started_at ? p.started_at.slice(0, 10) : '';
+    editServiceForm.next_billing_date = p.next_billing_date ? p.next_billing_date.slice(0, 10) : '';
+    editServiceForm.status = ['active', 'trial'].includes(p.status) ? p.status : 'active';
+    editServiceForm.label = p.label ?? '';
+    editServiceForm.trial_ends_at = p.trial_ends_at ? p.trial_ends_at.slice(0, 10) : '';
+    showEditService.value = true;
+}
+
+const editServicePlans = computed(() =>
+    (props.available_products.find((p) => p.id === editServiceForm.product_id)?.plans) ?? [],
+);
+const editServicePrices = computed(() =>
+    (editServicePlans.value.find((pl) => pl.id === editServiceForm.plan_id)?.prices) ?? [],
+);
+
+function onEditServicePlanChange() {
+    const pl = editServicePlans.value.find((p) => p.id === editServiceForm.plan_id);
+    editServiceForm.plan = pl?.name ?? '';
+    const prices = pl?.prices ?? [];
+    const def = prices.find((p) => p.is_default) ?? prices[0] ?? null;
+    if (def) {
+        applyEditServicePrice(def);
+    } else {
+        editServiceForm.plan_price_id = null;
+    }
+}
+function onEditServicePriceChange() {
+    const price = editServicePrices.value.find((p) => p.id === editServiceForm.plan_price_id);
+    if (price) applyEditServicePrice(price);
+}
+function applyEditServicePrice(price) {
+    editServiceForm.plan_price_id = price.id;
+    editServiceForm.price_monthly = price.price;
+    editServiceForm.interval_count = price.interval_count;
+    editServiceForm.interval_unit = price.interval_unit;
+}
+
+function submitEditService() {
+    editServiceForm.put(`/customer-products/${editServiceForm.id}`, {
+        preserveScroll: true,
+        onSuccess: () => { showEditService.value = false; },
+    });
+}
+
 const isAdmin = computed(() => page.props.auth?.user?.role === 'super_admin');
 
 /* ─── Suspend product modal (reason + note) ─── */
@@ -2710,13 +2788,12 @@ function submitProject() {
                             </div>
                         </header>
                         <div v-if="customer.products.length" class="cw-tbl-wrap">
-                            <table class="tbl cw-tbl">
+                            <table class="tbl cw-tbl cw-tbl-fit">
                                 <thead>
                                     <tr>
                                         <th>Product</th>
                                         <th>Plan</th>
                                         <th>Price</th>
-                                        <th>Active since</th>
                                         <th>Renewal date</th>
                                         <th class="cw-col-actions"></th>
                                     </tr>
@@ -2733,10 +2810,6 @@ function submitProject() {
                                         </td>
                                         <td>
                                             <span v-if="p.price_monthly">{{ formatGBP(p.price_monthly) }}/mo</span>
-                                            <span v-else class="cw-tbl-muted">—</span>
-                                        </td>
-                                        <td>
-                                            <span v-if="p.started_at">{{ formatDate(p.started_at) }}</span>
                                             <span v-else class="cw-tbl-muted">—</span>
                                         </td>
                                         <td>
@@ -2757,11 +2830,18 @@ function submitProject() {
                                                                 Reinstate product
                                                             </button>
                                                         </MenuItem>
-                                                        <MenuItem v-else v-slot="{ active }">
-                                                            <button type="button" :class="['dd-option', { active }]" style="color: var(--warning);" @click="askSuspend(p)">
-                                                                Suspend product
-                                                            </button>
-                                                        </MenuItem>
+                                                        <template v-else>
+                                                            <MenuItem v-slot="{ active }">
+                                                                <button type="button" :class="['dd-option', { active }]" @click="openEditService(p)">
+                                                                    Edit service
+                                                                </button>
+                                                            </MenuItem>
+                                                            <MenuItem v-slot="{ active }">
+                                                                <button type="button" :class="['dd-option', { active }]" style="color: var(--warning);" @click="askSuspend(p)">
+                                                                    Suspend product
+                                                                </button>
+                                                            </MenuItem>
+                                                        </template>
                                                     </MenuItems>
                                                 </Menu>
                                             </div>
@@ -3869,6 +3949,106 @@ function submitProject() {
                                 <button type="submit" class="btn btn-primary" :disabled="! enableForm.product_id || enableForm.processing">
                                     <IconPlus :size="15" stroke-width="1.75" />
                                     {{ enableForm.processing ? 'Enabling…' : 'Enable product' }}
+                                </button>
+                            </footer>
+                        </form>
+                    </DialogPanel>
+                </TransitionChild>
+            </Dialog>
+        </TransitionRoot>
+
+        <!-- Edit service slide-over -->
+        <TransitionRoot as="template" :show="showEditService">
+            <Dialog as="div" class="slide-over-dialog" @close="showEditService = false">
+                <TransitionChild
+                    as="template"
+                    enter="transition-opacity ease-out duration-200"
+                    enter-from="opacity-0"
+                    enter-to="opacity-100"
+                    leave="transition-opacity ease-in duration-150"
+                    leave-from="opacity-100"
+                    leave-to="opacity-0"
+                >
+                    <div class="slide-over-backdrop" />
+                </TransitionChild>
+                <TransitionChild
+                    as="template"
+                    enter="transform transition ease-out duration-200"
+                    enter-from="translate-x-full"
+                    enter-to="translate-x-0"
+                    leave="transform transition ease-in duration-150"
+                    leave-from="translate-x-0"
+                    leave-to="translate-x-full"
+                >
+                    <DialogPanel class="slide-over-panel">
+                        <form class="slide-over-form" @submit.prevent="submitEditService">
+                            <header class="slide-over-header">
+                                <h2>Edit service</h2>
+                                <button type="button" class="icon-btn" aria-label="Close" @click="showEditService = false">
+                                    <IconX :size="18" stroke-width="1.75" />
+                                </button>
+                            </header>
+
+                            <div class="slide-over-body">
+                                <div class="form-row single">
+                                    <div class="form-field">
+                                        <label>Product</label>
+                                        <input type="text" :value="editServiceForm.product_name" readonly disabled>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-field">
+                                        <label>Plan</label>
+                                        <select v-model="editServiceForm.plan_id" @change="onEditServicePlanChange">
+                                            <option :value="null">Custom / no plan</option>
+                                            <option v-for="pl in editServicePlans" :key="pl.id" :value="pl.id">{{ pl.name }}</option>
+                                        </select>
+                                        <div v-if="editServiceForm.errors.plan_id" class="err">{{ editServiceForm.errors.plan_id }}</div>
+                                    </div>
+                                    <div class="form-field">
+                                        <label>Price</label>
+                                        <select v-if="editServicePrices.length" v-model="editServiceForm.plan_price_id" @change="onEditServicePriceChange">
+                                            <option v-for="pr in editServicePrices" :key="pr.id" :value="pr.id">{{ pr.display_label }}</option>
+                                        </select>
+                                        <input v-else v-model="editServiceForm.price_monthly" type="number" min="0" step="0.01" placeholder="£ / month">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-field">
+                                        <label>Active since</label>
+                                        <input v-model="editServiceForm.started_at" type="date">
+                                    </div>
+                                    <div class="form-field">
+                                        <label>Renewal date</label>
+                                        <input v-model="editServiceForm.next_billing_date" type="date">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-field">
+                                        <label>Status</label>
+                                        <select v-model="editServiceForm.status">
+                                            <option value="active">Active</option>
+                                            <option value="trial">Trial</option>
+                                        </select>
+                                    </div>
+                                    <div v-if="editServiceForm.status === 'trial'" class="form-field">
+                                        <label>Trial ends<span class="req">*</span></label>
+                                        <input v-model="editServiceForm.trial_ends_at" type="date">
+                                        <div v-if="editServiceForm.errors.trial_ends_at" class="err">{{ editServiceForm.errors.trial_ends_at }}</div>
+                                    </div>
+                                </div>
+                                <div class="form-row single">
+                                    <div class="form-field">
+                                        <label>Label (optional)</label>
+                                        <input v-model="editServiceForm.label" type="text" maxlength="100" placeholder="Distinguish multiple instances of the same product">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <footer class="slide-over-footer">
+                                <button type="button" class="btn btn-secondary" @click="showEditService = false">Cancel</button>
+                                <button type="submit" class="btn btn-primary" :disabled="editServiceForm.processing">
+                                    {{ editServiceForm.processing ? 'Saving…' : 'Save changes' }}
                                 </button>
                             </footer>
                         </form>
@@ -5112,6 +5292,9 @@ function submitProject() {
    wrapper can't clip a popover. */
 .cust-assets .cw-tbl-wrap { overflow-x: auto; }
 .cust-assets .cw-tbl { min-width: 520px; }
+/* Services table (5 short columns: Product/Plan/Price/Renewal/actions) fits its
+   grid cell without the 520px floor, so it no longer scrolls horizontally. */
+.cust-assets .cw-tbl-fit { min-width: 0; }
 .cust-assets .cw-tbl-site { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .cust-assets .cw-tbl .cw-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .cust-assets .cw-tbl .cw-dot.green { background: var(--success); }
