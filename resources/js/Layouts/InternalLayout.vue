@@ -246,8 +246,8 @@ const sections = computed(() => {
                     label: 'Clients',
                     icon: IconUsers,
                     children: [
-                        { key: 'customers', label: 'Customers', href: '/customers', icon: IconUsers },
                         { key: 'people', label: 'People', href: '/people', icon: IconUser },
+                        { key: 'customers', label: 'Companies', href: '/customers', icon: IconUsers },
                         { key: 'referrers', label: 'Referrers', href: '/referrers', icon: IconUsersGroup },
                         { key: 'referrals', label: 'Referrals', href: '/referrals', icon: IconShare },
                     ],

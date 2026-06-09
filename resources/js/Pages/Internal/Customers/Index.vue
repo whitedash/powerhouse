@@ -52,7 +52,7 @@ const me = computed(() => page.props.auth?.user);
 const breadcrumbs = [
     { label: 'Powerhouse', href: '/' },
     { label: 'Workspace' },
-    { label: 'Customers' },
+    { label: 'Companies' },
 ];
 
 const PIPELINE_LABELS = {
@@ -349,9 +349,9 @@ onMounted(() => {
 </script>
 
 <template>
-    <Head title="Customers" />
+    <Head title="Companies" />
 
-    <InternalLayout title="Customers" :breadcrumbs="breadcrumbs" active-nav="customers">
+    <InternalLayout title="Companies" :breadcrumbs="breadcrumbs" active-nav="customers">
         <template #topbar-actions>
             <button class="btn btn-secondary" type="button">
                 <IconFileImport :size="15" stroke-width="1.75" />
@@ -359,16 +359,16 @@ onMounted(() => {
             </button>
             <button class="btn btn-primary" type="button" @click="openCreate">
                 <IconPlus :size="15" stroke-width="1.75" />
-                New customer
+                New company
             </button>
         </template>
 
         <!-- Greeting -->
         <div class="greet">
             <div>
-                <h1>Customers</h1>
+                <h1>Companies</h1>
                 <div class="sub">
-                    {{ summary.total.toLocaleString('en-GB') }} customers across Maavelus, MyOrderPad, and Whitedash B2B
+                    {{ summary.total.toLocaleString('en-GB') }} companies across Maavelus, MyOrderPad, and Whitedash B2B
                 </div>
             </div>
         </div>
@@ -488,7 +488,7 @@ onMounted(() => {
                 <thead>
                     <tr>
                         <th />
-                        <th>Customer</th>
+                        <th>Company</th>
                         <th>Products</th>
                         <th class="num">MRR</th>
                         <th>Pipeline</th>
@@ -551,7 +551,7 @@ onMounted(() => {
                                 </MenuButton>
                                 <MenuItems class="dd-popover right-align">
                                     <MenuItem v-slot="{ active }">
-                                        <Link :href="`/customers/${c.id}`" :class="['dd-option', { active }]">View customer</Link>
+                                        <Link :href="`/customers/${c.id}`" :class="['dd-option', { active }]">View company</Link>
                                     </MenuItem>
                                     <MenuItem v-slot="{ active }">
                                         <Link :href="`/invoices/new?customer_id=${c.id}`" :class="['dd-option', { active }]">New invoice</Link>
@@ -572,7 +572,7 @@ onMounted(() => {
             <!-- Empty state -->
             <div v-else class="empty-state">
                 <div class="empty-icon"><IconUsers :size="48" stroke-width="1.5" /></div>
-                <h3>No customers found</h3>
+                <h3>No companies found</h3>
                 <p>Try adjusting your search or filters.</p>
                 <a v-if="filters.search" href="#" @click.prevent="clearSearch">Clear search</a>
             </div>
@@ -654,7 +654,7 @@ onMounted(() => {
                     <DialogPanel class="slide-over-panel">
                         <form class="slide-over-form" @submit.prevent="submit">
                             <header class="slide-over-header">
-                                <h2>New customer</h2>
+                                <h2>New company</h2>
                                 <button type="button" class="icon-btn" aria-label="Close" @click="showCreate = false">
                                     <IconX :size="18" stroke-width="1.75" />
                                 </button>
@@ -857,7 +857,7 @@ onMounted(() => {
                             <footer class="slide-over-footer">
                                 <button type="button" class="btn btn-secondary" @click="showCreate = false">Cancel</button>
                                 <button type="submit" class="btn btn-primary" :disabled="form.processing">
-                                    {{ form.processing ? 'Creating…' : 'Create customer' }}
+                                    {{ form.processing ? 'Creating…' : 'Create company' }}
                                 </button>
                             </footer>
                         </form>

@@ -210,7 +210,7 @@ onMounted(() => {
 /* ─── Breadcrumbs / header data ─── */
 const breadcrumbs = computed(() => [
     { label: 'Powerhouse', href: '/' },
-    { label: 'Customers', href: '/customers' },
+    { label: 'Companies', href: '/customers' },
     { label: props.customer.name },
 ]);
 
@@ -534,7 +534,7 @@ function submitTask() {
     }
 }
 
-/* Contacts for this customer's activity form */
+/* Contacts for this company's activity form */
 const customerContactsForPicker = computed(() =>
     props.customer.contacts.map((c) => ({ id: c.id, name: c.name })),
 );
@@ -1688,7 +1688,7 @@ function submitProject() {
             </button>
             <button class="btn btn-secondary" type="button" @click="openEdit">
                 <IconPencil :size="15" stroke-width="1.75" />
-                Edit customer
+                Edit company
             </button>
             <button class="btn btn-primary" type="button" @click="gotoInvoice">
                 <IconReceipt :size="15" stroke-width="1.75" />
@@ -1782,7 +1782,7 @@ function submitProject() {
                             <div class="h-icon"><IconBuilding :size="16" stroke-width="1.75" /></div>
                             <div>
                                 <h3>Account details</h3>
-                                <div class="sub">Customer record</div>
+                                <div class="sub">Company record</div>
                             </div>
                             <div class="right">
                                 <button type="button" class="ghost-link" @click="openEdit">
@@ -1850,7 +1850,7 @@ function submitProject() {
                                 </div>
                             </div>
                             <div class="acc-cell acc-row-last">
-                                <div class="acc-label">Customer since</div>
+                                <div class="acc-label">Company since</div>
                                 <div class="acc-value">
                                     {{ formatDate(customer.created_at) }}
                                     <span style="font-weight: 400; color: var(--text-tertiary);">· {{ timeAgo(customer.created_at) }}</span>
@@ -2500,7 +2500,7 @@ function submitProject() {
                     <div style="display: flex; justify-content: flex-end; padding-top: 4px;">
                         <button type="button" class="ghost-link" style="color: var(--danger);" @click="archive">
                             <IconArchive :size="14" stroke-width="1.75" />
-                            Archive customer
+                            Archive company
                         </button>
                     </div>
                 </div>
@@ -2547,7 +2547,7 @@ function submitProject() {
                     </div>
                     <div v-else class="tab-empty">
                         <h3>No invoices yet</h3>
-                        <p>Create the first one for this customer.</p>
+                        <p>Create the first one for this company.</p>
                     </div>
                 </section>
             </div>
@@ -2706,7 +2706,7 @@ function submitProject() {
                             <div class="h-icon gold"><IconLayoutGrid :size="16" stroke-width="1.75" /></div>
                             <div>
                                 <h3>Services</h3>
-                                <div class="sub">Recurring services for this customer</div>
+                                <div class="sub">Recurring services for this company</div>
                             </div>
                         </header>
                         <div v-if="customer.products.length" class="cw-tbl-wrap">
@@ -2772,7 +2772,7 @@ function submitProject() {
                         </div>
                         <div v-else class="tab-empty">
                             <h3>No services yet</h3>
-                            <p>Add a service to track recurring revenue for this customer.</p>
+                            <p>Add a service to track recurring revenue for this company.</p>
                             <button type="button" class="btn btn-primary btn-sm" style="margin-top: 12px;" @click="openEnableProduct">
                                 <IconPlus :size="14" stroke-width="1.75" />
                                 Add service
@@ -2787,12 +2787,12 @@ function submitProject() {
                                 <div class="h-icon"><IconUsersGroup :size="16" stroke-width="1.75" /></div>
                                 <div>
                                     <h3>Projects</h3>
-                                    <p class="card-sub">Active and completed projects for this customer.</p>
+                                    <p class="card-sub">Active and completed projects for this company.</p>
                                 </div>
                             </header>
 
                             <div v-if="(customer.projects ?? []).length === 0" class="cp-empty">
-                                <p class="muted">No projects for this customer yet.</p>
+                                <p class="muted">No projects for this company yet.</p>
                                 <button type="button" class="ghost-link" @click="openCreateProject">+ Create first project</button>
                             </div>
 
@@ -3111,7 +3111,7 @@ function submitProject() {
                     </header>
 
                     <div v-if="(customer.proposals ?? []).length === 0" class="cp-empty">
-                        <p class="muted">No proposals for this customer yet.</p>
+                        <p class="muted">No proposals for this company yet.</p>
                         <a href="/proposals" class="ghost-link">+ Create first proposal</a>
                     </div>
 
@@ -3161,7 +3161,7 @@ function submitProject() {
                         </template>
                         <template v-else>
                             <h3>No open tickets</h3>
-                            <p>This customer is all clear.</p>
+                            <p>This company is all clear.</p>
                         </template>
                     </div>
                 </section>
@@ -3325,7 +3325,7 @@ function submitProject() {
                         <div class="h-icon"><IconActivity :size="16" stroke-width="1.75" /></div>
                         <div>
                             <h3>Activity</h3>
-                            <div class="sub">Audit log for this customer</div>
+                            <div class="sub">Audit log for this company</div>
                         </div>
                     </header>
                     <div v-if="customer.activity.length">
@@ -3348,7 +3348,7 @@ function submitProject() {
                     </div>
                     <div v-else class="tab-empty">
                         <h3>No activity yet</h3>
-                        <p>Edits, notes, and tasks for this customer will appear here.</p>
+                        <p>Edits, notes, and tasks for this company will appear here.</p>
                     </div>
                 </section>
             </div>
@@ -3441,7 +3441,7 @@ function submitProject() {
                     <DialogPanel class="slide-over-panel">
                         <form class="slide-over-form" @submit.prevent="submitEdit">
                             <header class="slide-over-header">
-                                <h2>Edit customer</h2>
+                                <h2>Edit company</h2>
                                 <button type="button" class="icon-btn" aria-label="Close" @click="showEdit = false">
                                     <IconX :size="18" stroke-width="1.75" />
                                 </button>
@@ -3556,8 +3556,8 @@ function submitProject() {
         <ConfirmModal
             v-model:show="showArchiveModal"
             :title="`Archive ${customer.name}?`"
-            message="This customer will be archived and hidden from active lists. Their invoices and history will be preserved."
-            confirm-label="Archive customer"
+            message="This company will be archived and hidden from active lists. Their invoices and history will be preserved."
+            confirm-label="Archive company"
             variant="warning"
             :loading="archiveProcessing"
             @confirm="handleArchive"
@@ -3915,7 +3915,7 @@ function submitProject() {
         <ConfirmModal
             v-model:show="showRequestErasure"
             title="Request erasure?"
-            message="This logs a right-to-erasure request for this customer. The data is not erased yet — complete erasure once all invoices are settled."
+            message="This logs a right-to-erasure request for this company. The data is not erased yet — complete erasure once all invoices are settled."
             confirm-label="Log erasure request"
             variant="warning"
             :loading="gdprProcessing"
@@ -3926,8 +3926,8 @@ function submitProject() {
         <ConfirmModal
             v-model:show="showProcessErasure"
             title="Complete erasure?"
-            message="This permanently anonymises the customer, their contacts, and removes portal access, notes and activities. Invoices are retained (anonymised) for legal compliance. This cannot be undone."
-            confirm-label="Erase customer data"
+            message="This permanently anonymises the company, their contacts, and removes portal access, notes and activities. Invoices are retained (anonymised) for legal compliance. This cannot be undone."
+            confirm-label="Erase company data"
             variant="danger"
             :loading="gdprProcessing"
             @confirm="confirmProcessErasure"
@@ -4728,7 +4728,7 @@ function submitProject() {
                             <p v-if="websiteForm.errors.url" class="form-error">{{ websiteForm.errors.url }}</p>
                         </div>
                         <div class="form-section">
-                            <label class="form-label">Customer</label>
+                            <label class="form-label">Company</label>
                             <input type="text" class="form-input" :value="customer.name" readonly disabled />
                         </div>
 
@@ -4845,7 +4845,7 @@ function submitProject() {
                             <p v-if="domainForm.errors.domain" class="form-error">{{ domainForm.errors.domain }}</p>
                         </div>
                         <div class="form-section">
-                            <label class="form-label">Customer</label>
+                            <label class="form-label">Company</label>
                             <input type="text" class="form-input" :value="customer.name" readonly disabled />
                         </div>
                         <div class="form-row-2">
@@ -4924,7 +4924,7 @@ function submitProject() {
                             <p v-if="projectForm.errors.title" class="form-error">{{ projectForm.errors.title }}</p>
                         </div>
                         <div class="form-section">
-                            <label class="form-label">Customer</label>
+                            <label class="form-label">Company</label>
                             <input type="text" class="form-input" :value="customer.name" readonly disabled />
                         </div>
                         <div class="form-section">
