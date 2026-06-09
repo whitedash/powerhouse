@@ -145,10 +145,11 @@ class HandleInertiaRequests extends Middleware
                             'smscube' => 'message-2',
                             default => 'box',
                         },
-                        'route' => match ($p->slug) {
-                            'maavelus' => '/maavelus/statements',
-                            default => '/products/'.$p->slug,
-                        },
+                        // Every product lands on its overview page (/products/{slug}).
+                        // Maavelus's "Statements" is demoted to a sub-item under it
+                        // (added in InternalLayout), not its default landing — it
+                        // used to special-case here to /maavelus/statements.
+                        'route' => '/products/'.$p->slug,
                     ])
                     ->all())
                 : [],
