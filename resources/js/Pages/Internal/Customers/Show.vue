@@ -1420,6 +1420,29 @@ function openPageSpeedModal(w) {
 }
 function closePageSpeedModal() { pageSpeedModal.value = null; }
 
+/* ─── Website details modal (Assets tab) ───
+ * Keyed by id (not a snapshot) so it re-resolves from fresh props after an
+ * Inertia reload — running a PageSpeed check / hosting sync / suspend from
+ * inside the modal updates it live, and a deleted website auto-closes it. */
+const websiteModalId = ref(null);
+const websiteModal = computed(() =>
+    websiteModalId.value === null
+        ? null
+        : (props.customer.websites ?? []).find((w) => w.id === websiteModalId.value) ?? null,
+);
+function openWebsiteModal(w) { websiteModalId.value = w.id; }
+function closeWebsiteModal() { websiteModalId.value = null; }
+function editFromModal() {
+    const w = websiteModal.value;
+    closeWebsiteModal();
+    if (w) openEditWebsite(w);
+}
+function deleteFromModal() {
+    const w = websiteModal.value;
+    closeWebsiteModal();
+    if (w) askDeleteWebsite(w);
+}
+
 // Mobile is the richer run (all four categories + vitals + opportunities).
 const psMobile = computed(() => pageSpeedModal.value?.pagespeed_data?.mobile ?? null);
 const psOpportunities = computed(() => pageSpeedModal.value?.pagespeed_data?.opportunities ?? []);
@@ -2545,8 +2568,113 @@ function submitProject() {
                     </Menu>
                 </div>
 
-                <div class="assets-stack">
-                    <!-- Subscriptions -->
+                <div class="assets-grid">
+                    <!-- Domains (top-left) -->
+                    <section class="card">
+                        <header class="card-header">
+                            <div class="h-icon"><IconWorld :size="16" stroke-width="1.75" /></div>
+                            <div>
+                                <h3>Domains</h3>
+                                <div class="sub">{{ customer.domains.length }} domain{{ customer.domains.length === 1 ? '' : 's' }}</div>
+                            </div>
+                            <div class="right">
+                                <Link href="/domains" class="ghost-link">Manage DNS<IconArrowRight :size="14" stroke-width="1.75" /></Link>
+                            </div>
+                        </header>
+                        <div v-if="customer.domains.length">
+                            <div v-for="d in customer.domains" :key="d.id" class="dom-row">
+                                <IconWorld class="world" :size="18" stroke-width="1.75" />
+                                <div>
+                                    <div class="dom-name">{{ d.domain }}</div>
+                                    <div class="dom-sub">
+                                        <template v-if="d.is_in_cloudflare">Cloudflare</template>
+                                        <template v-else>External</template>
+                                        <template v-if="d.expiry_date"> · expires {{ formatDate(d.expiry_date) }}</template>
+                                    </div>
+                                </div>
+                                <div class="dom-tags">
+                                    <span v-if="d.ssl_expiry_date" class="tiny-badge ssl">
+                                        <IconCheck :size="11" stroke-width="2" />
+                                        SSL
+                                    </span>
+                                    <span class="tiny-badge" :class="domainTagClass(d.status)">{{ d.status }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="tab-empty" style="padding: 28px 18px;">
+                            <p>No domains tracked.</p>
+                        </div>
+                        <div v-if="! customer.domains.length" class="add-line">
+                            <a href="#" class="ghost-link" @click.prevent="openCreateDomain"><IconPlus :size="14" stroke-width="1.75" />Add domain</a>
+                        </div>
+                    </section>
+
+                    <!-- Websites (top-right) — compact table; full detail opens in a modal -->
+                    <section class="card">
+                        <header class="card-header">
+                            <div class="h-icon"><IconWorld :size="16" stroke-width="1.75" /></div>
+                            <div>
+                                <h3>Websites</h3>
+                                <div class="sub">{{ (customer.websites ?? []).length }} website{{ (customer.websites ?? []).length === 1 ? '' : 's' }}</div>
+                            </div>
+                        </header>
+                        <div v-if="(customer.websites ?? []).length" class="cw-tbl-wrap">
+                            <table class="tbl cw-tbl">
+                                <thead>
+                                    <tr>
+                                        <th>Domain</th>
+                                        <th>Hosting plan</th>
+                                        <th>Renewal date</th>
+                                        <th class="num">Mobile</th>
+                                        <th class="num">Desktop</th>
+                                        <th class="cw-tbl-details"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="w in customer.websites" :key="w.id">
+                                        <td>
+                                            <div class="cw-tbl-site">
+                                                <span class="cw-dot" :class="HEALTH_DOT[w.health_status]" :title="w.health_status"></span>
+                                                <div class="cw-tbl-id">
+                                                    <a :href="w.url" target="_blank" rel="noopener" class="cw-tbl-name">{{ w.name }}</a>
+                                                    <span v-if="w.hosting_status === 'suspended'" class="badge badge-overdue badge-sm">Suspended</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span v-if="w.plan_name">{{ w.plan_name }}</span>
+                                            <span v-else class="cw-tbl-muted">—</span>
+                                        </td>
+                                        <td>
+                                            <span v-if="w.hosting_next_billing_date">{{ formatDate(w.hosting_next_billing_date) }}</span>
+                                            <span v-else class="cw-tbl-muted">—</span>
+                                        </td>
+                                        <td class="num">
+                                            <span v-if="w.pagespeed_mobile !== null" class="cw-perf" :class="scoreBand(w.pagespeed_mobile)">{{ w.pagespeed_mobile }}</span>
+                                            <span v-else class="cw-tbl-muted">—</span>
+                                        </td>
+                                        <td class="num">
+                                            <span v-if="w.pagespeed_desktop !== null" class="cw-perf" :class="scoreBand(w.pagespeed_desktop)">{{ w.pagespeed_desktop }}</span>
+                                            <span v-else class="cw-tbl-muted">—</span>
+                                        </td>
+                                        <td class="num cw-tbl-details">
+                                            <button type="button" class="btn btn-ghost btn-sm" @click="openWebsiteModal(w)">Details</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div v-else class="tab-empty">
+                            <h3>No websites yet</h3>
+                            <p>Add a website to track hosting usage, SSL, and PageSpeed performance.</p>
+                            <button type="button" class="btn btn-primary btn-sm" style="margin-top: 12px;" @click="openCreateWebsite">
+                                <IconPlus :size="14" stroke-width="1.75" />
+                                Add website
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- Services (bottom-left) -->
                     <section class="card">
                         <header class="card-header">
                             <div class="h-icon gold"><IconLayoutGrid :size="16" stroke-width="1.75" /></div>
@@ -2621,193 +2749,6 @@ function submitProject() {
                         </div>
                     </section>
 
-                    <!-- Websites -->
-                    <div class="cust-websites">
-                        <div class="cw-head">
-                            <h2 class="cw-title">Websites</h2>
-                </div>
-
-                <div v-if="(customer.websites ?? []).length" class="cw-grid">
-                    <div v-for="w in customer.websites" :key="w.id" class="cw-card">
-                        <!-- Header -->
-                        <div class="cw-card-head">
-                            <span class="cw-dot" :class="HEALTH_DOT[w.health_status]" :title="w.health_status"></span>
-                            <div class="cw-id">
-                                <div class="cw-name">{{ w.name }}</div>
-                                <a :href="w.url" target="_blank" rel="noopener" class="cw-url">{{ w.url }}</a>
-                            </div>
-                            <span v-if="w.status === 'suspended'" class="badge badge-overdue badge-sm">Suspended</span>
-                            <Menu as="div" class="dd-menu">
-                                <MenuButton class="icon-btn" aria-label="Website actions"><IconDots :size="16" stroke-width="1.75" /></MenuButton>
-                                <MenuItems class="dd-popover right-align">
-                                    <MenuItem v-slot="{ active }">
-                                        <button type="button" :class="['dd-option', { active }]" @click="openEditWebsite(w)">
-                                            Edit
-                                        </button>
-                                    </MenuItem>
-                                    <MenuItem v-if="w.hosting_status === 'active'" v-slot="{ active }">
-                                        <button type="button" :class="['dd-option', { active }]" style="color: var(--warning);" @click="suspendHosting(w)">
-                                            Suspend hosting
-                                        </button>
-                                    </MenuItem>
-                                    <MenuItem v-if="w.hosting_status === 'suspended'" v-slot="{ active }">
-                                        <button type="button" :class="['dd-option', { active }]" @click="reinstateHosting(w)">
-                                            Reinstate hosting
-                                        </button>
-                                    </MenuItem>
-                                    <MenuItem v-slot="{ active }">
-                                        <button type="button" :class="['dd-option', { active }]" style="color: var(--danger);" @click="askDeleteWebsite(w)">
-                                            Delete
-                                        </button>
-                                    </MenuItem>
-                                </MenuItems>
-                            </Menu>
-                        </div>
-                        <div v-if="w.plan_name" class="cw-plan">
-                            {{ w.plan_name }}<span v-if="w.plan_price_label" class="cw-muted"> · {{ w.plan_price_label }}</span>
-                            <span v-if="w.hosting_status === 'suspended'" class="badge badge-overdue badge-sm" style="margin-left: 6px;">Hosting suspended</span>
-                        </div>
-
-                        <!-- Hosting usage -->
-                        <div class="cw-section">
-                            <div class="cw-section-label"><IconDatabase :size="13" stroke-width="2" /> Disk</div>
-                            <template v-if="w.disk_percent !== null">
-                                <div class="cw-bar"><span class="cw-bar-fill" :class="w.disk_percent >= 90 ? 'red' : (w.disk_percent >= 80 ? 'amber' : 'green')" :style="{ width: Math.min(w.disk_percent, 100) + '%' }"></span></div>
-                                <div class="cw-bar-meta">{{ gbFromMb(w.disk_used_mb) }} / {{ gbFromMb(w.disk_quota_mb) }} GB · {{ w.disk_percent }}%</div>
-                            </template>
-                            <div v-else class="cw-muted">No usage data yet</div>
-                        </div>
-
-                        <div class="cw-row2">
-                            <div class="cw-stat"><IconMail :size="13" stroke-width="2" /> {{ w.email_accounts_count ?? '—' }}<span v-if="w.email_accounts_quota"> / {{ w.email_accounts_quota }}</span> email</div>
-                            <div class="cw-stat"><IconActivity :size="13" stroke-width="2" /> {{ w.bandwidth_used_mb !== null ? gbFromMb(w.bandwidth_used_mb) + ' GB' : '—' }} bw</div>
-                        </div>
-
-                        <!-- Performance -->
-                        <div class="cw-section">
-                            <div class="cw-section-label"><IconGauge :size="13" stroke-width="2" /> Performance</div>
-                            <template v-if="w.pagespeed_mobile !== null">
-                                <div class="cw-scores">
-                                    <div class="cw-score" :class="w.pagespeed_grade">
-                                        <span class="cw-score-num">{{ w.pagespeed_mobile }}</span>
-                                        <span class="cw-score-lbl">Mobile</span>
-                                    </div>
-                                    <div class="cw-score" :class="w.pagespeed_desktop >= 90 ? 'good' : (w.pagespeed_desktop >= 50 ? 'needs-improvement' : 'poor')">
-                                        <span class="cw-score-num">{{ w.pagespeed_desktop }}</span>
-                                        <span class="cw-score-lbl">Desktop</span>
-                                    </div>
-                                    <div class="cw-vitals">
-                                        <span v-if="w.pagespeed_lcp">LCP {{ w.pagespeed_lcp }}s</span>
-                                        <span v-if="w.pagespeed_cls !== null">CLS {{ w.pagespeed_cls }}</span>
-                                        <span class="cw-muted">{{ w.pagespeed_checked_at ? 'Checked ' + w.pagespeed_checked_at : '' }}</span>
-                                    </div>
-                                </div>
-                            </template>
-                            <div v-else class="cw-muted">Not checked yet</div>
-                            <div class="cw-section-actions">
-                                <button type="button" class="ghost-link" :disabled="pagespeedId === w.id" @click="runPageSpeed(w)">
-                                    <IconGauge :size="13" stroke-width="2" />
-                                    {{ pagespeedId === w.id ? 'Running…' : 'Run PageSpeed check' }}
-                                </button>
-                                <button v-if="w.pagespeed_mobile !== null" type="button" class="ghost-link" @click="openPageSpeedModal(w)">
-                                    View full report →
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- WordPress (MainWP) -->
-                        <div v-if="w.wp_version || w.mainwp_site_id" class="cw-section">
-                            <div class="cw-section-label"><IconBrandWordpress :size="13" stroke-width="2" /> WordPress</div>
-                            <template v-if="w.wp_version">
-                                <div class="cw-wp-row">
-                                    <span class="cw-wp-chip">WP {{ w.wp_version }}</span>
-                                    <span v-if="w.php_version" class="cw-wp-chip">PHP {{ w.php_version }}</span>
-                                    <span class="badge badge-sm" :class="w.plugins_outdated > 0 ? 'badge-pending' : 'badge-active'">
-                                        {{ w.plugins_outdated > 0 ? w.plugins_outdated + ' plugin updates' : 'Plugins up to date' }}
-                                    </span>
-                                    <span v-if="w.themes_outdated > 0" class="badge badge-sm badge-pending">{{ w.themes_outdated }} theme updates</span>
-                                </div>
-                                <div v-if="w.last_backup_at" class="cw-wp-backup">Last backup: {{ w.last_backup_at }}</div>
-                            </template>
-                            <div v-else class="cw-muted">Not synced yet</div>
-                            <div class="cw-section-actions">
-                                <button v-if="w.mainwp_site_id" type="button" class="ghost-link" :disabled="wpSyncingId === w.id" @click="syncWordPress(w)">
-                                    <IconRefresh :size="13" stroke-width="2" />
-                                    {{ wpSyncingId === w.id ? 'Syncing…' : 'Sync WordPress' }}
-                                </button>
-                                <span v-else class="cw-muted">Not linked to MainWP</span>
-                            </div>
-                        </div>
-
-                        <!-- SSL / domain -->
-                        <div class="cw-ssl" :class="{ 'ssl-bad': w.ssl_status && w.ssl_status !== 'valid' }">
-                            <IconWorld :size="13" stroke-width="2" />
-                            <span v-if="w.domain_name">SSL: {{ w.ssl_status ?? 'unknown' }} · {{ w.domain_name }}</span>
-                            <span v-else class="cw-muted">No domain linked</span>
-                        </div>
-
-                        <!-- Footer actions -->
-                        <div class="cw-actions">
-                            <button v-if="w.has_cpanel" type="button" class="btn btn-ghost btn-sm" :disabled="syncingId === w.id" @click="syncHosting(w)">
-                                <IconRefresh :size="14" stroke-width="1.75" />
-                                {{ syncingId === w.id ? 'Syncing…' : 'Sync hosting now' }}
-                            </button>
-                            <span v-else class="cw-muted" style="font-size: 12px;">No cPanel configured</span>
-                            <span v-if="w.usage_checked_at" class="cw-muted" style="font-size: 11.5px; margin-left: auto;">Synced {{ w.usage_checked_at }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                        <div v-else class="tab-empty">
-                            <h3>No websites yet</h3>
-                            <p>Add a website to track hosting usage, SSL, and PageSpeed performance.</p>
-                            <button type="button" class="btn btn-primary btn-sm" style="margin-top: 12px;" @click="openCreateWebsite">
-                                <IconPlus :size="14" stroke-width="1.75" />
-                                Add website
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Domains (first-class section; was an overview summary card) -->
-                    <section class="card">
-                        <header class="card-header">
-                            <div class="h-icon"><IconWorld :size="16" stroke-width="1.75" /></div>
-                            <div>
-                                <h3>Domains</h3>
-                                <div class="sub">{{ customer.domains.length }} domain{{ customer.domains.length === 1 ? '' : 's' }}</div>
-                            </div>
-                            <div class="right">
-                                <Link href="/domains" class="ghost-link">Manage DNS<IconArrowRight :size="14" stroke-width="1.75" /></Link>
-                            </div>
-                        </header>
-                        <div v-if="customer.domains.length">
-                            <div v-for="d in customer.domains" :key="d.id" class="dom-row">
-                                <IconWorld class="world" :size="18" stroke-width="1.75" />
-                                <div>
-                                    <div class="dom-name">{{ d.domain }}</div>
-                                    <div class="dom-sub">
-                                        <template v-if="d.is_in_cloudflare">Cloudflare</template>
-                                        <template v-else>External</template>
-                                        <template v-if="d.expiry_date"> · expires {{ formatDate(d.expiry_date) }}</template>
-                                    </div>
-                                </div>
-                                <div class="dom-tags">
-                                    <span v-if="d.ssl_expiry_date" class="tiny-badge ssl">
-                                        <IconCheck :size="11" stroke-width="2" />
-                                        SSL
-                                    </span>
-                                    <span class="tiny-badge" :class="domainTagClass(d.status)">{{ d.status }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div v-else class="tab-empty" style="padding: 28px 18px;">
-                            <p>No domains tracked.</p>
-                        </div>
-                        <div v-if="! customer.domains.length" class="add-line">
-                            <a href="#" class="ghost-link" @click.prevent="openCreateDomain"><IconPlus :size="14" stroke-width="1.75" />Add domain</a>
-                        </div>
-                    </section>
-
                     <!-- Projects -->
                     <div class="cust-projects">
                         <section class="card">
@@ -2848,6 +2789,147 @@ function submitProject() {
                                 </a>
                             </div>
                         </section>
+                    </div>
+                </div>
+
+                <!-- Website details modal — the full per-website detail (formerly the website card) -->
+                <div v-if="websiteModal" class="cust-websites ps-modal-overlay" @click.self="closeWebsiteModal">
+                    <div class="ps-modal cw-detail-modal" role="dialog" aria-modal="true">
+                        <div class="ps-modal-head">
+                            <div class="ps-modal-headings">
+                                <h2 class="ps-modal-title cw-detail-title">
+                                    <span class="cw-dot" :class="HEALTH_DOT[websiteModal.health_status]" :title="websiteModal.health_status"></span>
+                                    {{ websiteModal.name }}
+                                </h2>
+                                <div class="ps-modal-sub">
+                                    <a :href="websiteModal.url" target="_blank" rel="noopener" class="cw-url">{{ websiteModal.url }}</a>
+                                    <span v-if="websiteModal.hosting_status === 'suspended'" class="badge badge-overdue badge-sm" style="margin-left: 8px;">Hosting suspended</span>
+                                </div>
+                            </div>
+                            <button type="button" class="icon-btn" aria-label="Close" @click="closeWebsiteModal"><IconX :size="18" stroke-width="2" /></button>
+                        </div>
+
+                        <div class="ps-modal-body cw-detail-body">
+                            <div v-if="websiteModal.plan_name" class="cw-plan" style="margin-top: 0;">
+                                {{ websiteModal.plan_name }}<span v-if="websiteModal.plan_price_label" class="cw-muted"> · {{ websiteModal.plan_price_label }}</span>
+                            </div>
+
+                            <!-- Hosting usage -->
+                            <div class="cw-section">
+                                <div class="cw-section-label"><IconDatabase :size="13" stroke-width="2" /> Disk</div>
+                                <template v-if="websiteModal.disk_percent !== null">
+                                    <div class="cw-bar"><span class="cw-bar-fill" :class="websiteModal.disk_percent >= 90 ? 'red' : (websiteModal.disk_percent >= 80 ? 'amber' : 'green')" :style="{ width: Math.min(websiteModal.disk_percent, 100) + '%' }"></span></div>
+                                    <div class="cw-bar-meta">{{ gbFromMb(websiteModal.disk_used_mb) }} / {{ gbFromMb(websiteModal.disk_quota_mb) }} GB · {{ websiteModal.disk_percent }}%</div>
+                                </template>
+                                <div v-else class="cw-muted">No usage data yet</div>
+                            </div>
+
+                            <div class="cw-row2">
+                                <div class="cw-stat"><IconMail :size="13" stroke-width="2" /> {{ websiteModal.email_accounts_count ?? '—' }}<span v-if="websiteModal.email_accounts_quota"> / {{ websiteModal.email_accounts_quota }}</span> email</div>
+                                <div class="cw-stat"><IconActivity :size="13" stroke-width="2" /> {{ websiteModal.bandwidth_used_mb !== null ? gbFromMb(websiteModal.bandwidth_used_mb) + ' GB' : '—' }} bw</div>
+                            </div>
+
+                            <!-- Performance -->
+                            <div class="cw-section">
+                                <div class="cw-section-label"><IconGauge :size="13" stroke-width="2" /> Performance</div>
+                                <template v-if="websiteModal.pagespeed_mobile !== null">
+                                    <div class="cw-scores">
+                                        <div class="cw-score" :class="websiteModal.pagespeed_grade">
+                                            <span class="cw-score-num">{{ websiteModal.pagespeed_mobile }}</span>
+                                            <span class="cw-score-lbl">Mobile</span>
+                                        </div>
+                                        <div class="cw-score" :class="scoreBand(websiteModal.pagespeed_desktop)">
+                                            <span class="cw-score-num">{{ websiteModal.pagespeed_desktop }}</span>
+                                            <span class="cw-score-lbl">Desktop</span>
+                                        </div>
+                                        <div class="cw-vitals">
+                                            <span v-if="websiteModal.pagespeed_lcp">LCP {{ websiteModal.pagespeed_lcp }}s</span>
+                                            <span v-if="websiteModal.pagespeed_cls !== null">CLS {{ websiteModal.pagespeed_cls }}</span>
+                                            <span class="cw-muted">{{ websiteModal.pagespeed_checked_at ? 'Checked ' + websiteModal.pagespeed_checked_at : '' }}</span>
+                                        </div>
+                                    </div>
+                                </template>
+                                <div v-else class="cw-muted">Not checked yet</div>
+                                <div class="cw-section-actions">
+                                    <button type="button" class="ghost-link" :disabled="pagespeedId === websiteModal.id" @click="runPageSpeed(websiteModal)">
+                                        <IconGauge :size="13" stroke-width="2" />
+                                        {{ pagespeedId === websiteModal.id ? 'Running…' : 'Run PageSpeed check' }}
+                                    </button>
+                                    <button v-if="websiteModal.pagespeed_mobile !== null" type="button" class="ghost-link" @click="openPageSpeedModal(websiteModal)">
+                                        View full report →
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- WordPress (MainWP) -->
+                            <div v-if="websiteModal.wp_version || websiteModal.mainwp_site_id" class="cw-section">
+                                <div class="cw-section-label"><IconBrandWordpress :size="13" stroke-width="2" /> WordPress</div>
+                                <template v-if="websiteModal.wp_version">
+                                    <div class="cw-wp-row">
+                                        <span class="cw-wp-chip">WP {{ websiteModal.wp_version }}</span>
+                                        <span v-if="websiteModal.php_version" class="cw-wp-chip">PHP {{ websiteModal.php_version }}</span>
+                                        <span class="badge badge-sm" :class="websiteModal.plugins_outdated > 0 ? 'badge-pending' : 'badge-active'">
+                                            {{ websiteModal.plugins_outdated > 0 ? websiteModal.plugins_outdated + ' plugin updates' : 'Plugins up to date' }}
+                                        </span>
+                                        <span v-if="websiteModal.themes_outdated > 0" class="badge badge-sm badge-pending">{{ websiteModal.themes_outdated }} theme updates</span>
+                                    </div>
+                                    <div v-if="websiteModal.last_backup_at" class="cw-wp-backup">Last backup: {{ websiteModal.last_backup_at }}</div>
+                                </template>
+                                <div v-else class="cw-muted">Not synced yet</div>
+                                <div class="cw-section-actions">
+                                    <button v-if="websiteModal.mainwp_site_id" type="button" class="ghost-link" :disabled="wpSyncingId === websiteModal.id" @click="syncWordPress(websiteModal)">
+                                        <IconRefresh :size="13" stroke-width="2" />
+                                        {{ wpSyncingId === websiteModal.id ? 'Syncing…' : 'Sync WordPress' }}
+                                    </button>
+                                    <span v-else class="cw-muted">Not linked to MainWP</span>
+                                </div>
+                            </div>
+
+                            <!-- SSL / domain -->
+                            <div class="cw-ssl" :class="{ 'ssl-bad': websiteModal.ssl_status && websiteModal.ssl_status !== 'valid' }">
+                                <IconWorld :size="13" stroke-width="2" />
+                                <span v-if="websiteModal.domain_name">SSL: {{ websiteModal.ssl_status ?? 'unknown' }} · {{ websiteModal.domain_name }}</span>
+                                <span v-else class="cw-muted">No domain linked</span>
+                            </div>
+
+                            <!-- Connections / deeper fields -->
+                            <div class="cw-section">
+                                <div class="cw-section-label"><IconShieldLock :size="13" stroke-width="2" /> Connections</div>
+                                <dl class="cw-detail-fields">
+                                    <div><dt>Linked domain</dt><dd>{{ websiteModal.domain_name || '—' }}</dd></div>
+                                    <div><dt>Project</dt><dd><a v-if="websiteModal.project_id" :href="`/projects/${websiteModal.project_id}`">Project #{{ websiteModal.project_id }}</a><span v-else>—</span></dd></div>
+                                    <div><dt>Customer product</dt><dd>{{ websiteModal.customer_product_id ? '#' + websiteModal.customer_product_id : '—' }}</dd></div>
+                                    <div><dt>GA4 property</dt><dd>{{ websiteModal.ga4_property_id || '—' }}</dd></div>
+                                    <div><dt>cPanel</dt><dd>{{ websiteModal.cpanel_username ? websiteModal.cpanel_username + ' @ ' + websiteModal.cpanel_server : '—' }}<span v-if="websiteModal.whm_managed" class="badge badge-sm badge-active" style="margin-left: 6px;">WHM</span></dd></div>
+                                    <div v-if="websiteModal.usage_checked_at"><dt>Hosting synced</dt><dd>{{ websiteModal.usage_checked_at }}</dd></div>
+                                </dl>
+                                <div v-if="websiteModal.notes" class="cw-detail-notes">{{ websiteModal.notes }}</div>
+                            </div>
+
+                            <!-- Hosting sync -->
+                            <div class="cw-actions">
+                                <button v-if="websiteModal.has_cpanel" type="button" class="btn btn-ghost btn-sm" :disabled="syncingId === websiteModal.id" @click="syncHosting(websiteModal)">
+                                    <IconRefresh :size="14" stroke-width="1.75" />
+                                    {{ syncingId === websiteModal.id ? 'Syncing…' : 'Sync hosting now' }}
+                                </button>
+                                <span v-else class="cw-muted" style="font-size: 12px;">No cPanel configured</span>
+                            </div>
+                        </div>
+
+                        <footer class="ps-modal-foot cw-detail-foot">
+                            <button type="button" class="btn btn-ghost btn-sm" @click="editFromModal">
+                                <IconPencil :size="14" stroke-width="1.75" /> Edit
+                            </button>
+                            <button v-if="websiteModal.hosting_status === 'active'" type="button" class="btn btn-ghost btn-sm" style="color: var(--warning);" @click="suspendHosting(websiteModal)">
+                                Suspend hosting
+                            </button>
+                            <button v-if="websiteModal.hosting_status === 'suspended'" type="button" class="btn btn-ghost btn-sm" @click="reinstateHosting(websiteModal)">
+                                Reinstate hosting
+                            </button>
+                            <button type="button" class="btn btn-ghost btn-sm" style="color: var(--danger); margin-left: auto;" @click="deleteFromModal">
+                                Delete
+                            </button>
+                        </footer>
                     </div>
                 </div>
             </div>
@@ -4933,7 +5015,66 @@ function submitProject() {
 
 /* Assets tab — stack the four relocated sections (Subscriptions / Websites /
    Domains / Projects) with consistent spacing. */
-.cust-assets .assets-stack { display: flex; flex-direction: column; gap: 24px; }
+/* Assets: 2-col grid — Domains | Websites (top), Services | Projects (bottom).
+   Collapses to one column (reading order Domains → Websites → Services →
+   Projects) at the app-wide 900px breakpoint, which also covers the Galaxy
+   Fold unfolded (882px) and folded (360px) widths. */
+.cust-assets .assets-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+}
+@media (max-width: 900px) {
+    .cust-assets .assets-grid { grid-template-columns: 1fr; }
+}
+
+/* Websites table inside its section card. Scrolls horizontally within the card
+   on narrow (Fold) widths so all six columns stay reachable; no dropdown lives
+   in the table (per-row actions live in the Details modal), so the scroll
+   wrapper can't clip a popover. */
+.cust-assets .cw-tbl-wrap { overflow-x: auto; }
+.cust-assets .cw-tbl { min-width: 520px; }
+.cust-assets .cw-tbl-site { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cust-assets .cw-tbl .cw-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.cust-assets .cw-tbl .cw-dot.green { background: var(--success); }
+.cust-assets .cw-tbl .cw-dot.amber { background: var(--warning); }
+.cust-assets .cw-tbl .cw-dot.red { background: var(--danger); }
+.cust-assets .cw-tbl-id { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cust-assets .cw-tbl-name { font: 600 13px/1.3 'Inter', sans-serif; color: var(--info); text-decoration: none; word-break: break-all; }
+.cust-assets .cw-tbl-name:hover { text-decoration: underline; }
+.cust-assets .cw-tbl-muted { color: var(--text-tertiary); }
+.cust-assets .cw-tbl-details { text-align: right; white-space: nowrap; }
+/* Compact, colour-banded performance score in the table cells. */
+.cust-assets .cw-perf {
+    display: inline-block;
+    min-width: 30px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font: 700 12.5px/1.5 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+}
+.cust-assets .cw-perf.good { background: var(--success-bg); color: var(--success); }
+.cust-assets .cw-perf.needs-improvement { background: var(--warning-bg); color: var(--warning); }
+.cust-assets .cw-perf.poor { background: var(--danger-bg); color: var(--danger); }
+
+/* Website details modal — reuses .ps-modal + .cw-* (carries .cust-websites). */
+.cust-assets .cw-detail-modal { width: 540px; max-width: 100%; }
+.cust-assets .cw-detail-title { display: flex; align-items: center; gap: 8px; }
+.cust-assets .cw-detail-title .cw-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.cust-assets .cw-detail-title .cw-dot.green { background: var(--success); }
+.cust-assets .cw-detail-title .cw-dot.amber { background: var(--warning); }
+.cust-assets .cw-detail-title .cw-dot.red { background: var(--danger); }
+.cust-assets .cw-detail-body { display: flex; flex-direction: column; gap: 14px; }
+.cust-assets .cw-detail-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; margin: 0; }
+.cust-assets .cw-detail-fields > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.cust-assets .cw-detail-fields dt { font: 500 11px/1.2 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
+.cust-assets .cw-detail-fields dd { margin: 0; font: 500 12.5px/1.4 'Inter', sans-serif; color: var(--text-secondary); word-break: break-word; }
+.cust-assets .cw-detail-notes { font: 400 12.5px/1.5 'Inter', sans-serif; color: var(--text-secondary); white-space: pre-line; border-top: 1px solid var(--border-soft); padding-top: 10px; }
+.cust-assets .cw-detail-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 480px) {
+    .cust-assets .cw-detail-fields { grid-template-columns: 1fr; }
+}
 
 /* Saved cards (Billing P1) on the customer overview. */
 /* Lives inside the Billing card body, below the auto-collect row — carries the
