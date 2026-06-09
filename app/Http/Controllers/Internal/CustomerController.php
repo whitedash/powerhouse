@@ -548,6 +548,18 @@ class CustomerController extends Controller
                     'ssl_expiry_date' => $d->ssl_expiry_date?->toDateString(),
                     'is_in_cloudflare' => (bool) $d->is_in_cloudflare,
                     'status' => $this->domainStatus($d),
+                    // Registrar exists on the model but is frequently NULL (no
+                    // WHOIS sync populates it) — the table/modal render "—".
+                    'registrar' => $d->registrar,
+                    // Extra read-only fields for the details modal.
+                    'ssl_status' => $d->ssl_status,
+                    'auto_renew' => (bool) $d->auto_renew,
+                    'is_proxied' => (bool) $d->is_proxied,
+                    'nameservers' => $d->nameservers,
+                    'hosting_provider' => $d->hosting_provider,
+                    'registered_at' => $d->registered_at?->toDateString(),
+                    'notes' => $d->notes,
+                    'last_synced_at' => $d->last_synced_at?->diffForHumans(),
                 ])->values(),
 
                 'websites' => $customer->websites->map(fn (Website $w): array => [

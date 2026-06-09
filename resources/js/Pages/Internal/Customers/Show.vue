@@ -1443,6 +1443,18 @@ function deleteFromModal() {
     if (w) askDeleteWebsite(w);
 }
 
+/* ─── Domain details modal (Assets tab) — read-only; mirrors the website
+ * modal. Keyed by id so it re-resolves from fresh props. Domain editing lives
+ * on the Domains page, so the footer links there rather than editing inline. */
+const domainModalId = ref(null);
+const domainModal = computed(() =>
+    domainModalId.value === null
+        ? null
+        : (props.customer.domains ?? []).find((d) => d.id === domainModalId.value) ?? null,
+);
+function openDomainModal(d) { domainModalId.value = d.id; }
+function closeDomainModal() { domainModalId.value = null; }
+
 // Mobile is the richer run (all four categories + vitals + opportunities).
 const psMobile = computed(() => pageSpeedModal.value?.pagespeed_data?.mobile ?? null);
 const psOpportunities = computed(() => pageSpeedModal.value?.pagespeed_data?.opportunities ?? []);
@@ -2581,31 +2593,43 @@ function submitProject() {
                                 <Link href="/domains" class="ghost-link">Manage DNS<IconArrowRight :size="14" stroke-width="1.75" /></Link>
                             </div>
                         </header>
-                        <div v-if="customer.domains.length">
-                            <div v-for="d in customer.domains" :key="d.id" class="dom-row">
-                                <IconWorld class="world" :size="18" stroke-width="1.75" />
-                                <div>
-                                    <div class="dom-name">{{ d.domain }}</div>
-                                    <div class="dom-sub">
-                                        <template v-if="d.is_in_cloudflare">Cloudflare</template>
-                                        <template v-else>External</template>
-                                        <template v-if="d.expiry_date"> · expires {{ formatDate(d.expiry_date) }}</template>
-                                    </div>
-                                </div>
-                                <div class="dom-tags">
-                                    <span v-if="d.ssl_expiry_date" class="tiny-badge ssl">
-                                        <IconCheck :size="11" stroke-width="2" />
-                                        SSL
-                                    </span>
-                                    <span class="tiny-badge" :class="domainTagClass(d.status)">{{ d.status }}</span>
-                                </div>
-                            </div>
+                        <div v-if="customer.domains.length" class="cw-tbl-wrap">
+                            <table class="tbl cw-tbl">
+                                <thead>
+                                    <tr>
+                                        <th>Domain</th>
+                                        <th>Expiry</th>
+                                        <th>Status</th>
+                                        <th>Registrar</th>
+                                        <th class="cw-col-details"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="d in customer.domains" :key="d.id">
+                                        <td><span class="cw-tbl-strong">{{ d.domain }}</span></td>
+                                        <td>
+                                            <span v-if="d.expiry_date">{{ formatDate(d.expiry_date) }}</span>
+                                            <span v-else class="cw-tbl-muted">—</span>
+                                        </td>
+                                        <td><span class="tiny-badge" :class="domainTagClass(d.status)">{{ d.status }}</span></td>
+                                        <td>
+                                            <span v-if="d.registrar">{{ d.registrar }}</span>
+                                            <span v-else class="cw-tbl-muted">—</span>
+                                        </td>
+                                        <td class="cw-col-details">
+                                            <button type="button" class="icon-btn" aria-label="Details" title="Details" @click="openDomainModal(d)">
+                                                <IconEye :size="16" stroke-width="1.75" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                         <div v-else class="tab-empty" style="padding: 28px 18px;">
                             <p>No domains tracked.</p>
-                        </div>
-                        <div v-if="! customer.domains.length" class="add-line">
-                            <a href="#" class="ghost-link" @click.prevent="openCreateDomain"><IconPlus :size="14" stroke-width="1.75" />Add domain</a>
+                            <div class="add-line">
+                                <a href="#" class="ghost-link" @click.prevent="openCreateDomain"><IconPlus :size="14" stroke-width="1.75" />Add domain</a>
+                            </div>
                         </div>
                     </section>
 
@@ -2685,61 +2709,66 @@ function submitProject() {
                                 <div class="sub">Recurring services for this customer</div>
                             </div>
                         </header>
-                        <div v-if="customer.products.length">
-                            <div v-for="p in customer.products" :key="p.id" class="prod-row">
-                                <div class="prod-logo" :class="pbClassForSlug(p.slug)">{{ p.name?.[0] || '?' }}</div>
-                                <div class="prod-meta">
-                                    <div class="pname">{{ p.name }}<span class="role">· {{ p.plan || 'No plan' }}</span></div>
-                                    <div v-if="p.label" class="cp-label">{{ p.label }}</div>
-                                    <div class="pdesc">
-                                        <template v-if="p.price_monthly">{{ formatGBP(p.price_monthly) }}/mo</template>
-                                        <template v-else>—</template>
-                                    </div>
-                                    <div class="cp-dates">
-                                        <span v-if="p.started_at" class="cp-date">
-                                            <IconCalendarCheck :size="12" stroke-width="1.75" />
-                                            Active since {{ formatDate(p.started_at) }}
-                                        </span>
-                                        <span v-if="p.next_billing_date && p.status === 'active'" class="cp-date cp-date-renew">
-                                            <IconRefresh :size="12" stroke-width="1.75" />
-                                            Renews {{ formatDate(p.next_billing_date) }}
-                                        </span>
-                                        <span v-if="p.trial_ends_at && p.status === 'trial'" class="cp-date cp-date-trial">
-                                            <IconClock :size="12" stroke-width="1.75" />
-                                            Trial ends {{ formatDate(p.trial_ends_at) }}
-                                        </span>
-                                        <span v-if="p.cancels_at" class="cp-date cp-date-cancels">
-                                            <IconCalendarX :size="12" stroke-width="1.75" />
-                                            Cancels {{ formatDate(p.cancels_at) }}
-                                        </span>
-                                        <span v-if="p.cancelled_at && p.status === 'cancelled'" class="cp-date cp-date-cancelled">
-                                            <IconBan :size="12" stroke-width="1.75" />
-                                            Cancelled {{ formatDate(p.cancelled_at) }}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="prod-actions">
-                                    <span class="badge" :class="{ 'badge-active': p.status === 'active', 'badge-trial': p.status === 'trial', 'badge-inactive': ['suspended', 'cancelled'].includes(p.status) }">{{ p.status }}</span>
-                                    <span v-if="p.status === 'suspended' && p.suspended_by_system" class="badge badge-pending badge-sm" title="Auto-suspended for non-payment">Auto</span>
-                                    <Menu v-if="['active', 'trial', 'suspended'].includes(p.status)" as="div" class="dd-menu">
-                                        <MenuButton class="icon-btn" aria-label="Product actions">
-                                            <IconDots :size="16" stroke-width="1.75" />
-                                        </MenuButton>
-                                        <MenuItems class="dd-popover right-align">
-                                            <MenuItem v-if="p.status === 'suspended'" v-slot="{ active }">
-                                                <button type="button" :class="['dd-option', { active }]" @click="reinstateProduct(p)">
-                                                    Reinstate product
-                                                </button>
-                                            </MenuItem>
-                                            <MenuItem v-else v-slot="{ active }">
-                                                <button type="button" :class="['dd-option', { active }]" style="color: var(--warning);" @click="askSuspend(p)">
-                                                    Suspend product
-                                                </button>
-                                            </MenuItem>
-                                        </MenuItems>
-                                    </Menu>
-                                </div>
-                            </div>
+                        <div v-if="customer.products.length" class="cw-tbl-wrap">
+                            <table class="tbl cw-tbl">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Plan</th>
+                                        <th>Price</th>
+                                        <th>Active since</th>
+                                        <th>Renewal date</th>
+                                        <th class="cw-col-actions"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="p in customer.products" :key="p.id">
+                                        <td>
+                                            <span class="cw-tbl-strong">{{ p.name }}</span>
+                                            <span v-if="p.label" class="cw-tbl-sub">{{ p.label }}</span>
+                                        </td>
+                                        <td>
+                                            <span v-if="p.plan">{{ p.plan }}</span>
+                                            <span v-else class="cw-tbl-muted">—</span>
+                                        </td>
+                                        <td>
+                                            <span v-if="p.price_monthly">{{ formatGBP(p.price_monthly) }}/mo</span>
+                                            <span v-else class="cw-tbl-muted">—</span>
+                                        </td>
+                                        <td>
+                                            <span v-if="p.started_at">{{ formatDate(p.started_at) }}</span>
+                                            <span v-else class="cw-tbl-muted">—</span>
+                                        </td>
+                                        <td>
+                                            <span v-if="p.next_billing_date && p.status === 'active'">{{ formatDate(p.next_billing_date) }}</span>
+                                            <span v-else class="cw-tbl-muted">—</span>
+                                        </td>
+                                        <td class="cw-col-actions">
+                                            <div class="cw-tbl-row-actions">
+                                                <span class="badge badge-sm" :class="{ 'badge-active': p.status === 'active', 'badge-trial': p.status === 'trial', 'badge-inactive': ['suspended', 'cancelled'].includes(p.status) }">{{ p.status }}</span>
+                                                <span v-if="p.status === 'suspended' && p.suspended_by_system" class="badge badge-pending badge-sm" title="Auto-suspended for non-payment">Auto</span>
+                                                <Menu v-if="['active', 'trial', 'suspended'].includes(p.status)" as="div" class="dd-menu">
+                                                    <MenuButton class="icon-btn" aria-label="Product actions">
+                                                        <IconDots :size="16" stroke-width="1.75" />
+                                                    </MenuButton>
+                                                    <MenuItems class="dd-popover right-align">
+                                                        <MenuItem v-if="p.status === 'suspended'" v-slot="{ active }">
+                                                            <button type="button" :class="['dd-option', { active }]" @click="reinstateProduct(p)">
+                                                                Reinstate product
+                                                            </button>
+                                                        </MenuItem>
+                                                        <MenuItem v-else v-slot="{ active }">
+                                                            <button type="button" :class="['dd-option', { active }]" style="color: var(--warning);" @click="askSuspend(p)">
+                                                                Suspend product
+                                                            </button>
+                                                        </MenuItem>
+                                                    </MenuItems>
+                                                </Menu>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                         <div v-else class="tab-empty">
                             <h3>No services yet</h3>
@@ -2767,28 +2796,30 @@ function submitProject() {
                                 <button type="button" class="ghost-link" @click="openCreateProject">+ Create first project</button>
                             </div>
 
-                            <div v-else class="cust-projects-grid">
-                                <a
-                                    v-for="p in customer.projects"
-                                    :key="p.id"
-                                    :href="`/projects/${p.id}`"
-                                    class="cust-project-card"
-                                    :class="{ overdue: p.is_overdue }"
-                                >
-                                    <div class="cust-project-colour" :style="{ background: p.colour }"></div>
-                                    <div class="cust-project-body">
-                                        <div class="cust-project-title">{{ p.title }}</div>
-                                        <div class="cust-project-meta">
-                                            <span class="status-badge" :class="`status-${p.status}`">{{ p.status }}</span>
-                                            <span class="priority-dot" :class="`pri-${p.priority}`"></span>
-                                            <span v-if="p.due_date" :class="['muted', 'small', { 'text-danger': p.is_overdue }]">Due {{ p.due_date }}</span>
-                                        </div>
-                                        <div class="project-progress-bar">
-                                            <div class="project-progress-fill" :style="{ width: p.progress + '%' }"></div>
-                                        </div>
-                                        <div class="muted small">{{ p.completed_count }}/{{ p.tasks_count }} tasks · {{ p.progress }}%</div>
-                                    </div>
-                                </a>
+                            <div v-else class="cw-tbl-wrap">
+                                <table class="tbl cw-tbl">
+                                    <thead>
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Priority</th>
+                                            <th>Due date</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="p in customer.projects" :key="p.id">
+                                            <td><a :href="`/projects/${p.id}`" class="cw-tbl-name">{{ p.title }}</a></td>
+                                            <td>
+                                                <span class="cw-pri"><span class="priority-dot" :class="`pri-${p.priority}`"></span>{{ p.priority }}</span>
+                                            </td>
+                                            <td>
+                                                <span v-if="p.due_date" :class="{ 'text-danger': p.is_overdue }">{{ p.due_date }}</span>
+                                                <span v-else class="cw-tbl-muted">—</span>
+                                            </td>
+                                            <td><span class="status-badge" :class="`status-${p.status}`">{{ p.status }}</span></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </section>
                     </div>
@@ -2931,6 +2962,40 @@ function submitProject() {
                             <button type="button" class="btn btn-ghost btn-sm" style="color: var(--danger); margin-left: auto;" @click="deleteFromModal">
                                 Delete
                             </button>
+                        </footer>
+                    </div>
+                </div>
+
+                <!-- Domain details modal — read-only; editing lives on the Domains page -->
+                <div v-if="domainModal" class="ps-modal-overlay" @click.self="closeDomainModal">
+                    <div class="ps-modal cw-detail-modal" role="dialog" aria-modal="true">
+                        <div class="ps-modal-head">
+                            <div class="ps-modal-headings">
+                                <h2 class="ps-modal-title">{{ domainModal.domain }}</h2>
+                                <div class="ps-modal-sub">
+                                    <span class="tiny-badge" :class="domainTagClass(domainModal.status)">{{ domainModal.status }}</span>
+                                    <span style="margin-left: 8px;">{{ domainModal.is_in_cloudflare ? 'Cloudflare DNS' : 'External DNS' }}</span>
+                                </div>
+                            </div>
+                            <button type="button" class="icon-btn" aria-label="Close" @click="closeDomainModal"><IconX :size="18" stroke-width="2" /></button>
+                        </div>
+                        <div class="ps-modal-body cw-detail-body">
+                            <dl class="cw-detail-fields">
+                                <div><dt>Registrar</dt><dd>{{ domainModal.registrar || '—' }}</dd></div>
+                                <div><dt>Expiry</dt><dd>{{ domainModal.expiry_date ? formatDate(domainModal.expiry_date) : '—' }}</dd></div>
+                                <div><dt>Auto-renew</dt><dd>{{ domainModal.auto_renew ? 'On' : 'Off' }}</dd></div>
+                                <div><dt>SSL status</dt><dd>{{ domainModal.ssl_status || '—' }}</dd></div>
+                                <div><dt>SSL expiry</dt><dd>{{ domainModal.ssl_expiry_date ? formatDate(domainModal.ssl_expiry_date) : '—' }}</dd></div>
+                                <div><dt>Registered</dt><dd>{{ domainModal.registered_at ? formatDate(domainModal.registered_at) : '—' }}</dd></div>
+                                <div><dt>Cloudflare</dt><dd>{{ domainModal.is_in_cloudflare ? (domainModal.is_proxied ? 'Yes · proxied' : 'Yes') : 'No' }}</dd></div>
+                                <div><dt>Hosting provider</dt><dd>{{ domainModal.hosting_provider || '—' }}</dd></div>
+                                <div style="grid-column: 1 / -1;"><dt>Nameservers</dt><dd>{{ (domainModal.nameservers ?? []).length ? domainModal.nameservers.join(', ') : '—' }}</dd></div>
+                                <div><dt>Last synced</dt><dd>{{ domainModal.last_synced_at || '—' }}</dd></div>
+                            </dl>
+                            <div v-if="domainModal.notes" class="cw-detail-notes">{{ domainModal.notes }}</div>
+                        </div>
+                        <footer class="ps-modal-foot cw-detail-foot">
+                            <Link href="/domains" class="btn btn-ghost btn-sm">Manage in Domains<IconArrowRight :size="14" stroke-width="1.75" /></Link>
                         </footer>
                     </div>
                 </div>
@@ -5056,6 +5121,14 @@ function submitProject() {
 .cust-assets .cw-tbl-name { font: 600 13px/1.3 'Inter', sans-serif; color: var(--info); text-decoration: none; word-break: break-all; }
 .cust-assets .cw-tbl-name:hover { text-decoration: underline; }
 .cust-assets .cw-tbl-muted { color: var(--text-tertiary); }
+/* Non-link primary cell (domain / product name) + its secondary line. */
+.cust-assets .cw-tbl-strong { font: 600 13px/1.3 'Inter', sans-serif; color: var(--text-primary); word-break: break-all; }
+.cust-assets .cw-tbl-sub { display: block; font: 400 11.5px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 1px; }
+/* Priority cell — the existing colour dot + a label. */
+.cust-assets .cw-pri { display: inline-flex; align-items: center; gap: 6px; text-transform: capitalize; }
+/* Trailing actions cell (Services ··· menu + status) — right-aligned, narrow. */
+.cust-assets .cw-col-actions { width: 1%; white-space: nowrap; text-align: right; }
+.cust-assets .cw-tbl-row-actions { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
 /* Narrow, centered M / D / Details columns — header + value both centered (no
    drift); freed width falls to the auto-sized Domain / Hosting plan / Renewal
    columns. Applied to both th and td so header sits directly above its values. */
