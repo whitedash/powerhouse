@@ -180,8 +180,6 @@ const productItems = computed(() => {
     }));
 });
 
-const hasMaavelus = computed(() => (page.props.nav_products ?? []).some((p) => p.slug === 'maavelus'));
-
 /*
  * Collapsible nav groups (Clients / Billing / Operations). The sidebar
  * reflects WHERE YOU ARE: on every navigation we reset so only the
@@ -217,20 +215,27 @@ const isGroupExpanded = (key, children) => {
 const isSuperAdmin = computed(() => page.props.auth?.user?.role === 'super_admin');
 
 const sections = computed(() => {
-    const products = [...productItems.value];
-    // Statements is a sub-item under Maavelus — only surface it if
-    // Maavelus is actually in the active product set. Insertion
-    // immediately after Maavelus preserves the visual nesting.
-    if (hasMaavelus.value) {
-        const idx = products.findIndex((p) => p.key === 'maavelus');
-        products.splice(idx + 1, 0, {
-            key: 'maavelus-statements',
-            label: 'Statements',
-            href: '/maavelus/statements',
-            icon: IconFileInvoice,
-            sub: true,
-        });
-    }
+    // Maavelus is a collapsible parent (Overview + Statements), matching the
+    // Clients / Billing / Operations groups; every other product stays a flat
+    // link. The group is generic — the template renders any type:'group' item.
+    const products = productItems.value.flatMap((p) => {
+        if (p.key !== 'maavelus') {
+            return [p];
+        }
+
+        return [{
+            type: 'group',
+            key: 'maavelus-group',
+            label: p.label,
+            icon: p.icon,
+            children: [
+                // Overview child key = the product slug, so /products/maavelus
+                // (active-nav="maavelus") highlights it and opens the group.
+                { key: 'maavelus', label: 'Overview', href: p.href, icon: IconLayoutDashboard },
+                { key: 'maavelus-statements', label: 'Statements', href: '/maavelus/statements', icon: IconFileInvoice },
+            ],
+        }];
+    });
 
     return [
         {
