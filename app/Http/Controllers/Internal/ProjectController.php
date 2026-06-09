@@ -253,6 +253,13 @@ class ProjectController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'avatar_colour']);
 
+        // Customers for the edit form's assignment selector — every non-archived
+        // customer regardless of pipeline stage, so leads/prospects are
+        // selectable too (matches the create form on the Projects index).
+        $customers = Customer::whereNull('archived_at')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         $billingEntities = DB::table('billing_entities')
             ->where('is_active', true)
             ->orderBy('name')
@@ -344,6 +351,7 @@ class ProjectController extends Controller
             'costs' => $costs,
             'suppliers' => $suppliers,
             'staff' => $staff,
+            'customers' => $customers,
             'billing_entities' => $billingEntities,
             'files' => $files,
             'file_summary' => $fileSummary,

@@ -30,6 +30,7 @@ const props = defineProps({
     costs: { type: Object, default: () => ({ time_breakdown: [], expenses: [] }) },
     suppliers: { type: Array, default: () => [] },
     staff: { type: Array, default: () => [] },
+    customers: { type: Array, default: () => [] },
     billing_entities: { type: Array, default: () => [] },
     activity: { type: Array, default: () => [] },
     files: { type: Array, default: () => [] },
@@ -1589,6 +1590,14 @@ function actionLabel(action) {
                                 <option :value="null">No lead</option>
                                 <option v-for="s in staff" :key="s.id" :value="s.id">{{ s.name }}</option>
                             </select>
+                        </div>
+                        <div class="form-section">
+                            <label class="form-label">Customer</label>
+                            <select v-model="editForm.customer_id" class="form-input">
+                                <option :value="null">— Unassigned —</option>
+                                <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</option>
+                            </select>
+                            <div v-if="editForm.errors.customer_id" class="err">{{ editForm.errors.customer_id }}</div>
                         </div>
                     </form>
                     <div class="slide-over-foot">
