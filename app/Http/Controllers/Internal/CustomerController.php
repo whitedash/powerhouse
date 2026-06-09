@@ -164,6 +164,12 @@ class CustomerController extends Controller
                 'city' => $customer->city,
                 'country' => $customer->country,
                 'pipeline_stage' => $customer->pipeline_stage,
+                // Asset-aware "Active" — true if the customer has ANY active
+                // billable asset/service (service CP / hosting website / domain),
+                // from the SAME source as MRR so the badge can't disagree with it.
+                // Post "bill-from-the-asset" rework the old product-only check
+                // read hosting/domain-only customers as Inactive.
+                'is_active' => $recurring->isActiveCustomer($customer->id),
                 'archived_at' => $customer->archived_at?->toIso8601String(),
                 'primary_contact' => $customer->primaryContact
                     ? [
@@ -181,15 +187,17 @@ class CustomerController extends Controller
             ];
         });
 
+        // Active/inactive counts share the asset-aware source with the per-row
+        // badge (RecurringRevenue), so the stat row can't disagree with the
+        // badges or MRR. Trial stays a service-CP concept (assets have no trial).
+        $activeIds = $recurring->activeCustomerIds();
         $summary = [
             'total' => Customer::whereNull('archived_at')->count(),
-            'active' => CustomerProduct::where('status', 'active')->distinct('customer_id')->count('customer_id'),
+            'active' => Customer::whereNull('archived_at')->whereIn('id', $activeIds)->count(),
             'trial' => CustomerProduct::where('status', 'trial')->distinct('customer_id')->count('customer_id'),
             'inactive' => Customer::whereNull('archived_at')
-                ->whereDoesntHave(
-                    'customerProducts',
-                    fn ($q) => $q->whereIn('status', ['active', 'trial'])
-                )
+                ->whereNotIn('id', $activeIds)
+                ->whereDoesntHave('customerProducts', fn ($q) => $q->where('status', 'trial'))
                 ->count(),
         ];
 

@@ -183,8 +183,10 @@ function pipClass(stage) {
 
 function statusBadge(customer) {
     if (customer.archived_at) return { class: 'badge-inactive', label: 'Archived' };
-    const hasActive = customer.products?.some((p) => p.status === 'active');
-    if (hasActive) return { class: 'badge-active', label: 'Active' };
+    // Asset-aware: server-computed from any active billable asset/service
+    // (service CP / hosting website / domain) — the same source as MRR — so a
+    // hosting/domain-only customer reads Active, matching the detail page.
+    if (customer.is_active) return { class: 'badge-active', label: 'Active' };
     const hasTrial = customer.products?.some((p) => p.status === 'trial');
     if (hasTrial) return { class: 'badge-trial', label: 'Trial' };
     if (customer.pipeline_stage === 'churned') return { class: 'badge-overdue', label: 'Churned' };

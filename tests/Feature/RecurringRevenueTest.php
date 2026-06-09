@@ -184,4 +184,74 @@ class RecurringRevenueTest extends TestCase
         $this->assertEqualsWithDelta(20.00, $rr->productMonthly($host->plan->product_id), 0.001);
         $this->assertSame(1, $rr->productCount($host->plan->product_id));
     }
+
+    // ── Active-status (asset-aware) — the customer-list "Status" badge ───────
+    // A customer is Active if they have ANY active billable asset/service, from
+    // the SAME three sources as MRR. Post bill-from-the-asset rework, the old
+    // product-only check read hosting/domain-only customers as Inactive.
+
+    public function test_hosting_only_customer_is_active(): void
+    {
+        $c = Customer::create(['name' => 'Hosting Only']);
+        $this->hostingSite($c, $this->planPrice(10.00, 'month', 'hosting'));
+
+        $this->assertTrue(RecurringRevenue::compute()->isActiveCustomer($c->id));
+    }
+
+    public function test_domain_only_customer_is_active(): void
+    {
+        $c = Customer::create(['name' => 'Domain Only']);
+        $this->domain($c, $this->planPrice(120.00, 'year', 'domain')->plan);
+
+        $this->assertTrue(RecurringRevenue::compute()->isActiveCustomer($c->id));
+    }
+
+    public function test_service_only_customer_is_active(): void
+    {
+        $c = Customer::create(['name' => 'Service Only']);
+        $this->serviceCp($c, $this->planPrice(30.00, 'month', 'service'));
+
+        $this->assertTrue(RecurringRevenue::compute()->isActiveCustomer($c->id));
+    }
+
+    public function test_zero_priced_active_service_still_reads_active(): void
+    {
+        // "Has an active arrangement", NOT strictly MRR > 0.
+        $c = Customer::create(['name' => 'Free Service']);
+        $this->serviceCp($c, $this->planPrice(0.00, 'month', 'service'));
+
+        $rr = RecurringRevenue::compute();
+        $this->assertEqualsWithDelta(0.00, $rr->forCustomer($c->id), 0.001);
+        $this->assertTrue($rr->isActiveCustomer($c->id));
+    }
+
+    public function test_customer_with_nothing_active_is_inactive(): void
+    {
+        $c = Customer::create(['name' => 'Nothing']);
+        // Suspended hosting + auto_renew-off domain + cancelled CP → none active.
+        $this->hostingSite($c, $this->planPrice(20.00, 'month', 'hosting'), hostingStatus: 'suspended');
+        $this->domain($c, $this->planPrice(120.00, 'year', 'domain')->plan, autoRenew: false);
+        $this->serviceCp($c, $this->planPrice(30.00, 'month', 'service'), status: 'cancelled');
+
+        $this->assertFalse(RecurringRevenue::compute()->isActiveCustomer($c->id));
+        $this->assertSame([], RecurringRevenue::compute()->activeCustomerIds());
+    }
+
+    public function test_list_payload_marks_an_asset_only_customer_active(): void
+    {
+        // End-to-end: the customers index exposes is_active=true for a
+        // hosting-only customer (the badge then reads Active).
+        $c = Customer::create(['name' => 'Acme Hosting', 'pipeline_stage' => 'active']);
+        $this->hostingSite($c, $this->planPrice(10.00, 'month', 'hosting'));
+
+        $this->actingAs($this->user)
+            ->get('/customers')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Internal/Customers/Index')
+                ->where('customers.data', fn ($rows) => collect($rows)
+                    ->firstWhere('id', $c->id)['is_active'] === true)
+                ->where('summary.active', fn ($n) => $n >= 1)
+            );
+    }
 }

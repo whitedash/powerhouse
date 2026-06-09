@@ -147,6 +147,32 @@ class RecurringRevenue
         return $this->perCustomer[$customerId] ?? 0.0;
     }
 
+    /**
+     * Whether a customer has ANY active billable asset/service — the canonical
+     * "Active" definition for the customer list, drawn from the SAME three
+     * sources as MRR (active service CP, active hosting website with a plan,
+     * auto_renew domain matched to a plan), so "Active" and "MRR" can never
+     * disagree. A £0-priced active arrangement still counts: it sets the
+     * perCustomer key with a 0.0 amount, so this means "has an active
+     * arrangement" (the intended semantics) rather than strictly MRR > 0.
+     */
+    public function isActiveCustomer(int $customerId): bool
+    {
+        return array_key_exists($customerId, $this->perCustomer);
+    }
+
+    /**
+     * All customer ids with an active billable asset/service — lets the list
+     * controller compute the active/inactive summary counts from the same
+     * source as the per-row badge.
+     *
+     * @return list<int>
+     */
+    public function activeCustomerIds(): array
+    {
+        return array_keys($this->perCustomer);
+    }
+
     public function planMonthly(int $planId): float
     {
         return $this->perPlan[$planId]['monthly'] ?? 0.0;
