@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\BillingEntity;
 use App\Models\Invoice;
 use App\Models\PortalUser;
 use App\Services\StripeService;
@@ -97,7 +98,10 @@ class InvoiceController extends Controller
         $portalUser = Auth::guard('portal')->user();
 
         $invoice = Invoice::with([
-            'billingEntity:id,name',
+            // Bank columns included so the "Bank transfer" block can render the
+            // entity's receive-payment details (encrypted at rest, decrypted on
+            // read). These are customer-facing payment details, not secrets.
+            'billingEntity:id,name,bank_name,sort_code,account_number,account_name,iban,bic',
             'customer:id,name,address_line1,address_line2,city,postcode,country',
             'lines' => fn ($q) => $q->orderBy('sort_order'),
         ])
@@ -123,6 +127,9 @@ class InvoiceController extends Controller
                 'id' => $invoice->id,
                 'number' => $invoice->number,
                 'billing_entity' => $invoice->billingEntity?->name,
+                // Bank-transfer details for the issuing entity — only when at
+                // least one field is populated (no empty block otherwise).
+                'bank' => $this->bankBlock($invoice->billingEntity),
                 'billed_to_name' => $cust?->name,
                 'billed_to_address' => $addressLine ?: null,
                 'status' => $invoice->status,
@@ -346,5 +353,29 @@ class InvoiceController extends Controller
             'ip_address' => $request->ip(),
             'user_agent' => substr((string) $request->userAgent(), 0, 500),
         ]);
+    }
+
+    /**
+     * The issuing entity's bank-transfer details, or null when none are set
+     * (so the portal renders no empty block).
+     *
+     * @return array<string, string|null>|null
+     */
+    private function bankBlock(?BillingEntity $entity): ?array
+    {
+        if ($entity === null) {
+            return null;
+        }
+
+        $fields = [
+            'bank_name' => $entity->bank_name,
+            'account_name' => $entity->account_name,
+            'sort_code' => $entity->sort_code,
+            'account_number' => $entity->account_number,
+            'iban' => $entity->iban,
+            'bic' => $entity->bic,
+        ];
+
+        return collect($fields)->filter()->isEmpty() ? null : $fields;
     }
 }

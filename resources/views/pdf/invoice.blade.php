@@ -678,8 +678,8 @@
     </div>
     @endif
 
-    @if($showBank)
-    <!-- ============ PAYMENT DETAILS ============ -->
+    @if($showBank && ($entity->bank_name || $entity->account_name || $entity->sort_code || $entity->account_number || $entity->iban || $entity->bic))
+    <!-- ============ PAYMENT DETAILS (bank transfer) ============ -->
     <div class="pay-box">
       <div class="label">Payment Details</div>
       <table class="pay-detail-table">
@@ -706,6 +706,18 @@
           <tr>
             <td class="pd-label">Account number:</td>
             <td class="pd-mono">{{ $entity->account_number }}</td>
+          </tr>
+        @endif
+        @if($entity->iban)
+          <tr>
+            <td class="pd-label">IBAN:</td>
+            <td class="pd-mono">{{ $entity->iban }}</td>
+          </tr>
+        @endif
+        @if($entity->bic)
+          <tr>
+            <td class="pd-label">BIC / SWIFT:</td>
+            <td class="pd-mono">{{ $entity->bic }}</td>
           </tr>
         @endif
           <tr>

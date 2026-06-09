@@ -96,6 +96,19 @@ function openPay() {
                     <div><div class="t">Paid in full</div><div class="s">This invoice was paid<template v-if="invoice.paid_at"> on {{ invoice.paid_at }}</template>.</div></div>
                 </div>
 
+                <div v-if="invoice.bank" class="inv-totals" style="margin-top:16px">
+                    <div class="box">
+                        <div class="ln" style="font-weight:600;color:var(--text-primary)">Bank transfer</div>
+                        <div v-if="invoice.bank.bank_name" class="ln">Bank<span class="v">{{ invoice.bank.bank_name }}</span></div>
+                        <div v-if="invoice.bank.account_name" class="ln">Account name<span class="v">{{ invoice.bank.account_name }}</span></div>
+                        <div v-if="invoice.bank.sort_code" class="ln">Sort code<span class="v">{{ invoice.bank.sort_code }}</span></div>
+                        <div v-if="invoice.bank.account_number" class="ln">Account no<span class="v">{{ invoice.bank.account_number }}</span></div>
+                        <div v-if="invoice.bank.iban" class="ln">IBAN<span class="v">{{ invoice.bank.iban }}</span></div>
+                        <div v-if="invoice.bank.bic" class="ln">BIC / SWIFT<span class="v">{{ invoice.bank.bic }}</span></div>
+                        <div class="ln">Reference<span class="v">{{ invoice.number }}</span></div>
+                    </div>
+                </div>
+
                 <div class="action-row">
                     <button v-if="invoice.is_payable" class="btn btn-primary btn-lg" @click="openPay"><i class="ti ti-credit-card" />Pay £{{ gbp(invoice.amount_due) }}</button>
                     <a :href="`/portal/invoices/${invoice.id}/preview-pdf`" target="_blank" rel="noopener" class="btn btn-secondary btn-lg"><i class="ti ti-external-link" />View PDF</a>
@@ -137,6 +150,21 @@ function openPay() {
                             <div v-if="invoice.vat_amount > 0" style="display:flex;justify-content:space-between;font:400 13.5px/1 'Inter';color:var(--text-secondary)">VAT ({{ Math.round(invoice.vat_rate) }}%)<span style="color:var(--text-primary);font-weight:500">£{{ gbp(invoice.vat_amount) }}</span></div>
                             <div style="height:1px;background:var(--border);margin:3px 0" />
                             <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:700 15px/1 'Inter'">Total</span><span style="font:700 20px/1 'Inter';letter-spacing:-.02em">£{{ gbp(invoice.total) }}</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="invoice.bank" class="m-card">
+                    <div class="cb">
+                        <div style="font:600 12px/1 'Inter';text-transform:uppercase;letter-spacing:.08em;color:var(--text-tertiary);margin-bottom:10px">Bank transfer</div>
+                        <div style="display:flex;flex-direction:column;gap:8px">
+                            <div v-if="invoice.bank.bank_name" style="display:flex;justify-content:space-between;gap:12px;font:400 13px/1.3 'Inter';color:var(--text-secondary)">Bank<span style="color:var(--text-primary);text-align:right">{{ invoice.bank.bank_name }}</span></div>
+                            <div v-if="invoice.bank.account_name" style="display:flex;justify-content:space-between;gap:12px;font:400 13px/1.3 'Inter';color:var(--text-secondary)">Account name<span style="color:var(--text-primary);text-align:right">{{ invoice.bank.account_name }}</span></div>
+                            <div v-if="invoice.bank.sort_code" style="display:flex;justify-content:space-between;gap:12px;font:400 13px/1.3 'Inter';color:var(--text-secondary)">Sort code<span style="color:var(--text-primary);font-variant-numeric:tabular-nums">{{ invoice.bank.sort_code }}</span></div>
+                            <div v-if="invoice.bank.account_number" style="display:flex;justify-content:space-between;gap:12px;font:400 13px/1.3 'Inter';color:var(--text-secondary)">Account no<span style="color:var(--text-primary);font-variant-numeric:tabular-nums">{{ invoice.bank.account_number }}</span></div>
+                            <div v-if="invoice.bank.iban" style="display:flex;justify-content:space-between;gap:12px;font:400 13px/1.3 'Inter';color:var(--text-secondary)">IBAN<span style="color:var(--text-primary);text-align:right;word-break:break-all">{{ invoice.bank.iban }}</span></div>
+                            <div v-if="invoice.bank.bic" style="display:flex;justify-content:space-between;gap:12px;font:400 13px/1.3 'Inter';color:var(--text-secondary)">BIC / SWIFT<span style="color:var(--text-primary);text-align:right">{{ invoice.bank.bic }}</span></div>
+                            <div style="display:flex;justify-content:space-between;gap:12px;font:400 13px/1.3 'Inter';color:var(--text-secondary)">Reference<span style="color:var(--text-primary);font-weight:600;font-variant-numeric:tabular-nums">{{ invoice.number }}</span></div>
                         </div>
                     </div>
                 </div>

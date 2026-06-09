@@ -39,10 +39,26 @@ class StoreBillingEntityRequest extends FormRequest
             'sort_code' => ['required', 'string', 'max:10'],
             'account_number' => ['required', 'string', 'max:20'],
             'account_name' => ['required', 'string', 'max:100'],
+            // International details — optional. Light format checks only when
+            // provided: IBAN = 2 letters + 2 digits + 11–30 more (spaces
+            // tolerated); BIC = 8 or 11 alphanumerics. Blank is allowed.
+            'iban' => ['nullable', 'string', 'max:42', 'regex:/^[A-Za-z]{2}\d{2}[A-Za-z0-9 ]{11,34}$/'],
+            'bic' => ['nullable', 'string', 'regex:/^[A-Za-z0-9]{8}([A-Za-z0-9]{3})?$/'],
             'postmark_sender_email' => ['required', 'email:rfc', 'max:255'],
             'postmark_sender_name' => ['required', 'string', 'max:100'],
             'postmark_domain' => ['nullable', 'string', 'max:255'],
             'is_active' => ['sometimes', 'boolean'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'iban.regex' => 'That doesn\'t look like a valid IBAN (e.g. GB29NWBK60161331926819).',
+            'bic.regex' => 'A BIC/SWIFT code is 8 or 11 letters and digits (e.g. NWBKGB2L).',
         ];
     }
 

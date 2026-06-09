@@ -78,6 +78,8 @@ function buildDefaults(entity) {
         sort_code: entity?.sort_code ?? '',
         account_number: entity?.account_number ?? '',
         account_name: entity?.account_name ?? '',
+        iban: entity?.iban ?? '',
+        bic: entity?.bic ?? '',
         postmark_sender_email: entity?.postmark_sender_email ?? '',
         postmark_sender_name: entity?.postmark_sender_name ?? '',
         postmark_domain: entity?.postmark_domain ?? '',
@@ -500,6 +502,30 @@ const qboConnected = computed(() => !!selectedEntity.value?.qbo_realm_id);
                                 type="text"
                             >
                             <div v-if="form.errors.account_name" class="field-err">{{ form.errors.account_name }}</div>
+                        </div>
+                        <div class="field full">
+                            <label class="field-label" for="iban">IBAN <span class="field-hint">— optional, for international transfers</span></label>
+                            <input
+                                id="iban"
+                                v-model="form.iban"
+                                class="field-input"
+                                :class="{ 'has-err': form.errors.iban }"
+                                type="text"
+                                placeholder="GB29 NWBK 6016 1331 9268 19"
+                            >
+                            <div v-if="form.errors.iban" class="field-err">{{ form.errors.iban }}</div>
+                        </div>
+                        <div class="field">
+                            <label class="field-label" for="bic">BIC / SWIFT <span class="field-hint">— optional</span></label>
+                            <input
+                                id="bic"
+                                v-model="form.bic"
+                                class="field-input"
+                                :class="{ 'has-err': form.errors.bic }"
+                                type="text"
+                                placeholder="NWBKGB2L"
+                            >
+                            <div v-if="form.errors.bic" class="field-err">{{ form.errors.bic }}</div>
                         </div>
                     </div>
 

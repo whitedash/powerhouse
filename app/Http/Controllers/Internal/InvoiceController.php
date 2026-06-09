@@ -193,7 +193,7 @@ class InvoiceController extends Controller
                 ->get([
                     'id', 'name', 'legal_name', 'company_number', 'vat_number',
                     'address', 'bank_name', 'sort_code', 'account_number',
-                    'account_name', 'postmark_sender_email',
+                    'account_name', 'iban', 'bic', 'postmark_sender_email',
                 ]),
             'next_number' => $this->previewNextInvoiceNumber(),
             'today' => $today->toDateString(),
@@ -268,7 +268,7 @@ class InvoiceController extends Controller
                 ->get([
                     'id', 'name', 'legal_name', 'company_number', 'vat_number',
                     'address', 'bank_name', 'sort_code', 'account_number',
-                    'account_name', 'postmark_sender_email',
+                    'account_name', 'iban', 'bic', 'postmark_sender_email',
                 ]),
             'next_number' => $invoice->number,
             'today' => $today->toDateString(),
@@ -729,6 +729,8 @@ class InvoiceController extends Controller
                         'sort_code' => $be->sort_code,
                         'account_number' => $be->account_number,
                         'account_name' => $be->account_name,
+                        'iban' => $be->iban,
+                        'bic' => $be->bic,
                         'postmark_sender_email' => $be->postmark_sender_email,
                     ]
                     : null,

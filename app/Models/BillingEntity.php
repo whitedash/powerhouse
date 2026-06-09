@@ -19,6 +19,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $sort_code
  * @property string|null $account_number
  * @property string|null $account_name
+ * @property string|null $iban
+ * @property string|null $bic
  * @property string|null $logo_path
  * @property string|null $postmark_sender_email
  * @property string|null $postmark_sender_name
@@ -55,6 +57,8 @@ class BillingEntity extends Model
         'sort_code',
         'account_number',
         'account_name',
+        'iban',
+        'bic',
         'logo_path',
         'postmark_sender_email',
         'postmark_sender_name',
@@ -79,6 +83,8 @@ class BillingEntity extends Model
             'sort_code' => 'encrypted',
             'account_number' => 'encrypted',
             'account_name' => 'encrypted',
+            'iban' => 'encrypted',
+            'bic' => 'encrypted',
             'qbo_access_token' => 'encrypted',
             'qbo_refresh_token' => 'encrypted',
         ];

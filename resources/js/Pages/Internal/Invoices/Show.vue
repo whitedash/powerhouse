@@ -502,9 +502,10 @@ const icons = {
                         </div>
                     </section>
 
-                    <!-- Bank details (hidden when paid/void) -->
-                    <section v-if="showPaymentDetails && be" class="inv-doc-bank">
-                        <div class="section-label">Payment details</div>
+                    <!-- Bank transfer details (hidden when paid/void or when the
+                         entity has no bank details set) -->
+                    <section v-if="showPaymentDetails && be && (be.bank_name || be.account_name || be.sort_code || be.account_number || be.iban || be.bic)" class="inv-doc-bank">
+                        <div class="section-label">Bank transfer</div>
                         <div class="bank-grid">
                             <div v-if="be.bank_name" class="bank-row">
                                 <span class="k">Bank:</span>
@@ -521,6 +522,14 @@ const icons = {
                             <div v-if="be.account_number" class="bank-row">
                                 <span class="k">Account no:</span>
                                 <span class="v mono">{{ be.account_number }}</span>
+                            </div>
+                            <div v-if="be.iban" class="bank-row">
+                                <span class="k">IBAN:</span>
+                                <span class="v mono">{{ be.iban }}</span>
+                            </div>
+                            <div v-if="be.bic" class="bank-row">
+                                <span class="k">BIC / SWIFT:</span>
+                                <span class="v mono">{{ be.bic }}</span>
                             </div>
                         </div>
                     </section>

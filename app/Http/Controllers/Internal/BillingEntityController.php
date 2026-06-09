@@ -39,6 +39,8 @@ class BillingEntityController extends Controller
                 'sort_code' => $e->sort_code,
                 'account_number' => $e->account_number,
                 'account_name' => $e->account_name,
+                'iban' => $e->iban,
+                'bic' => $e->bic,
                 'logo_path' => $e->logo_path,
                 // Signed temporary URL the Vue side can drop straight into
                 // an <img> src. The 'serve' => true on the private disk
@@ -223,6 +225,8 @@ class BillingEntityController extends Controller
             'sort_code' => $data['sort_code'],
             'account_number' => $data['account_number'],
             'account_name' => $data['account_name'],
+            'iban' => $data['iban'] ?? null,
+            'bic' => $data['bic'] ?? null,
             'postmark_sender_email' => $data['postmark_sender_email'],
             'postmark_sender_name' => $data['postmark_sender_name'],
             'postmark_domain' => $data['postmark_domain'] ?? null,
