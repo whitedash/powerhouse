@@ -1,196 +1,111 @@
 # Powerhouse — CLAUDE.md
 
+Apostolos's operating layer (never commercialised): CRM, invoicing, billing, support,
+referrals, OAuth identity provider for all Whitedash products.
+
 ## Mandatory before every session
-1. Read this file completely
-2. Run `php artisan migrate:status` and report any pending migrations
-3. Run `composer audit` and `npm audit`. Report any high/critical
-   vulnerabilities before proceeding.
-4. Never guess column names — check migrations or run
-   `php artisan db:show --table=TABLE_NAME`
+
+1. Read this file completely.
+2. Session-start checks + the full gate (Pint, PHPStan level 5, PHPUnit, clean build,
+   audits): **laravel-quality-gates skill**.
+3. Never guess column names — SCHEMA.md is the source of truth; or
+   `php artisan db:show --table=NAME`.
 
 ## Stack
-- Laravel 13 + Inertia.js + Vue 3 + Vite + Tailwind v4
-- Laravel Passport (OAuth 2.0 server)
-- MySQL
 
-## Naming conventions
-- Models: PascalCase singular (Customer, Invoice, CommissionLedger)
-- Controllers: split by area (Internal/, Portal/, Referrer/)
-- Services: verb-noun (InvoiceService, CommissionService)
-- Vue components: PascalCase (CustomerDetail.vue)
-- CSS: use design system variables only (--accent, --border etc)
-  Never hardcode hex values.
+Laravel 13 + Inertia.js + Vue 3 + Vite + Tailwind v4 · Laravel Passport (OAuth 2.0
+server) · MySQL. Deploys per the **cpanel-laravel-deploy skill** (this app HAS
+Settings → Deployment — use it).
+
+## Naming
+
+Models PascalCase singular; controllers split by area (Internal/, Portal/,
+Referrer/); services verb-noun (InvoiceService); Vue components PascalCase.
+CSS via design-system variables in `resources/css/app.css` (user-level token rule).
 
 ## Design system
-All UI must reference the CSS variables in resources/css/app.css.
-The 16 screen HTML files in /design are the source of truth
-for every layout, component, and interaction pattern.
 
-Card primitives: `.card-head` / `.card-body` (padded header with
-divider + padded body) and `.card-header` (icon + title row) are
-both **global**. Do not redefine them per-namespace unless you need
-genuinely different values — a missing namespaced copy used to leave
-pages with zero padding.
+The 16 HTML files in `/design` are the source of truth for every layout, component,
+and interaction pattern (read-only — user-level rule).
 
-### SECTION-PANEL RULE (mandatory)
-Every detail/section panel MUST be `<section class="card">` (global
-`.card`) with a `.card-header`/`.card-head` and a **padded body**.
-NEVER hand-roll a section container with raw/inline-styled divs.
-Empty states, footers, and action rows live **INSIDE** the padded
-body (they inherit the inner horizontal padding) — never as flush
-siblings of `.card`. Full spec + DO/DON'T + the grep guard
-(`composer audit:sections`) live in **CONVENTIONS.md** → "Section
-panels". This is a recurring bug class — read it before adding a panel.
+### SECTION-PANEL RULE (mandatory) → CONVENTIONS.md "Section panels"
+Every detail/section panel MUST be `<section class="card">` with
+`.card-header`/`.card-head` + a padded body; empty states/footers/action rows live
+INSIDE the padded body. Never hand-roll a section container. Grep guard:
+`composer audit:sections`. Full spec, DO/DON'T, and the deliberate exceptions list
+are in **CONVENTIONS.md** — read it before adding any panel.
 
-### NAMESPACING RULE (mandatory)
-Any CSS rule that overrides a shared primitive (`.card-*`, `.form-*`,
-`.table-*`, `.badge-*`, `.btn-*`) MUST be scoped to a page or
-component namespace.
-
-WRONG:
-```css
-.form-section { border-top: 1px... }
-```
-
-RIGHT:
-```css
-.slide-over-wide .form-section {
-  border-top: 1px...
-}
-```
-
-If you find yourself writing an unscoped override of a shared
-primitive, stop and add the page namespace first.
+### NAMESPACING RULE (mandatory) → CONVENTIONS.md
+Any CSS rule overriding a shared primitive (`.card-*`, `.form-*`, `.table-*`,
+`.badge-*`, `.btn-*`) MUST be scoped to a page/component namespace. Unscoped override
+= stop and add the namespace.
 
 ## New page checklist
-Before committing any new Vue page, verify visually:
-- [ ] All cards have background + border
-- [ ] All right-column panels have card styling
-- [ ] Table rows have consistent spacing
-- [ ] Empty states are styled
-- [ ] Mobile: no overflow-x on body
-- [ ] Dropdowns: no overflow:hidden on parents
-- [ ] Run: npm run build — check for warnings
 
-## Never do
-- Never add columns not in SCHEMA.md
-- Never use direct DB queries — Eloquent only
-- Never put business logic in Models — use Services
-- Never commit .env
-- Never hardcode credentials
-- Never guess column names — always check SCHEMA.md first
-- **Never** use `==` or `===` to compare tokens, signatures, API
-  keys, or any cryptographic value. **Always** use `hash_equals()`.
-- **Never** use `$file->getClientOriginalName()` for stored filenames.
-  **Never** store uploads in `public/`. **Always** route uploads
-  through `App\Services\FileUploadService`.
-- **Never** process a webhook without (1) verifying the signature via
-  a `VerifyWebhookSignature` subclass, (2) checking idempotency via
-  `WebhookIdempotencyService`, (3) excluding the route from CSRF.
-- **Never** accept a URL from user input without `App\Rules\NotInternalUrl`
-  in the validation chain. This is what stops SSRF.
-- **Never** use `window.confirm()`, `window.alert()`, or
-  `window.prompt()`. ALL confirmation dialogs must use the
-  `ConfirmModal` Vue component at
-  `resources/js/Components/UI/ConfirmModal.vue` (v-model:show,
-  variant=danger|warning|primary, emits @confirm).
-- **Dropdown clipping rule.** Never add `overflow:hidden` to
-  `.card`, `.table-card`, or any container that may host a `···`
-  dropdown popover. `border-radius` clips backgrounds and borders
-  without `overflow:hidden`. If clipping is genuinely needed for a
-  specific element inside a card (image, progress bar, fill marquee),
-  apply `overflow:hidden` to **that element** — or use the
-  `.card-clip` utility class on the wrapper. We removed four
-  per-namespace `.X .card { overflow: visible }` overrides because
-  the root cause was a global default that didn't need to exist.
+Cards have bg+border; right-column panels carry card styling; consistent row spacing;
+styled empty states; mobile: no body overflow-x; dropdowns: no `overflow:hidden` on
+parents; `npm run build` warning-free.
 
-## Key files
-- SCHEMA.md — complete database schema (source of truth)
-- DECISION-LOG.md — architectural decisions
-- SECURITY.md — production deploy checklist + threat model
-- /design/ — all 16 HTML screen designs
+## Never do (security — keep verbatim)
 
-## Code quality
-- `vendor/bin/pint` — code style (Laravel preset + extra rules)
-- `vendor/bin/phpstan analyse` — static analysis, level 5
-
-## Write operations
-- Validation lives in `app/Http/Requests/*Request.php`, not in
-  controllers. Each request must implement `authorize()` calling
-  a policy (`$user->can('action', Model::class)`).
-- All persistence inside transactions.
-- Every mutation logged to `activity_log`.
+- Never add columns not in SCHEMA.md.
+- Never use direct DB queries — Eloquent only.
+- Never put business logic in Models — use Services.
+- Never commit `.env`. Never hardcode credentials.
+- **Never** use `==`/`===` to compare tokens, signatures, API keys, or any
+  cryptographic value — **always** `hash_equals()`.
+- **Never** use `$file->getClientOriginalName()` for stored filenames. **Never**
+  store uploads in `public/`. **Always** route uploads through
+  `App\Services\FileUploadService`.
+- **Never** process a webhook without (1) signature verification via a
+  `VerifyWebhookSignature` subclass, (2) idempotency via
+  `WebhookIdempotencyService`, (3) CSRF route exclusion.
+- **Never** accept a user-supplied URL without `App\Rules\NotInternalUrl` (SSRF).
+- **Never** use `window.confirm/alert/prompt` — all confirmations via the
+  `ConfirmModal` component (`resources/js/Components/UI/ConfirmModal.vue`).
+- **Dropdown clipping:** never `overflow:hidden` on `.card`/`.table-card`/any
+  container hosting a `···` popover; clip the specific inner element or use
+  `.card-clip`.
 
 ## ID-handling rule (IDOR prevention)
-Every controller method that accepts an ID **must**:
-1. Use `findOrFail()` — never `find()`. `find()` returns null on miss
-   and a null check is easy to forget.
-2. Call `$this->authorizeOrFail('action', $model)` (from the
-   `AuthorizesWithPolicy` trait) or `Gate::authorize(...)`.
 
-For portal-side queries, use `Customer::forPortalUser($cid)` — never
-trust an `id` from the request. For referrer-side queries, scope
-every read with `where('referrer_id', auth()->user()->referrer->id)`.
+Every controller method accepting an ID: `findOrFail()` (never `find()`) +
+`$this->authorizeOrFail('action', $model)` / `Gate::authorize`. Portal queries via
+`Customer::forPortalUser($cid)` — never trust a request id. Referrer reads scoped
+`where('referrer_id', auth()->user()->referrer->id)`.
+
+## Write operations
+
+Validation in `app/Http/Requests/*Request.php` with `authorize()` calling a policy;
+all persistence in transactions; every mutation logged to `activity_log`.
 
 ## Nav badge cache keys
-Sidebar badges are notification signals, not stats. Counts are cached
-(60s TTL) and shared via `HandleInertiaRequests::share().nav`. Whenever
-a controller changes a status that could affect a badge, forget the
-relevant key — stale counts beat fresh ones for ~60s anyway, but a
-just-resolved overdue invoice should disappear *immediately* not after
-a coffee break:
 
-| Key | Trigger to forget |
-|---|---|
-| `nav.invoices_overdue` | any invoice status change |
-| `nav.invoices_outstanding` | any invoice status change |
-| `nav.support_sla_breached` | any ticket status / SLA change |
-| `nav.support_open` | any ticket status change |
-
-Rule: `Cache::forget('nav.invoices_overdue')` etc. inside the
-controller transaction *before* the response returns. Pair invoice
-keys; pair support keys.
+Badges are cached 60 s via `HandleInertiaRequests::share().nav`. On any status change
+that affects a badge, `Cache::forget` the paired keys inside the controller
+transaction before responding: `nav.invoices_overdue` + `nav.invoices_outstanding`
+(any invoice status change); `nav.support_sla_breached` + `nav.support_open`
+(any ticket status/SLA change).
 
 ## Restore to main rule
-Always restore to main branch before starting a new session
-unless explicitly told otherwise.
 
-## POWERHOUSE PROJECT SYNC
+Always restore to the main branch before starting a new session unless told otherwise.
 
-Every sprint must sync with Powerhouse PM. Project identity lives in
-`.powerhouse.json` (gitignored, per-developer — copy
-`.powerhouse.json.example` and fill it in). Four artisan commands bridge
-Claude Code and Powerhouse: `task:sync`, `task:export`, `task:update`,
-`task:status`.
+## POWERHOUSE PROJECT SYNC (keep verbatim)
 
-### Session start (mandatory):
-  1. Check if .powerhouse.json exists:
-     cat .powerhouse.json
-  2. Check current task state:
-     php artisan task:status
-  3. If TASKS.md exists, sync new tasks:
-     php artisan task:sync --dry-run
-     (review output, then run again without --dry-run)
-  4. Never assume a task is "to do" — always check task:status first.
-     If it shows complete, skip it.
+Every sprint syncs with Powerhouse PM via `.powerhouse.json` (gitignored,
+per-developer; copy the `.example`). Bridges: `task:sync`, `task:export`,
+`task:update`, `task:status`.
 
-### During sprint:
-  When starting a task:
-    php artisan task:update {id} in_progress
-  When completing a task:
-    php artisan task:update {id} complete
-  When blocked:
-    php artisan task:update {id} blocked --reason="describe the blocker"
+- Session start: `cat .powerhouse.json` → `php artisan task:status` → if TASKS.md
+  exists, `task:sync --dry-run`, review, then sync. Never assume a task is to-do —
+  task:status is live state.
+- During sprint: `task:update {id} in_progress|complete|blocked --reason="…"`.
+- Session end: `task:export` → commit SPRINT-STATUS.md.
+- NEVER guess a project_id — read `.powerhouse.json`; if missing, stop and ask.
+  task:sync matches by title and skips existing — safe to re-run.
 
-### Session end:
-  php artisan task:export
-  (updates SPRINT-STATUS.md)
-  git add SPRINT-STATUS.md && git commit -m "chore: update sprint status"
+## Key files
 
-### Rules:
-  - NEVER guess a project_id — always read from .powerhouse.json.
-  - If .powerhouse.json is missing: stop and ask the user to create it
-    before continuing.
-  - task:sync skips existing tasks (matched by title) — safe to re-run.
-  - Manual completions in the Powerhouse UI are respected on next
-    session start (task:status reads live state).
+SCHEMA.md (DB source of truth) · DECISION-LOG.md · SECURITY.md (deploy checklist +
+threat model) · CONVENTIONS.md (frontend detail) · RUNBOOKS/ · /design/.
