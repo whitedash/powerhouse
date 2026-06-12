@@ -47,6 +47,7 @@ import {
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import TaskLinkPicker from '@/Components/Internal/TaskLinkPicker.vue';
 
 const props = defineProps({
     task: { type: Object, required: true },
@@ -169,6 +170,10 @@ const editForm = useForm({
     // contact_id is sent back so the controller (which nulls it when
     // absent) preserves the existing contact on a plain edit.
     contact_id: props.task.contact?.id ?? null,
+    // The optional subject (lead OR customer). Sent back explicitly so
+    // the picker can re-link or clear it — an explicit null clears.
+    customer_id: props.task.customer_id ?? null,
+    lead_id: props.task.lead_id ?? null,
     duration_minutes: props.task.duration_minutes ?? null,
 });
 function toLocalInput(iso) {
@@ -185,6 +190,8 @@ function editActivity() {
     editForm.due_at = toLocalInput(props.task.due_at);
     editForm.assigned_to = props.task.assigned_to ?? null;
     editForm.contact_id = props.task.contact?.id ?? null;
+    editForm.customer_id = props.task.customer_id ?? null;
+    editForm.lead_id = props.task.lead_id ?? null;
     editForm.duration_minutes = props.task.duration_minutes ?? null;
     editForm.clearErrors();
     showEdit.value = true;
@@ -313,7 +320,9 @@ const subTaskForm = useForm({
     title: '',
     description: '',
     priority: 'medium',
+    // A sub-task inherits its parent's subject (lead OR customer).
     customer_id: props.task.customer_id,
+    lead_id: props.task.lead_id,
     contact_id: null,
     parent_task_id: props.task.id,
     assigned_to: props.me_id,
@@ -326,6 +335,7 @@ function openSubTask() {
     subTaskForm.type = 'task';
     subTaskForm.priority = 'medium';
     subTaskForm.customer_id = props.task.customer_id;
+    subTaskForm.lead_id = props.task.lead_id;
     subTaskForm.parent_task_id = props.task.id;
     subTaskForm.assigned_to = props.me_id;
     showSubTaskForm.value = true;
@@ -1019,7 +1029,20 @@ const statusLabel = computed(() => {
                                         </div>
                                     </div>
                                 </div>
-                                <div v-if="contacts.length" class="form-section">
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Link to (optional)</label>
+                                            <TaskLinkPicker
+                                                v-model:lead-id="editForm.lead_id"
+                                                v-model:customer-id="editForm.customer_id"
+                                                :initial-label="task.customer?.name ?? task.lead?.name ?? ''"
+                                                @change="editForm.contact_id = null"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-if="editForm.customer_id && contacts.length" class="form-section">
                                     <div class="form-row single">
                                         <div class="form-field">
                                             <label>Contact</label>

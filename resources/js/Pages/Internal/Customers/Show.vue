@@ -64,6 +64,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import TaskLinkPicker from '@/Components/Internal/TaskLinkPicker.vue';
 
 dayjs.extend(relativeTime);
 
@@ -456,6 +457,7 @@ const taskForm = useForm({
     description: '',
     priority: 'medium',
     customer_id: props.customer.id,
+    lead_id: null,
     contact_id: null,
     assigned_to: null,
     due_at: '',
@@ -476,7 +478,9 @@ function openAddTask(type = 'task') {
 function openEditTask(t) {
     taskForm.reset();
     taskForm.clearErrors();
+    // Tasks on this page are by definition this customer's.
     taskForm.customer_id = props.customer.id;
+    taskForm.lead_id = null;
     taskForm.type = t.type;
     taskForm.title = t.title ?? '';
     taskForm.description = t.description ?? '';
@@ -4485,7 +4489,21 @@ function submitProject() {
                                     </div>
                                 </div>
 
-                                <div v-if="customerContactsForPicker.length > 0" class="form-section">
+                                <div class="form-section">
+                                    <div class="form-row single">
+                                        <div class="form-field">
+                                            <label>Link to (optional)</label>
+                                            <TaskLinkPicker
+                                                v-model:lead-id="taskForm.lead_id"
+                                                v-model:customer-id="taskForm.customer_id"
+                                                :initial-label="customer.name"
+                                                @change="taskForm.contact_id = null"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-if="taskForm.customer_id && customerContactsForPicker.length > 0" class="form-section">
                                     <div class="form-row single">
                                         <div class="form-field">
                                             <label>Contact (optional)</label>

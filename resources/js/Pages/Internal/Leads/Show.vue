@@ -16,6 +16,7 @@ import {
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import TaskLinkPicker from '@/Components/Internal/TaskLinkPicker.vue';
 
 const props = defineProps({
     lead: { type: Object, required: true },
@@ -263,7 +264,7 @@ function submitConvert() {
                     </div>
 
                     <!-- Activities -->
-                    <div class="card">
+                    <section class="card">
                         <div class="card-head">
                             <h3>Activities</h3>
                             <button type="button" class="ghost-link" @click="openActivity">
@@ -285,7 +286,7 @@ function submitConvert() {
                                 </span>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Notes free-form (from lead.notes) -->
                     <div v-if="lead.notes" class="card">
@@ -430,6 +431,13 @@ function submitConvert() {
                                 <option :value="null">Unassigned</option>
                                 <option v-for="s in staff" :key="s.id" :value="s.id">{{ s.name }}</option>
                             </select>
+                        </div>
+                        <div class="form-section"><label class="form-label">Link to (optional)</label>
+                            <TaskLinkPicker
+                                v-model:lead-id="activityForm.lead_id"
+                                v-model:customer-id="activityForm.customer_id"
+                                :initial-label="lead.name"
+                            />
                         </div>
                         <div class="form-section"><label class="form-label">Description</label><textarea v-model="activityForm.description" class="form-input" rows="3" maxlength="5000" /></div>
                     </form>

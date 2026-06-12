@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Contact;
 use App\Models\Customer;
+use App\Models\Lead;
 use App\Models\Milestone;
 use App\Models\Task;
 use App\Models\TaskAttachment;
@@ -41,6 +42,7 @@ class TaskController extends Controller
     {
         $task = Task::with([
             'customer:id,name,city',
+            'lead:id,first_name,last_name,company',
             'contact:id,customer_id,name,email,phone,job_title',
             'assignedTo:id,name,avatar_colour,role',
             'createdBy:id,name',
@@ -60,6 +62,11 @@ class TaskController extends Controller
         $user = $request->user();
         if ($task->customer_id !== null) {
             Gate::authorize('view', $task->customer);
+        } elseif ($task->lead_id !== null) {
+            // Lead-linked activities ride the same gate as the lead
+            // pages themselves — any staffer who can open the lead
+            // can open its activities.
+            Gate::authorize('viewAny', Customer::class);
         } else {
             abort_unless(
                 $task->assigned_to === $user->id
@@ -150,6 +157,12 @@ class TaskController extends Controller
                     'name' => $task->customer->name,
                     'city' => $task->customer->city,
                 ] : null,
+                'lead_id' => $task->lead_id,
+                'lead' => $task->lead ? [
+                    'id' => $task->lead->id,
+                    'name' => $task->lead->name,
+                    'company' => $task->lead->company,
+                ] : null,
                 'contact' => $task->contact ? [
                     'id' => $task->contact->id,
                     'name' => $task->contact->name,
@@ -226,15 +239,19 @@ class TaskController extends Controller
 
         $userId = $request->user()->id;
         $this->guardContactBelongsToCustomer($data);
+        [$leadId, $customerId] = $this->guardSingleSubject($data);
 
-        $task = DB::transaction(function () use ($data, $request, $userId) {
+        $task = DB::transaction(function () use ($data, $request, $userId, $leadId, $customerId) {
             $task = Task::create([
                 'type' => $data['type'],
                 'title' => $data['title'] ?? $this->fallbackTitle($data['type']),
                 'description' => $data['description'] ?? null,
                 'priority' => $data['priority'] ?? 'medium',
-                'customer_id' => $data['customer_id'] ?? null,
-                'contact_id' => $data['contact_id'] ?? null,
+                'customer_id' => $customerId,
+                'lead_id' => $leadId,
+                // Contacts belong to customers — a lead-linked task
+                // can't carry one.
+                'contact_id' => $leadId ? null : ($data['contact_id'] ?? null),
                 'parent_task_id' => $data['parent_task_id'] ?? null,
                 // Project + milestone — set by the kanban quick-add
                 // and the project Tasks-tab "+ Add task" affordance.
@@ -274,6 +291,53 @@ class TaskController extends Controller
         return back()->with('success', $this->createdMessage($task));
     }
 
+    /**
+     * Options feed for the task form's "Link to" picker. Returns the
+     * top matches for one subject type at a time; an empty query
+     * returns a sensible default slice (customers A→Z, newest leads)
+     * so the list isn't blank before the user types.
+     */
+    public function linkOptions(Request $request): JsonResponse
+    {
+        Gate::authorize('viewAny', Customer::class);
+
+        $data = $request->validate([
+            'type' => ['required', Rule::in(['lead', 'customer'])],
+            'q' => ['nullable', 'string', 'max:100'],
+        ]);
+        $q = trim($data['q'] ?? '');
+
+        if ($data['type'] === 'customer') {
+            $options = Customer::whereNull('archived_at')
+                ->when($q !== '', fn ($query) => $query->where('name', 'like', "%{$q}%"))
+                ->orderBy('name')
+                ->take(8)
+                ->get(['id', 'name', 'city'])
+                ->map(fn (Customer $c): array => [
+                    'id' => $c->id,
+                    'label' => $c->name,
+                    'sub' => $c->city,
+                ]);
+        } else {
+            $options = Lead::query()
+                ->when($q !== '', fn ($query) => $query->where(fn ($w) => $w
+                    ->where('first_name', 'like', "%{$q}%")
+                    ->orWhere('last_name', 'like', "%{$q}%")
+                    ->orWhere('company', 'like', "%{$q}%")))
+                ->orderByDesc('created_at')
+                ->take(8)
+                ->get(['id', 'first_name', 'last_name', 'company', 'status'])
+                ->map(fn (Lead $l): array => [
+                    'id' => $l->id,
+                    'label' => $l->name,
+                    'sub' => $l->company,
+                    'status' => $l->status,
+                ]);
+        }
+
+        return response()->json(['options' => $options]);
+    }
+
     public function update(int $id, Request $request): RedirectResponse
     {
         $task = Task::findOrFail($id);
@@ -290,18 +354,20 @@ class TaskController extends Controller
 
         $data = $request->validate($this->rules(forUpdate: true), $this->messages());
         $this->guardContactBelongsToCustomer($data);
+        [$leadId, $customerId] = $this->guardSingleSubject($data, $task);
 
         $before = $task->only(['title', 'type', 'priority', 'description', 'due_at', 'duration_minutes']);
         $previousAssignee = $task->assigned_to;
 
-        DB::transaction(function () use ($task, $data) {
+        DB::transaction(function () use ($task, $data, $leadId, $customerId) {
             $task->fill([
                 'type' => $data['type'],
                 'title' => $data['title'] ?? $this->fallbackTitle($data['type']),
                 'description' => $data['description'] ?? null,
                 'priority' => $data['priority'] ?? $task->priority,
-                'customer_id' => $data['customer_id'] ?? $task->customer_id,
-                'contact_id' => $data['contact_id'] ?? null,
+                'customer_id' => $customerId,
+                'lead_id' => $leadId,
+                'contact_id' => $leadId ? null : ($data['contact_id'] ?? null),
                 'assigned_to' => $data['assigned_to'] ?? $task->assigned_to,
                 'due_at' => TaskDueDate::resolve($data),
                 'duration_minutes' => $data['duration_minutes'] ?? null,
@@ -883,6 +949,13 @@ class TaskController extends Controller
             'description' => ['nullable', 'string', 'max:5000'],
             'priority' => ['nullable', Rule::in(self::PRIORITIES)],
             'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
+            // Optional CRM subject — a task may hang off a lead OR a
+            // customer (guardSingleSubject rejects both at once), or
+            // neither (a standalone task). Listed here for the same
+            // reason as project_id below: an unvalidated key is
+            // silently stripped and the association written NULL —
+            // exactly the bug that orphaned every lead-page activity.
+            'lead_id' => ['nullable', 'integer', 'exists:leads,id'],
             'contact_id' => ['nullable', 'integer', 'exists:contacts,id'],
             'parent_task_id' => ['nullable', 'integer', 'exists:tasks,id'],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
@@ -975,6 +1048,30 @@ class TaskController extends Controller
             ->exists();
 
         abort_unless($matches, 422, 'Selected contact does not belong to the chosen customer.');
+    }
+
+    /**
+     * Resolve the task's optional CRM subject (lead OR customer).
+     *
+     * Both associations are optional — a task with neither is a valid
+     * standalone task. A key absent from the request keeps the task's
+     * current value (update semantics); an explicit null clears it.
+     * What is never valid is BOTH set at once: one subject or none.
+     *
+     * @return array{0: int|null, 1: int|null} [lead_id, customer_id]
+     */
+    private function guardSingleSubject(array $data, ?Task $task = null): array
+    {
+        $leadId = array_key_exists('lead_id', $data) ? $data['lead_id'] : $task?->lead_id;
+        $customerId = array_key_exists('customer_id', $data) ? $data['customer_id'] : $task?->customer_id;
+
+        abort_if(
+            ! empty($leadId) && ! empty($customerId),
+            422,
+            'Link an activity to a lead or a customer — not both.',
+        );
+
+        return [$leadId, $customerId];
     }
 
     /**

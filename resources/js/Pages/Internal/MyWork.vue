@@ -24,6 +24,7 @@ import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import MyWorkTaskRow from '@/Components/Internal/MyWorkTaskRow.vue';
+import TaskLinkPicker from '@/Components/Internal/TaskLinkPicker.vue';
 
 const props = defineProps({
     summary: { type: Object, default: () => ({ overdue: 0, today: 0, upcoming: 0, unscheduled: 0, total: 0 }) },
@@ -236,6 +237,9 @@ const createForm = useForm({
     end_at: '',
     location: '',
     assigned_to: page.props.auth?.user?.id,
+    // Optional subject — a calendar-created task starts standalone.
+    lead_id: null,
+    customer_id: null,
 });
 
 function openCreateTask(info) {
@@ -275,6 +279,8 @@ function submitCreateTask() {
             start_at: d.is_all_day ? null : d.start_at,
             end_at: d.is_all_day ? null : d.end_at,
             location: d.location || null,
+            lead_id: d.lead_id,
+            customer_id: d.customer_id,
         }))
         .post('/tasks', {
             preserveScroll: true,
@@ -576,6 +582,14 @@ function submitCreateTask() {
                                 <input v-model="createForm.location" type="text" maxlength="255" placeholder="Office or Zoom link" />
                             </div>
                         </template>
+
+                        <div class="form-field">
+                            <label>Link to <span class="muted small">(optional)</span></label>
+                            <TaskLinkPicker
+                                v-model:lead-id="createForm.lead_id"
+                                v-model:customer-id="createForm.customer_id"
+                            />
+                        </div>
 
                         <div class="mw-create-actions">
                             <button type="button" class="btn btn-ghost btn-sm" @click="showCreateTask = false">Cancel</button>
