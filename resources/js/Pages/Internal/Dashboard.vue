@@ -40,7 +40,6 @@ import {
     IconFilePlus,
     IconSend,
     IconX,
-    IconSearch,
     IconPhone,
     IconMail,
     IconNotes,
@@ -48,6 +47,7 @@ import {
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import TaskLinkPicker from '@/Components/Internal/TaskLinkPicker.vue';
 
 const props = defineProps({
     greeting: { type: String, required: true },
@@ -307,7 +307,6 @@ function goNewCustomer() {
 
 /* ─── New-task slide-over ─── */
 const showNewTask = ref(false);
-const customerSearch = ref('');
 const todayIso = new Date().toISOString().slice(0, 10);
 
 const me = computed(() => {
@@ -324,6 +323,7 @@ const taskForm = useForm({
     description: '',
     priority: 'medium',
     customer_id: null,
+    lead_id: null,
     contact_id: null,
     assigned_to: null,
     due_at: '',   // YYYY-MM-DD from the date input
@@ -337,7 +337,6 @@ function openNewTask() {
     taskForm.type = 'task';
     taskForm.priority = 'medium';
     taskForm.assigned_to = me.value;
-    customerSearch.value = '';
     showNewTask.value = true;
 }
 
@@ -378,23 +377,10 @@ const availableContacts = computed(() => {
     return props.contacts_by_customer?.[taskForm.customer_id] ?? [];
 });
 
-const filteredCustomers = computed(() => {
-    const q = customerSearch.value.trim().toLowerCase();
-    if (! q) return props.customers.slice(0, 8);
-
-    return props.customers
-        .filter((c) => c.name.toLowerCase().includes(q))
-        .slice(0, 8);
-});
-
-function pickCustomer(c) {
-    taskForm.customer_id = c.id;
-    customerSearch.value = c.name;
-}
-
-function clearCustomer() {
-    taskForm.customer_id = null;
-    customerSearch.value = '';
+// A stale contact must never outlive its customer — the picker fires
+// this whenever the linked subject changes or clears.
+function onLinkChange() {
+    taskForm.contact_id = null;
 }
 
 /* ─── Complete activity — outcome modal flow ────────────────────────
@@ -1036,38 +1022,16 @@ function performComplete() {
                                     </div>
                                 </div>
 
-                                <!-- Customer + Contact -->
+                                <!-- Link to (lead/customer) + Contact -->
                                 <div class="form-section">
                                     <div class="form-row single">
                                         <div class="form-field">
-                                            <label>Customer (optional)</label>
-                                            <div v-if="taskForm.customer_id" class="cust-row selected" style="cursor: default;">
-                                                <div class="meta">
-                                                    <div class="nm">{{ customerSearch }}</div>
-                                                </div>
-                                                <button type="button" class="clear" aria-label="Clear customer" @click="clearCustomer">
-                                                    <IconX :size="14" stroke-width="1.75" />
-                                                </button>
-                                            </div>
-                                            <template v-else>
-                                                <div class="cust-search">
-                                                    <IconSearch :size="16" stroke-width="1.75" />
-                                                    <input v-model="customerSearch" type="search" placeholder="Link to a customer…">
-                                                </div>
-                                                <div v-if="filteredCustomers.length" class="cust-list" style="margin-top: 6px; max-height: 200px; overflow-y: auto;">
-                                                    <button
-                                                        v-for="c in filteredCustomers"
-                                                        :key="c.id"
-                                                        type="button"
-                                                        class="cust-row"
-                                                        @click="pickCustomer(c)"
-                                                    >
-                                                        <div class="meta">
-                                                            <div class="nm">{{ c.name }}</div>
-                                                        </div>
-                                                    </button>
-                                                </div>
-                                            </template>
+                                            <label>Link to (optional)</label>
+                                            <TaskLinkPicker
+                                                v-model:lead-id="taskForm.lead_id"
+                                                v-model:customer-id="taskForm.customer_id"
+                                                @change="onLinkChange"
+                                            />
                                         </div>
                                     </div>
                                     <div v-if="taskForm.customer_id && availableContacts.length > 0" class="form-row single">

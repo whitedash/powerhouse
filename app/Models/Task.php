@@ -42,6 +42,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Customer|null $customer
+ * @property-read Lead|null $lead
  * @property-read Project|null $project
  * @property-read Milestone|null $milestone
  * @property-read Contact|null $contact

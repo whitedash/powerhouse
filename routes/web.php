@@ -233,6 +233,11 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // Global task endpoints — for the dashboard New-task slide-over and
     // checkbox-completion on every list that surfaces tasks.
     Route::post('/tasks', [InternalTaskController::class, 'store'])->name('internal.tasks.store');
+    // JSON feed for the task form's "Link to" (lead/customer) picker.
+    // Throttled like the other list/search endpoints to slow scraping.
+    Route::get('/tasks/link-options', [InternalTaskController::class, 'linkOptions'])
+        ->middleware('throttle:60,1')
+        ->name('internal.tasks.link_options');
     Route::put('/tasks/{id}', [InternalTaskController::class, 'update'])->name('internal.tasks.update');
     Route::post('/tasks/{id}/complete', [InternalTaskController::class, 'complete'])->name('internal.tasks.complete');
     Route::post('/tasks/{id}/pin', [InternalTaskController::class, 'togglePin'])->name('internal.tasks.pin');
