@@ -180,7 +180,7 @@ function handleDelete() {
         </div>
 
         <!-- Statements table -->
-        <div class="card" style="background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;">
+        <section class="card table-card">
             <table v-if="statements.length" class="tbl" style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr style="background: #FBFCFE; border-bottom: 1px solid var(--border-soft);">
@@ -253,7 +253,7 @@ function handleDelete() {
                     New statement
                 </button>
             </div>
-        </div>
+        </section>
 
         <!-- ═══ New-statement slide-over ═══ -->
         <TransitionRoot as="template" :show="showCreate">

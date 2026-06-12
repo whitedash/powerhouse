@@ -241,7 +241,7 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true, preserveSt
             </div>
 
             <!-- ─── Table ─── -->
-            <div class="card">
+            <section class="card table-card">
                 <table class="tbl">
                     <thead>
                         <tr>
@@ -311,7 +311,7 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true, preserveSt
                         </tr>
                     </tbody>
                 </table>
-            </div>
+            </section>
 
             <!-- ─── Pagination ─── -->
             <div v-if="suppliers.data.length > 0" class="pg-foot">
