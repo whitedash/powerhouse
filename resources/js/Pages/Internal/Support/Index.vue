@@ -284,7 +284,7 @@ const nextUrl = computed(() => props.tickets.next_page_url);
             </div>
 
             <!-- Tickets table -->
-            <div class="table-card" style="margin-top: 12px;">
+            <section class="table-card" style="margin-top: 12px;">
                 <table class="tbl">
                     <colgroup>
                         <col>
@@ -390,7 +390,7 @@ const nextUrl = computed(() => props.tickets.next_page_url);
                         <button v-else type="button" class="pg-btn" disabled>Next<IconChevronRight :size="14" stroke-width="1.75" /></button>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
 
         <!-- New ticket slide-over -->

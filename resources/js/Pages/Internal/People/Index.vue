@@ -61,7 +61,7 @@ function submit() {
                 </div>
             </div>
 
-            <div class="table-card">
+            <section class="table-card">
                 <table v-if="people.data.length" class="tbl">
                     <colgroup>
                         <col>
@@ -114,7 +114,7 @@ function submit() {
                         </button>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
 
         <!-- Create slide-over -->

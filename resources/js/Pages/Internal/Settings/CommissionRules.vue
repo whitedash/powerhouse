@@ -141,7 +141,7 @@ const isEditing = computed(() => editingId.value !== null);
             </select>
         </div>
 
-        <div class="table-card">
+        <section class="table-card">
             <table class="tbl">
                 <thead>
                     <tr>
@@ -190,7 +190,7 @@ const isEditing = computed(() => editingId.value !== null);
                     </tr>
                 </tbody>
             </table>
-        </div>
+        </section>
 
         <!-- Pagination -->
         <div v-if="rules.last_page > 1" class="cr-pager">

@@ -422,7 +422,7 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
             </div>
 
             <!-- ─── LIST VIEW ─── -->
-            <div v-else class="card">
+            <section v-else class="card">
                 <table class="tbl">
                     <thead>
                         <tr>
@@ -474,7 +474,7 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
                         </tr>
                     </tbody>
                 </table>
-            </div>
+            </section>
         </div>
 
         <!-- New lead slide-over -->

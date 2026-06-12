@@ -238,7 +238,7 @@ function money(n) { return `£${Number(n || 0).toLocaleString('en-GB', { minimum
             </div>
 
             <!-- Table -->
-            <section class="card table-card">
+            <section class="table-card">
                 <table class="tbl">
                     <thead>
                         <tr>

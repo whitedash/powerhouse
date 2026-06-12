@@ -1437,7 +1437,7 @@ function actionLabel(action) {
                 </label>
 
                 <!-- Files table -->
-                <div v-if="filteredFiles.length" class="table-card">
+                <section v-if="filteredFiles.length" class="table-card">
                     <table class="tbl">
                         <thead>
                             <tr>
@@ -1506,7 +1506,7 @@ function actionLabel(action) {
                             </tr>
                         </tbody>
                     </table>
-                </div>
+                </section>
 
                 <!-- Empty state -->
                 <div v-else class="file-empty">

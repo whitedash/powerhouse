@@ -50,7 +50,7 @@ function fmt(dt) {
                 <p class="muted">Once someone posts to the form they'll appear here.</p>
             </div>
 
-            <div v-else class="card">
+            <section v-else class="card">
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -93,7 +93,7 @@ function fmt(dt) {
                         </template>
                     </tbody>
                 </table>
-            </div>
+            </section>
         </div>
     </InternalLayout>
 </template>

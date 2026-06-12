@@ -39,7 +39,7 @@ Structural contract:
 1. Every detail/section panel MUST use `<section class="card">`. Never hand-roll a section container with raw `<div>`s or inline `border`/`background`/`border-radius` styles.
 2. An empty state, footer, or action row MUST sit inside the padded body — never as a direct flush child of `.card`.
 3. When an empty-state class is reused under a different parent, give it a padding rule for that parent too (a padding rule scoped to the wrong ancestor renders flush — this was a real bug: `.cust-projects .cp-empty` existed but the element under `.cust-proposals` had none).
-4. List/table pages use `.table-card` (the no-`overflow:hidden` table wrapper); their empty states are in-table `<td colspan>` or a `.empty-state` block — both fine.
+4. List/table pages use a bare `<section class="table-card">` (the no-`overflow:hidden` table wrapper — it carries its own border/bg/shadow, so do NOT add the `card` class alongside it); their empty states are in-table `<td colspan>` or a `.empty-state` block — both fine.
 
 ### DO / DON'T
 
@@ -78,14 +78,25 @@ them onto `.card`, but new work in those areas should follow the area's pattern:
 
 If you're unsure whether a panel is a deliberate exception, it isn't — use `.card`.
 
-### Guard (heuristic)
+### Guard (hard gate)
 
-`composer audit:sections` greps `resources/js/Pages/**` for inline-styled
-card-like containers (a `style="…"` that combines `border` + `border-radius`),
-which is the signature of a hand-rolled section panel. It is a **review aid, not
-a hard gate** — it has false positives (badges, inputs, code chips). Eyeball
-each hit: if it wraps a section/table/list, convert it to `<section class="card">`.
+`composer audit:sections` (v2) HARD-FAILS — exit 1 fails the gate. Two checks:
+
+1. **Check 1 (the rule itself):** any `<div>` wrapper whose class token list
+   contains `card` or `table-card` is a violation — the wrapper must be
+   `<section>`. `Pages/Portal/` and `Pages/Referrer/` are path-exempt (their
+   own card families); `Pages/Public/` is in scope by decision.
+2. **Check 2 (hand-rolled net):** the inline `border` + `border-radius`
+   heuristic, filtered through `scripts/audit-sections.allow` — an explicit,
+   reviewed allowlist (`path-substring|line-regex|reason`, no `|` inside
+   fields). Known non-panels (alert banners, form inputs, modal internals,
+   dropdowns) and exempted families are suppressed by named entries.
+
+On a flag: convert the panel. Only add an allowlist entry when the hit is
+genuinely not a section panel — every entry carries its reason and is reviewed
+in the PR. Known blind spot: dynamic `:class` bindings are invisible to grep.
 
 ```
-composer audit:sections        # lists candidate hand-rolled panels
+composer audit:sections        # exits 1 on violations (part of composer gate)
+composer gate                  # full gate: Pint, PHPStan, audit:sections, tests, build
 ```

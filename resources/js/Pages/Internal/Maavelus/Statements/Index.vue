@@ -180,7 +180,7 @@ function handleDelete() {
         </div>
 
         <!-- Statements table -->
-        <section class="card table-card">
+        <section class="table-card">
             <table v-if="statements.length" class="tbl" style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr style="background: #FBFCFE; border-bottom: 1px solid var(--border-soft);">

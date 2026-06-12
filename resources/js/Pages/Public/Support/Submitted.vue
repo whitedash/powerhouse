@@ -13,7 +13,7 @@ defineProps({
 
     <PublicLayout>
         <section class="done">
-            <div class="done-card card">
+            <section class="done-card card">
                 <div class="done-check"><IconCircleCheck :size="48" stroke-width="1.5" /></div>
                 <h1>Thanks — we've got it</h1>
                 <p class="done-lead">
@@ -26,7 +26,7 @@ defineProps({
                 </div>
                 <p class="done-note">We've also emailed you a copy. You can reply to that email to add anything to your ticket.</p>
                 <Link href="/kb" class="done-link">Browse the knowledge base <IconArrowRight :size="14" stroke-width="1.75" /></Link>
-            </div>
+            </section>
         </section>
     </PublicLayout>
 </template>
