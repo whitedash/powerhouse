@@ -548,7 +548,7 @@ function performComplete() {
                 <!-- LEFT COLUMN -->
                 <div class="col">
                     <!-- Products -->
-                    <div class="card">
+                    <section class="card">
                         <div class="card-header">
                             <div class="h-icon gold"><IconLayoutGrid :size="16" stroke-width="1.75" /></div>
                             <div>
@@ -600,10 +600,10 @@ function performComplete() {
                                 No products configured yet
                             </div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Audit log (was "Activity") -->
-                    <div class="card shadow-sm">
+                    <section class="card shadow-sm">
                         <div class="card-header">
                             <div class="h-icon"><IconActivity :size="16" stroke-width="1.75" /></div>
                             <div>
@@ -632,13 +632,13 @@ function performComplete() {
                         <div class="card-foot">
                             <Link href="/settings/audit-log" class="foot-link">View audit log<IconArrowRight :size="14" stroke-width="1.75" /></Link>
                         </div>
-                    </div>
+                    </section>
                 </div>
 
                 <!-- RIGHT COLUMN -->
                 <div class="col">
                     <!-- Needs attention — preview top 8, modal shows all -->
-                    <div class="card attention">
+                    <section class="card attention">
                         <div class="card-header">
                             <div class="h-icon red"><IconAlertTriangle :size="16" stroke-width="1.75" /></div>
                             <div>
@@ -675,10 +675,10 @@ function performComplete() {
                                 View all {{ attention_count }}<IconArrowRight :size="14" stroke-width="1.75" />
                             </button>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Activities (open, assigned to me) -->
-                    <div class="card shadow-sm">
+                    <section class="card shadow-sm">
                         <div class="card-header">
                             <div class="h-icon"><IconCheckbox :size="16" stroke-width="1.75" /></div>
                             <div>
@@ -742,10 +742,10 @@ function performComplete() {
                         <div v-else style="padding: 24px; text-align: center; color: var(--text-tertiary); font: 400 13px/1.4 'Inter', sans-serif;">
                             No activities assigned to you
                         </div>
-                    </div>
+                    </section>
 
                     <!-- This month -->
-                    <div class="card shadow-sm">
+                    <section class="card shadow-sm">
                         <div class="card-header">
                             <div class="h-icon"><IconChartBar :size="16" stroke-width="1.75" /></div>
                             <div>
@@ -796,14 +796,14 @@ function performComplete() {
                                 <div class="qstat-value">{{ this_month.avg_resolution_hours || '—' }}<span v-if="this_month.avg_resolution_hours" class="delta">h</span></div>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
             </div>
 
             <!-- ═══ Footer row ═══ -->
             <div class="footer-row">
                 <!-- Referral performance -->
-                <div class="card shadow-sm">
+                <section class="card shadow-sm">
                     <div class="card-header">
                         <div class="h-icon"><IconUsersGroup :size="16" stroke-width="1.75" /></div>
                         <div>
@@ -839,10 +839,10 @@ function performComplete() {
                     <div class="card-foot">
                         <Link href="/referrers" class="foot-link">View all referrers<IconArrowRight :size="14" stroke-width="1.75" /></Link>
                     </div>
-                </div>
+                </section>
 
                 <!-- Platform health (real HTTP probes, 5-min cached) -->
-                <div class="card shadow-sm">
+                <section class="card shadow-sm">
                     <div class="card-header">
                         <div class="h-icon"><IconServer :size="16" stroke-width="1.75" /></div>
                         <div>
@@ -891,7 +891,7 @@ function performComplete() {
                     <div class="health-foot">
                         Checked every 5 minutes<template v-if="healthCheckedAt"> · Last run {{ healthCheckedAt }}</template>
                     </div>
-                </div>
+                </section>
             </div>
 
             <!-- ═══ Page footer ═══ -->

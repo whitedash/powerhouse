@@ -196,7 +196,7 @@ function triggerItem(itemId) {
                 <!-- RIGHT — actions panel -->
                 <div class="proposal-side">
                     <!-- Status card -->
-                    <div class="card">
+                    <section class="card">
                         <div class="card-head"><h3>Status</h3></div>
                         <div class="card-body">
                             <div class="status-stack">
@@ -227,10 +227,10 @@ function triggerItem(itemId) {
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Payment schedule card -->
-                    <div class="card">
+                    <section class="card">
                         <div class="card-head">
                             <h3>Payment schedule</h3>
                             <button type="button" class="ghost-link" @click="openScheduleEditor">
@@ -265,10 +265,10 @@ function triggerItem(itemId) {
                             <IconReceipt :size="24" stroke-width="1.5" />
                             <div>No payment schedule attached.</div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Linked records -->
-                    <div class="card">
+                    <section class="card">
                         <div class="card-head"><h3>Linked</h3></div>
                         <div class="card-body links-stack">
                             <div>
@@ -291,7 +291,7 @@ function triggerItem(itemId) {
                                 <span class="muted small">Created by:</span> {{ proposal.created_by.name }}
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
             </div>
         </div>

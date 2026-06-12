@@ -446,7 +446,7 @@ const statusLabel = computed(() => {
                 <!-- LEFT — detail + notes -->
                 <div class="col">
                     <!-- Activity detail card -->
-                    <div class="card">
+                    <section class="card">
                         <div class="card-header">
                             <h3>Activity details</h3>
                         </div>
@@ -516,10 +516,10 @@ const statusLabel = computed(() => {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Notes thread -->
-                    <div class="card">
+                    <section class="card">
                         <div class="card-header">
                             <div class="h-icon"><IconNotes :size="16" stroke-width="1.75" /></div>
                             <div>
@@ -607,10 +607,10 @@ const statusLabel = computed(() => {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Attachments -->
-                    <div class="card act-show-attachments">
+                    <section class="card act-show-attachments">
                         <div class="card-header">
                             <div class="h-icon"><IconPaperclip :size="16" stroke-width="1.75" /></div>
                             <div>
@@ -656,13 +656,13 @@ const statusLabel = computed(() => {
                                 No attachments yet
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
 
                 <!-- RIGHT — linked / related / customer -->
                 <div class="col">
                     <!-- Linked tasks -->
-                    <div class="card">
+                    <section class="card">
                         <div class="card-header">
                             <div class="h-icon"><IconCheckbox :size="16" stroke-width="1.75" /></div>
                             <div>
@@ -698,10 +698,10 @@ const statusLabel = computed(() => {
                                 <span class="act-show-linked-due" :class="{ overdue: c.is_overdue }">{{ formatDueShort(c.due_at) }}</span>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Related open activities -->
-                    <div v-if="related.length" class="card">
+                    <section v-if="related.length" class="card">
                         <div class="card-header">
                             <div class="h-icon"><IconCheckbox :size="16" stroke-width="1.75" /></div>
                             <div>
@@ -728,10 +728,10 @@ const statusLabel = computed(() => {
                                 <IconArrowRight :size="14" stroke-width="1.75" />
                             </Link>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Linked support ticket (triage tasks only) -->
-                    <div v-if="task.ticket" class="card">
+                    <section v-if="task.ticket" class="card">
                         <div class="card-header">
                             <div class="h-icon"><IconHeadset :size="16" stroke-width="1.75" /></div>
                             <div>
@@ -746,10 +746,10 @@ const statusLabel = computed(() => {
                                 <span class="act-show-customer-link">Open ticket<IconArrowRight :size="13" stroke-width="1.75" /></span>
                             </Link>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Customer context -->
-                    <div v-if="task.customer" class="card">
+                    <section v-if="task.customer" class="card">
                         <div class="card-header">
                             <div class="h-icon"><IconUser :size="16" stroke-width="1.75" /></div>
                             <div>
@@ -792,7 +792,7 @@ const statusLabel = computed(() => {
                                 </Link>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
             </div>
         </div>

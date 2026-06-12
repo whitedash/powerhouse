@@ -774,7 +774,7 @@ function actionLabel(action) {
             <div v-if="activeTab === 'overview'" class="ov-grid">
                 <!-- LEFT — milestones progress -->
                 <div class="ov-left">
-                    <div class="card">
+                    <section class="card">
                         <div class="card-head">
                             <h3>Milestones</h3>
                             <button type="button" class="ghost-link" @click="openNewMilestone">
@@ -805,12 +805,12 @@ function actionLabel(action) {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
 
                 <!-- RIGHT — stats + team + activity -->
                 <div class="ov-right">
-                    <div class="card">
+                    <section class="card">
                         <div class="card-head"><h3>Project stats</h3></div>
                         <div class="card-body stats-list">
                             <div class="stat-row">
@@ -838,9 +838,9 @@ function actionLabel(action) {
                                 <strong>£{{ Number(project.budget).toFixed(2) }}</strong>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
-                    <div class="card">
+                    <section class="card">
                         <div class="card-head"><h3>Team</h3></div>
                         <div class="card-body team-list">
                             <div v-for="m in project.members" :key="m.id" class="team-row">
@@ -850,9 +850,9 @@ function actionLabel(action) {
                             </div>
                             <div v-if="project.members.length === 0" class="muted">No team members yet.</div>
                         </div>
-                    </div>
+                    </section>
 
-                    <div class="card">
+                    <section class="card">
                         <div class="card-head"><h3>Recent activity</h3></div>
                         <div class="card-body activity-mini">
                             <div v-for="a in activity.slice(0, 5)" :key="a.id" class="activity-mini-row">
@@ -861,7 +861,7 @@ function actionLabel(action) {
                             </div>
                             <div v-if="activity.length === 0" class="muted">No activity yet.</div>
                         </div>
-                    </div>
+                    </section>
                 </div>
             </div>
 
@@ -1124,7 +1124,7 @@ function actionLabel(action) {
             </div>
 
             <!-- ─── TASKS TAB ─── -->
-            <div v-else-if="activeTab === 'tasks'" class="card">
+            <section v-else-if="activeTab === 'tasks'" class="card">
                 <div class="card-head">
                     <h3>Tasks ({{ project.tasks.length }})</h3>
                 </div>
@@ -1167,7 +1167,7 @@ function actionLabel(action) {
                         </tr>
                     </tbody>
                 </table>
-            </div>
+            </section>
 
             <!-- ─── TIME TAB ─── -->
             <div v-else-if="activeTab === 'time'">
@@ -1201,7 +1201,7 @@ function actionLabel(action) {
                     </button>
                 </div>
 
-                <div class="card">
+                <section class="card">
                     <div class="card-head">
                         <h3>Time entries</h3>
                         <button class="btn btn-primary btn-sm" @click="openLogTime">
@@ -1253,7 +1253,7 @@ function actionLabel(action) {
                             </tr>
                         </tbody>
                     </table>
-                </div>
+                </section>
             </div>
 
             <!-- ─── COST TAB ─── -->
@@ -1517,7 +1517,7 @@ function actionLabel(action) {
             </div>
 
             <!-- ─── ACTIVITY TAB ─── -->
-            <div v-else-if="activeTab === 'activity'" class="card">
+            <section v-else-if="activeTab === 'activity'" class="card">
                 <div class="card-head"><h3>Activity log</h3></div>
                 <div class="card-body activity-feed">
                     <div v-for="a in activity" :key="a.id" class="activity-row">
@@ -1527,7 +1527,7 @@ function actionLabel(action) {
                     </div>
                     <div v-if="activity.length === 0" class="muted center">No activity yet.</div>
                 </div>
-            </div>
+            </section>
         </div>
 
         <!-- ─── Edit project slide-over ─── -->

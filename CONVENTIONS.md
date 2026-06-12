@@ -68,6 +68,9 @@ Some areas use a fully-chromed bespoke panel family on purpose. These are fine
 **because they carry their own complete border + bg + padding**; do not force
 them onto `.card`, but new work in those areas should follow the area's pattern:
 - Portal area: `.wd .card` / `.card-pad` (its own design system in `portal.css`).
+- Referrer area (`resources/js/Pages/Referrer/*`): external-facing surface with
+  its own card family (shares the portal look); outside the internal
+  section-panel rule's scope.
 - Settings form family: the `.sec-label` stacked form rows.
 - Master-detail: `.billing-entities` (`.ent-list-card` / `.form-card`) used by Settings → BillingEntities + Products.
 - Card-grids / accordions: `.plan-card` (ProductPlans), `.form-card` (Forms), `.workflow-card` (Workflows), `.wu-site-card` (WordPress), `.my-account-card` (Account), `.help-info-card` (Help).
