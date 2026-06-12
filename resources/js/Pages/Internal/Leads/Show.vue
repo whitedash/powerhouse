@@ -232,7 +232,7 @@ function submitConvert() {
                 <!-- LEFT — Contact + Activities + Notes -->
                 <div class="lead-left">
                     <!-- Contact info card -->
-                    <div class="card">
+                    <section class="card">
                         <div class="card-head"><h3>Contact</h3></div>
                         <div class="card-body contact-grid">
                             <div v-if="lead.email" class="contact-row">
@@ -261,7 +261,7 @@ function submitConvert() {
                                 <strong>{{ money(lead.estimated_value) }}</strong>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Activities -->
                     <section class="card">
@@ -289,18 +289,18 @@ function submitConvert() {
                     </section>
 
                     <!-- Notes free-form (from lead.notes) -->
-                    <div v-if="lead.notes" class="card">
+                    <section v-if="lead.notes" class="card">
                         <div class="card-head"><h3>Notes</h3></div>
                         <div class="card-body">
                             <p class="muted" style="white-space: pre-line;">{{ lead.notes }}</p>
                         </div>
-                    </div>
+                    </section>
                 </div>
 
                 <!-- RIGHT — Pipeline + Assignment + Source -->
                 <div class="lead-right">
                     <!-- Pipeline card -->
-                    <div class="card">
+                    <section class="card">
                         <div class="card-head"><h3>Pipeline</h3></div>
                         <div class="card-body">
                             <div class="pipeline-summary">
@@ -318,10 +318,10 @@ function submitConvert() {
                                 <strong>Lost reason:</strong> {{ lead.lost_reason }}
                             </div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Assignment -->
-                    <div class="card">
+                    <section class="card">
                         <div class="card-head"><h3>Assignment</h3></div>
                         <div class="card-body">
                             <select class="form-input" :value="lead.assigned_to?.id ?? ''" @change="changeAssignee($event.target.value ? Number($event.target.value) : null)">
@@ -329,10 +329,10 @@ function submitConvert() {
                                 <option v-for="s in staff" :key="s.id" :value="s.id">{{ s.name }}</option>
                             </select>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Conversion CTA card -->
-                    <div v-if="canConvert" class="card convert-card">
+                    <section v-if="canConvert" class="card convert-card">
                         <div class="convert-card-body">
                             <h3>Ready to convert?</h3>
                             <p class="muted small">This will create a customer record + primary contact, transfer activities, and mark this lead as Won.</p>
@@ -340,10 +340,10 @@ function submitConvert() {
                                 <IconUserPlus :size="14" stroke-width="2" /> Convert to customer
                             </button>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Source & analytics -->
-                    <div class="card">
+                    <section class="card">
                         <div class="card-head"><h3>Source &amp; history</h3></div>
                         <div class="card-body small-meta">
                             <div><span class="muted small">Source:</span> {{ SOURCE_LABEL[lead.source] }}</div>
@@ -352,7 +352,7 @@ function submitConvert() {
                             <div v-if="lead.created_by"><span class="muted small">By:</span> {{ lead.created_by.name }}</div>
                             <div v-if="lead.converted_at"><span class="muted small">Converted:</span> {{ lead.converted_at }}</div>
                         </div>
-                    </div>
+                    </section>
                 </div>
             </div>
         </div>

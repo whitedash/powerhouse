@@ -323,7 +323,7 @@ const hasMoreCustomers = computed(() => props.customers.length > 8);
             <div class="ref-show-grid">
                 <!-- LEFT: COMMISSION LEDGER -->
                 <div class="col">
-                    <div class="card">
+                    <section class="card">
                         <div class="card-header">
                             <div class="h-icon gold"><IconCoins :size="16" stroke-width="1.75" /></div>
                             <div>
@@ -462,13 +462,13 @@ const hasMoreCustomers = computed(() => props.customers.length > 8);
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
 
                 <!-- RIGHT: RULES / TREND / CUSTOMERS -->
                 <div class="col">
                     <!-- Commission rules -->
-                    <div class="card">
+                    <section class="card">
                         <div class="card-header">
                             <div class="h-icon gold"><IconPercentage :size="16" stroke-width="1.75" /></div>
                             <div>
@@ -493,10 +493,10 @@ const hasMoreCustomers = computed(() => props.customers.length > 8);
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- 6-month trend -->
-                    <div class="card">
+                    <section class="card">
                         <div class="card-header">
                             <div class="h-icon"><IconChartBar :size="16" stroke-width="1.75" /></div>
                             <div>
@@ -525,10 +525,10 @@ const hasMoreCustomers = computed(() => props.customers.length > 8);
                             <span><span class="dot gold" />Commission</span>
                             <span><span class="dot teal" />New customers</span>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Referred customers -->
-                    <div class="card">
+                    <section class="card">
                         <div class="card-header">
                             <div class="h-icon"><IconUsers :size="16" stroke-width="1.75" /></div>
                             <div>
@@ -571,7 +571,7 @@ const hasMoreCustomers = computed(() => props.customers.length > 8);
                                 <div class="ref-show-cust-commission">{{ gbp(c.total_commission) }}</div>
                             </Link>
                         </div>
-                    </div>
+                    </section>
                 </div>
             </div>
         </div>
