@@ -9,7 +9,7 @@ referrals, OAuth identity provider for all Whitedash products.
 2. Session-start checks + the full gate (Pint, PHPStan level 5, PHPUnit, clean build,
    audits): **laravel-quality-gates skill**.
 3. Never guess column names — SCHEMA.md is the source of truth; or
-   `php artisan db:show --table=NAME`.
+   `php artisan db:table NAME`.
 
 ## Stack
 
