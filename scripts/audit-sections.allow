@@ -1,0 +1,14 @@
+# Area exemptions (CONVENTIONS.md -> Deliberate exceptions)
+Pages/Portal/|.*|Portal area — its own design system (portal.css)
+Pages/Referrer/|.*|Referrer area — external-facing, own card family
+Pages/Internal/Settings/|.*|Settings .sec-label form family (exempted)
+# Non-panel signatures (catalog-verified)
+|background: var\(--danger-bg\)|alert/flash banner, not a panel
+|background: var\(--warning-bg\)|alert/flash banner, not a panel
+|background: var\(--info-bg\)|alert/flash banner, not a panel
+|font: inherit|inline-styled form input (textarea)
+|<input |form input with inline sizing
+# Site-specific (catalog-verified)
+Pages/Internal/Customers/Show.vue|position: fixed|portal-invite credentials dialog (modal)
+Pages/Internal/Customers/Show.vue|background: var\(--neutral-bg\)|credentials box inside invite modal
+Pages/Internal/Support/Index.vue|max-height: 220px|customer-picker dropdown list

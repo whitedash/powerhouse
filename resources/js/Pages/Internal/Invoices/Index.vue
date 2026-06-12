@@ -419,7 +419,7 @@ function handleVoid() {
             </div>
 
             <!-- Table card -->
-            <div class="table-card">
+            <section class="table-card">
                 <table v-if="invoices.data.length" class="tbl">
                     <colgroup>
                         <col style="width: 44px;">
@@ -688,7 +688,7 @@ function handleVoid() {
                         {{ formatGBP(summary.total_paid) }} received this month
                     </span>
                 </div>
-            </div>
+            </section>
 
             <div class="page-foot">
                 <div>Powerhouse v3.2.0 · Whitedash</div>

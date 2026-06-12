@@ -115,7 +115,7 @@ function retryDelivery(id) {
 
         <!-- ─── Webhook deliveries ─── -->
         <div class="sec-label">Webhook deliveries</div>
-        <div class="webhook-log card">
+        <section class="webhook-log card">
             <table class="tbl">
                 <thead>
                     <tr>
@@ -153,7 +153,7 @@ function retryDelivery(id) {
                     </tr>
                 </tbody>
             </table>
-        </div>
+        </section>
 
         <div class="sec-label">About integrations</div>
         <p style="color: var(--text-secondary); font: 400 13px/1.6 'Inter', sans-serif;">

@@ -366,7 +366,7 @@ const nextUrl = computed(() => props.customers.next_page_url);
             </div>
 
             <!-- ═══════════ TABLE ═══════════ -->
-            <div class="table-card">
+            <section class="table-card">
                 <table class="tbl">
                     <colgroup>
                         <col>
@@ -524,7 +524,7 @@ const nextUrl = computed(() => props.customers.next_page_url);
                         </button>
                     </div>
                 </div>
-            </div>
+            </section>
 
             <!-- ═══════════ QUICK ENABLE PANEL ═══════════ -->
             <div class="qe-panel">

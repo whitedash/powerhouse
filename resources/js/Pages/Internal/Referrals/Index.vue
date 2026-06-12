@@ -58,7 +58,7 @@ const SOURCE_CLASS = {
                 </select>
             </div>
 
-            <div class="table-card">
+            <section class="table-card">
                 <table v-if="referrals.data.length" class="tbl">
                     <colgroup>
                         <col><col><col style="width: 130px;"><col style="width: 130px;"><col style="width: 150px;"><col style="width: 140px;">
@@ -102,7 +102,7 @@ const SOURCE_CLASS = {
                         </button>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
     </InternalLayout>
 </template>

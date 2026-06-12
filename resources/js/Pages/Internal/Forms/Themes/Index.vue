@@ -146,7 +146,7 @@ const deleteMessage = computed(() => {
                 forms pick up changes within ~5&nbsp;minutes (the embed script is cached).
             </p>
 
-            <section class="card table-card">
+            <section class="table-card">
                 <table v-if="themes.data.length" class="tbl">
                     <thead>
                         <tr>

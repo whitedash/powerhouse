@@ -30,10 +30,14 @@ and interaction pattern (read-only — user-level rule).
 
 ### SECTION-PANEL RULE (mandatory) → CONVENTIONS.md "Section panels"
 Every detail/section panel MUST be `<section class="card">` with
-`.card-header`/`.card-head` + a padded body; empty states/footers/action rows live
-INSIDE the padded body. Never hand-roll a section container. Grep guard:
-`composer audit:sections`. Full spec, DO/DON'T, and the deliberate exceptions list
-are in **CONVENTIONS.md** — read it before adding any panel.
+`.card-header`/`.card-head` + a padded body; table/index panels are bare
+`<section class="table-card">`; empty states/footers/action rows live
+INSIDE the padded body. Never hand-roll a section container. Guard:
+`composer audit:sections` HARD-FAILS on any `<div>` wrapper carrying a
+`card`/`table-card` class token (Check 1) and on non-allowlisted inline
+border+radius containers (Check 2); exceptions are declared with reasons in
+`scripts/audit-sections.allow`. Full spec, DO/DON'T, and the deliberate
+exceptions list are in **CONVENTIONS.md** — read it before adding any panel.
 
 ### NAMESPACING RULE (mandatory) → CONVENTIONS.md
 Any CSS rule overriding a shared primitive (`.card-*`, `.form-*`, `.table-*`,

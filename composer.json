@@ -63,6 +63,15 @@
             "@php artisan config:clear --ansi @no_additional_args",
             "@php artisan test"
         ],
+        "gate": [
+            "Composer\\Config::disableProcessTimeout",
+            "vendor/bin/pint --test",
+            "vendor/bin/phpstan analyse --memory-limit=1G",
+            "@composer audit:sections",
+            "@php artisan config:clear --ansi",
+            "@php artisan test",
+            "npm run build"
+        ],
         "audit:sections": [
             "bash scripts/audit-sections.sh"
         ],

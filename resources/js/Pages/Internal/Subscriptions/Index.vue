@@ -498,7 +498,7 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
             </div>
 
             <!-- Subscriptions table -->
-            <div class="table-card" style="margin-top: 12px;">
+            <section class="table-card" style="margin-top: 12px;">
                 <table class="tbl">
                     <colgroup>
                         <col>
@@ -678,7 +678,7 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                         </button>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
 
         <!-- Edit slide-over -->

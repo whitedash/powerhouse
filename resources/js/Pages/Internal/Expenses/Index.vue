@@ -242,7 +242,7 @@ function moneyGBP(value) {
             </div>
 
             <!-- ─── Table ─── -->
-            <section class="card table-card">
+            <section class="table-card">
                 <table class="tbl">
                     <thead>
                         <tr>

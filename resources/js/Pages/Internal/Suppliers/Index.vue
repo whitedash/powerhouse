@@ -241,7 +241,7 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true, preserveSt
             </div>
 
             <!-- ─── Table ─── -->
-            <section class="card table-card">
+            <section class="table-card">
                 <table class="tbl">
                     <thead>
                         <tr>

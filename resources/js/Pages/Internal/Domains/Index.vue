@@ -333,7 +333,7 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true }); }
             </div>
 
             <!-- Domains table -->
-            <div class="table-card">
+            <section class="table-card">
                 <table v-if="domains.data.length" class="tbl">
                     <colgroup>
                         <col><col style="width: 180px;"><col style="width: 130px;">
@@ -420,7 +420,7 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true }); }
                         </button>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
 
         <!-- ═══ ADD / EDIT SLIDE-OVER ═══ -->

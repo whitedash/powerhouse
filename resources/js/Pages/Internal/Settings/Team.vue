@@ -108,7 +108,7 @@ function handleRemove() {
             </div>
         </div>
 
-        <div class="table-card">
+        <section class="table-card">
             <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr style="background: #FBFCFE; border-bottom: 1px solid var(--border-soft);">
@@ -167,7 +167,7 @@ function handleRemove() {
                     </tr>
                 </tbody>
             </table>
-        </div>
+        </section>
 
         <!-- Invite slide-over -->
         <TransitionRoot as="template" :show="showInvite">

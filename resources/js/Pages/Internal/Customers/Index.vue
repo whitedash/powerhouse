@@ -472,7 +472,7 @@ onMounted(() => {
         </div>
 
         <!-- Table card -->
-        <div class="table-card">
+        <section class="table-card">
             <table v-if="customers.data.length" class="tbl">
                 <colgroup>
                     <col style="width: 44px;">
@@ -620,7 +620,7 @@ onMounted(() => {
                     </template>
                 </div>
             </div>
-        </div>
+        </section>
 
         <div class="page-foot">
             <div>Powerhouse v3.2.0 · Whitedash</div>

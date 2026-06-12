@@ -395,7 +395,7 @@ const page = usePage();
             </div>
 
             <!-- ═══════════ SECTION 1 — REFERRERS TABLE ═══════════ -->
-            <div class="table-card" style="margin-top: 24px;">
+            <section class="table-card" style="margin-top: 24px;">
                 <div class="table-card-head">
                     <div class="title">Active referrers</div>
                     <span class="badge-count">{{ referrers.length }}</span>
@@ -542,7 +542,7 @@ const page = usePage();
                         </button>
                     </div>
                 </div>
-            </div>
+            </section>
 
             <!-- ═══════════ SECTION 2 — COMMISSION LEDGER ═══════════ -->
             <div class="sec-head">
@@ -566,7 +566,7 @@ const page = usePage();
                 </div>
             </div>
 
-            <div class="table-card">
+            <section class="table-card">
                 <table class="tbl">
                     <colgroup>
                         <col>
@@ -698,7 +698,7 @@ const page = usePage();
                         </button>
                     </div>
                 </div>
-            </div>
+            </section>
 
             <!-- ═══════════ PENDING PAYOUT BANNER ═══════════ -->
             <div v-if="pending_total > 0" class="payout-banner">
