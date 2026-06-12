@@ -238,7 +238,7 @@ function money(n) { return `£${Number(n || 0).toLocaleString('en-GB', { minimum
             </div>
 
             <!-- Table -->
-            <div class="card">
+            <section class="card table-card">
                 <table class="tbl">
                     <thead>
                         <tr>
@@ -293,7 +293,7 @@ function money(n) { return `£${Number(n || 0).toLocaleString('en-GB', { minimum
                         </tr>
                     </tbody>
                 </table>
-            </div>
+            </section>
 
             <!-- Pagination -->
             <div v-if="proposals.data.length > 0" class="pg-foot">

@@ -242,7 +242,7 @@ function moneyGBP(value) {
             </div>
 
             <!-- ─── Table ─── -->
-            <div class="card">
+            <section class="card table-card">
                 <table class="tbl">
                     <thead>
                         <tr>
@@ -320,7 +320,7 @@ function moneyGBP(value) {
                         </tr>
                     </tbody>
                 </table>
-            </div>
+            </section>
 
             <!-- ─── Pagination ─── -->
             <div v-if="expenses.data.length > 0" class="pg-foot">
