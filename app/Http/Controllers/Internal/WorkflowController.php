@@ -36,7 +36,7 @@ class WorkflowController extends Controller
     private const ACTION_TYPES = [
         'create_lead', 'update_lead_status', 'create_task',
         'assign_to_user', 'add_note', 'send_notification',
-        'add_to_group', 'webhook_outbound',
+        'add_to_group', 'webhook_outbound', 'send_email',
     ];
 
     public function index(): Response
@@ -214,7 +214,7 @@ class WorkflowController extends Controller
      */
     private function validatePayload(Request $request): array
     {
-        return $request->validate([
+        $rules = [
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['nullable', 'boolean'],
@@ -224,7 +224,27 @@ class WorkflowController extends Controller
             'actions' => ['nullable', 'array'],
             'actions.*.action_type' => ['required', Rule::in(self::ACTION_TYPES)],
             'actions.*.config' => ['required', 'array'],
-        ]);
+        ];
+
+        // send_email is the one action with a recipient/subject/body contract
+        // worth enforcing (the rest read config defensively). Add per-index
+        // rules only for the submitted send_email actions — scoped, not a
+        // general per-action config validator.
+        foreach ((array) $request->input('actions', []) as $i => $action) {
+            if (($action['action_type'] ?? null) !== 'send_email') {
+                continue;
+            }
+
+            $rules["actions.$i.config.subject_template"] = ['required', 'string', 'max:255'];
+            $rules["actions.$i.config.body_template"] = ['required', 'string', 'max:5000'];
+            $rules["actions.$i.config.to_mode"] = ['required', Rule::in(['fixed', 'context_field'])];
+            // Recipient is an email address (fixed) or a context field name
+            // (context_field) — NotInternalUrl/SSRF does not apply here.
+            $rules["actions.$i.config.to_address"] = ["required_if:actions.$i.config.to_mode,fixed", 'nullable', 'email', 'max:255'];
+            $rules["actions.$i.config.to_field"] = ["required_if:actions.$i.config.to_mode,context_field", 'nullable', 'string', 'max:255'];
+        }
+
+        return $request->validate($rules);
     }
 
     /**

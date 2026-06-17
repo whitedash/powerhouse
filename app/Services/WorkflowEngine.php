@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Mail\WorkflowEmail;
 use App\Models\ActivityLog;
 use App\Models\FormSubmission;
 use App\Models\Lead;
@@ -12,6 +13,7 @@ use App\Models\Workflow;
 use App\Models\WorkflowAction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Generic automation engine. Controllers call ::trigger() and
@@ -36,6 +38,15 @@ use Illuminate\Support\Facades\Log;
 class WorkflowEngine
 {
     /**
+     * Emails queued by send_email actions during a single workflow's run,
+     * flushed only AFTER that workflow's transaction commits (see trigger()).
+     * Reset per workflow so a rolled-back run never sends.
+     *
+     * @var list<array{to: string, subject: string, body: string}>
+     */
+    private array $pendingEmails = [];
+
+    /**
      * Fire every active workflow that matches ($triggerType, $payload).
      *
      * @param  array<string, mixed>  $payload
@@ -52,6 +63,10 @@ class WorkflowEngine
             if (! $this->matchesTriggerConfig($workflow, $payload)) {
                 continue;
             }
+
+            // Reset per workflow: send_email actions push onto this list; it is
+            // flushed only on a clean commit below, so a throwing run sends nothing.
+            $this->pendingEmails = [];
 
             try {
                 DB::transaction(function () use ($workflow, $payload, $triggerType, $triggerEntityId): void {
@@ -84,6 +99,11 @@ class WorkflowEngine
                         ],
                     ]);
                 });
+
+                // Side-effecting sends fire ONLY after the transaction above
+                // commits — a later action throwing rolls the row back and these
+                // never go out (mirrors TicketIntakeService's after-commit send).
+                $this->flushPendingEmails($workflow);
             } catch (\Throwable $e) {
                 Log::error('Workflow failed', [
                     'workflow_id' => $workflow->id,
@@ -147,6 +167,7 @@ class WorkflowEngine
             'update_lead_status' => $this->actionUpdateLeadStatus($action->config, $context),
             'send_notification' => $this->actionSendNotification($action->config, $context),
             'assign_to_user' => $this->actionAssignToUser($action->config, $context),
+            'send_email' => $this->actionSendEmail($action->config, $context),
             default => $context,
         };
     }
@@ -400,6 +421,70 @@ class WorkflowEngine
         ]);
 
         return $context;
+    }
+
+    /**
+     * Queue a builder-configured email. Recipient is either a fixed address
+     * (defaulting to the support inbox) or pulled from the context by a
+     * config-named field; subject/body are {{field}} templates. The send is
+     * NOT performed here — it is deferred to flushPendingEmails() after the
+     * workflow transaction commits, so a later action throwing never leaves a
+     * sent email behind a rolled-back run.
+     *
+     * @param  array<string, mixed>  $config
+     * @param  array<string, mixed>  $context
+     * @return array<string, mixed>
+     */
+    private function actionSendEmail(array $config, array $context): array
+    {
+        $recipient = ($config['to_mode'] ?? 'fixed') === 'context_field'
+            ? $this->resolveField($config['to_field'] ?? null, $context)
+            : ($config['to_address'] ?? config('support.notify_email'));
+
+        // No deliverable address → skip silently (same defensive no-op as the
+        // other actions). The run still commits; nothing is queued.
+        if ($recipient === null || trim((string) $recipient) === '') {
+            return $context;
+        }
+
+        $this->pendingEmails[] = [
+            'to' => (string) $recipient,
+            'subject' => $this->renderTemplate((string) ($config['subject_template'] ?? ''), $context),
+            'body' => $this->renderTemplate((string) ($config['body_template'] ?? ''), $context),
+        ];
+
+        return $context;
+    }
+
+    /**
+     * Send the emails queued by send_email actions during this workflow's run.
+     * Called only after a clean commit. Each send is isolated: a mail failure
+     * is reported and skipped, never breaking sibling sends or the request.
+     */
+    private function flushPendingEmails(Workflow $workflow): void
+    {
+        foreach ($this->pendingEmails as $mail) {
+            try {
+                Mail::to($mail['to'])->send(new WorkflowEmail($mail['subject'], $mail['body']));
+
+                ActivityLog::create([
+                    'user_id' => null,
+                    'action' => 'workflow.email_sent',
+                    'entity_type' => 'workflow',
+                    'entity_id' => $workflow->id,
+                    'before' => null,
+                    // Recipient + subject only — no body PII in the audit trail.
+                    'after' => [
+                        'recipient' => $mail['to'],
+                        'subject' => $mail['subject'],
+                    ],
+                ]);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        $this->pendingEmails = [];
     }
 
     /**

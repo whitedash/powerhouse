@@ -17,7 +17,7 @@ import {
     IconPlus, IconX, IconBolt, IconDots, IconTrash, IconEdit,
     IconChevronUp, IconChevronDown, IconCheck, IconPencil,
     IconForms, IconWebhook, IconUserPlus, IconUserCheck, IconRefresh,
-    IconNote, IconBell, IconUsersGroup, IconClick, IconCheckbox,
+    IconNote, IconBell, IconUsersGroup, IconClick, IconCheckbox, IconMail,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -46,6 +46,7 @@ const ACTION_LABEL = {
     send_notification: 'Send notification',
     add_to_group: 'Add to group',
     webhook_outbound: 'Outbound webhook',
+    send_email: 'Send email',
 };
 
 // Server emits a type string; the client maps it to a Tabler *component*
@@ -66,6 +67,7 @@ const ACTION_ICONS = {
     send_notification: IconBell,
     add_to_group: IconUsersGroup,
     webhook_outbound: IconWebhook,
+    send_email: IconMail,
 };
 const ACTION_COLOURS = {
     create_lead: '#10B981',
@@ -76,6 +78,7 @@ const ACTION_COLOURS = {
     send_notification: '#F97316',
     add_to_group: '#64748B',
     webhook_outbound: '#6366F1',
+    send_email: '#0EA5E9',
 };
 function triggerIcon(t) { return TRIGGER_ICONS[t] ?? IconBolt; }
 function triggerLabel(t) { return TRIGGER_LABEL[t] ?? t; }
@@ -107,6 +110,10 @@ function actionSummary(a) {
             return 'Add to a group';
         case 'webhook_outbound':
             return 'Send an outbound webhook';
+        case 'send_email': {
+            const to = c.to_mode === 'context_field' ? `{{${c.to_field || 'field'}}}` : (c.to_address || 'support inbox');
+            return c.subject_template ? `Email ${to}: ${c.subject_template}` : `Send an email to ${to}`;
+        }
         default:
             return ACTION_LABEL[a.action_type] ?? a.action_type;
     }
@@ -121,6 +128,8 @@ const TASK_PRIORITIES = ['low', 'medium', 'high'];
 const taskTitlePlaceholder = 'Follow up with {{first_name}}';
 const noteContentPlaceholder = 'Lead from {{source}}: {{message}}';
 const notificationPlaceholder = 'New lead: {{first_name}} from {{source}}';
+const emailSubjectPlaceholder = 'Thanks for getting in touch, {{first_name}}';
+const emailBodyPlaceholder = 'Hi {{first_name}},\n\nThanks for your message — we\'ll be in touch shortly.';
 
 /* ─── Row menu ─── */
 const openMenu = ref(null);
@@ -207,9 +216,17 @@ function setTrigger(type) {
 }
 
 function addAction(type = 'create_lead') {
-    editor.actions.push({ action_type: type, config: {} });
+    // send_email needs a recipient mode chosen up front so its conditional
+    // fields render; default to a fixed address.
+    const config = type === 'send_email' ? { to_mode: 'fixed' } : {};
+    editor.actions.push({ action_type: type, config });
     editingActionIndex.value = editor.actions.length - 1;
     showActionPicker.value = false;
+}
+// Clear config when the action type changes; seed send_email's recipient mode
+// so its conditional fields render (mirrors addAction's seed).
+function resetActionConfig(action) {
+    action.config = action.action_type === 'send_email' ? { to_mode: 'fixed' } : {};
 }
 function removeAction(i) {
     editor.actions.splice(i, 1);
@@ -425,7 +442,7 @@ function fmtRelative(iso) {
                                 <div v-if="editingActionIndex === i" class="wf-action-edit-panel">
                                     <div class="form-row">
                                         <label class="small">Action type</label>
-                                        <select v-model="action.action_type" @change="action.config = {}">
+                                        <select v-model="action.action_type" @change="resetActionConfig(action)">
                                             <option v-for="t in action_types" :key="t" :value="t">{{ ACTION_LABEL[t] || t }}</option>
                                         </select>
                                     </div>
@@ -550,6 +567,38 @@ function fmtRelative(iso) {
                                         <div class="form-row">
                                             <label class="small">Message template</label>
                                             <input v-model="action.config.message_template" type="text" :placeholder="notificationPlaceholder" />
+                                        </div>
+                                    </template>
+
+                                    <!-- send_email config -->
+                                    <template v-if="action.action_type === 'send_email'">
+                                        <div class="grid-2">
+                                            <div class="form-row">
+                                                <label class="small">Recipient</label>
+                                                <select v-model="action.config.to_mode">
+                                                    <option value="fixed">Fixed address</option>
+                                                    <option value="context_field">From a submitted field</option>
+                                                </select>
+                                            </div>
+                                            <div v-if="action.config.to_mode === 'fixed'" class="form-row">
+                                                <label class="small">To address</label>
+                                                <input v-model="action.config.to_address" type="email" placeholder="support@whitedash.com" />
+                                                <small class="muted">Leave blank to use the support inbox.</small>
+                                            </div>
+                                            <div v-else class="form-row">
+                                                <label class="small">To field</label>
+                                                <input v-model="action.config.to_field" type="text" placeholder="email" />
+                                                <small class="muted">A submitted field key holding the recipient's address.</small>
+                                            </div>
+                                        </div>
+                                        <div class="form-row">
+                                            <label class="small">Subject template</label>
+                                            <input v-model="action.config.subject_template" type="text" :placeholder="emailSubjectPlaceholder" />
+                                        </div>
+                                        <div class="form-row">
+                                            <label class="small">Body template</label>
+                                            <textarea v-model="action.config.body_template" rows="5" :placeholder="emailBodyPlaceholder"></textarea>
+                                            <small class="muted">Use <code>&#123;&#123;field_key&#125;&#125;</code> placeholders to splice in submitted values.</small>
                                         </div>
                                     </template>
 
