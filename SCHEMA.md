@@ -915,6 +915,9 @@ created_at, updated_at
 
 ## form_fields (Forms sprint)
 id, form_id FK forms CASCADE,
+form_step_id FK form_steps CASCADE nullable
+  -- Multi-step: which step this field belongs to. NULL = legacy
+  -- single-step form (no form_steps rows). Multi-step sprint.
 label VARCHAR(255), field_key VARCHAR(100)
   -- POST field name; ^[a-z][a-z0-9_]*$ enforced by builder.
 type ENUM(text|email|phone|textarea|select|radio
@@ -931,7 +934,25 @@ width VARCHAR(16) DEFAULT 'full'
   -- CONTAINERS (CSS @container), not viewport.
 validation_rules JSON nullable,
 sort_order INT DEFAULT 0, created_at, updated_at
--- INDEX (form_id, sort_order) form_fields_order_idx
+  -- STEP-scoped since the multi-step sprint: order WITHIN a step,
+  -- not across the whole form. Form::fields() orders by
+  -- form_step_id then sort_order.
+-- INDEX (form_id, form_step_id, sort_order) form_fields_form_id_step_sort_index
+--   Multi-step sprint: replaced the old (form_id, sort_order) index
+--   (was form_fields_order_idx) now that sort_order is step-scoped.
+
+## form_steps (Multi-step forms sprint)
+id, form_id FK forms CASCADE,
+label VARCHAR(255)
+  -- Step heading shown in the respondent progress indicator
+  -- (e.g. "Your Details"). See /design/forms-multistep.html.
+sort_order INT DEFAULT 0
+  -- Orders the steps within a form.
+created_at, updated_at
+-- INDEX (form_id, sort_order) form_steps_form_id_sort_order_index
+-- Single-step forms have NO rows here; their fields carry a null
+-- form_fields.form_step_id. A multi-step form's fields reference a
+-- step via that FK.
 
 ## form_submissions (Forms sprint)
 id, form_id FK forms RESTRICT
@@ -947,6 +968,37 @@ lead_id FK leads nullable SET NULL
 created_at, updated_at
 -- INDEX (form_id, status, created_at) form_submissions_funnel_idx
 -- INDEX (lead_id)                     form_submissions_lead_idx
+
+## form_submission_drafts (Multi-step forms sprint)
+id, form_id FK forms CASCADE
+  -- CASCADE (not RESTRICT like form_submissions): a draft is
+  -- in-progress state, not business history, so it dies with the form.
+draft_token VARCHAR(64) UNIQUE
+  -- Anonymous resume credential, localStorage-keyed in the embed
+  -- widget. ALWAYS generated (anonymous or authenticated) via
+  -- FormSubmissionDraft::generateToken(id) — sha256 of
+  -- id + Str::random(32) + app.key (mirrors proposals.acceptance_token).
+portal_user_id FK portal_users CASCADE nullable
+  -- Authenticated Portal respondent. NULL = anonymous.
+current_step INT DEFAULT 0
+  -- Last completed step (0 = not started, 1 = step 1 done, …).
+data JSON nullable
+  -- Partial answers accumulated across steps, keyed by field_key.
+  -- Named `data` for symmetry with form_submissions.data: on final
+  -- submit the draft is promoted to a form_submissions row (status
+  -- 'new', fires the WorkflowEngine) and the draft row is deleted.
+ip_address VARCHAR(45) nullable, user_agent TEXT nullable,
+referrer_url VARCHAR(500) nullable,
+  -- Abuse/audit parity with form_submissions for promotion.
+expires_at TIMESTAMP nullable
+  -- Draft TTL. Anonymous drafts expire; authenticated drafts may
+  -- leave this null.
+created_at, updated_at
+-- INDEX (form_id, portal_user_id) form_submission_drafts_form_portal_index
+--   Authenticated resume lookup.
+-- INDEX (expires_at)              form_submission_drafts_expires_at_index
+--   Expired-row cleanup sweep.
+-- UNIQUE(draft_token) — anonymous resume lookup.
 
 ## form_themes (Forms theming — Phase 2a)
 id,
