@@ -37,6 +37,7 @@ Thumbs.db
 SPRINT-STATUS.md
 TASKS.md
 .claude/sprint-tasks.json
+.claude/settings.local.json
 .design-handoff/
 
 # Local deploy bundles + DB dumps + schema snapshot — never committed.
