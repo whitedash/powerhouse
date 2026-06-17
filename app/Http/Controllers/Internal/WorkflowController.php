@@ -34,7 +34,7 @@ class WorkflowController extends Controller
     ];
 
     private const ACTION_TYPES = [
-        'create_lead', 'update_lead_status', 'create_task',
+        'create_lead', 'update_lead_status', 'create_task', 'create_ticket',
         'assign_to_user', 'add_note', 'send_notification',
         'add_to_group', 'webhook_outbound', 'send_email',
     ];
@@ -226,22 +226,35 @@ class WorkflowController extends Controller
             'actions.*.config' => ['required', 'array'],
         ];
 
-        // send_email is the one action with a recipient/subject/body contract
-        // worth enforcing (the rest read config defensively). Add per-index
-        // rules only for the submitted send_email actions — scoped, not a
-        // general per-action config validator.
+        // A few actions have a config contract worth enforcing (the rest read
+        // config defensively). Add per-index rules only for the submitted
+        // actions of those types — scoped, not a general per-action validator.
         foreach ((array) $request->input('actions', []) as $i => $action) {
-            if (($action['action_type'] ?? null) !== 'send_email') {
-                continue;
-            }
+            switch ($action['action_type'] ?? null) {
+                case 'send_email':
+                    $rules["actions.$i.config.subject_template"] = ['required', 'string', 'max:255'];
+                    $rules["actions.$i.config.body_template"] = ['required', 'string', 'max:5000'];
+                    $rules["actions.$i.config.to_mode"] = ['required', Rule::in(['fixed', 'context_field'])];
+                    // Recipient is an email address (fixed) or a context field name
+                    // (context_field) — NotInternalUrl/SSRF does not apply here.
+                    $rules["actions.$i.config.to_address"] = ["required_if:actions.$i.config.to_mode,fixed", 'nullable', 'email', 'max:255'];
+                    $rules["actions.$i.config.to_field"] = ["required_if:actions.$i.config.to_mode,context_field", 'nullable', 'string', 'max:255'];
 
-            $rules["actions.$i.config.subject_template"] = ['required', 'string', 'max:255'];
-            $rules["actions.$i.config.body_template"] = ['required', 'string', 'max:5000'];
-            $rules["actions.$i.config.to_mode"] = ['required', Rule::in(['fixed', 'context_field'])];
-            // Recipient is an email address (fixed) or a context field name
-            // (context_field) — NotInternalUrl/SSRF does not apply here.
-            $rules["actions.$i.config.to_address"] = ["required_if:actions.$i.config.to_mode,fixed", 'nullable', 'email', 'max:255'];
-            $rules["actions.$i.config.to_field"] = ["required_if:actions.$i.config.to_mode,context_field", 'nullable', 'string', 'max:255'];
+                    break;
+
+                case 'create_ticket':
+                    // message_field is required: an empty resolve makes the
+                    // engine handler a silent no-op, so fail at save instead.
+                    $rules["actions.$i.config.message_field"] = ['required', 'string', 'max:255'];
+                    $rules["actions.$i.config.subject_field"] = ['nullable', 'string', 'max:255'];
+                    $rules["actions.$i.config.priority"] = ['nullable', Rule::in(['low', 'medium', 'high', 'urgent'])];
+                    $rules["actions.$i.config.name_field"] = ['nullable', 'string', 'max:255'];
+                    $rules["actions.$i.config.email_field"] = ['nullable', 'string', 'max:255'];
+                    $rules["actions.$i.config.phone_field"] = ['nullable', 'string', 'max:255'];
+                    $rules["actions.$i.config.source"] = ['nullable', 'string', 'max:255'];
+
+                    break;
+            }
         }
 
         return $request->validate($rules);
