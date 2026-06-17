@@ -70,6 +70,7 @@ use App\Http\Controllers\Public\FormController as PublicFormController;
 use App\Http\Controllers\Public\InboundEmailController as PublicInboundEmailController;
 use App\Http\Controllers\Public\KnowledgeBaseController as PublicKnowledgeBaseController;
 use App\Http\Controllers\Public\LandingController as PublicLandingController;
+use App\Http\Controllers\Public\LegalController as PublicLegalController;
 use App\Http\Controllers\Public\ProposalAcceptanceController as PublicProposalAcceptanceController;
 use App\Http\Controllers\Public\ReferralRedirectController as PublicReferralRedirectController;
 use App\Http\Controllers\Public\SupportTicketController as PublicSupportTicketController;
@@ -111,6 +112,12 @@ Route::post('/support', [PublicSupportTicketController::class, 'store'])
     ->middleware('throttle:10,1')
     ->name('support.store');
 Route::get('/support/submitted', [PublicSupportTicketController::class, 'submitted'])->name('support.submitted');
+
+// Public legal pages, linked from the PublicLayout footer. Unauthenticated,
+// static long-form content rendered by PublicLegalController.
+Route::get('/privacy', [PublicLegalController::class, 'privacy'])->name('legal.privacy');
+Route::get('/terms', [PublicLegalController::class, 'terms'])->name('legal.terms');
+Route::get('/cookies', [PublicLegalController::class, 'cookies'])->name('legal.cookies');
 
 Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(function () {
     // Internal dashboard moved off "/" (now the public front door). The name
