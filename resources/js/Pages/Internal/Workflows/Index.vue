@@ -21,6 +21,7 @@ import {
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import PlaceholderHints from './PlaceholderHints.vue';
 
 const props = defineProps({
     workflows: { type: Array, required: true },
@@ -137,6 +138,20 @@ const notificationPlaceholder = 'New lead: {{first_name}} from {{source}}';
 const emailSubjectPlaceholder = 'Thanks for getting in touch, {{first_name}}';
 const emailBodyPlaceholder = 'Hi {{first_name}},\n\nThanks for your message — we\'ll be in touch shortly.';
 
+// Placeholder reference (PlaceholderHints). System keys each LIVE trigger seeds
+// into the template context — mirrors what the controllers pass to
+// WorkflowEngine::trigger(). Form-submitted field_keys are added dynamically
+// from the selected form; these are the fixed keys.
+const TRIGGER_SYSTEM_KEYS = {
+    form_submitted: ['form_id', 'form_name', 'submission_id', 'ip', 'referrer_id', 'referral_code'],
+    webhook_received: ['form_id', 'form_name', 'submission_id', 'source'],
+};
+// Triggers that are selectable but never fire (no code calls trigger() for them).
+const INACTIVE_TRIGGERS = ['lead_created', 'lead_status_changed', 'manual'];
+// Static note — keys later create_lead / create_ticket actions add to context.
+// Deliberately NOT computed per-action (would duplicate the engine's accumulation).
+const ACTION_ADDED_KEYS_NOTE = 'Earlier Create-lead / Create-ticket actions also add: lead_id, first_name, last_name, email, phone, company, source / ticket_id.';
+
 /* ─── Row menu ─── */
 const openMenu = ref(null);
 function toggleMenu(id) { openMenu.value = openMenu.value === id ? null : id; }
@@ -169,6 +184,42 @@ function toggle(w) {
 const editorOpen = ref(false);
 const editingId = ref(null);
 const editor = useForm(emptyEditor());
+
+// Trigger + form-aware placeholder reference for the action editor. Depends only
+// on the selected trigger and (for form_submitted) the chosen form — NOT on the
+// action's position, so it never re-implements the engine's context accumulation.
+const placeholderRef = computed(() => {
+    const trigger = editor.trigger_type;
+
+    if (INACTIVE_TRIGGERS.includes(trigger)) {
+        return { active: false };
+    }
+
+    const hints = {
+        active: true,
+        systemKeys: TRIGGER_SYSTEM_KEYS[trigger] ?? [],
+        formFields: null,
+        formNote: null,
+        actionNote: ACTION_ADDED_KEYS_NOTE,
+    };
+
+    if (trigger === 'form_submitted') {
+        const form = editor.trigger_config.form_id
+            ? props.forms.find(f => f.id === editor.trigger_config.form_id)
+            : null;
+        if (form && form.fields && form.fields.length) {
+            hints.formFields = form.fields;
+        } else if (form) {
+            hints.formNote = 'This form has no fields yet.';
+        } else {
+            hints.formNote = 'Select a form above to see its fields.';
+        }
+    } else if (trigger === 'webhook_received') {
+        hints.formNote = 'Any top-level field in the JSON body is also available, by the name the caller sends.';
+    }
+
+    return hints;
+});
 
 function emptyEditor() {
     return {
@@ -571,6 +622,7 @@ function fmtRelative(iso) {
                                             </div>
                                         </div>
                                         <small class="muted">Field names map to submitted values; the message field is required.</small>
+                                        <PlaceholderHints :reference="placeholderRef" />
                                     </template>
 
                                     <!-- add_note config -->
@@ -647,6 +699,7 @@ function fmtRelative(iso) {
                                             <textarea v-model="action.config.body_template" rows="5" :placeholder="emailBodyPlaceholder"></textarea>
                                             <small class="muted">Use <code>&#123;&#123;field_key&#125;&#125;</code> placeholders to splice in submitted values.</small>
                                         </div>
+                                        <PlaceholderHints :reference="placeholderRef" />
                                     </template>
 
                                     <button type="button" class="btn btn-ghost btn-sm" @click="editingActionIndex = null">Done</button>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Internal;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Form;
+use App\Models\FormField;
 use App\Models\User;
 use App\Models\Workflow;
 use App\Models\WorkflowAction;
@@ -48,8 +49,11 @@ class WorkflowController extends Controller
             ->map(fn (Workflow $w): array => $this->mapWorkflow($w));
 
         // Sidebar pickers in the editor: which forms can fire
-        // form_submitted, which staff can be assigned, etc.
+        // form_submitted, which staff can be assigned, etc. Each form also
+        // carries its field_keys so the builder's placeholder reference can
+        // show the real {{keys}} available for the selected form.
         $forms = Form::query()
+            ->with('fields')
             ->select(['id', 'name', 'slug', 'status'])
             ->orderBy('name')
             ->get()
@@ -58,6 +62,10 @@ class WorkflowController extends Controller
                 'name' => $f->name,
                 'slug' => $f->slug,
                 'status' => $f->status,
+                'fields' => $f->fields->map(fn (FormField $field): array => [
+                    'key' => $field->field_key,
+                    'label' => $field->label,
+                ])->values(),
             ]);
 
         $staff = User::query()
