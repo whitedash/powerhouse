@@ -91,8 +91,13 @@ function submit() {
                     <input v-model="form._hp" type="text" tabindex="-1" autocomplete="off">
                 </div>
 
-                <!-- Turnstile widget mounts here when a site key is set. -->
-                <div v-if="turnstileSiteKey" class="cf-turnstile" :data-sitekey="turnstileSiteKey" />
+                <!-- Turnstile widget mounts here when a site key is set.
+                     theme=light: the form background is fixed light, so pin the
+                     widget light rather than letting "auto" follow the visitor's
+                     OS dark-mode. size=flexible: fill the form column width. -->
+                <div v-if="turnstileSiteKey" class="sup-turnstile">
+                    <div class="cf-turnstile" :data-sitekey="turnstileSiteKey" data-theme="light" data-size="flexible" />
+                </div>
 
                 <div class="sup-actions">
                     <button type="submit" class="btn btn-primary btn-lg" :disabled="form.processing">
@@ -126,6 +131,11 @@ function submit() {
 .err { font-size: 12px; color: var(--danger); }
 .sup-error { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--danger-bg); color: #b91c1c; border-radius: var(--radius-md); font-size: 13.5px; }
 .sup-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+/* Turnstile wrapper. Already gap-spaced 16px as a .sup-form flex child, so no
+   margin needed; this only stretches it to the field width (data-size=flexible
+   fills the container) and reserves height to avoid load-time layout shift.
+   Namespaced — never restyle .cf-turnstile globally. */
+.sup-turnstile { width: 100%; min-height: 65px; }
 .sup-actions { display: flex; justify-content: flex-end; }
 .btn-lg { height: 46px; padding: 0 24px; font-size: 14px; }
 
