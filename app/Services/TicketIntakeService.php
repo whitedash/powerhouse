@@ -9,6 +9,7 @@ use App\Models\SupportMessage;
 use App\Models\SupportTicket;
 use App\Models\Task;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -104,6 +105,13 @@ class TicketIntakeService
 
             return $ticket;
         });
+
+        // A new open ticket changes both support nav badges; invalidate their
+        // 60s caches so staff see it immediately (mirrors the internal path in
+        // Internal\SupportController::forgetNavCaches). This is the single
+        // shared intake point, so it also covers the create_ticket workflow.
+        Cache::forget('nav.support_open');
+        Cache::forget('nav.support_sla_breached');
 
         // Send the acknowledgement AFTER commit (a mail failure must not roll
         // back a real ticket) and synchronously (no dependency on a worker).
