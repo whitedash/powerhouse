@@ -11,6 +11,7 @@ use App\Models\Workflow;
 use App\Models\WorkflowAction;
 use App\Services\WorkflowEngine;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
@@ -67,6 +68,28 @@ class PublicSupportTicketTest extends TestCase
         // Staff are alerted by email too — to the resolved triage user
         // (no support.notify_email set in tests).
         Mail::assertSent(SupportTicketStaffAlert::class, fn ($m) => $m->hasTo($triage->email));
+    }
+
+    public function test_guest_submission_invalidates_support_nav_badge_caches(): void
+    {
+        Mail::fake();
+        $this->seedTriageUser();
+
+        // Prime the badge caches as HandleInertiaRequests::share().nav would.
+        Cache::put('nav.support_open', 41, 60);
+        Cache::put('nav.support_sla_breached', 7, 60);
+
+        $this->post('/support', [
+            'guest_name' => 'Pat Guest',
+            'guest_email' => 'pat@example.com',
+            'subject' => 'Cannot log in',
+            'message' => 'I forgot which email I used.',
+        ])->assertRedirect(route('support.submitted'));
+
+        // A new open ticket must bump both staff badges immediately, not after
+        // the 60s TTL — so the intake path forgets both keys.
+        $this->assertFalse(Cache::has('nav.support_open'));
+        $this->assertFalse(Cache::has('nav.support_sla_breached'));
     }
 
     public function test_honeypot_blocks_ticket_creation(): void
