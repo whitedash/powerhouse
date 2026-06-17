@@ -17,7 +17,7 @@ import {
     IconPlus, IconX, IconBolt, IconDots, IconTrash, IconEdit,
     IconChevronUp, IconChevronDown, IconCheck, IconPencil,
     IconForms, IconWebhook, IconUserPlus, IconUserCheck, IconRefresh,
-    IconNote, IconBell, IconUsersGroup, IconClick, IconCheckbox, IconMail,
+    IconNote, IconBell, IconUsersGroup, IconClick, IconCheckbox, IconMail, IconLifebuoy,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -41,6 +41,7 @@ const ACTION_LABEL = {
     create_lead: 'Create lead',
     update_lead_status: 'Update lead status',
     create_task: 'Create task',
+    create_ticket: 'Create ticket',
     assign_to_user: 'Assign to user',
     add_note: 'Add note',
     send_notification: 'Send notification',
@@ -62,6 +63,7 @@ const ACTION_ICONS = {
     create_lead: IconUserPlus,
     update_lead_status: IconRefresh,
     create_task: IconCheckbox,
+    create_ticket: IconLifebuoy,
     assign_to_user: IconUserCheck,
     add_note: IconNote,
     send_notification: IconBell,
@@ -73,6 +75,7 @@ const ACTION_COLOURS = {
     create_lead: '#10B981',
     update_lead_status: '#F59E0B',
     create_task: '#3B82F6',
+    create_ticket: '#14B8A6',
     assign_to_user: '#06B6D4',
     add_note: '#8B5CF6',
     send_notification: '#F97316',
@@ -94,6 +97,8 @@ function actionSummary(a) {
             return 'Create a new lead';
         case 'create_task':
             return c.title_template ? `Create task: ${c.title_template}` : 'Create a task';
+        case 'create_ticket':
+            return 'Create a support ticket';
         case 'assign_to_user': {
             const u = props.staff.find(s => s.id === c.user_id);
             return u ? `Assign to ${u.name}` : 'Assign to a user';
@@ -122,6 +127,7 @@ const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'proposal', 'negotiation
 const LEAD_SOURCES = ['manual', 'landing_page', 'facebook', 'google', 'referral', 'email', 'phone', 'event', 'word_of_mouth', 'other'];
 const TASK_TYPES = ['task', 'call', 'email', 'meeting', 'note'];
 const TASK_PRIORITIES = ['low', 'medium', 'high'];
+const TICKET_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 
 // Mustache strings live in JS constants to keep them out of the
 // template where Vue would try to interpolate them.
@@ -215,18 +221,26 @@ function setTrigger(type) {
     editor.trigger_config = {};
 }
 
+// Seed sensible config defaults per action type: send_email needs a recipient
+// mode up front so its fields render; create_ticket seeds the field-map keys
+// (matching the engine handler's defaults) so it saves valid immediately.
+function defaultConfigFor(type) {
+    if (type === 'send_email') return { to_mode: 'fixed' };
+    if (type === 'create_ticket') {
+        return { subject_field: 'subject', message_field: 'message', priority: 'medium', name_field: 'name', email_field: 'email', phone_field: 'phone' };
+    }
+    return {};
+}
+
 function addAction(type = 'create_lead') {
-    // send_email needs a recipient mode chosen up front so its conditional
-    // fields render; default to a fixed address.
-    const config = type === 'send_email' ? { to_mode: 'fixed' } : {};
-    editor.actions.push({ action_type: type, config });
+    editor.actions.push({ action_type: type, config: defaultConfigFor(type) });
     editingActionIndex.value = editor.actions.length - 1;
     showActionPicker.value = false;
 }
-// Clear config when the action type changes; seed send_email's recipient mode
-// so its conditional fields render (mirrors addAction's seed).
+// Reset config when the action type changes, seeding the new type's defaults
+// (mirrors addAction).
 function resetActionConfig(action) {
-    action.config = action.action_type === 'send_email' ? { to_mode: 'fixed' } : {};
+    action.config = defaultConfigFor(action.action_type);
 }
 function removeAction(i) {
     editor.actions.splice(i, 1);
@@ -524,6 +538,39 @@ function fmtRelative(iso) {
                                                 <option v-for="u in staff" :key="u.id" :value="u.id">{{ u.name }}</option>
                                             </select>
                                         </div>
+                                    </template>
+
+                                    <!-- create_ticket config -->
+                                    <template v-if="action.action_type === 'create_ticket'">
+                                        <div class="grid-2">
+                                            <div class="form-row">
+                                                <label class="small">Subject field</label>
+                                                <input v-model="action.config.subject_field" type="text" placeholder="subject" />
+                                            </div>
+                                            <div class="form-row">
+                                                <label class="small">Message field</label>
+                                                <input v-model="action.config.message_field" type="text" placeholder="message" />
+                                            </div>
+                                            <div class="form-row">
+                                                <label class="small">Name field</label>
+                                                <input v-model="action.config.name_field" type="text" placeholder="name" />
+                                            </div>
+                                            <div class="form-row">
+                                                <label class="small">Email field</label>
+                                                <input v-model="action.config.email_field" type="text" placeholder="email" />
+                                            </div>
+                                            <div class="form-row">
+                                                <label class="small">Phone field</label>
+                                                <input v-model="action.config.phone_field" type="text" placeholder="phone" />
+                                            </div>
+                                            <div class="form-row">
+                                                <label class="small">Priority</label>
+                                                <select v-model="action.config.priority">
+                                                    <option v-for="p in TICKET_PRIORITIES" :key="p" :value="p">{{ p }}</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <small class="muted">Field names map to submitted values; the message field is required.</small>
                                     </template>
 
                                     <!-- add_note config -->
