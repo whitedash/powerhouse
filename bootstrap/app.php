@@ -64,6 +64,7 @@ return Application::configure(basePath: dirname(__DIR__))
         //   - form webhook: HMAC signature (VerifyFormWebhookSignature)
         $middleware->validateCsrfTokens(except: [
             'forms/*/submit',
+            'forms/*/draft*',
             'webhooks/*',
         ]);
 
