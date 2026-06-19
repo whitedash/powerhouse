@@ -150,6 +150,8 @@
             + ".pw-form .pw-grid.pw-grid--narrow .pw-col-6,.pw-form .pw-grid.pw-grid--narrow .pw-col-4{grid-column:span 12;}"
             + ".pw-form label{display:block;font-weight:600;font-size:13px;margin-bottom:6px;color:var(--pw-label);}"
             + ".pw-form .pw-req{color:var(--pw-error);}"
+            // Display-only text block — spans the full grid width, no input.
+            + ".pw-form .pw-text-block{color:var(--pw-text,#374151);font-size:.9375rem;line-height:1.6;padding:.25rem 0;grid-column:1 / -1;}"
             + ".pw-form input,.pw-form textarea,.pw-form select{width:100%;padding:10px 12px;border:var(--pw-border-width) solid var(--pw-border);border-radius:var(--pw-radius);font-size:var(--pw-font-size);font-family:inherit;background:var(--pw-surface);box-sizing:border-box;}"
             + ".pw-form input:focus,.pw-form textarea:focus,.pw-form select:focus{outline:none;border-color:var(--pw-accent);box-shadow:0 0 0 3px var(--pw-focus-ring);}"
             + ".pw-form textarea{min-height:96px;resize:vertical;}"
@@ -236,6 +238,13 @@
     var DIRECTIONAL_ICONS = { arrow: true, chevron: true };
 
     function renderField(field) {
+        // Display-only text block — label holds the text, no input emitted (so
+        // it never enters FormData / answer collection).
+        if (field.type === "placeholder") {
+            var block = el("div", { class: "pw-text-block" });
+            block.textContent = field.label || "";
+            return block;
+        }
         var span = WIDTH_COLS[field.width] || "pw-col-12";
         var row = el("div", { class: "pw-row " + span });
         var labelChildren = [field.label];

@@ -87,6 +87,10 @@ class FormController extends Controller
         // from form_fields.validation_rules later.
         $rules = [];
         foreach ($form->fields as $field) {
+            // Placeholder fields are display-only — no input, no rule.
+            if ($field->type === 'placeholder') {
+                continue;
+            }
             $chain = [];
             if ($field->is_required) {
                 $chain[] = 'required';

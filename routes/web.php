@@ -848,6 +848,20 @@ Route::middleware('forms.cors')->group(function () {
     Route::options('/forms/{slug}/submit', fn () => response('', 204))
         ->where('slug', '[a-z0-9-]+')
         ->name('form.submit.preflight');
+
+    // Preflight for the cross-origin draft endpoints. The draft-save is a PUT
+    // (non-simple), so the browser preflights it; without a matchable OPTIONS
+    // route the router would 405 before forms.cors could answer. Mirrors the
+    // submit preflight above.
+    Route::options('/forms/{slug}/draft', fn () => response('', 204))
+        ->where('slug', '[a-z0-9-]+')
+        ->name('form.draft.preflight');
+    Route::options('/forms/{slug}/draft/{token}', fn () => response('', 204))
+        ->where('slug', '[a-z0-9-]+')
+        ->name('form.draft.save.preflight');
+    Route::options('/forms/{slug}/draft/{token}/submit', fn () => response('', 204))
+        ->where('slug', '[a-z0-9-]+')
+        ->name('form.draft.submit.preflight');
 });
 
 // Canonical referral hub link. Public + throttled (writes a click row

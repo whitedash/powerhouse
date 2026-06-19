@@ -41,10 +41,15 @@ const showRequiredMark = computed(() => props.field.is_required && props.modelVa
 
 <template>
     <div v-if="field.type !== 'hidden'" class="ffr-field" :class="widthClass">
-        <label class="ffr-label">
+        <label v-if="field.type !== 'placeholder'" class="ffr-label">
             {{ field.label }}
             <span v-if="showRequiredMark" class="ffr-req">*</span>
         </label>
+
+        <!-- Display-only text block — `label` holds the text, no input. -->
+        <div v-if="field.type === 'placeholder'" class="ffr-placeholder-text">
+            {{ field.label }}
+        </div>
 
         <input
             v-if="TEXT_INPUT_TYPES.includes(field.type)"
@@ -118,6 +123,7 @@ const showRequiredMark = computed(() => props.field.is_required && props.modelVa
 .ffr-radio-group { display: flex; flex-direction: column; gap: 8px; }
 .ffr-radio, .ffr-check { display: flex; align-items: center; gap: 8px; font: 400 14px/1.4 'Inter', sans-serif; color: var(--text-primary); cursor: pointer; }
 .ffr-radio input, .ffr-check input { width: auto; margin: 0; }
+.ffr-placeholder-text { color: var(--text-secondary); font-size: .9375rem; line-height: 1.6; padding: .25rem 0; }
 .col-span-12 { grid-column: span 12; }
 .col-span-6 { grid-column: span 6; }
 .col-span-4 { grid-column: span 4; }

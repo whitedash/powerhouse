@@ -49,7 +49,8 @@ class FormCorsTest extends TestCase
 
         $res->assertNoContent(204);
         $res->assertHeader('Access-Control-Allow-Origin', '*');
-        $res->assertHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        // PUT was added for the multi-step draft-save preflight.
+        $res->assertHeader('Access-Control-Allow-Methods', 'POST, PUT, OPTIONS');
         $res->assertHeader('Access-Control-Allow-Headers', 'Content-Type, Accept');
         $this->assertNotNull($res->headers->get('Access-Control-Max-Age'));
         // Open policy → NO credentials (that's the whole point).

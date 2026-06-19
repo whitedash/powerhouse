@@ -122,6 +122,10 @@ class FormController extends Controller
         $rules = [];
 
         foreach ($form->fields as $field) {
+            // Placeholder fields are display-only — no input, no rule.
+            if ($field->type === 'placeholder') {
+                continue;
+            }
             $chain = [$field->is_required ? 'required' : 'nullable'];
             if ($field->type === 'email') {
                 $chain[] = 'email:rfc';
