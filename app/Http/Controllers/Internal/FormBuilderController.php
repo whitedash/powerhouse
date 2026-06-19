@@ -48,7 +48,7 @@ class FormBuilderController extends Controller
     public function index(): Response
     {
         $forms = Form::query()
-            ->with(['fields', 'createdBy:id,name'])
+            ->with(['steps', 'fields', 'createdBy:id,name'])
             ->withCount('submissions')
             ->orderByDesc('created_at')
             ->get()
@@ -388,6 +388,28 @@ class FormBuilderController extends Controller
     }
 
     /**
+     * Map a single FormField to the builder's field shape. Shared between the
+     * flat `fields` list and each step's nested `fields`.
+     *
+     * @return array<string, mixed>
+     */
+    private function mapField(FormField $field): array
+    {
+        return [
+            'id' => $field->id,
+            'label' => $field->label,
+            'field_key' => $field->field_key,
+            'type' => $field->type,
+            'placeholder' => $field->placeholder,
+            'default_value' => $field->default_value,
+            'options' => $field->options,
+            'is_required' => $field->is_required,
+            'width' => $field->width->value,
+            'sort_order' => $field->sort_order,
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function mapFormCard(Form $f): array
@@ -404,18 +426,20 @@ class FormBuilderController extends Controller
             'gdpr_consent_enabled' => $f->gdpr_consent_enabled,
             'gdpr_consent_text' => $f->gdpr_consent_text,
             'theme_id' => $f->theme_id,
-            'fields' => $f->fields->map(fn (FormField $field): array => [
-                'id' => $field->id,
-                'label' => $field->label,
-                'field_key' => $field->field_key,
-                'type' => $field->type,
-                'placeholder' => $field->placeholder,
-                'default_value' => $field->default_value,
-                'options' => $field->options,
-                'is_required' => $field->is_required,
-                'width' => $field->width->value,
-                'sort_order' => $field->sort_order,
-            ])->values(),
+            'fields' => $f->fields->map(fn (FormField $field): array => $this->mapField($field))->values(),
+            // Nested step shape the builder slide-over reconstructs editor.steps
+            // from. Steps ordered by sort_order; each carries only its own fields
+            // (filtered by form_step_id), also sort_order-ordered.
+            'steps' => $f->steps->sortBy('sort_order')->values()->map(fn (FormStep $step): array => [
+                'id' => $step->id,
+                'label' => $step->label,
+                'sort_order' => $step->sort_order,
+                'fields' => $f->fields
+                    ->where('form_step_id', $step->id)
+                    ->sortBy('sort_order')
+                    ->values()
+                    ->map(fn (FormField $field): array => $this->mapField($field)),
+            ]),
             'fields_count' => $f->fields->count(),
             'submissions_count' => (int) ($f->submissions_count ?? 0),
             'submission_count' => $f->submission_count,

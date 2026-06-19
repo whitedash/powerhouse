@@ -36,7 +36,7 @@ class EmbedController extends Controller
     {
         $form = Form::where('slug', $slug)
             ->where('status', 'active')
-            ->with(['fields', 'theme'])
+            ->with(['fields', 'steps', 'theme'])
             ->firstOrFail();
 
         // Resolve the form's effective design tokens through the single

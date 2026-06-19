@@ -15,7 +15,21 @@
         'is_required' => (bool) $f->is_required,
         // Layout width within the widget's 12-col grid (full/half/third).
         'width' => $f->width->value,
+        // Which step this field belongs to (drives the multi-step grouping).
+        'form_step_id' => $f->form_step_id,
     ])->values()->all();
+
+    // Steps ordered by sort_order (relation default). A single-step form has one
+    // row, so is_multistep is false and the widget renders flat as before.
+    $steps = $form->steps->map(fn ($s) => [
+        'id' => $s->id,
+        'label' => $s->label,
+        'sort_order' => $s->sort_order,
+    ])->values()->all();
+
+    // Draft endpoints (anonymous, CSRF-excluded). Save/submit append the token
+    // (and /submit) in JS once init() returns it.
+    $draftBase = rtrim((string) config('app.url'), '/').'/forms/'.$form->slug.'/draft';
 
     $config = [
         'slug' => $form->slug,
@@ -27,6 +41,11 @@
         'gdpr_enabled' => (bool) $form->gdpr_consent_enabled,
         'gdpr_text' => $form->gdpr_consent_text,
         'fields' => $fields,
+        'steps' => $steps,
+        'is_multistep' => count($steps) > 1,
+        'draft_init_url' => $draftBase,
+        'draft_save_url' => $draftBase,
+        'draft_submit_url' => $draftBase,
         // Effective design tokens resolved by the controller (default set
         // for an un-themed form, or defaults merged with a theme). Drives
         // the --pw-* CSS variables on the shadow root.
@@ -39,6 +58,15 @@
 
     var CONFIG = {!! $json !!};
     var ROOT_ID = "pw-form-" + CONFIG.slug;
+
+    // ── Multi-step state ──────────────────────────────────────────────
+    var LS_KEY = "pw_draft_" + CONFIG.slug;
+    var draftToken = null;
+    var currentStep = 0;
+    var totalSteps = CONFIG.is_multistep ? CONFIG.steps.length : 1;
+    var stepGroups = [];   // [{ step, fields }] — populated in init()
+    var answers = {};      // accumulated field values across steps
+    var rootEl = null;     // mount point, cached by init()
 
     function el(tag, attrs, children) {
         var node = document.createElement(tag);
@@ -160,7 +188,25 @@
             + ".pw-form .pw-success{padding:16px;background:var(--pw-success-bg);border:var(--pw-border-width) solid var(--pw-success-border);border-radius:var(--pw-radius);color:var(--pw-success-text);}"
             + ".pw-form .pw-gdpr{font-size:12px;color:#6b7280;margin-top:8px;}"
             + ".pw-form .pw-gdpr label{font-weight:400;font-size:12px;display:flex;gap:8px;align-items:flex-start;}"
-            + ".pw-form .pw-gdpr input{width:auto;}";
+            + ".pw-form .pw-gdpr input{width:auto;}"
+            // Multi-step chrome — progress bar, nav row, autosave hint, resume
+            // banner. Styled from the same --pw-* tokens as the rest of the form.
+            + ".pw-form .ms-progress{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;}"
+            + ".pw-form .ms-progress-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}"
+            + ".pw-form .ms-progress-step{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--pw-label);}"
+            + ".pw-form .ms-progress-label{font-size:14px;font-weight:600;color:var(--pw-text);}"
+            + ".pw-form .ms-seg-track{display:flex;gap:6px;}"
+            + ".pw-form .ms-seg{flex:1;height:6px;border-radius:999px;background:var(--pw-border);}"
+            + ".pw-form .ms-seg.done{background:var(--pw-accent);}"
+            + ".pw-form .ms-seg.current{background:var(--pw-accent);box-shadow:0 0 0 3px var(--pw-focus-ring);}"
+            + ".pw-form .ms-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;}"
+            + ".pw-form .ms-nav .ms-nav-spacer{flex:1;}"
+            + ".pw-form .ms-autosave{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--pw-label);margin-top:12px;}"
+            + ".pw-resume{display:flex;flex-direction:column;gap:6px;border:1px solid var(--pw-border);border-left:3px solid var(--pw-accent);border-radius:var(--pw-radius);padding:14px 16px;background:var(--pw-surface);margin-bottom:18px;}"
+            + ".pw-resume .ms-resume-ttl{font-size:14px;font-weight:600;color:var(--pw-text);}"
+            + ".pw-resume .ms-resume-msg{font-size:13px;color:var(--pw-label);}"
+            + ".pw-resume .ms-resume-actions{display:flex;gap:10px;margin-top:6px;}"
+            + ".ms-inert{opacity:.4;filter:blur(1px);pointer-events:none;user-select:none;}";
 
         // Optional per-theme custom CSS, injected AFTER the variable styles
         // (inside the shadow root, so it can't leak to the host page).
@@ -196,13 +242,18 @@
         if (field.is_required) labelChildren.push(el("span", { class: "pw-req" }, [" *"]));
         if (field.type !== "hidden") row.appendChild(el("label", { for: "pw-" + field.field_key }, labelChildren));
 
+        // Repopulate from the running answer set (so Back/Next keeps values),
+        // falling back to the field's configured default.
+        var currentVal = answers[field.field_key];
+        if (currentVal == null) currentVal = field.default_value || "";
+
         var input;
         if (field.type === "textarea") {
             input = el("textarea", {
                 name: field.field_key,
                 id: "pw-" + field.field_key,
                 placeholder: field.placeholder || "",
-            });
+            }, [String(currentVal)]);
         } else if (field.type === "select") {
             var opts = (field.options || []).map(function (o) {
                 return el("option", { value: o }, [o]);
@@ -212,13 +263,14 @@
                 name: field.field_key,
                 id: "pw-" + field.field_key,
             }, opts);
+            input.value = String(currentVal);
         } else {
             input = el("input", {
                 type: field.type === "phone" ? "tel" : field.type,
                 name: field.field_key,
                 id: "pw-" + field.field_key,
                 placeholder: field.placeholder || "",
-                value: field.default_value || "",
+                value: String(currentVal),
             });
         }
         if (field.is_required) input.setAttribute("required", "required");
@@ -229,121 +281,18 @@
         return row;
     }
 
-    function render(root) {
-        var form = el("form", { class: "pw-form", novalidate: "novalidate" });
-
-        // Error nodes live inside the form, so query through it rather
-        // than document.getElementById — once the form is inside a shadow
-        // root the document-level lookup can't see it.
-        function errNode(key) {
-            return form.querySelector('[id="pw-err-' + key + '"]');
-        }
-
-        // Fields live in a 12-col grid; per-field width sets the span.
-        var grid = el("div", { class: "pw-grid" });
-        CONFIG.fields.forEach(function (f) {
-            grid.appendChild(renderField(f));
+    // Collect the current step's field values into the running answer set.
+    function collectAnswers(form) {
+        var fd = new FormData(form);
+        fd.forEach(function (v, k) {
+            if (k === "_hp" || k === "_gdpr") return;
+            answers[k] = v;
         });
-        form.appendChild(grid);
-        watchGridWidth(grid);
+    }
 
-        // Honeypot — invisible to humans, irresistible to bots. Outside the
-        // grid so it never occupies a column (and stays hidden regardless).
-        var hp = el("input", { type: "text", name: "_hp", class: "pw-hp", tabindex: "-1", autocomplete: "off" });
-        form.appendChild(hp);
-
-        if (CONFIG.gdpr_enabled) {
-            var consent = el("div", { class: "pw-gdpr" }, [
-                el("label", {}, [
-                    el("input", { type: "checkbox", name: "_gdpr", required: "required" }),
-                    el("span", {}, [CONFIG.gdpr_text || "I agree to be contacted about my enquiry."]),
-                ]),
-            ]);
-            form.appendChild(consent);
-        }
-
-        // Button style + width come from the theme (defaults: solid, auto).
-        var btnClass = "";
-        if (THEME.button_style === "outline") btnClass += "pw-btn-outline ";
-        if (THEME.full_width) btnClass += "pw-btn-block ";
-        btnClass += "pw-btn-hover-" + (THEME.button_hover || "lift");
-        btnClass = btnClass.trim();
-        var btnAttrs = { type: "submit" };
-        if (btnClass) btnAttrs.class = btnClass;
-
-        // Label lives in its own span so the submit handler can swap the
-        // text ("Sending…") WITHOUT wiping the icon.
-        var label = CONFIG.submit_button_text || "Submit";
-        var labelSpan = el("span", { class: "pw-btn-label" }, [label]);
-
-        // Optional submit-button icon at the chosen position. none = no icon.
-        var iconName = THEME.button_icon || "none";
-        var position = THEME.button_icon_position === "leading" ? "leading" : "trailing";
-        var children;
-        if (iconName !== "none" && ICONS[iconName]) {
-            var iconCls = "pw-btn-icon";
-            if (DIRECTIONAL_ICONS[iconName]) {
-                iconCls += " pw-btn-icon-dir " + (position === "leading" ? "pw-btn-icon-lead" : "pw-btn-icon-trail");
-            }
-            var iconSpan = el("span", { class: iconCls, html: ICONS[iconName], "aria-hidden": "true" });
-            children = position === "leading" ? [iconSpan, labelSpan] : [labelSpan, iconSpan];
-        } else {
-            children = [labelSpan];
-        }
-        var btn = el("button", btnAttrs, children);
-        form.appendChild(btn);
-
-        form.addEventListener("submit", function (e) {
-            e.preventDefault();
-            btn.disabled = true;
-            labelSpan.textContent = "Sending...";
-
-            // Clear previous errors.
-            CONFIG.fields.forEach(function (f) {
-                var ne = errNode(f.field_key);
-                if (ne) ne.textContent = "";
-            });
-
-            var data = new FormData(form);
-            fetch(CONFIG.submit_url, {
-                method: "POST",
-                headers: { "Accept": "application/json" },
-                body: data,
-                credentials: "omit",
-            }).then(function (resp) {
-                return resp.json().then(function (json) { return { status: resp.status, json: json }; });
-            }).then(function (r) {
-                if (r.status === 422 && r.json && r.json.errors) {
-                    Object.keys(r.json.errors).forEach(function (k) {
-                        var ne = errNode(k);
-                        if (ne) ne.textContent = r.json.errors[k][0];
-                    });
-                    btn.disabled = false;
-                    labelSpan.textContent = CONFIG.submit_button_text;
-                    return;
-                }
-                if (r.status === 429) {
-                    labelSpan.textContent = "Try again later";
-                    return;
-                }
-                if (r.json && r.json.redirect) {
-                    window.location.href = r.json.redirect;
-                    return;
-                }
-                var success = el("div", { class: "pw-success" }, [
-                    r.json && r.json.message ? r.json.message : CONFIG.success_message,
-                ]);
-                form.parentNode.replaceChild(success, form);
-            }).catch(function () {
-                btn.disabled = false;
-                labelSpan.textContent = CONFIG.submit_button_text;
-                var generic = errNode(CONFIG.fields[0] && CONFIG.fields[0].field_key);
-                if (generic) generic.textContent = "Submission failed. Please try again.";
-            });
-        });
-
-        // Optional theme chrome rendered ABOVE the form (logo, then heading).
-        // Both default to null → nothing rendered → identical to before.
+    // Optional theme chrome rendered ABOVE the form (logo, then heading).
+    // Both default to null → nothing rendered → identical to before.
+    function buildLead() {
         var lead = [];
         if (THEME.logo_url) {
             lead.push(el("img", {
@@ -355,35 +304,322 @@
         if (THEME.heading) {
             lead.push(el("div", { class: "pw-heading" }, [THEME.heading]));
         }
+        return lead;
+    }
 
-        // Shadow DOM isolation (preferred): render the <style> AND the
-        // form inside a shadow root attached to the mount point. This
-        // stops host-page CSS bleeding in (or our CSS leaking out) and
-        // gives every form its own style copy — so a second form on the
-        // same page is no longer left unstyled by a shared-<head> guard.
-        if (typeof root.attachShadow === "function") {
-            var shadow = root.shadowRoot || root.attachShadow({ mode: "open" });
+    // Mount the stylesheet + lead chrome + given nodes into the root, preferring
+    // an isolated shadow root (host CSS can't bleed in, our CSS can't leak out).
+    function mount(nodes) {
+        var lead = buildLead();
+        if (typeof rootEl.attachShadow === "function") {
+            var shadow = rootEl.shadowRoot || rootEl.attachShadow({ mode: "open" });
             shadow.innerHTML = "";
             shadow.appendChild(buildStyleEl());
             lead.forEach(function (n) { shadow.appendChild(n); });
-            shadow.appendChild(form);
+            nodes.forEach(function (n) { shadow.appendChild(n); });
             return;
         }
-
-        // Fallback (no Shadow DOM support): original behaviour — inject
-        // the shared stylesheet into <head> once, render into the host DOM.
         if (!document.getElementById("pw-form-styles")) {
             document.head.appendChild(buildStyleEl());
         }
-        root.innerHTML = "";
-        lead.forEach(function (n) { root.appendChild(n); });
-        root.appendChild(form);
+        rootEl.innerHTML = "";
+        lead.forEach(function (n) { rootEl.appendChild(n); });
+        nodes.forEach(function (n) { rootEl.appendChild(n); });
+    }
+
+    // Segmented progress indicator for the given step (N done · 1 current).
+    function buildProgress(stepIndex) {
+        var wrap = el("div", { class: "ms-progress" });
+        var head = el("div", { class: "ms-progress-head" });
+        head.appendChild(el("span", { class: "ms-progress-step" }, ["Step " + (stepIndex + 1) + " of " + totalSteps]));
+        var label = stepGroups[stepIndex].step.label || "";
+        if (label) head.appendChild(el("span", { class: "ms-progress-label" }, [label]));
+        wrap.appendChild(head);
+        var track = el("div", { class: "ms-seg-track" });
+        for (var i = 0; i < totalSteps; i++) {
+            var cls = "ms-seg";
+            if (i < stepIndex) cls += " done";
+            else if (i === stepIndex) cls += " current";
+            track.appendChild(el("span", { class: cls }));
+        }
+        wrap.appendChild(track);
+        return wrap;
+    }
+
+    // Build the primary action button. The theme icon is applied on the final
+    // step only (matching the original single-step submit button).
+    function buildPrimaryButton(isLast, labelSpan) {
+        var btnClass = "";
+        if (THEME.button_style === "outline") btnClass += "pw-btn-outline ";
+        if (THEME.full_width) btnClass += "pw-btn-block ";
+        btnClass += "pw-btn-hover-" + (THEME.button_hover || "lift");
+        btnClass = btnClass.trim();
+        var btnAttrs = { type: "submit" };
+        if (btnClass) btnAttrs.class = btnClass;
+
+        var children = [labelSpan];
+        if (isLast) {
+            var iconName = THEME.button_icon || "none";
+            var position = THEME.button_icon_position === "leading" ? "leading" : "trailing";
+            if (iconName !== "none" && ICONS[iconName]) {
+                var iconCls = "pw-btn-icon";
+                if (DIRECTIONAL_ICONS[iconName]) {
+                    iconCls += " pw-btn-icon-dir " + (position === "leading" ? "pw-btn-icon-lead" : "pw-btn-icon-trail");
+                }
+                var iconSpan = el("span", { class: iconCls, html: ICONS[iconName], "aria-hidden": "true" });
+                children = position === "leading" ? [iconSpan, labelSpan] : [labelSpan, iconSpan];
+            }
+        }
+        return el("button", btnAttrs, children);
+    }
+
+    // Build the form for one step. The submit event drives BOTH "next" (save +
+    // advance) and the final submit, branching on whether this is the last step.
+    function buildStepForm(stepIndex) {
+        var isLast = stepIndex === totalSteps - 1;
+        var form = el("form", { class: "pw-form", novalidate: "novalidate" });
+
+        // Error nodes live inside the form, so query through it rather than
+        // document.getElementById — once inside a shadow root the document-level
+        // lookup can't see it.
+        function errNode(key) {
+            return form.querySelector('[id="pw-err-' + key + '"]');
+        }
+
+        if (CONFIG.is_multistep) {
+            form.appendChild(buildProgress(stepIndex));
+        }
+
+        // Fields for this step on the 12-col grid.
+        var grid = el("div", { class: "pw-grid" });
+        stepGroups[stepIndex].fields.forEach(function (f) {
+            grid.appendChild(renderField(f));
+        });
+        form.appendChild(grid);
+        watchGridWidth(grid);
+
+        // Honeypot on every step — invisible to humans, irresistible to bots
+        // (checked server-side on the final submit only).
+        form.appendChild(el("input", { type: "text", name: "_hp", class: "pw-hp", tabindex: "-1", autocomplete: "off" }));
+
+        // GDPR consent on the last step, just before submit.
+        if (CONFIG.gdpr_enabled && isLast) {
+            form.appendChild(el("div", { class: "pw-gdpr" }, [
+                el("label", {}, [
+                    el("input", { type: "checkbox", name: "_gdpr", required: "required" }),
+                    el("span", {}, [CONFIG.gdpr_text || "I agree to be contacted about my enquiry."]),
+                ]),
+            ]));
+        }
+
+        // Label lives in its own span so the handler can swap the text without
+        // wiping the icon. Next on intermediate steps; Submit on the last.
+        var label = isLast ? (CONFIG.submit_button_text || "Submit") : "Next";
+        var labelSpan = el("span", { class: "pw-btn-label" }, [label]);
+        var primary = buildPrimaryButton(isLast, labelSpan);
+
+        if (CONFIG.is_multistep) {
+            var nav = el("div", { class: "ms-nav" });
+            if (stepIndex > 0) {
+                var back = el("button", { type: "button", class: "pw-btn-outline" }, ["Back"]);
+                back.addEventListener("click", function () {
+                    collectAnswers(form);
+                    currentStep = stepIndex - 1;
+                    render(currentStep);
+                });
+                nav.appendChild(back);
+            } else {
+                nav.appendChild(el("span", { class: "ms-nav-spacer" }));
+            }
+            nav.appendChild(primary);
+            form.appendChild(nav);
+            form.appendChild(el("div", { class: "ms-autosave" }, ["Your progress is saved automatically"]));
+        } else {
+            form.appendChild(primary);
+        }
+
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            collectAnswers(form);
+
+            // Intermediate step → save the draft, then advance.
+            if (!isLast) {
+                primary.disabled = true;
+                labelSpan.textContent = "Saving...";
+                saveDraft(stepIndex).then(function () {
+                    currentStep = stepIndex + 1;
+                    render(currentStep);
+                }).catch(function () {
+                    primary.disabled = false;
+                    labelSpan.textContent = label;
+                });
+                return;
+            }
+
+            // Last step → clear errors and submit.
+            primary.disabled = true;
+            labelSpan.textContent = "Sending...";
+            CONFIG.fields.forEach(function (f) {
+                var ne = errNode(f.field_key);
+                if (ne) ne.textContent = "";
+            });
+
+            var request;
+            if (CONFIG.is_multistep) {
+                // Persist the final step, then promote the draft to a submission.
+                request = saveDraft(stepIndex).then(function () {
+                    return fetch(CONFIG.draft_submit_url + "/" + draftToken + "/submit", {
+                        method: "POST",
+                        headers: { "Accept": "application/json" },
+                        credentials: "omit",
+                    });
+                });
+            } else {
+                // Single-step → original direct submit (unchanged behaviour).
+                request = fetch(CONFIG.submit_url, {
+                    method: "POST",
+                    headers: { "Accept": "application/json" },
+                    body: new FormData(form),
+                    credentials: "omit",
+                });
+            }
+
+            request.then(function (resp) {
+                return resp.json().then(function (json) { return { status: resp.status, json: json }; });
+            }).then(function (r) {
+                if (r.status === 422 && r.json && r.json.errors) {
+                    Object.keys(r.json.errors).forEach(function (k) {
+                        var ne = errNode(k);
+                        if (ne) ne.textContent = r.json.errors[k][0];
+                    });
+                    primary.disabled = false;
+                    labelSpan.textContent = label;
+                    return;
+                }
+                if (r.status === 429) {
+                    labelSpan.textContent = "Try again later";
+                    return;
+                }
+                if (r.json && r.json.redirect) {
+                    if (CONFIG.is_multistep) clearDraft();
+                    window.location.href = r.json.redirect;
+                    return;
+                }
+                if (CONFIG.is_multistep) clearDraft();
+                var success = el("div", { class: "pw-success" }, [
+                    r.json && r.json.message ? r.json.message : CONFIG.success_message,
+                ]);
+                form.parentNode.replaceChild(success, form);
+            }).catch(function () {
+                primary.disabled = false;
+                labelSpan.textContent = label;
+                var generic = errNode(CONFIG.fields[0] && CONFIG.fields[0].field_key);
+                if (generic) generic.textContent = "Submission failed. Please try again.";
+            });
+        });
+
+        return form;
+    }
+
+    // Persist one step's answers; lazily creates the draft on first save and
+    // stores the token in localStorage so the respondent can resume later.
+    function saveDraft(stepIndex) {
+        if (!CONFIG.is_multistep) return Promise.resolve();
+        var ensure = draftToken
+            ? Promise.resolve()
+            : fetch(CONFIG.draft_init_url, {
+                method: "POST",
+                headers: { "Accept": "application/json" },
+                credentials: "omit",
+            }).then(function (resp) { return resp.json(); }).then(function (data) {
+                draftToken = data.draft_token;
+                try { localStorage.setItem(LS_KEY, draftToken); } catch (e) {}
+            });
+        return ensure.then(function () {
+            return fetch(CONFIG.draft_save_url + "/" + draftToken, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                credentials: "omit",
+                body: JSON.stringify({ step: stepIndex + 1, answers: answers }),
+            });
+        }).then(function () {
+            try { localStorage.setItem(LS_KEY + "_step", String(stepIndex + 1)); } catch (e) {}
+        });
+    }
+
+    function clearDraft() {
+        try {
+            localStorage.removeItem(LS_KEY);
+            localStorage.removeItem(LS_KEY + "_step");
+        } catch (e) {}
+        draftToken = null;
+        currentStep = 0;
+    }
+
+    // Continue from a saved token — trust it (the backend validates on submit)
+    // and resume at the last persisted step.
+    function resumeDraft(token) {
+        draftToken = token;
+        var saved = 0;
+        try { saved = parseInt(localStorage.getItem(LS_KEY + "_step"), 10) || 0; } catch (e) {}
+        currentStep = Math.min(Math.max(saved, 0), totalSteps - 1);
+        render(currentStep);
+    }
+
+    // Resume banner (STATE 3) — shown on load when a saved token is present.
+    // The step-0 fields render beneath it, inert until the respondent chooses.
+    function showResumeBanner(token) {
+        var actions = el("div", { class: "ms-resume-actions" });
+        var cont = el("button", { type: "button", class: "pw-btn-hover-lift" }, ["Continue"]);
+        cont.addEventListener("click", function () { resumeDraft(token); });
+        var over = el("button", { type: "button", class: "pw-btn-outline" }, ["Start over"]);
+        over.addEventListener("click", function () { clearDraft(); render(0); });
+        actions.appendChild(cont);
+        actions.appendChild(over);
+
+        var banner = el("div", { class: "pw-resume" }, [
+            el("div", { class: "ms-resume-ttl" }, ["Welcome back"]),
+            el("div", { class: "ms-resume-msg" }, ["Continue where you left off, or start over."]),
+            actions,
+        ]);
+
+        var grid = el("div", { class: "pw-grid" });
+        stepGroups[0].fields.forEach(function (f) { grid.appendChild(renderField(f)); });
+        var inert = el("div", { class: "ms-inert" }, [grid]);
+
+        mount([banner, inert]);
+    }
+
+    function render(stepIndex) {
+        mount([buildStepForm(stepIndex)]);
     }
 
     function init() {
-        var root = document.getElementById(ROOT_ID);
-        if (!root) return;
-        render(root);
+        rootEl = document.getElementById(ROOT_ID);
+        if (!rootEl) return;
+
+        // Group fields by step. Single-step forms collapse to one group so the
+        // flat render path stays byte-for-byte the original behaviour.
+        if (CONFIG.is_multistep) {
+            stepGroups = CONFIG.steps.map(function (step) {
+                return {
+                    step: step,
+                    fields: CONFIG.fields.filter(function (f) { return f.form_step_id === step.id; }),
+                };
+            });
+        } else {
+            stepGroups = [{ step: { label: "", sort_order: 0 }, fields: CONFIG.fields }];
+        }
+
+        // Resume a saved draft (multi-step only) before the first render.
+        var savedToken = null;
+        try { savedToken = localStorage.getItem(LS_KEY); } catch (e) {}
+        if (savedToken && CONFIG.is_multistep) {
+            showResumeBanner(savedToken);
+            return;
+        }
+
+        render(currentStep);
     }
 
     if (document.readyState === "loading") {
