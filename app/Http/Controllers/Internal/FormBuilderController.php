@@ -7,11 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Form;
 use App\Models\FormField;
+use App\Models\FormStep;
 use App\Models\FormSubmission;
 use App\Models\FormTheme;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -46,7 +48,7 @@ class FormBuilderController extends Controller
     public function index(): Response
     {
         $forms = Form::query()
-            ->with(['fields', 'createdBy:id,name'])
+            ->with(['steps', 'fields', 'createdBy:id,name'])
             ->withCount('submissions')
             ->orderByDesc('created_at')
             ->get()
@@ -84,25 +86,12 @@ class FormBuilderController extends Controller
                 'created_by' => $request->user()->id,
             ]);
 
-            foreach ($data['fields'] as $i => $field) {
-                FormField::create([
-                    'form_id' => $form->id,
-                    'label' => $field['label'],
-                    'field_key' => $field['field_key'],
-                    'type' => $field['type'],
-                    'placeholder' => $field['placeholder'] ?? null,
-                    'default_value' => $field['default_value'] ?? null,
-                    'options' => $field['options'] ?? null,
-                    'is_required' => (bool) ($field['is_required'] ?? false),
-                    'width' => $field['width'] ?? FieldWidth::Full->value,
-                    'sort_order' => $i,
-                ]);
-            }
+            $this->buildStepsPayload($form, $data);
 
             $this->log($request, 'form.created', $form->id, after: [
                 'name' => $form->name,
                 'slug' => $form->slug,
-                'fields' => count($data['fields']),
+                'fields' => $this->fieldCount($data),
             ]);
 
             return $form;
@@ -134,31 +123,21 @@ class FormBuilderController extends Controller
                 'theme_id' => $data['theme_id'] ?? null,
             ]);
 
-            // Field strategy: delete-and-recreate. Fields don't
-            // own state (no submission references the field row,
-            // submissions store raw key=value) so a wipe-and-add
-            // is the simplest way to honour reorders + edits.
+            // Step/field strategy: delete-and-recreate. Clear ALL fields first
+            // — including any legacy fields with a null form_step_id that
+            // predate multi-step (relying on the step-cascade alone would orphan
+            // them) — then the steps, then rebuild from the payload. Fields don't
+            // own state (submissions store raw key=value), so a wipe-and-add is
+            // the simplest way to honour reorders, edits, and step moves.
             $form->fields()->delete();
-            foreach ($data['fields'] as $i => $field) {
-                FormField::create([
-                    'form_id' => $form->id,
-                    'label' => $field['label'],
-                    'field_key' => $field['field_key'],
-                    'type' => $field['type'],
-                    'placeholder' => $field['placeholder'] ?? null,
-                    'default_value' => $field['default_value'] ?? null,
-                    'options' => $field['options'] ?? null,
-                    'is_required' => (bool) ($field['is_required'] ?? false),
-                    'width' => $field['width'] ?? FieldWidth::Full->value,
-                    'sort_order' => $i,
-                ]);
-            }
+            $form->steps()->delete();
+            $this->buildStepsPayload($form, $data);
 
             $this->log($request, 'form.updated', $form->id, $before, [
                 'name' => $form->name,
                 'slug' => $form->slug,
                 'status' => $form->status,
-                'fields' => count($data['fields']),
+                'fields' => $this->fieldCount($data),
             ]);
         });
 
@@ -244,7 +223,7 @@ class FormBuilderController extends Controller
             ? 'unique:forms,slug'
             : Rule::unique('forms', 'slug')->ignore($formId);
 
-        return $request->validate([
+        $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'slug' => $slugRule,
@@ -261,7 +240,17 @@ class FormBuilderController extends Controller
             // Optional visual theme; null = default tokens (today's look).
             'theme_id' => ['nullable', 'integer', 'exists:form_themes,id'],
 
-            'fields' => ['required', 'array', 'min:1'],
+            // Multi-step: when present, the real fields live nested inside steps
+            // (cross-validated below). steps.*.fields shape is checked loosely
+            // here; the per-field rules are applied by the cross-validation pass.
+            'steps' => ['nullable', 'array'],
+            'steps.*.label' => ['nullable', 'string', 'max:255'],
+            'steps.*.fields' => ['nullable', 'array'],
+
+            // Flat fields are now nullable: required only on the legacy
+            // single-step path (steps absent). When steps is present this is
+            // omitted and the nested fields are validated instead.
+            'fields' => ['nullable', 'array', 'min:1'],
             'fields.*.label' => ['required', 'string', 'max:255'],
             'fields.*.field_key' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]*$/', 'max:100'],
             'fields.*.type' => ['required', Rule::in(self::FIELD_TYPES)],
@@ -273,6 +262,151 @@ class FormBuilderController extends Controller
             // Layout width; null/blank => full (today's single-column stack).
             'fields.*.width' => ['nullable', Rule::enum(FieldWidth::class)],
         ]);
+
+        // Cross-validate nested step fields against the SAME per-field rules the
+        // flat fields use. Flatten steps.*.fields and run one validator over
+        // them; a failure throws ValidationException (422) just like the main
+        // validate call above.
+        $steps = $data['steps'] ?? [];
+        if (is_array($steps) && $steps !== []) {
+            $nested = [];
+            foreach ($steps as $step) {
+                $stepFields = is_array($step) && is_array($step['fields'] ?? null) ? $step['fields'] : [];
+                foreach ($stepFields as $field) {
+                    $nested[] = $field;
+                }
+            }
+
+            Validator::make(['fields' => $nested], [
+                'fields' => ['required', 'array', 'min:1'],
+                'fields.*.label' => ['required', 'string', 'max:255'],
+                'fields.*.field_key' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]*$/', 'max:100'],
+                'fields.*.type' => ['required', Rule::in(self::FIELD_TYPES)],
+                'fields.*.placeholder' => ['nullable', 'string', 'max:255'],
+                'fields.*.default_value' => ['nullable', 'string', 'max:255'],
+                'fields.*.options' => ['nullable', 'array'],
+                'fields.*.options.*' => ['string', 'max:255'],
+                'fields.*.is_required' => ['nullable', 'boolean'],
+                'fields.*.width' => ['nullable', Rule::enum(FieldWidth::class)],
+            ])->validate();
+        }
+
+        return $data;
+    }
+
+    /**
+     * Create the form's steps and their fields. Multi-step path when `steps` is
+     * present; otherwise a single default "Step 1" wraps the legacy flat
+     * `fields` array so every field always belongs to exactly one step.
+     * sort_order is step-scoped (the index within each step's field list).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function buildStepsPayload(Form $form, array $data): void
+    {
+        $steps = $data['steps'] ?? [];
+
+        if (is_array($steps) && $steps !== []) {
+            foreach ($steps as $stepIndex => $stepData) {
+                $stepData = is_array($stepData) ? $stepData : [];
+                $label = $stepData['label'] ?? null;
+
+                $step = FormStep::create([
+                    'form_id' => $form->id,
+                    'label' => is_string($label) && $label !== '' ? $label : 'Step '.((int) $stepIndex + 1),
+                    'sort_order' => (int) $stepIndex,
+                ]);
+
+                $fields = is_array($stepData['fields'] ?? null) ? $stepData['fields'] : [];
+                foreach ($fields as $fieldIndex => $field) {
+                    FormField::create($this->fieldRow($form, $step, (array) $field, (int) $fieldIndex));
+                }
+            }
+
+            return;
+        }
+
+        // Legacy flat-fields path — one default step holds every field.
+        $step = FormStep::create([
+            'form_id' => $form->id,
+            'label' => 'Step 1',
+            'sort_order' => 0,
+        ]);
+
+        $fields = is_array($data['fields'] ?? null) ? $data['fields'] : [];
+        foreach ($fields as $i => $field) {
+            FormField::create($this->fieldRow($form, $step, (array) $field, (int) $i));
+        }
+    }
+
+    /**
+     * Build the FormField attribute array for one field on a step.
+     *
+     * @param  array<string, mixed>  $field
+     * @return array<string, mixed>
+     */
+    private function fieldRow(Form $form, FormStep $step, array $field, int $sortOrder): array
+    {
+        return [
+            'form_id' => $form->id,
+            'form_step_id' => $step->id,
+            'label' => $field['label'],
+            'field_key' => $field['field_key'],
+            'type' => $field['type'],
+            'placeholder' => $field['placeholder'] ?? null,
+            'default_value' => $field['default_value'] ?? null,
+            'options' => $field['options'] ?? null,
+            'is_required' => (bool) ($field['is_required'] ?? false),
+            'width' => $field['width'] ?? FieldWidth::Full->value,
+            'sort_order' => $sortOrder,
+        ];
+    }
+
+    /**
+     * Count total fields across either the nested steps payload or the flat
+     * fields array (for the activity-log entry, which is otherwise unchanged).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function fieldCount(array $data): int
+    {
+        $steps = $data['steps'] ?? [];
+
+        if (is_array($steps) && $steps !== []) {
+            $count = 0;
+            foreach ($steps as $step) {
+                $stepFields = is_array($step) && is_array($step['fields'] ?? null) ? $step['fields'] : [];
+                $count += count($stepFields);
+            }
+
+            return $count;
+        }
+
+        $fields = is_array($data['fields'] ?? null) ? $data['fields'] : [];
+
+        return count($fields);
+    }
+
+    /**
+     * Map a single FormField to the builder's field shape. Shared between the
+     * flat `fields` list and each step's nested `fields`.
+     *
+     * @return array<string, mixed>
+     */
+    private function mapField(FormField $field): array
+    {
+        return [
+            'id' => $field->id,
+            'label' => $field->label,
+            'field_key' => $field->field_key,
+            'type' => $field->type,
+            'placeholder' => $field->placeholder,
+            'default_value' => $field->default_value,
+            'options' => $field->options,
+            'is_required' => $field->is_required,
+            'width' => $field->width->value,
+            'sort_order' => $field->sort_order,
+        ];
     }
 
     /**
@@ -292,18 +426,20 @@ class FormBuilderController extends Controller
             'gdpr_consent_enabled' => $f->gdpr_consent_enabled,
             'gdpr_consent_text' => $f->gdpr_consent_text,
             'theme_id' => $f->theme_id,
-            'fields' => $f->fields->map(fn (FormField $field): array => [
-                'id' => $field->id,
-                'label' => $field->label,
-                'field_key' => $field->field_key,
-                'type' => $field->type,
-                'placeholder' => $field->placeholder,
-                'default_value' => $field->default_value,
-                'options' => $field->options,
-                'is_required' => $field->is_required,
-                'width' => $field->width->value,
-                'sort_order' => $field->sort_order,
-            ])->values(),
+            'fields' => $f->fields->map(fn (FormField $field): array => $this->mapField($field))->values(),
+            // Nested step shape the builder slide-over reconstructs editor.steps
+            // from. Steps ordered by sort_order; each carries only its own fields
+            // (filtered by form_step_id), also sort_order-ordered.
+            'steps' => $f->steps->sortBy('sort_order')->values()->map(fn (FormStep $step): array => [
+                'id' => $step->id,
+                'label' => $step->label,
+                'sort_order' => $step->sort_order,
+                'fields' => $f->fields
+                    ->where('form_step_id', $step->id)
+                    ->sortBy('sort_order')
+                    ->values()
+                    ->map(fn (FormField $field): array => $this->mapField($field)),
+            ]),
             'fields_count' => $f->fields->count(),
             'submissions_count' => (int) ($f->submissions_count ?? 0),
             'submission_count' => $f->submission_count,

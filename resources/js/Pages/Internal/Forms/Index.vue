@@ -14,13 +14,14 @@ import { ref, computed, reactive, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     IconPlus, IconForms, IconX, IconCopy, IconCheck, IconEye, IconEyeOff,
-    IconDots, IconTrash, IconEdit, IconArrowRight, IconChevronUp, IconChevronDown,
+    IconDots, IconTrash, IconEdit, IconArrowLeft, IconArrowRight, IconChevronUp, IconChevronDown,
     IconPencil,
     IconLetterT, IconMail, IconPhone, IconAlignLeft, IconCheckbox, IconCircleDot,
     IconNumbers, IconCalendar,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import FormFieldRenderer from '@/Components/Forms/FormFieldRenderer.vue';
 
 const props = defineProps({
     forms: { type: Array, required: true },
@@ -132,6 +133,16 @@ function toggleStatus(form) {
         onSuccess: () => { openMenu.value = null; },
     });
 }
+// Card → step list. Multi-step cards carry `steps`; legacy single-step cards
+// (or any without steps) fall back to wrapping their flat `fields` in one step.
+function cardSteps(card) {
+    return (card.steps && card.steps.length)
+        ? card.steps
+        : [{ label: 'Step 1', sort_order: 0, fields: card.fields ?? [] }];
+}
+
+// Backend-ready payload for a card (used by the status toggle, which PUTs the
+// whole form). Emits the steps-based shape the controller now expects.
 function formPayloadFromCard(card) {
     return {
         name: card.name,
@@ -144,17 +155,38 @@ function formPayloadFromCard(card) {
         gdpr_consent_enabled: card.gdpr_consent_enabled,
         gdpr_consent_text: card.gdpr_consent_text,
         theme_id: card.theme_id ?? null,
-        fields: card.fields.map((f, i) => ({
-            label: f.label,
-            field_key: f.field_key,
-            type: f.type,
-            placeholder: f.placeholder,
-            default_value: f.default_value,
-            options: f.options,
-            is_required: f.is_required,
-            width: f.width ?? 'full',
+        steps: cardSteps(card).map((step, si) => ({
+            label: step.label,
+            sort_order: si,
+            fields: (step.fields ?? []).map((f, fi) => ({
+                label: f.label,
+                field_key: f.field_key,
+                type: f.type,
+                placeholder: f.placeholder || null,
+                default_value: f.default_value || null,
+                options: f.options ?? null,
+                is_required: !!f.is_required,
+                width: f.width || 'full',
+                sort_order: fi,
+            })),
         })),
     };
+}
+
+// Card → editor steps (builder shape): each field gains the textarea-backed
+// options_raw so existing options show one-per-line while editing.
+function cardToEditorSteps(card) {
+    return cardSteps(card).map((step, si) => ({
+        id: step.id ?? null,
+        label: step.label || `Step ${si + 1}`,
+        sort_order: si,
+        fields: (step.fields ?? []).map(f => ({
+            ...f,
+            options: f.options ? [...f.options] : null,
+            options_raw: (f.options ?? []).join('\n'),
+            width: f.width ?? 'full',
+        })),
+    }));
 }
 
 /* ─── Builder slide-over ─── */
@@ -162,11 +194,36 @@ const editorOpen = ref(false);
 const editingId = ref(null);
 const editor = useForm(emptyEditor());
 
+/* ─── Step state ─── */
+// Fields are nested inside steps; the builder edits one step at a time.
+const activeStepIndex = ref(0);
+const activeStepFields = computed(() => editor.steps[activeStepIndex.value]?.fields ?? []);
+const totalFieldCount = computed(() => editor.steps.reduce((n, s) => n + s.fields.length, 0));
+
+/* ─── Remove-step confirm ─── */
+const confirmRemoveStep = ref(false);
+const stepToRemove = ref(null);
+
 /* ─── Live preview modal ─── */
-// Renders the current (unsaved) builder state exactly as the embedded
-// form would appear. Reads editor.fields directly so it tracks edits.
+// Renders the current (unsaved) builder state exactly as the embedded form
+// would appear. Reads editor.steps directly so it tracks edits. Per-step by
+// default; "All steps" flattens every step's fields (today's flat behaviour).
 const showPreview = ref(false);
-const previewFields = computed(() => editor.fields ?? []);
+const stepPreviewIndex = ref(0);
+const showAllSteps = ref(false);
+const previewFields = computed(() => {
+    const fields = showAllSteps.value
+        ? editor.steps.flatMap(s => s.fields)
+        : (editor.steps[stepPreviewIndex.value]?.fields ?? []);
+    // Inject the live options (from the unsaved options_raw textarea) so the
+    // renderer's select/radio reflect edits before save.
+    return fields.map(f => ({ ...f, options: fieldOptions(f) }));
+});
+function openPreview() {
+    stepPreviewIndex.value = Math.min(activeStepIndex.value, editor.steps.length - 1);
+    showAllSteps.value = false;
+    showPreview.value = true;
+}
 
 /* ─── Builder UI state ─── */
 // Which field card is expanded for inline editing (accordion).
@@ -200,9 +257,18 @@ function emptyEditor() {
         gdpr_consent_enabled: false,
         gdpr_consent_text: '',
         theme_id: null,
-        fields: [
-            { label: 'First name', field_key: 'first_name', type: 'text', placeholder: '', default_value: '', options: null, options_raw: '', is_required: true, width: 'full' },
-            { label: 'Email', field_key: 'email', type: 'email', placeholder: '', default_value: '', options: null, options_raw: '', is_required: true, width: 'full' },
+        // Fields are nested inside steps; a new form starts with one step that
+        // carries the default first-name/email seed.
+        steps: [
+            {
+                id: null,
+                label: 'Step 1',
+                sort_order: 0,
+                fields: [
+                    { label: 'First name', field_key: 'first_name', type: 'text', placeholder: '', default_value: '', options: null, options_raw: '', is_required: true, width: 'full' },
+                    { label: 'Email', field_key: 'email', type: 'email', placeholder: '', default_value: '', options: null, options_raw: '', is_required: true, width: 'full' },
+                ],
+            },
         ],
     };
 }
@@ -211,6 +277,7 @@ function openCreate() {
     editingId.value = null;
     editor.clearErrors();
     Object.assign(editor, emptyEditor());
+    activeStepIndex.value = 0;
     editingFieldIndex.value = null;
     editorOpen.value = true;
 }
@@ -218,14 +285,10 @@ function openEdit(form) {
     editingId.value = form.id;
     editor.clearErrors();
     Object.assign(editor, formPayloadFromCard(form));
-    // Seed each field's options_raw from the stored array so the textarea
-    // shows existing options, one per line.
-    editor.fields = form.fields.map(f => ({
-        ...f,
-        options: f.options ? [...f.options] : null,
-        options_raw: (f.options ?? []).join('\n'),
-        width: f.width ?? 'full',
-    }));
+    // Rebuild steps in the builder shape (each field gains options_raw so the
+    // textarea shows existing options, one per line).
+    editor.steps = cardToEditorSteps(form);
+    activeStepIndex.value = 0;
     editingFieldIndex.value = null;
     editorOpen.value = true;
     openMenu.value = null;
@@ -243,12 +306,13 @@ watch(() => editor.name, (n) => {
 });
 
 function addField(type = 'text') {
-    editor.fields.push(blankField(type));
+    const fields = editor.steps[activeStepIndex.value].fields;
+    fields.push(blankField(type));
     // Open the new field for editing straight away.
-    editingFieldIndex.value = editor.fields.length - 1;
+    editingFieldIndex.value = fields.length - 1;
 }
 function removeField(i) {
-    editor.fields.splice(i, 1);
+    editor.steps[activeStepIndex.value].fields.splice(i, 1);
     if (editingFieldIndex.value === i) {
         editingFieldIndex.value = null;
     } else if (editingFieldIndex.value !== null && editingFieldIndex.value > i) {
@@ -256,10 +320,51 @@ function removeField(i) {
     }
 }
 function moveField(i, delta) {
+    const fields = editor.steps[activeStepIndex.value].fields;
     const j = i + delta;
-    if (j < 0 || j >= editor.fields.length) return;
-    const [item] = editor.fields.splice(i, 1);
-    editor.fields.splice(j, 0, item);
+    if (j < 0 || j >= fields.length) return;
+    const [item] = fields.splice(i, 1);
+    fields.splice(j, 0, item);
+    editingFieldIndex.value = null;
+}
+
+/* ─── Steps ─── */
+function selectStep(index) {
+    activeStepIndex.value = index;
+    editingFieldIndex.value = null;
+}
+function addStep() {
+    editor.steps.push({
+        id: null,
+        label: 'Step ' + (editor.steps.length + 1),
+        sort_order: editor.steps.length,
+        fields: [],
+    });
+    activeStepIndex.value = editor.steps.length - 1;
+    editingFieldIndex.value = null;
+}
+// Guarded by ConfirmModal — the last step can never be removed.
+function askRemoveStep(index) {
+    if (editor.steps.length === 1) return;
+    stepToRemove.value = index;
+    confirmRemoveStep.value = true;
+}
+function doRemoveStep() {
+    const index = stepToRemove.value;
+    if (index === null || editor.steps.length === 1) return;
+    editor.steps.splice(index, 1);
+    if (activeStepIndex.value >= editor.steps.length) {
+        activeStepIndex.value = editor.steps.length - 1;
+    }
+    editingFieldIndex.value = null;
+    confirmRemoveStep.value = false;
+    stepToRemove.value = null;
+}
+// Move the currently-edited field out of the active step onto another.
+function moveFieldToStep(fieldIndex, targetStepIndex) {
+    const fields = editor.steps[activeStepIndex.value].fields;
+    const [item] = fields.splice(fieldIndex, 1);
+    editor.steps[targetStepIndex].fields.push(item);
     editingFieldIndex.value = null;
 }
 function autoKey(field) {
@@ -279,25 +384,32 @@ function save() {
     const method = editingId.value ? 'put' : 'post';
 
     // Split options_raw → options array at submit time (not per-keystroke,
-    // which would strip a newline the moment Enter is pressed).
+    // which would strip a newline the moment Enter is pressed). Emit the nested
+    // steps shape the backend expects; drop the legacy flat fields key.
     editor
         .transform((data) => ({
             ...data,
-            fields: data.fields.map((f) => ({
-                label: f.label,
-                field_key: f.field_key,
-                type: f.type,
-                placeholder: f.placeholder,
-                default_value: f.default_value,
-                is_required: f.is_required,
-                width: f.width ?? 'full',
-                options: OPTION_TYPES.includes(f.type)
-                    ? (f.options_raw ?? '')
-                        .split('\n')
-                        .map((o) => o.trim())
-                        .filter((o) => o.length > 0)
-                    : null,
+            steps: editor.steps.map((step, si) => ({
+                label: step.label,
+                sort_order: si,
+                fields: step.fields.map((field, fi) => ({
+                    label: field.label,
+                    field_key: field.field_key,
+                    type: field.type,
+                    placeholder: field.placeholder || null,
+                    default_value: field.default_value || null,
+                    is_required: !!field.is_required,
+                    width: field.width || 'full',
+                    sort_order: fi,
+                    options: OPTION_TYPES.includes(field.type)
+                        ? (field.options_raw ?? '')
+                            .split('\n')
+                            .map((o) => o.trim())
+                            .filter((o) => o.length > 0)
+                        : null,
+                })),
             })),
+            fields: undefined,
         }))
         [method](endpoint, {
             preserveScroll: true,
@@ -451,7 +563,7 @@ const totalSubmissions = computed(() =>
                     <header class="slide-over-head">
                         <h2>{{ editingId ? 'Edit form' : 'New form' }}</h2>
                         <div class="slide-over-head-actions">
-                            <button type="button" class="btn btn-ghost btn-sm" @click="showPreview = true">
+                            <button type="button" class="btn btn-ghost btn-sm" @click="openPreview">
                                 <IconEye :size="14" stroke-width="2" /> Preview
                             </button>
                             <button type="button" class="icon-btn" @click="editorOpen = false">
@@ -505,25 +617,69 @@ const totalSubmissions = computed(() =>
                             </div>
                         </section>
 
-                        <!-- Fields builder -->
+                        <!-- Fields builder (per-step) -->
                         <section class="form-section">
                             <div class="form-section-head">
                                 <h3 class="form-section-title">
                                     Fields
-                                    <span class="fb-count-badge">{{ editor.fields.length }}</span>
+                                    <span class="fb-count-badge">{{ editor.steps.length }} step{{ editor.steps.length === 1 ? '' : 's' }} · {{ totalFieldCount }} field{{ totalFieldCount === 1 ? '' : 's' }}</span>
                                 </h3>
                             </div>
 
-                            <div v-if="editor.fields.length === 0" class="muted small">No fields yet. Pick a type below to add one.</div>
+                            <!-- Step tabs -->
+                            <div class="fb-step-tabs">
+                                <div class="tabs">
+                                    <button
+                                        v-for="(step, si) in editor.steps"
+                                        :key="si"
+                                        type="button"
+                                        class="tab"
+                                        :class="{ active: si === activeStepIndex }"
+                                        @click="selectStep(si)"
+                                    >
+                                        {{ step.label || 'Step ' + (si + 1) }}
+                                        <span class="count">{{ step.fields.length }}</span>
+                                        <span
+                                            class="fb-step-x"
+                                            :class="{ 'is-disabled': editor.steps.length === 1 }"
+                                            title="Remove step"
+                                            @click.stop="askRemoveStep(si)"
+                                        >
+                                            <IconX :size="12" stroke-width="2" />
+                                        </span>
+                                    </button>
+                                </div>
+                                <button type="button" class="btn btn-ghost btn-sm fb-step-add" @click="addStep">
+                                    <IconPlus :size="14" stroke-width="2" /> Step
+                                </button>
+                            </div>
 
-                            <template v-for="(field, i) in editor.fields" :key="i">
+                            <!-- Active step label -->
+                            <div class="form-row fb-step-label-row">
+                                <label class="small">Step label <span class="fb-help-inline">— shown in the respondent progress indicator</span></label>
+                                <input
+                                    v-model="editor.steps[activeStepIndex].label"
+                                    type="text"
+                                    maxlength="60"
+                                    placeholder="Step label…"
+                                />
+                            </div>
+
+                            <!-- Empty step -->
+                            <div v-if="activeStepFields.length === 0" class="empty-state fb-step-empty">
+                                <div class="empty-icon"><IconForms :size="40" stroke-width="1.4" /></div>
+                                <h3>No fields on this step yet</h3>
+                                <p>Add a field below, or move one here from another step.</p>
+                            </div>
+
+                            <template v-for="(field, i) in activeStepFields" :key="i">
                                 <!-- Field card -->
                                 <div class="fb-field-card" :class="{ open: editingFieldIndex === i }">
                                     <div class="fb-reorder">
                                         <button type="button" class="icon-btn" :disabled="i === 0" title="Move up" @click="moveField(i, -1)">
                                             <IconChevronUp :size="13" stroke-width="2" />
                                         </button>
-                                        <button type="button" class="icon-btn" :disabled="i === editor.fields.length - 1" title="Move down" @click="moveField(i, 1)">
+                                        <button type="button" class="icon-btn" :disabled="i === activeStepFields.length - 1" title="Move down" @click="moveField(i, 1)">
                                             <IconChevronDown :size="13" stroke-width="2" />
                                         </button>
                                     </div>
@@ -586,6 +742,16 @@ const totalSubmissions = computed(() =>
                                         ></textarea>
                                     </div>
 
+                                    <!-- Move this field to another step (multi-step only) -->
+                                    <div v-if="editor.steps.length > 1" class="form-row">
+                                        <label class="small">Move to step</label>
+                                        <select :value="activeStepIndex" @change="moveFieldToStep(i, Number($event.target.value))">
+                                            <option v-for="(s, si) in editor.steps" :key="si" :value="si" :disabled="si === activeStepIndex">
+                                                {{ s.label || 'Step ' + (si + 1) }}{{ si === activeStepIndex ? ' (current)' : '' }}
+                                            </option>
+                                        </select>
+                                    </div>
+
                                     <div class="fb-toggle-row">
                                         <div>
                                             <div class="fb-toggle-label">Required</div>
@@ -599,7 +765,7 @@ const totalSubmissions = computed(() =>
                             </template>
 
                             <!-- Add-field type picker -->
-                            <div class="fb-add-label muted small">Add a field</div>
+                            <div class="fb-add-label muted small">Add a field to this step</div>
                             <div class="fb-type-grid">
                                 <button
                                     v-for="t in FIELD_TYPES"
@@ -677,49 +843,32 @@ const totalSubmissions = computed(() =>
                             This is how your form will appear when embedded.
                         </p>
 
+                        <!-- Step selector + All-steps toggle (multi-step only) -->
+                        <div v-if="editor.steps.length > 1" class="fp-preview-bar">
+                            <div class="fp-preview-steps">
+                                <button type="button" class="btn btn-ghost btn-sm" :disabled="showAllSteps || stepPreviewIndex === 0" @click="stepPreviewIndex--">
+                                    <IconArrowLeft :size="14" stroke-width="2" /> Prev
+                                </button>
+                                <span class="fp-preview-steplabel">
+                                    <template v-if="showAllSteps">All steps</template>
+                                    <template v-else>Step {{ stepPreviewIndex + 1 }} of {{ editor.steps.length }}<template v-if="editor.steps[stepPreviewIndex]?.label"> — {{ editor.steps[stepPreviewIndex].label }}</template></template>
+                                </span>
+                                <button type="button" class="btn btn-ghost btn-sm" :disabled="showAllSteps || stepPreviewIndex >= editor.steps.length - 1" @click="stepPreviewIndex++">
+                                    Next <IconArrowRight :size="14" stroke-width="2" />
+                                </button>
+                            </div>
+                            <button type="button" class="btn btn-ghost btn-sm" @click="showAllSteps = !showAllSteps">
+                                {{ showAllSteps ? 'Per step' : 'All steps' }}
+                            </button>
+                        </div>
+
                         <div class="fp-preview-form">
-                            <div
+                            <FormFieldRenderer
                                 v-for="(field, i) in previewFields"
                                 :key="i"
-                                class="fp-field"
-                            >
-                                <label class="fp-label">
-                                    {{ field.label }}
-                                    <span v-if="field.is_required" class="fp-required">*</span>
-                                </label>
-
-                                <input
-                                    v-if="['text', 'email', 'phone', 'number', 'date'].includes(field.type)"
-                                    :type="field.type === 'phone' ? 'tel' : field.type"
-                                    :placeholder="field.placeholder"
-                                    class="fp-input"
-                                    disabled
-                                />
-
-                                <textarea
-                                    v-else-if="field.type === 'textarea'"
-                                    :placeholder="field.placeholder"
-                                    class="fp-input fp-textarea"
-                                    disabled
-                                ></textarea>
-
-                                <select
-                                    v-else-if="field.type === 'select' || field.type === 'radio'"
-                                    class="fp-input"
-                                    disabled
-                                >
-                                    <option value="">{{ field.placeholder || 'Select…' }}</option>
-                                    <option v-for="(opt, oi) in fieldOptions(field)" :key="oi">{{ opt }}</option>
-                                </select>
-
-                                <label
-                                    v-else-if="field.type === 'checkbox'"
-                                    class="fp-check-label"
-                                >
-                                    <input type="checkbox" disabled />
-                                    {{ field.placeholder || field.label }}
-                                </label>
-                            </div>
+                                :field="field"
+                                :readonly="true"
+                            />
 
                             <button type="button" class="fp-submit-btn" disabled>
                                 {{ editor.submit_button_text || 'Submit' }}
@@ -738,5 +887,32 @@ const totalSubmissions = computed(() =>
             confirm-label="Delete"
             @confirm="doDelete"
         />
+
+        <ConfirmModal
+            v-model:show="confirmRemoveStep"
+            variant="danger"
+            title="Remove step?"
+            message="Fields on this step will also be removed."
+            confirm-label="Remove"
+            @confirm="doRemoveStep"
+        />
     </InternalLayout>
 </template>
+
+<style scoped>
+/* Step tabs — built on the shared .tabs/.tab primitive; only the per-step
+   remove (×), the rail, and the "+ Step" affordance are new. */
+.fb-step-tabs { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border-soft); margin-bottom: 14px; }
+.fb-step-tabs .tabs { flex: 1; flex-wrap: wrap; }
+.fb-step-x { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 4px; border-radius: 4px; color: var(--text-tertiary); }
+.fb-step-x:hover { background: var(--neutral-bg); color: var(--danger); }
+.fb-step-x.is-disabled { opacity: .35; pointer-events: none; }
+.fb-step-add { flex-shrink: 0; }
+.fb-step-label-row { margin-bottom: 14px; }
+.fb-step-empty { margin-bottom: 14px; }
+
+/* Preview step-selector bar. */
+.fp-preview-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-soft); }
+.fp-preview-steps { display: flex; align-items: center; gap: 10px; }
+.fp-preview-steplabel { font: 600 13px/1.3 'Inter', sans-serif; color: var(--text-primary); white-space: nowrap; }
+</style>

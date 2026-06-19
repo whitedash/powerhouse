@@ -39,6 +39,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read User $createdBy
  * @property-read FormTheme|null $theme
+ * @property-read Collection<int, FormStep> $steps
  * @property-read Collection<int, FormField> $fields
  * @property-read Collection<int, FormSubmission> $submissions
  * @property-read string $embed_url
@@ -87,13 +88,26 @@ class Form extends Model
     }
 
     /**
-     * Renderable fields in submit order. The form builder
-     * persists sort_order so dragging in the slide-over
-     * survives the round-trip.
+     * Ordered steps for a multi-step form. Single-step forms have no
+     * form_steps rows; their fields carry a null form_step_id.
+     */
+    public function steps(): HasMany
+    {
+        return $this->hasMany(FormStep::class)->orderBy('sort_order');
+    }
+
+    /**
+     * Renderable fields in submit order. Ordered by step first, then the
+     * step-scoped sort_order, so a multi-step form's fields come back grouped
+     * by step in the order the respondent meets them. The form builder
+     * persists both columns so dragging in the slide-over survives the
+     * round-trip.
      */
     public function fields(): HasMany
     {
-        return $this->hasMany(FormField::class)->orderBy('sort_order');
+        return $this->hasMany(FormField::class)
+            ->orderBy('form_step_id')
+            ->orderBy('sort_order');
     }
 
     public function submissions(): HasMany

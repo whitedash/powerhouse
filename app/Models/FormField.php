@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  *
  * @property int $id
  * @property int $form_id
+ * @property int|null $form_step_id
  * @property string $label
  * @property string $field_key
  * @property string $type
@@ -28,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Form $form
+ * @property-read FormStep|null $step
  */
 class FormField extends Model
 {
@@ -35,6 +37,7 @@ class FormField extends Model
 
     protected $fillable = [
         'form_id',
+        'form_step_id',
         'label',
         'field_key',
         'type',
@@ -50,6 +53,7 @@ class FormField extends Model
     protected function casts(): array
     {
         return [
+            'form_step_id' => 'integer',
             'options' => 'array',
             'validation_rules' => 'array',
             'is_required' => 'boolean',
@@ -61,5 +65,10 @@ class FormField extends Model
     public function form(): BelongsTo
     {
         return $this->belongsTo(Form::class);
+    }
+
+    public function step(): BelongsTo
+    {
+        return $this->belongsTo(FormStep::class, 'form_step_id');
     }
 }

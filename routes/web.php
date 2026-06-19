@@ -58,6 +58,7 @@ use App\Http\Controllers\Portal\AssetController as PortalAssetController;
 use App\Http\Controllers\Portal\AuthController as PortalAuthController;
 use App\Http\Controllers\Portal\ConnectedAppController as PortalConnectedAppController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
+use App\Http\Controllers\Portal\FormController as PortalFormController;
 use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
 use App\Http\Controllers\Portal\PasswordController as PortalPasswordController;
 use App\Http\Controllers\Portal\PaymentMethodController as PortalPaymentMethodController;
@@ -67,9 +68,11 @@ use App\Http\Controllers\Portal\SubscriptionController as PortalSubscriptionCont
 use App\Http\Controllers\Portal\SupportController as PortalSupportController;
 use App\Http\Controllers\Public\EmbedController as PublicEmbedController;
 use App\Http\Controllers\Public\FormController as PublicFormController;
+use App\Http\Controllers\Public\FormDraftController;
 use App\Http\Controllers\Public\InboundEmailController as PublicInboundEmailController;
 use App\Http\Controllers\Public\KnowledgeBaseController as PublicKnowledgeBaseController;
 use App\Http\Controllers\Public\LandingController as PublicLandingController;
+use App\Http\Controllers\Public\LegalController as PublicLegalController;
 use App\Http\Controllers\Public\ProposalAcceptanceController as PublicProposalAcceptanceController;
 use App\Http\Controllers\Public\ReferralRedirectController as PublicReferralRedirectController;
 use App\Http\Controllers\Public\SupportTicketController as PublicSupportTicketController;
@@ -111,6 +114,12 @@ Route::post('/support', [PublicSupportTicketController::class, 'store'])
     ->middleware('throttle:10,1')
     ->name('support.store');
 Route::get('/support/submitted', [PublicSupportTicketController::class, 'submitted'])->name('support.submitted');
+
+// Public legal pages, linked from the PublicLayout footer. Unauthenticated,
+// static long-form content rendered by PublicLegalController.
+Route::get('/privacy', [PublicLegalController::class, 'privacy'])->name('legal.privacy');
+Route::get('/terms', [PublicLegalController::class, 'terms'])->name('legal.terms');
+Route::get('/cookies', [PublicLegalController::class, 'cookies'])->name('legal.cookies');
 
 Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(function () {
     // Internal dashboard moved off "/" (now the public front door). The name
@@ -819,6 +828,20 @@ Route::middleware('forms.cors')->group(function () {
         ->middleware('throttle:30,1')
         ->name('form.submit');
 
+    // Multi-step draft persistence + resume (anonymous). draft/init creates the
+    // row and returns the draft_token the embed widget stores in localStorage;
+    // save/submit are keyed on that token. CSRF-excluded via forms/*/draft* in
+    // bootstrap/app.php (same posture as /submit).
+    Route::post('/forms/{slug}/draft', [FormDraftController::class, 'init'])
+        ->where('slug', '[a-z0-9-]+')
+        ->name('form.draft.init');
+    Route::put('/forms/{slug}/draft/{token}', [FormDraftController::class, 'saveStep'])
+        ->where('slug', '[a-z0-9-]+')
+        ->name('form.draft.save');
+    Route::post('/forms/{slug}/draft/{token}/submit', [FormDraftController::class, 'submit'])
+        ->where('slug', '[a-z0-9-]+')
+        ->name('form.draft.submit');
+
     // CORS preflight for the cross-origin submit POST. forms.cors answers
     // OPTIONS directly; this route just makes the request matchable so the
     // middleware runs instead of the router 405-ing an unknown method.
@@ -957,6 +980,13 @@ Route::prefix('portal')->middleware('auth.portal')->group(function () {
     Route::get('/invoices/{id}/paid', [PortalInvoiceController::class, 'paid'])->whereNumber('id')->name('portal.invoices.paid');
     Route::get('/invoices/{id}/pdf', [PortalInvoiceController::class, 'downloadPdf'])->name('portal.invoices.pdf');
     Route::get('/invoices/{id}/preview-pdf', [PortalInvoiceController::class, 'previewPdf'])->name('portal.invoices.preview-pdf');
+
+    // Multi-step form respondent flow. Drafts resume by portal_user_id (no
+    // token), scoped to the authenticated portal user in the controller.
+    Route::get('/forms/{id}', [PortalFormController::class, 'show'])->name('portal.forms.show')->whereNumber('id');
+    Route::post('/forms/{id}/draft', [PortalFormController::class, 'initDraft'])->name('portal.forms.draft.init')->whereNumber('id');
+    Route::put('/forms/{id}/draft', [PortalFormController::class, 'saveStep'])->name('portal.forms.draft.save')->whereNumber('id');
+    Route::post('/forms/{id}/draft/submit', [PortalFormController::class, 'submit'])->name('portal.forms.draft.submit')->whereNumber('id');
 
     Route::get('/support', [PortalSupportController::class, 'index'])->name('portal.support.index');
     Route::post('/support', [PortalSupportController::class, 'store'])->name('portal.support.store');

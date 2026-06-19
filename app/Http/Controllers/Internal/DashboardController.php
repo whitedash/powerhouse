@@ -286,7 +286,8 @@ class DashboardController extends Controller
                     'type' => 'ticket',
                     'priority' => 'red',
                     'title' => 'SLA breached: '.Str::limit((string) $t->subject, 40),
-                    'sub' => $t->customer->name,
+                    // @phpstan-ignore nullsafe.neverNull (support_tickets.customer_id is nullable for guest tickets; Larastan mistypes the belongsTo as non-null, so the ?-> is required at runtime)
+                    'sub' => $t->customer?->name ?? 'Unknown',
                     'action' => 'View →',
                     'href' => '/helpdesk/'.$t->id,
                 ]);

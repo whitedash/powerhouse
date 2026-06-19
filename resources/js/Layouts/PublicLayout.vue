@@ -93,9 +93,9 @@ onBeforeUnmount(() => {
         <footer class="pub-footer">
             <div class="pub-footer-inner">
                 <div class="pub-foot-legal">
-                    <span class="pub-foot-link is-soon">Privacy</span>
-                    <span class="pub-foot-link is-soon">Terms</span>
-                    <span class="pub-foot-link is-soon">Cookies</span>
+                    <Link :href="route('legal.privacy')" class="pub-foot-link">Privacy</Link>
+                    <Link :href="route('legal.terms')" class="pub-foot-link">Terms</Link>
+                    <Link :href="route('legal.cookies')" class="pub-foot-link">Cookies</Link>
                 </div>
                 <div class="pub-foot-copy">© {{ year }} Whitedash Holdings. All rights reserved.</div>
             </div>
@@ -202,8 +202,8 @@ onBeforeUnmount(() => {
     display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
 }
 .pub-foot-legal { display: flex; gap: 18px; }
-.pub-foot-link { font-size: 12.5px; color: var(--text-secondary); }
-.pub-foot-link.is-soon { opacity: .6; cursor: default; }
+.pub-foot-link { font-size: 12.5px; color: var(--text-secondary); text-decoration: none; }
+.pub-foot-link:hover { color: var(--text-primary); }
 .pub-foot-copy { font-size: 12.5px; color: var(--text-tertiary); }
 
 @media (max-width: 720px) {
