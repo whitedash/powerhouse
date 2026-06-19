@@ -18,6 +18,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Mews\Purifier\Facades\Purifier;
 
 /**
  * Internal CRUD for the form builder.
@@ -246,6 +247,9 @@ class FormBuilderController extends Controller
             'steps' => ['nullable', 'array'],
             'steps.*.label' => ['nullable', 'string', 'max:255'],
             'steps.*.fields' => ['nullable', 'array'],
+            // Placeholder rich-text body — nullable string, no length cap
+            // (sanitised, not length-validated). TEXT column, not VARCHAR.
+            'steps.*.fields.*.content' => ['nullable', 'string'],
 
             // Flat fields are now nullable: required only on the legacy
             // single-step path (steps absent). When steps is present this is
@@ -380,10 +384,21 @@ class FormBuilderController extends Controller
             $key = 'placeholder_'.$sortOrder;
         }
 
+        // Placeholder display text lives in `content` (TEXT), sanitised to a
+        // safe HTML subset; `label` is emptied for placeholders. Other types
+        // keep their label and carry no content.
+        $isPlaceholder = $type === 'placeholder';
+        $content = null;
+        if ($isPlaceholder) {
+            $raw = is_string($field['content'] ?? null) ? $field['content'] : '';
+            $content = Purifier::clean($raw, 'placeholder');
+        }
+
         return [
             'form_id' => $form->id,
             'form_step_id' => $step->id,
-            'label' => $field['label'] ?? null,
+            'label' => $isPlaceholder ? '' : ($field['label'] ?? null),
+            'content' => $content,
             'field_key' => $key,
             'type' => $type,
             'placeholder' => $field['placeholder'] ?? null,
@@ -431,6 +446,7 @@ class FormBuilderController extends Controller
         return [
             'id' => $field->id,
             'label' => $field->label,
+            'content' => $field->content,
             'field_key' => $field->field_key,
             'type' => $field->type,
             'placeholder' => $field->placeholder,

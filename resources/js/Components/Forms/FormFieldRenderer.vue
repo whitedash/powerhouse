@@ -46,10 +46,9 @@ const showRequiredMark = computed(() => props.field.is_required && props.modelVa
             <span v-if="showRequiredMark" class="ffr-req">*</span>
         </label>
 
-        <!-- Display-only text block — `label` holds the text, no input. -->
-        <div v-if="field.type === 'placeholder'" class="ffr-placeholder-text">
-            {{ field.label }}
-        </div>
+        <!-- Display-only text block — rich-text `content`, no input. Already
+             sanitised server-side by Purifier on save, so v-html is safe here. -->
+        <div v-if="field.type === 'placeholder'" class="ffr-placeholder-text" v-html="field.content || ''"></div>
 
         <input
             v-if="TEXT_INPUT_TYPES.includes(field.type)"
@@ -124,6 +123,10 @@ const showRequiredMark = computed(() => props.field.is_required && props.modelVa
 .ffr-radio, .ffr-check { display: flex; align-items: center; gap: 8px; font: 400 14px/1.4 'Inter', sans-serif; color: var(--text-primary); cursor: pointer; }
 .ffr-radio input, .ffr-check input { width: auto; margin: 0; }
 .ffr-placeholder-text { color: var(--text-secondary); font-size: .9375rem; line-height: 1.6; padding: .25rem 0; }
+.ffr-placeholder-text :deep(a) { color: var(--accent); text-decoration: underline; }
+.ffr-placeholder-text :deep(ul), .ffr-placeholder-text :deep(ol) { padding-left: 1.25rem; margin: .25rem 0; }
+.ffr-placeholder-text :deep(p) { margin: 0 0 .5rem; }
+.ffr-placeholder-text :deep(p:last-child) { margin-bottom: 0; }
 .col-span-12 { grid-column: span 12; }
 .col-span-6 { grid-column: span 6; }
 .col-span-4 { grid-column: span 4; }

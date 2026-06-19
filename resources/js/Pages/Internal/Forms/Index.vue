@@ -18,7 +18,14 @@ import {
     IconPencil,
     IconLetterT, IconMail, IconPhone, IconAlignLeft, IconCheckbox, IconCircleDot,
     IconNumbers, IconCalendar,
+    IconBold, IconItalic, IconList, IconListNumbers, IconLink, IconLinkOff,
 } from '@tabler/icons-vue';
+import { useEditor, EditorContent } from '@tiptap/vue-3';
+import StarterKit from '@tiptap/starter-kit';
+// Aliased to TiptapLink — `Link` is already imported from @inertiajs/vue3 above.
+// Default export matches the proven usage in Components/UI/RichTextEditor.vue
+// at this pinned version (3.23.6).
+import TiptapLink from '@tiptap/extension-link';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 import FormFieldRenderer from '@/Components/Forms/FormFieldRenderer.vue';
@@ -162,6 +169,7 @@ function formPayloadFromCard(card) {
             sort_order: si,
             fields: (step.fields ?? []).map((f, fi) => ({
                 label: f.label,
+                content: f.content ?? null,
                 field_key: f.field_key,
                 type: f.type,
                 placeholder: f.placeholder || null,
@@ -184,6 +192,7 @@ function cardToEditorSteps(card) {
         sort_order: si,
         fields: (step.fields ?? []).map(f => ({
             ...f,
+            content: f.content ?? '',
             options: f.options ? [...f.options] : null,
             options_raw: (f.options ?? []).join('\n'),
             width: f.width ?? 'full',
@@ -236,15 +245,80 @@ function toggleFieldEdit(i) {
 // Collapsible sections — details open, settings collapsed.
 const openSections = reactive({ details: true, settings: false });
 
+/* ─── Placeholder rich-text editor (Tiptap) ───
+   One editor instance for the whole builder (only one field is edited at a
+   time). useEditor() is called once at setup so its lifecycle hooks register
+   correctly and it auto-destroys on unmount; openPlaceholderEditor just points
+   it at the active field and loads that field's content. */
+const activePlaceholderField = ref(null);
+const showLinkInput = ref(false);
+const linkInputValue = ref('');
+
+const tiptapEditor = useEditor({
+    content: '',
+    extensions: [
+        StarterKit,
+        TiptapLink.configure({ openOnClick: false, autolink: true }),
+    ],
+    onUpdate: ({ editor }) => {
+        if (activePlaceholderField.value) {
+            activePlaceholderField.value.content = editor.getHTML();
+        }
+    },
+});
+
+function openPlaceholderEditor(field) {
+    activePlaceholderField.value = field;
+    showLinkInput.value = false;
+    linkInputValue.value = '';
+    // `false` = don't emit an update for the programmatic load.
+    tiptapEditor.value?.commands.setContent(field.content || '', false);
+}
+
+function closePlaceholderEditor() {
+    activePlaceholderField.value = null;
+    showLinkInput.value = false;
+    linkInputValue.value = '';
+}
+
+function setLink() {
+    if (! tiptapEditor.value) return;
+    // No window.prompt (CLAUDE.md) — reveal an inline URL input instead.
+    linkInputValue.value = tiptapEditor.value.getAttributes('link').href ?? '';
+    showLinkInput.value = true;
+}
+
+function applyLink() {
+    if (! tiptapEditor.value) return;
+    if (linkInputValue.value) {
+        tiptapEditor.value.chain().focus()
+            .setLink({ href: linkInputValue.value, target: '_blank', rel: 'noopener noreferrer' })
+            .run();
+    }
+    showLinkInput.value = false;
+    linkInputValue.value = '';
+}
+
+// Point the editor at the field whose inline panel is open (placeholder only).
+watch([editingFieldIndex, activeStepIndex], () => {
+    const idx = editingFieldIndex.value;
+    const field = idx !== null ? editor.steps[activeStepIndex.value]?.fields?.[idx] : null;
+    if (field && field.type === 'placeholder') {
+        openPlaceholderEditor(field);
+    } else {
+        closePlaceholderEditor();
+    }
+});
+
 // A blank field shaped for the builder. options_raw is the textarea-backed
 // string; it's split into the `options` array only at save time so typing
 // a newline isn't stripped mid-edit.
 function blankField(type = 'text') {
     if (type === 'placeholder') {
-        // Display-only text block: `label` holds the text, field_key is left
-        // empty for the backend to synthesise.
+        // Display-only text block: `content` holds the rich-text body (label
+        // stays empty); field_key is left empty for the backend to synthesise.
         return {
-            label: '', field_key: '', type: 'placeholder', placeholder: null,
+            label: '', content: '', field_key: '', type: 'placeholder', placeholder: null,
             default_value: null, options: null, options_raw: '', is_required: false, width: 'full',
         };
     }
@@ -404,6 +478,8 @@ function save() {
                 sort_order: si,
                 fields: step.fields.map((field, fi) => ({
                     label: field.label,
+                    // Placeholder body (sanitised server-side); null for other types.
+                    content: field.type === 'placeholder' ? (field.content || '') : null,
                     field_key: field.field_key,
                     type: field.type,
                     placeholder: field.placeholder || null,
@@ -734,7 +810,37 @@ const totalSubmissions = computed(() =>
                                     <template v-if="field.type === 'placeholder'">
                                         <div class="form-row">
                                             <label class="small">Content <span class="fb-help-inline">— the text shown in the form</span></label>
-                                            <textarea v-model="field.label" rows="4" placeholder="Enter your text block content…"></textarea>
+                                            <div class="fb-rte-wrap">
+                                                <div v-if="tiptapEditor" class="fb-rte-toolbar">
+                                                    <button type="button" :class="{ active: tiptapEditor.isActive('bold') }" title="Bold" @click="tiptapEditor.chain().focus().toggleBold().run()">
+                                                        <IconBold :size="14" stroke-width="2" />
+                                                    </button>
+                                                    <button type="button" :class="{ active: tiptapEditor.isActive('italic') }" title="Italic" @click="tiptapEditor.chain().focus().toggleItalic().run()">
+                                                        <IconItalic :size="14" stroke-width="2" />
+                                                    </button>
+                                                    <button type="button" :class="{ active: tiptapEditor.isActive('bulletList') }" title="Bullet list" @click="tiptapEditor.chain().focus().toggleBulletList().run()">
+                                                        <IconList :size="14" stroke-width="2" />
+                                                    </button>
+                                                    <button type="button" :class="{ active: tiptapEditor.isActive('orderedList') }" title="Numbered list" @click="tiptapEditor.chain().focus().toggleOrderedList().run()">
+                                                        <IconListNumbers :size="14" stroke-width="2" />
+                                                    </button>
+                                                    <button type="button" :class="{ active: tiptapEditor.isActive('link') }" title="Link" @click="setLink">
+                                                        <IconLink :size="14" stroke-width="2" />
+                                                    </button>
+                                                    <button v-if="tiptapEditor.isActive('link')" type="button" title="Remove link" @click="tiptapEditor.chain().focus().unsetLink().run()">
+                                                        <IconLinkOff :size="14" stroke-width="2" />
+                                                    </button>
+                                                </div>
+                                                <div class="fb-rte-content">
+                                                    <EditorContent :editor="tiptapEditor" />
+                                                </div>
+                                                <div v-if="showLinkInput" class="fb-rte-link-input">
+                                                    <input v-model="linkInputValue" type="url" placeholder="https://…" class="input input-sm"
+                                                        @keydown.enter.prevent="applyLink" @keydown.escape="showLinkInput = false" />
+                                                    <button type="button" class="btn btn-sm btn-primary" @click="applyLink">Apply</button>
+                                                    <button type="button" class="btn btn-sm btn-secondary" @click="showLinkInput = false">Cancel</button>
+                                                </div>
+                                            </div>
                                         </div>
                                         <div class="form-row">
                                             <label class="small">Type</label>
@@ -957,6 +1063,21 @@ const totalSubmissions = computed(() =>
 .fb-error-banner { background: var(--danger-bg); border: 1px solid var(--danger); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 16px; }
 .fb-error-banner-title { font-weight: 700; margin: 0 0 6px; color: var(--danger); font-size: .875rem; }
 .fb-error-banner-list { margin: 0; padding-left: 1rem; font-size: .875rem; color: var(--text-primary); }
+
+/* Placeholder rich-text editor (Tiptap). --surface-raised/--surface are not
+   defined in app.css, so the toolbar uses --neutral-bg (the app's light raised
+   surface); --surface-hover falls back to --border. */
+.fb-rte-wrap { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.fb-rte-toolbar { display: flex; gap: .25rem; padding: .375rem .5rem; background: var(--neutral-bg); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.fb-rte-toolbar button { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; background: transparent; border-radius: var(--radius-sm, 4px); cursor: pointer; color: var(--text-secondary); }
+.fb-rte-toolbar button:hover, .fb-rte-toolbar button.active { background: var(--surface-hover, var(--border)); color: var(--accent); }
+.fb-rte-content { padding: .5rem .75rem; min-height: 120px; }
+.fb-rte-content :deep(.ProseMirror) { outline: none; min-height: 100px; font-size: .9375rem; line-height: 1.6; }
+.fb-rte-content :deep(.ProseMirror p) { margin: 0 0 .5rem; }
+.fb-rte-content :deep(.ProseMirror ul), .fb-rte-content :deep(.ProseMirror ol) { padding-left: 1.25rem; margin: 0 0 .5rem; }
+.fb-rte-content :deep(.ProseMirror a) { color: var(--accent); text-decoration: underline; }
+.fb-rte-link-input { display: flex; gap: .5rem; padding: .375rem .5rem; border-top: 1px solid var(--border); align-items: center; }
+.fb-rte-link-input .input { flex: 1; }
 
 /* Preview step-selector bar. */
 .fp-preview-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-soft); }

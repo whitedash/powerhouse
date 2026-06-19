@@ -7,6 +7,8 @@
 @php
     $fields = $form->fields->map(fn ($f) => [
         'label' => $f->label,
+        // Rich-text body for placeholder/text-block fields (server-sanitised).
+        'content' => $f->content ?? null,
         'field_key' => $f->field_key,
         'type' => $f->type,
         'placeholder' => $f->placeholder,
@@ -242,7 +244,9 @@
         // it never enters FormData / answer collection).
         if (field.type === "placeholder") {
             var block = el("div", { class: "pw-text-block" });
-            block.textContent = field.label || "";
+            // content is server-sanitised by Purifier on save, so innerHTML is
+            // safe here (the value is not raw user input at render time).
+            block.innerHTML = field.content || "";
             return block;
         }
         var span = WIDTH_COLS[field.width] || "pw-col-12";
