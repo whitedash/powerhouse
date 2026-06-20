@@ -157,6 +157,14 @@
             + ".pw-form input,.pw-form textarea,.pw-form select{width:100%;padding:10px 12px;border:var(--pw-border-width) solid var(--pw-border);border-radius:var(--pw-radius);font-size:var(--pw-font-size);font-family:inherit;background:var(--pw-surface);box-sizing:border-box;}"
             + ".pw-form input:focus,.pw-form textarea:focus,.pw-form select:focus{outline:none;border-color:var(--pw-accent);box-shadow:0 0 0 3px var(--pw-focus-ring);}"
             + ".pw-form textarea{min-height:96px;resize:vertical;}"
+            // Radio/checkbox option groups — vertical list, each a small native
+            // control + its own inline label. The width:auto / font-weight / display
+            // overrides are required because the shared input + label primitives
+            // above force full-width inputs and bold block labels.
+            + ".pw-form .pw-radio-group,.pw-form .pw-checkbox-group{display:flex;flex-direction:column;gap:8px;}"
+            + ".pw-form .pw-radio-option,.pw-form .pw-checkbox-option{display:flex;align-items:center;gap:8px;}"
+            + ".pw-form .pw-radio-input,.pw-form .pw-checkbox-input{width:auto;margin:0;flex:none;accent-color:var(--pw-accent);}"
+            + ".pw-form .pw-radio-label,.pw-form .pw-checkbox-label{display:inline;margin:0;font-weight:400;font-size:var(--pw-font-size);color:var(--pw-text);cursor:pointer;}"
             + ".pw-form .pw-hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;}"
             // Solid button keeps border:none (pixel-identical default); the
             // outline variant adds its own border below.
@@ -284,6 +292,43 @@
                 id: "pw-" + field.field_key,
             }, opts);
             input.value = String(currentVal);
+        } else if (field.type === "radio") {
+            // Radio group — one input per option, all sharing the field name so
+            // only one can be selected. The bare-input fallback below rendered a
+            // single empty box and dropped the options entirely.
+            input = el("div", { class: "pw-radio-group" });
+            (field.options || []).forEach(function (opt) {
+                var rid = "pw-radio-" + field.field_key + "-" + opt.replace(/\s+/g, "_");
+                var wrapper = el("div", { class: "pw-radio-option" });
+                var radio = el("input", {
+                    type: "radio",
+                    name: field.field_key,
+                    value: opt,
+                    id: rid,
+                    class: "pw-radio-input",
+                });
+                if (String(currentVal) === opt) radio.setAttribute("checked", "checked");
+                wrapper.appendChild(radio);
+                wrapper.appendChild(el("label", { for: rid, class: "pw-radio-label" }, [opt]));
+                input.appendChild(wrapper);
+            });
+        } else if (field.type === "checkbox") {
+            // Checkbox group — name uses [] so multiple selections post as an array.
+            input = el("div", { class: "pw-checkbox-group" });
+            (field.options || []).forEach(function (opt) {
+                var cid = "pw-checkbox-" + field.field_key + "-" + opt.replace(/\s+/g, "_");
+                var wrapper = el("div", { class: "pw-checkbox-option" });
+                var box = el("input", {
+                    type: "checkbox",
+                    name: field.field_key + "[]",
+                    value: opt,
+                    id: cid,
+                    class: "pw-checkbox-input",
+                });
+                wrapper.appendChild(box);
+                wrapper.appendChild(el("label", { for: cid, class: "pw-checkbox-label" }, [opt]));
+                input.appendChild(wrapper);
+            });
         } else {
             input = el("input", {
                 type: field.type === "phone" ? "tel" : field.type,
