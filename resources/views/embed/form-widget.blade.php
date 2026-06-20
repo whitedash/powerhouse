@@ -206,11 +206,18 @@
             + ".pw-form .ms-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;}"
             + ".pw-form .ms-nav .ms-nav-spacer{flex:1;}"
             + ".pw-form .ms-autosave{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--pw-label);margin-top:12px;}"
-            + ".pw-resume{display:flex;flex-direction:column;gap:6px;border:1px solid var(--pw-border);border-left:3px solid var(--pw-accent);border-radius:var(--pw-radius);padding:14px 16px;background:var(--pw-surface);margin-bottom:18px;}"
-            + ".pw-resume .ms-resume-ttl{font-size:14px;font-weight:600;color:var(--pw-text);}"
-            + ".pw-resume .ms-resume-msg{font-size:13px;color:var(--pw-label);}"
-            + ".pw-resume .ms-resume-actions{display:flex;gap:10px;margin-top:6px;}"
-            + ".ms-inert{opacity:.4;filter:blur(1px);pointer-events:none;user-select:none;}";
+            // Resume card — itself a .pw-form, so border/bg/radius/tokens come
+            // from the .pw-form chrome; these classes only add layout + type
+            // (tokens only, no hardcoded colours).
+            + ".pw-resume-card{padding:var(--pw-form-padding);}"
+            + ".pw-form .pw-resume-progress{font-size:.75rem;color:var(--pw-label);margin-bottom:.5rem;}"
+            + ".pw-form .pw-resume-heading{font-size:1.125rem;font-weight:600;color:var(--pw-text);margin-bottom:.5rem;}"
+            + ".pw-form .pw-resume-body{font-size:.875rem;color:var(--pw-label);margin-bottom:1.25rem;}"
+            + ".pw-form .pw-resume-actions{display:flex;align-items:stretch;gap:.75rem;}"
+            + ".pw-form .pw-resume-actions button{flex:1;}"
+            + ".pw-form .pw-resume-link{flex:1;display:flex;align-items:center;justify-content:center;padding:.625rem 1rem;font-size:.9375rem;font-weight:500;color:var(--pw-text);background:transparent;border:2px solid var(--pw-border);border-radius:var(--pw-radius);cursor:pointer;text-decoration:none;text-align:center;}"
+            + ".pw-form .pw-resume-link:hover{background:var(--pw-border);}"
+            + ".pw-form .pw-resume-confirming{color:var(--pw-error);border-color:var(--pw-error);}";
 
         // Optional per-theme custom CSS, injected AFTER the variable styles
         // (inside the shadow root, so it can't leak to the host page).
@@ -579,28 +586,48 @@
         render(currentStep);
     }
 
-    // Resume banner (STATE 3) — shown on load when a saved token is present.
-    // The step-0 fields render beneath it, inert until the respondent chooses.
+    // Resume banner — shown on load when a saved draft token is present. A single
+    // self-contained card (itself a .pw-form, so the --pw-* tokens and widget
+    // chrome resolve); NO step fields rendered beneath it.
     function showResumeBanner(token) {
-        var actions = el("div", { class: "ms-resume-actions" });
-        var cont = el("button", { type: "button", class: "pw-btn-hover-lift" }, ["Continue"]);
-        cont.addEventListener("click", function () { resumeDraft(token); });
-        var over = el("button", { type: "button", class: "pw-btn-outline" }, ["Start over"]);
-        over.addEventListener("click", function () { clearDraft(); render(0); });
-        actions.appendChild(cont);
-        actions.appendChild(over);
+        var savedStep = parseInt(localStorage.getItem(LS_KEY + "_step") || "0", 10);
 
-        var banner = el("div", { class: "pw-resume" }, [
-            el("div", { class: "ms-resume-ttl" }, ["Welcome back"]),
-            el("div", { class: "ms-resume-msg" }, ["Continue where you left off, or start over."]),
-            actions,
-        ]);
+        var children = [];
 
-        var grid = el("div", { class: "pw-grid" });
-        stepGroups[0].fields.forEach(function (f) { grid.appendChild(renderField(f)); });
-        var inert = el("div", { class: "ms-inert" }, [grid]);
+        // Progress line — only once at least one step has been completed.
+        if (savedStep > 0) {
+            children.push(el("div", { class: "pw-resume-progress" },
+                ["Step " + savedStep + " of " + totalSteps + " completed"]));
+        }
 
-        mount([banner, inert]);
+        children.push(el("div", { class: "pw-resume-heading" }, ["Welcome back"]));
+        children.push(el("div", { class: "pw-resume-body" },
+            ["You have a saved draft. Continue where you left off or start over."]));
+
+        // Primary "Continue" — same class as the Next/Submit button. Resumes by
+        // setting draftToken + currentStep from the saved values, then renders.
+        var continueBtn = buildPrimaryButton(false, el("span", { class: "pw-btn-label" }, ["Continue"]));
+        continueBtn.setAttribute("type", "button");
+        continueBtn.addEventListener("click", function () { resumeDraft(token); });
+
+        // "Start over" — a text link with a two-click confirm (no window.confirm).
+        var startOver = el("a", { class: "pw-resume-link", href: "#", role: "button" }, ["Start over"]);
+        var confirming = false;
+        startOver.addEventListener("click", function (e) {
+            e.preventDefault();
+            if (!confirming) {
+                confirming = true;
+                startOver.textContent = "Are you sure?";
+                startOver.classList.add("pw-resume-confirming");
+                return;
+            }
+            clearDraft();
+            render(0);
+        });
+
+        children.push(el("div", { class: "pw-resume-actions" }, [continueBtn, startOver]));
+
+        mount([el("div", { class: "pw-form pw-resume-card" }, children)]);
     }
 
     function render(stepIndex) {
