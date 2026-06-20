@@ -17,7 +17,7 @@ import {
     IconDots, IconTrash, IconEdit, IconArrowLeft, IconArrowRight, IconChevronUp, IconChevronDown,
     IconPencil,
     IconLetterT, IconMail, IconPhone, IconAlignLeft, IconCheckbox, IconCircleDot,
-    IconNumbers, IconCalendar,
+    IconNumbers, IconCalendar, IconCalendarTime,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -38,6 +38,7 @@ const FIELD_TYPES = [
     { value: 'checkbox', label: 'Checkbox' },
     { value: 'number', label: 'Number' },
     { value: 'date', label: 'Date' },
+    { value: 'datetime', label: 'Date & Time' },
     { value: 'hidden', label: 'Hidden' },
     { value: 'placeholder', label: 'Text block' },
 ];
@@ -54,6 +55,7 @@ const FIELD_ICONS = {
     checkbox: IconCheckbox,
     number: IconNumbers,
     date: IconCalendar,
+    datetime: IconCalendarTime,
     hidden: IconEyeOff,
     placeholder: IconAlignLeft,
 };

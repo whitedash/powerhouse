@@ -24,9 +24,13 @@ const props = defineProps({
 defineEmits(['update:modelValue']);
 
 // Same type branches as the original builder-preview inline renderer.
-const TEXT_INPUT_TYPES = ['text', 'email', 'phone', 'number', 'date'];
+const TEXT_INPUT_TYPES = ['text', 'email', 'phone', 'number', 'date', 'datetime'];
 
-const inputType = computed(() => (props.field.type === 'phone' ? 'tel' : props.field.type));
+const inputType = computed(() => {
+    if (props.field.type === 'phone') return 'tel';
+    if (props.field.type === 'datetime') return 'datetime-local';
+    return props.field.type;
+});
 
 const widthClass = computed(() => ({
     full: 'col-span-12',

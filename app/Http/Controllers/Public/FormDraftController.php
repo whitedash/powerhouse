@@ -114,7 +114,7 @@ class FormDraftController extends Controller
             if ($field->type === 'number') {
                 $chain[] = 'numeric';
             }
-            if ($field->type === 'date') {
+            if ($field->type === 'date' || $field->type === 'datetime') {
                 $chain[] = 'date';
             }
             $rules[$field->field_key] = implode('|', $chain);

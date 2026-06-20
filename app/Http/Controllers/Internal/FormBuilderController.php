@@ -42,7 +42,7 @@ class FormBuilderController extends Controller
     private const FIELD_TYPES = [
         'text', 'email', 'phone', 'textarea',
         'select', 'radio', 'checkbox', 'number',
-        'date', 'hidden', 'placeholder',
+        'date', 'datetime', 'hidden', 'placeholder',
     ];
 
     public function index(): Response

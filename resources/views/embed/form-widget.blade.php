@@ -330,8 +330,11 @@
                 input.appendChild(wrapper);
             });
         } else {
+            // datetime → native datetime-local picker; phone → tel; else 1:1.
+            var inputType = field.type === "phone" ? "tel"
+                : (field.type === "datetime" ? "datetime-local" : field.type);
             input = el("input", {
-                type: field.type === "phone" ? "tel" : field.type,
+                type: inputType,
                 name: field.field_key,
                 id: "pw-" + field.field_key,
                 placeholder: field.placeholder || "",
