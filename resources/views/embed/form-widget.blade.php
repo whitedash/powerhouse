@@ -244,8 +244,8 @@
         // it never enters FormData / answer collection).
         if (field.type === "placeholder") {
             var block = el("div", { class: "pw-text-block" });
-            // content is server-sanitised by Purifier on save, so innerHTML is
-            // safe here (the value is not raw user input at render time).
+            // Placeholder: content is sanitised by DOMPurify in the builder before save.
+            // The embed widget renders stored content directly — no output sanitiser here.
             block.innerHTML = field.content || "";
             return block;
         }

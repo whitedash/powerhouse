@@ -26,6 +26,7 @@ import StarterKit from '@tiptap/starter-kit';
 // Default export matches the proven usage in Components/UI/RichTextEditor.vue
 // at this pinned version (3.23.6).
 import TiptapLink from '@tiptap/extension-link';
+import DOMPurify from 'dompurify';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 import FormFieldRenderer from '@/Components/Forms/FormFieldRenderer.vue';
@@ -34,6 +35,15 @@ const props = defineProps({
     forms: { type: Array, required: true },
     themes: { type: Array, default: () => [] },
 });
+
+// Allowlist for placeholder/text-block rich text — mirrors the deleted
+// mews/purifier 'placeholder' profile. Applied on input (here) and again on
+// output in FormFieldRenderer.vue. ALLOWED_URI_REGEXP strips javascript: etc.
+const PLACEHOLDER_SANITISE_CONFIG = {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li', 'a'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+    ALLOWED_URI_REGEXP: /^(https?:|mailto:)/i,
+};
 
 const FIELD_TYPES = [
     { value: 'text', label: 'Text' },
@@ -262,7 +272,7 @@ const tiptapEditor = useEditor({
     ],
     onUpdate: ({ editor }) => {
         if (activePlaceholderField.value) {
-            activePlaceholderField.value.content = editor.getHTML();
+            activePlaceholderField.value.content = DOMPurify.sanitize(editor.getHTML(), PLACEHOLDER_SANITISE_CONFIG);
         }
     },
 });
@@ -478,8 +488,11 @@ function save() {
                 sort_order: si,
                 fields: step.fields.map((field, fi) => ({
                     label: field.label,
-                    // Placeholder body (sanitised server-side); null for other types.
-                    content: field.type === 'placeholder' ? (field.content || '') : null,
+                    // Placeholder body — sanitised client-side (belt-and-braces;
+                    // onUpdate already cleans it). null for other types.
+                    content: field.type === 'placeholder'
+                        ? DOMPurify.sanitize(field.content || '', PLACEHOLDER_SANITISE_CONFIG)
+                        : null,
                     field_key: field.field_key,
                     type: field.type,
                     placeholder: field.placeholder || null,

@@ -390,11 +390,7 @@ class FormBuilderController extends Controller
         $content = null;
         if ($isPlaceholder) {
             $raw = is_string($field['content'] ?? null) ? $field['content'] : '';
-            // Temporary: strip ALL tags to plain text (XSS-safe, zero external
-            // deps) while mews/purifier can't be safely deployed to the shared
-            // host. Rich formatting is intentionally not preserved here; restore
-            // HTMLPurifier once the vendor deployment is stable.
-            $content = strip_tags($raw);
+            $content = $raw; // Sanitised client-side by DOMPurify before save
         }
 
         return [

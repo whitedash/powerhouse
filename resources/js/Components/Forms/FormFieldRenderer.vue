@@ -13,6 +13,7 @@
  * renderer, not a panel — it carries NO card wrapper (audit:sections).
  */
 import { computed } from 'vue';
+import DOMPurify from 'dompurify';
 
 const props = defineProps({
     field: { type: Object, required: true },
@@ -37,6 +38,18 @@ const options = computed(() => props.field.options ?? []);
 
 // Asterisk only in preview mode (modelValue null = nothing bound).
 const showRequiredMark = computed(() => props.field.is_required && props.modelValue === null);
+
+// Output sanitisation for placeholder/text-block content — second barrier
+// (the builder also sanitises on input). Same allowlist as the deleted
+// mews/purifier 'placeholder' profile.
+const PLACEHOLDER_SANITISE_CONFIG = {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li', 'a'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+    ALLOWED_URI_REGEXP: /^(https?:|mailto:)/i,
+};
+const sanitisedContent = computed(() =>
+    DOMPurify.sanitize(props.field.content || '', PLACEHOLDER_SANITISE_CONFIG),
+);
 </script>
 
 <template>
@@ -46,9 +59,8 @@ const showRequiredMark = computed(() => props.field.is_required && props.modelVa
             <span v-if="showRequiredMark" class="ffr-req">*</span>
         </label>
 
-        <!-- Display-only text block — rich-text `content`, no input. Already
-             sanitised server-side by Purifier on save, so v-html is safe here. -->
-        <div v-if="field.type === 'placeholder'" class="ffr-placeholder-text" v-html="field.content || ''"></div>
+        <!-- Placeholder: content sanitised by DOMPurify at input (builder) and output (here) -->
+        <div v-if="field.type === 'placeholder'" class="ffr-placeholder-text" v-html="sanitisedContent"></div>
 
         <input
             v-if="TEXT_INPUT_TYPES.includes(field.type)"

@@ -8,6 +8,7 @@
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
+        "@types/dompurify": "^3.0.5",
         "concurrently": "^10.0.3",
         "laravel-vite-plugin": "^3.1",
         "tailwindcss": "^4.0.0",
@@ -31,6 +32,7 @@
         "@tiptap/vue-3": "^3.23.6",
         "@vitejs/plugin-vue": "^6.0.7",
         "dayjs": "^1.11.21",
+        "dompurify": "^3.4.11",
         "laravel-echo": "^2.3.4",
         "pusher-js": "^8.5.0",
         "vue": "^3.5.35"
