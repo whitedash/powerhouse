@@ -18,7 +18,6 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
-use Mews\Purifier\Facades\Purifier;
 
 /**
  * Internal CRUD for the form builder.
@@ -391,7 +390,11 @@ class FormBuilderController extends Controller
         $content = null;
         if ($isPlaceholder) {
             $raw = is_string($field['content'] ?? null) ? $field['content'] : '';
-            $content = Purifier::clean($raw, 'placeholder');
+            // Temporary: strip ALL tags to plain text (XSS-safe, zero external
+            // deps) while mews/purifier can't be safely deployed to the shared
+            // host. Rich formatting is intentionally not preserved here; restore
+            // HTMLPurifier once the vendor deployment is stable.
+            $content = strip_tags($raw);
         }
 
         return [
