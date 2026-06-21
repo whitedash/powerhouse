@@ -104,7 +104,13 @@ class WorkflowController extends Controller
                 WorkflowAction::create([
                     'workflow_id' => $workflow->id,
                     'action_type' => $action['action_type'],
-                    'config' => $action['config'] ?? [],
+                    // Persist the polymorphic config from RAW input, not validated():
+                    // the per-index rules in validatePayload() type-check known
+                    // subkeys but, as child rules under actions.*.config, would trip
+                    // excludeUnvalidatedArrayKeys and prune any engine-read key that
+                    // has no explicit rule. Raw input keeps the blob intact and
+                    // decoupled from WorkflowEngine's reads.
+                    'config' => (array) $request->input("actions.{$i}.config", []),
                     'sort_order' => $i,
                 ]);
             }
@@ -143,7 +149,8 @@ class WorkflowController extends Controller
                 WorkflowAction::create([
                     'workflow_id' => $workflow->id,
                     'action_type' => $action['action_type'],
-                    'config' => $action['config'] ?? [],
+                    // Raw config, not validated() — see store() for why.
+                    'config' => (array) $request->input("actions.{$i}.config", []),
                     'sort_order' => $i,
                 ]);
             }

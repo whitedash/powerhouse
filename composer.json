@@ -68,12 +68,16 @@
             "vendor/bin/pint --test",
             "vendor/bin/phpstan analyse --memory-limit=1G",
             "@composer audit:sections",
+            "@composer audit:validated-keys",
             "@php artisan config:clear --ansi",
             "@php artisan test",
             "npm run build"
         ],
         "audit:sections": [
             "bash scripts/audit-sections.sh"
+        ],
+        "audit:validated-keys": [
+            "bash scripts/audit-validated-keys.sh"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
