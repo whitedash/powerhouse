@@ -246,9 +246,6 @@ class FormBuilderController extends Controller
             'steps' => ['nullable', 'array'],
             'steps.*.label' => ['nullable', 'string', 'max:255'],
             'steps.*.fields' => ['nullable', 'array'],
-            // Placeholder rich-text body — nullable string, no length cap
-            // (sanitised, not length-validated). TEXT column, not VARCHAR.
-            'steps.*.fields.*.content' => ['nullable', 'string'],
 
             // Flat fields are now nullable: required only on the legacy
             // single-step path (steps absent). When steps is present this is
