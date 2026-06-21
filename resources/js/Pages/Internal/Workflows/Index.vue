@@ -22,6 +22,7 @@ import {
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 import PlaceholderHints from './PlaceholderHints.vue';
+import ConditionsEditor from './ConditionsEditor.vue';
 
 const props = defineProps({
     workflows: { type: Array, required: true },
@@ -29,6 +30,7 @@ const props = defineProps({
     staff: { type: Array, default: () => [] },
     trigger_types: { type: Array, required: true },
     action_types: { type: Array, required: true },
+    operators: { type: Array, default: () => [] },
 });
 
 const TRIGGER_LABEL = {
@@ -185,6 +187,18 @@ const editorOpen = ref(false);
 const editingId = ref(null);
 const editor = useForm(emptyEditor());
 
+// The selected form's field list ([{ key, label }]), shared by the placeholder
+// reference and the conditions editor's field picker so both read one source.
+// Empty for "Any form", a fieldless form, or a non-form trigger — callers then
+// fall back to free-text field entry.
+const selectedFormFields = computed(() => {
+    if (editor.trigger_type !== 'form_submitted' || ! editor.trigger_config.form_id) {
+        return [];
+    }
+    const form = props.forms.find(f => f.id === editor.trigger_config.form_id);
+    return form && Array.isArray(form.fields) ? form.fields : [];
+});
+
 // Trigger + form-aware placeholder reference for the action editor. Depends only
 // on the selected trigger and (for form_submitted) the chosen form — NOT on the
 // action's position, so it never re-implements the engine's context accumulation.
@@ -204,12 +218,9 @@ const placeholderRef = computed(() => {
     };
 
     if (trigger === 'form_submitted') {
-        const form = editor.trigger_config.form_id
-            ? props.forms.find(f => f.id === editor.trigger_config.form_id)
-            : null;
-        if (form && form.fields && form.fields.length) {
-            hints.formFields = form.fields;
-        } else if (form) {
+        if (selectedFormFields.value.length) {
+            hints.formFields = selectedFormFields.value;
+        } else if (editor.trigger_config.form_id) {
             hints.formNote = 'This form has no fields yet.';
         } else {
             hints.formNote = 'Select a form above to see its fields.';
@@ -228,6 +239,8 @@ function emptyEditor() {
         is_active: true,
         trigger_type: 'form_submitted',
         trigger_config: {},
+        // Empty groups = no gating (Phase 1 treats null/empty as "always run").
+        conditions: { logic: 'or', groups: [] },
         actions: [],
     };
 }
@@ -256,6 +269,10 @@ function openEdit(w) {
         is_active: w.is_active,
         trigger_type: w.trigger_type,
         trigger_config: { ...(w.trigger_config || {}) },
+        // Deep-clone so editing the slide-over never mutates the index prop.
+        conditions: w.conditions
+            ? JSON.parse(JSON.stringify(w.conditions))
+            : { logic: 'or', groups: [] },
         actions: w.actions.map(a => ({
             action_type: a.action_type,
             config: { ...(a.config || {}) },
@@ -461,6 +478,18 @@ function fmtRelative(iso) {
                                 <label>Source (optional)</label>
                                 <input v-model="editor.trigger_config.source" type="text" placeholder="e.g. mailchimp" />
                             </div>
+                        </section>
+
+                        <section v-if="editor.trigger_type === 'form_submitted'" class="form-section">
+                            <div class="form-section-head">
+                                <h3 class="form-section-title">Conditions</h3>
+                            </div>
+                            <p class="muted small wf-cond-hint">Leave empty to always run; otherwise the workflow fires only when the submission matches.</p>
+                            <ConditionsEditor
+                                v-model="editor.conditions"
+                                :fields="selectedFormFields"
+                                :operators="operators"
+                            />
                         </section>
 
                         <section class="form-section">

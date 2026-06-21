@@ -84,6 +84,9 @@ class WorkflowController extends Controller
             'staff' => $staff,
             'trigger_types' => self::TRIGGER_TYPES,
             'action_types' => self::ACTION_TYPES,
+            // Single-sourced with the validation allowlist so the builder's
+            // operator select can't drift from WorkflowConditionEvaluator.
+            'operators' => WorkflowConditionEvaluator::OPERATORS,
         ]);
     }
 
@@ -214,6 +217,7 @@ class WorkflowController extends Controller
             'is_active' => $w->is_active,
             'trigger_type' => $w->trigger_type,
             'trigger_config' => $w->trigger_config,
+            'conditions' => $w->conditions,
             'run_count' => $w->run_count,
             'last_run_at' => $w->last_run_at?->toIso8601String(),
             'created_by' => $w->createdBy->name,

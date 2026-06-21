@@ -13970,6 +13970,56 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
     flex-shrink: 0;
 }
 
+/* Conditions editor (ConditionsEditor.vue) — namespaced wf-cond-*; the group box
+   border/radius/bg live in CSS (never inline) so audit:sections Check 2 stays green,
+   and the compound token wf-cond-group is safe under Check 1. Modeled on
+   .field-builder-row + the slide-over input styling. */
+.wf-cond { display: flex; flex-direction: column; gap: 8px; }
+.wf-cond-hint { margin: -4px 0 6px; }
+.wf-cond-join {
+    font: 600 11px/1 'Inter', sans-serif; letter-spacing: .08em;
+    color: var(--text-secondary); text-align: center; padding: 2px 0;
+}
+.wf-cond-group {
+    display: flex; flex-direction: column; gap: 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-elevated, #fafafa);
+    padding: 10px;
+}
+.wf-cond-and {
+    font: 600 10px/1 'Inter', sans-serif; letter-spacing: .08em;
+    color: var(--text-secondary); padding-left: 2px;
+}
+.wf-cond-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.1fr) minmax(0, 1fr) auto;
+    gap: 8px; align-items: center;
+}
+.slide-over-wide .wf-cond-row select,
+.slide-over-wide .wf-cond-row input {
+    width: 100%;
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: var(--radius-md);
+    padding: 8px 10px;
+    font: 400 13px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: 0;
+    transition: border-color .15s, box-shadow .15s;
+}
+.slide-over-wide .wf-cond-row select:focus,
+.slide-over-wide .wf-cond-row input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft, rgba(245, 158, 11, .18));
+}
+.wf-cond-na {
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-secondary);
+}
+.wf-cond-group-foot { margin-top: 2px; }
+.wf-cond-add-group { align-self: flex-start; }
+
 /* Switch (used for workflow active toggle) */
 .switch {
     position: relative;
