@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property bool $is_active
  * @property string $trigger_type
  * @property array<string, mixed>|null $trigger_config
+ * @property array<string, mixed>|null $conditions
  * @property int $run_count
  * @property Carbon|null $last_run_at
  * @property int $created_by
@@ -38,6 +39,7 @@ class Workflow extends Model
         'is_active',
         'trigger_type',
         'trigger_config',
+        'conditions',
         'run_count',
         'last_run_at',
         'created_by',
@@ -48,6 +50,7 @@ class Workflow extends Model
         return [
             'is_active' => 'boolean',
             'trigger_config' => 'array',
+            'conditions' => 'array',
             'last_run_at' => 'datetime',
             'run_count' => 'integer',
         ];

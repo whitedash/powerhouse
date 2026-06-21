@@ -12,6 +12,9 @@ app/Http/Controllers/Internal/FormBuilderController.php::fields.*          # leg
 # Workflow — action_type ruled; config is persisted from RAW input (not validated()),
 # so its polymorphic keys are never pruned. Per-index config rules only type-check.
 app/Http/Controllers/Internal/WorkflowController.php::actions.*            # action_type ruled; config read from raw input in store()/update()
+# Workflow conditions gate — every key ruled (Approach A); persisted whole from validated().
+app/Http/Controllers/Internal/WorkflowController.php::conditions.groups.*  # group logic + conditions array ruled
+app/Http/Controllers/Internal/WorkflowController.php::conditions.groups.*.conditions.*  # field_key, operator (Rule::in 12 ops), value all ruled
 
 # Financial line-items — every persisted key ruled; amount/discount/sort_order are
 # computed or derived from the loop index, never read from a pruned sibling.

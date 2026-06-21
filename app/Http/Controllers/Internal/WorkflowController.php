@@ -9,6 +9,7 @@ use App\Models\FormField;
 use App\Models\User;
 use App\Models\Workflow;
 use App\Models\WorkflowAction;
+use App\Services\WorkflowConditionEvaluator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -97,6 +98,7 @@ class WorkflowController extends Controller
                 'is_active' => (bool) ($data['is_active'] ?? true),
                 'trigger_type' => $data['trigger_type'],
                 'trigger_config' => $data['trigger_config'] ?? null,
+                'conditions' => $data['conditions'] ?? null,
                 'created_by' => $request->user()->id,
             ]);
 
@@ -139,6 +141,7 @@ class WorkflowController extends Controller
                 'is_active' => (bool) ($data['is_active'] ?? true),
                 'trigger_type' => $data['trigger_type'],
                 'trigger_config' => $data['trigger_config'] ?? null,
+                'conditions' => $data['conditions'] ?? null,
             ]);
 
             // Wipe + recreate actions, same pattern as form_fields.
@@ -239,6 +242,21 @@ class WorkflowController extends Controller
             'actions' => ['nullable', 'array'],
             'actions.*.action_type' => ['required', Rule::in(self::ACTION_TYPES)],
             'actions.*.config' => ['required', 'array'],
+
+            // Optional field-value conditions gate (WorkflowConditionEvaluator).
+            // Every key is ruled explicitly (Approach A) so validated() returns the
+            // complete structure — no excludeUnvalidatedArrayKeys prune — and the
+            // operator allowlist fires as a clean 422. field_key matches the
+            // form_fields.field_key cap (100). Signed off in
+            // scripts/audit-validated-keys.allow.
+            'conditions' => ['nullable', 'array'],
+            'conditions.logic' => ['nullable', Rule::in(['and', 'or'])],
+            'conditions.groups' => ['nullable', 'array'],
+            'conditions.groups.*.logic' => ['nullable', Rule::in(['and', 'or'])],
+            'conditions.groups.*.conditions' => ['nullable', 'array'],
+            'conditions.groups.*.conditions.*.field_key' => ['required', 'string', 'max:100'],
+            'conditions.groups.*.conditions.*.operator' => ['required', Rule::in(WorkflowConditionEvaluator::OPERATORS)],
+            'conditions.groups.*.conditions.*.value' => ['nullable', 'string'],
         ];
 
         // A few actions have a config contract worth enforcing (the rest read
