@@ -17,7 +17,7 @@ import {
     IconDots, IconTrash, IconEdit, IconArrowLeft, IconArrowRight, IconChevronUp, IconChevronDown,
     IconPencil,
     IconLetterT, IconMail, IconPhone, IconAlignLeft, IconCheckbox, IconCircleDot,
-    IconNumbers, IconCalendar,
+    IconNumbers, IconCalendar, IconCalendarTime,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -38,7 +38,9 @@ const FIELD_TYPES = [
     { value: 'checkbox', label: 'Checkbox' },
     { value: 'number', label: 'Number' },
     { value: 'date', label: 'Date' },
+    { value: 'datetime', label: 'Date & Time' },
     { value: 'hidden', label: 'Hidden' },
+    { value: 'placeholder', label: 'Text block' },
 ];
 
 // Server-emits-a-type, client-maps-to-a-component (matches the rest of
@@ -53,7 +55,9 @@ const FIELD_ICONS = {
     checkbox: IconCheckbox,
     number: IconNumbers,
     date: IconCalendar,
+    datetime: IconCalendarTime,
     hidden: IconEyeOff,
+    placeholder: IconAlignLeft,
 };
 function fieldIcon(type) {
     return FIELD_ICONS[type] ?? IconLetterT;
@@ -160,6 +164,7 @@ function formPayloadFromCard(card) {
             sort_order: si,
             fields: (step.fields ?? []).map((f, fi) => ({
                 label: f.label,
+                content: f.content ?? null,
                 field_key: f.field_key,
                 type: f.type,
                 placeholder: f.placeholder || null,
@@ -182,6 +187,7 @@ function cardToEditorSteps(card) {
         sort_order: si,
         fields: (step.fields ?? []).map(f => ({
             ...f,
+            content: f.content ?? '',
             options: f.options ? [...f.options] : null,
             options_raw: (f.options ?? []).join('\n'),
             width: f.width ?? 'full',
@@ -238,6 +244,14 @@ const openSections = reactive({ details: true, settings: false });
 // string; it's split into the `options` array only at save time so typing
 // a newline isn't stripped mid-edit.
 function blankField(type = 'text') {
+    if (type === 'placeholder') {
+        // Display-only text block: `content` holds the rich-text body (label
+        // stays empty); field_key is left empty for the backend to synthesise.
+        return {
+            label: '', content: '', field_key: '', type: 'placeholder', placeholder: null,
+            default_value: null, options: null, options_raw: '', is_required: false, width: 'full',
+        };
+    }
     return {
         label: '', field_key: '', type,
         placeholder: '', default_value: '',
@@ -394,6 +408,9 @@ function save() {
                 sort_order: si,
                 fields: step.fields.map((field, fi) => ({
                     label: field.label,
+                    // Placeholder body — sanitised client-side (belt-and-braces;
+                    // onUpdate already cleans it). null for other types.
+                    content: field.type === 'placeholder' ? (field.content || '') : null,
                     field_key: field.field_key,
                     type: field.type,
                     placeholder: field.placeholder || null,
@@ -414,6 +431,11 @@ function save() {
         [method](endpoint, {
             preserveScroll: true,
             onSuccess: () => { editorOpen.value = false; },
+            onError: () => {
+                // Validation failed — errors are now in editor.errors and the
+                // banner at the top of the slide-over surfaces them. Keep the
+                // slide-over open so the user can fix and retry.
+            },
         });
 }
 
@@ -573,6 +595,15 @@ const totalSubmissions = computed(() =>
                     </header>
 
                     <form class="slide-over-body" @submit.prevent="save">
+                        <!-- Validation error banner — surfaces every editor.errors
+                             key (incl. step-scoped field errors) so a 422 is never silent. -->
+                        <div v-if="Object.keys(editor.errors).length" class="fb-error-banner" role="alert">
+                            <p class="fb-error-banner-title">Please fix the following before saving:</p>
+                            <ul class="fb-error-banner-list">
+                                <li v-for="(msg, key) in editor.errors" :key="key">{{ msg }}</li>
+                            </ul>
+                        </div>
+
                         <!-- Form details (collapsible) -->
                         <section class="form-section">
                             <button type="button" class="fb-section-head" @click="openSections.details = !openSections.details">
@@ -705,14 +736,18 @@ const totalSubmissions = computed(() =>
 
                                 <!-- Inline edit panel -->
                                 <div v-if="editingFieldIndex === i" class="fb-field-edit-panel">
-                                    <div class="fb-edit-grid">
-                                        <div class="form-row">
-                                            <label class="small">Label <span class="req">*</span></label>
-                                            <input v-model="field.label" type="text" maxlength="255" @blur="autoKey(field)" />
-                                        </div>
-                                        <div class="form-row">
-                                            <label class="small">Key (POST field name)</label>
-                                            <input v-model="field.field_key" type="text" pattern="[a-z][a-z0-9_]*" maxlength="100" />
+                                    <!-- Placeholder: display-only text block. Content (held in
+                                         `label`) + Type only; no key/width/placeholder/options/required. -->
+                                    <template v-if="field.type === 'placeholder'">
+                                        <div v-if="field.type === 'placeholder'" class="fb-field-row">
+                                            <label class="fb-label">Content</label>
+                                            <textarea
+                                                v-model="field.content"
+                                                class="fb-textarea"
+                                                rows="4"
+                                                placeholder="Enter your text block content…"
+                                                maxlength="5000"
+                                            ></textarea>
                                         </div>
                                         <div class="form-row">
                                             <label class="small">Type</label>
@@ -720,27 +755,47 @@ const totalSubmissions = computed(() =>
                                                 <option v-for="t in FIELD_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
                                             </select>
                                         </div>
-                                        <div class="form-row">
-                                            <label class="small">Width</label>
-                                            <select v-model="field.width">
-                                                <option v-for="w in FIELD_WIDTHS" :key="w.value" :value="w.value">{{ w.label }}</option>
-                                            </select>
-                                        </div>
-                                        <div class="form-row">
-                                            <label class="small">Placeholder</label>
-                                            <input v-model="field.placeholder" type="text" maxlength="255" />
-                                        </div>
-                                    </div>
+                                    </template>
 
-                                    <div v-if="OPTION_TYPES.includes(field.type)" class="form-row">
-                                        <label class="small">Options <span class="fb-help-inline">— one per line</span></label>
-                                        <textarea
-                                            v-model="field.options_raw"
-                                            @keydown.enter.stop
-                                            rows="4"
-                                            placeholder="Option A&#10;Option B&#10;Option C"
-                                        ></textarea>
-                                    </div>
+                                    <!-- Input fields: full attribute grid + options. -->
+                                    <template v-else>
+                                        <div class="fb-edit-grid">
+                                            <div class="form-row">
+                                                <label class="small">Label <span class="req">*</span></label>
+                                                <input v-model="field.label" type="text" maxlength="255" @blur="autoKey(field)" />
+                                            </div>
+                                            <div class="form-row">
+                                                <label class="small">Key (POST field name)</label>
+                                                <input v-model="field.field_key" type="text" pattern="[a-z][a-z0-9_]*" maxlength="100" />
+                                            </div>
+                                            <div class="form-row">
+                                                <label class="small">Type</label>
+                                                <select v-model="field.type">
+                                                    <option v-for="t in FIELD_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-row">
+                                                <label class="small">Width</label>
+                                                <select v-model="field.width">
+                                                    <option v-for="w in FIELD_WIDTHS" :key="w.value" :value="w.value">{{ w.label }}</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-row">
+                                                <label class="small">Placeholder</label>
+                                                <input v-model="field.placeholder" type="text" maxlength="255" />
+                                            </div>
+                                        </div>
+
+                                        <div v-if="OPTION_TYPES.includes(field.type)" class="form-row">
+                                            <label class="small">Options <span class="fb-help-inline">— one per line</span></label>
+                                            <textarea
+                                                v-model="field.options_raw"
+                                                @keydown.enter.stop
+                                                rows="4"
+                                                placeholder="Option A&#10;Option B&#10;Option C"
+                                            ></textarea>
+                                        </div>
+                                    </template>
 
                                     <!-- Move this field to another step (multi-step only) -->
                                     <div v-if="editor.steps.length > 1" class="form-row">
@@ -752,7 +807,7 @@ const totalSubmissions = computed(() =>
                                         </select>
                                     </div>
 
-                                    <div class="fb-toggle-row">
+                                    <div v-if="field.type !== 'placeholder'" class="fb-toggle-row">
                                         <div>
                                             <div class="fb-toggle-label">Required</div>
                                             <div class="field-help">Show a validation error if left empty</div>
@@ -910,6 +965,11 @@ const totalSubmissions = computed(() =>
 .fb-step-add { flex-shrink: 0; }
 .fb-step-label-row { margin-bottom: 14px; }
 .fb-step-empty { margin-bottom: 14px; }
+
+/* Validation error banner — red-tinted, surfaces 422 errors in the slide-over. */
+.fb-error-banner { background: var(--danger-bg); border: 1px solid var(--danger); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 16px; }
+.fb-error-banner-title { font-weight: 700; margin: 0 0 6px; color: var(--danger); font-size: .875rem; }
+.fb-error-banner-list { margin: 0; padding-left: 1rem; font-size: .875rem; color: var(--text-primary); }
 
 /* Preview step-selector bar. */
 .fp-preview-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-soft); }

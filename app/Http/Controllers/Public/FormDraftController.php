@@ -103,6 +103,10 @@ class FormDraftController extends Controller
         $rules = [];
 
         foreach ($form->fields as $field) {
+            // Placeholder fields are display-only — no input, no rule.
+            if ($field->type === 'placeholder') {
+                continue;
+            }
             $chain = [$field->is_required ? 'required' : 'nullable'];
             if ($field->type === 'email') {
                 $chain[] = 'email:rfc';
@@ -110,7 +114,7 @@ class FormDraftController extends Controller
             if ($field->type === 'number') {
                 $chain[] = 'numeric';
             }
-            if ($field->type === 'date') {
+            if ($field->type === 'date' || $field->type === 'datetime') {
                 $chain[] = 'date';
             }
             $rules[$field->field_key] = implode('|', $chain);

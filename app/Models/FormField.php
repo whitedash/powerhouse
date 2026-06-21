@@ -17,6 +17,7 @@ use Illuminate\Support\Carbon;
  * @property int $form_id
  * @property int|null $form_step_id
  * @property string $label
+ * @property string|null $content
  * @property string $field_key
  * @property string $type
  * @property string|null $placeholder
@@ -39,6 +40,7 @@ class FormField extends Model
         'form_id',
         'form_step_id',
         'label',
+        'content',
         'field_key',
         'type',
         'placeholder',
@@ -54,6 +56,7 @@ class FormField extends Model
     {
         return [
             'form_step_id' => 'integer',
+            'content' => 'string',
             'options' => 'array',
             'validation_rules' => 'array',
             'is_required' => 'boolean',

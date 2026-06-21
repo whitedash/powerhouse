@@ -13,9 +13,9 @@ use App\Models\FormTheme;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -42,7 +42,7 @@ class FormBuilderController extends Controller
     private const FIELD_TYPES = [
         'text', 'email', 'phone', 'textarea',
         'select', 'radio', 'checkbox', 'number',
-        'date', 'hidden',
+        'date', 'datetime', 'hidden', 'placeholder',
     ];
 
     public function index(): Response
@@ -263,32 +263,55 @@ class FormBuilderController extends Controller
             'fields.*.width' => ['nullable', Rule::enum(FieldWidth::class)],
         ]);
 
-        // Cross-validate nested step fields against the SAME per-field rules the
-        // flat fields use. Flatten steps.*.fields and run one validator over
-        // them; a failure throws ValidationException (422) just like the main
-        // validate call above.
+        // Cross-validate the nested step fields with STEP-SCOPED error keys so
+        // the builder can surface "Step 1: field 2 …" instead of an opaque flat
+        // "fields.0.field_key". placeholder fields are display-only: their
+        // field_key is synthesised server-side and their label (the display
+        // text) may be left blank, so both rules are relaxed for them.
         $steps = $data['steps'] ?? [];
         if (is_array($steps) && $steps !== []) {
-            $nested = [];
-            foreach ($steps as $step) {
-                $stepFields = is_array($step) && is_array($step['fields'] ?? null) ? $step['fields'] : [];
-                foreach ($stepFields as $field) {
-                    $nested[] = $field;
+            $stepErrors = [];
+            $totalFields = 0;
+
+            foreach ($steps as $si => $stepData) {
+                $stepData = is_array($stepData) ? $stepData : [];
+                $stepLabel = (string) ($stepData['label'] ?? ('Step '.((int) $si + 1)));
+                $fields = is_array($stepData['fields'] ?? null) ? $stepData['fields'] : [];
+                $totalFields += count($fields);
+
+                foreach ($fields as $fi => $field) {
+                    $field = is_array($field) ? $field : [];
+                    $type = $field['type'] ?? null;
+                    $fieldLabel = (string) ($field['label'] ?? ('Field '.((int) $fi + 1)));
+                    $key = (string) ($field['field_key'] ?? '');
+
+                    if (empty($field['label']) && $type !== 'placeholder') {
+                        $stepErrors["steps.{$si}.fields.{$fi}.label"] =
+                            "\"{$stepLabel}\": field {$fieldLabel} is missing a label.";
+                    }
+
+                    if ($type !== 'placeholder'
+                        && ($key === '' || ! preg_match('/^[a-z][a-z0-9_]*$/', $key))) {
+                        $stepErrors["steps.{$si}.fields.{$fi}.field_key"] =
+                            "\"{$stepLabel}\": \"{$fieldLabel}\" has an invalid key (lowercase letters, numbers, underscores only).";
+                    }
+
+                    if (! is_string($type) || ! in_array($type, self::FIELD_TYPES, true)) {
+                        $stepErrors["steps.{$si}.fields.{$fi}.type"] =
+                            "\"{$stepLabel}\": \"{$fieldLabel}\" has an invalid field type.";
+                    }
                 }
             }
 
-            Validator::make(['fields' => $nested], [
-                'fields' => ['required', 'array', 'min:1'],
-                'fields.*.label' => ['required', 'string', 'max:255'],
-                'fields.*.field_key' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]*$/', 'max:100'],
-                'fields.*.type' => ['required', Rule::in(self::FIELD_TYPES)],
-                'fields.*.placeholder' => ['nullable', 'string', 'max:255'],
-                'fields.*.default_value' => ['nullable', 'string', 'max:255'],
-                'fields.*.options' => ['nullable', 'array'],
-                'fields.*.options.*' => ['string', 'max:255'],
-                'fields.*.is_required' => ['nullable', 'boolean'],
-                'fields.*.width' => ['nullable', Rule::enum(FieldWidth::class)],
-            ])->validate();
+            if ($stepErrors !== []) {
+                throw ValidationException::withMessages($stepErrors);
+            }
+
+            if ($totalFields === 0) {
+                throw ValidationException::withMessages([
+                    'steps' => 'The form must have at least one field.',
+                ]);
+            }
         }
 
         return $data;
@@ -347,16 +370,37 @@ class FormBuilderController extends Controller
      */
     private function fieldRow(Form $form, FormStep $step, array $field, int $sortOrder): array
     {
+        $type = is_string($field['type'] ?? null) ? $field['type'] : 'text';
+        $key = (string) ($field['field_key'] ?? '');
+
+        // Placeholder fields carry no respondent input, so a posted key is
+        // optional — synthesise a stable one (placeholder_{sort_order}) when the
+        // frontend omits it, and never mark a display-only field required.
+        if ($type === 'placeholder' && $key === '') {
+            $key = 'placeholder_'.$sortOrder;
+        }
+
+        // Placeholder display text lives in `content` (TEXT), sanitised to a
+        // safe HTML subset; `label` is emptied for placeholders. Other types
+        // keep their label and carry no content.
+        $isPlaceholder = $type === 'placeholder';
+        $content = null;
+        if ($isPlaceholder) {
+            $raw = is_string($field['content'] ?? null) ? $field['content'] : '';
+            $content = $raw; // Sanitised client-side by DOMPurify before save
+        }
+
         return [
             'form_id' => $form->id,
             'form_step_id' => $step->id,
-            'label' => $field['label'],
-            'field_key' => $field['field_key'],
-            'type' => $field['type'],
+            'label' => $isPlaceholder ? '' : ($field['label'] ?? null),
+            'content' => $content,
+            'field_key' => $key,
+            'type' => $type,
             'placeholder' => $field['placeholder'] ?? null,
             'default_value' => $field['default_value'] ?? null,
             'options' => $field['options'] ?? null,
-            'is_required' => (bool) ($field['is_required'] ?? false),
+            'is_required' => $type !== 'placeholder' && (bool) ($field['is_required'] ?? false),
             'width' => $field['width'] ?? FieldWidth::Full->value,
             'sort_order' => $sortOrder,
         ];
@@ -398,6 +442,7 @@ class FormBuilderController extends Controller
         return [
             'id' => $field->id,
             'label' => $field->label,
+            'content' => $field->content,
             'field_key' => $field->field_key,
             'type' => $field->type,
             'placeholder' => $field->placeholder,

@@ -87,6 +87,10 @@ class FormController extends Controller
         // from form_fields.validation_rules later.
         $rules = [];
         foreach ($form->fields as $field) {
+            // Placeholder fields are display-only — no input, no rule.
+            if ($field->type === 'placeholder') {
+                continue;
+            }
             $chain = [];
             if ($field->is_required) {
                 $chain[] = 'required';
@@ -99,7 +103,7 @@ class FormController extends Controller
             if ($field->type === 'number') {
                 $chain[] = 'numeric';
             }
-            if ($field->type === 'date') {
+            if ($field->type === 'date' || $field->type === 'datetime') {
                 $chain[] = 'date';
             }
             $rules[$field->field_key] = implode('|', $chain);

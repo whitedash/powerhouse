@@ -921,7 +921,16 @@ form_step_id FK form_steps CASCADE nullable
 label VARCHAR(255), field_key VARCHAR(100)
   -- POST field name; ^[a-z][a-z0-9_]*$ enforced by builder.
 type ENUM(text|email|phone|textarea|select|radio
-  |checkbox|number|date|hidden) DEFAULT 'text',
+  |checkbox|number|date|hidden|placeholder|datetime) DEFAULT 'text',
+  -- 'datetime' (Date & Time field) renders an <input type="datetime-local">
+  -- (date + time picker); separate from 'date'. Enum widened by
+  -- 2026_06_20_100000_add_datetime_to_form_fields_type.
+  -- 'placeholder' (Multi-step sprint) is a DISPLAY-ONLY text block: no
+  -- respondent input, excluded from submit validation + answer collection.
+  -- The `label` column holds its display text; `field_key` is auto-synthesised
+  -- server-side as placeholder_{sort_order} when the builder omits it, and
+  -- is_required is forced false. Enum widened by
+  -- 2026_06_19_100000_add_placeholder_to_form_fields_type.
 placeholder VARCHAR(255) nullable,
 default_value VARCHAR(255) nullable,
 options JSON nullable

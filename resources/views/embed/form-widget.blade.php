@@ -7,6 +7,8 @@
 @php
     $fields = $form->fields->map(fn ($f) => [
         'label' => $f->label,
+        // Rich-text body for placeholder/text-block fields (server-sanitised).
+        'content' => $f->content ?? null,
         'field_key' => $f->field_key,
         'type' => $f->type,
         'placeholder' => $f->placeholder,
@@ -150,9 +152,19 @@
             + ".pw-form .pw-grid.pw-grid--narrow .pw-col-6,.pw-form .pw-grid.pw-grid--narrow .pw-col-4{grid-column:span 12;}"
             + ".pw-form label{display:block;font-weight:600;font-size:13px;margin-bottom:6px;color:var(--pw-label);}"
             + ".pw-form .pw-req{color:var(--pw-error);}"
+            // Display-only text block — spans the full grid width, no input.
+            + ".pw-form .pw-text-block{color:var(--pw-text,#374151);font-size:.9375rem;line-height:1.6;padding:.25rem 0;grid-column:1 / -1;}"
             + ".pw-form input,.pw-form textarea,.pw-form select{width:100%;padding:10px 12px;border:var(--pw-border-width) solid var(--pw-border);border-radius:var(--pw-radius);font-size:var(--pw-font-size);font-family:inherit;background:var(--pw-surface);box-sizing:border-box;}"
             + ".pw-form input:focus,.pw-form textarea:focus,.pw-form select:focus{outline:none;border-color:var(--pw-accent);box-shadow:0 0 0 3px var(--pw-focus-ring);}"
             + ".pw-form textarea{min-height:96px;resize:vertical;}"
+            // Radio/checkbox option groups — vertical list, each a small native
+            // control + its own inline label. The width:auto / font-weight / display
+            // overrides are required because the shared input + label primitives
+            // above force full-width inputs and bold block labels.
+            + ".pw-form .pw-radio-group,.pw-form .pw-checkbox-group{display:flex;flex-direction:column;gap:8px;}"
+            + ".pw-form .pw-radio-option,.pw-form .pw-checkbox-option{display:flex;align-items:center;gap:8px;}"
+            + ".pw-form .pw-radio-input,.pw-form .pw-checkbox-input{width:auto;margin:0;flex:none;accent-color:var(--pw-accent);}"
+            + ".pw-form .pw-radio-label,.pw-form .pw-checkbox-label{display:inline;margin:0;font-weight:400;font-size:var(--pw-font-size);color:var(--pw-text);cursor:pointer;}"
             + ".pw-form .pw-hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;}"
             // Solid button keeps border:none (pixel-identical default); the
             // outline variant adds its own border below.
@@ -202,11 +214,18 @@
             + ".pw-form .ms-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;}"
             + ".pw-form .ms-nav .ms-nav-spacer{flex:1;}"
             + ".pw-form .ms-autosave{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--pw-label);margin-top:12px;}"
-            + ".pw-resume{display:flex;flex-direction:column;gap:6px;border:1px solid var(--pw-border);border-left:3px solid var(--pw-accent);border-radius:var(--pw-radius);padding:14px 16px;background:var(--pw-surface);margin-bottom:18px;}"
-            + ".pw-resume .ms-resume-ttl{font-size:14px;font-weight:600;color:var(--pw-text);}"
-            + ".pw-resume .ms-resume-msg{font-size:13px;color:var(--pw-label);}"
-            + ".pw-resume .ms-resume-actions{display:flex;gap:10px;margin-top:6px;}"
-            + ".ms-inert{opacity:.4;filter:blur(1px);pointer-events:none;user-select:none;}";
+            // Resume card — itself a .pw-form, so border/bg/radius/tokens come
+            // from the .pw-form chrome; these classes only add layout + type
+            // (tokens only, no hardcoded colours).
+            + ".pw-resume-card{padding:var(--pw-form-padding);}"
+            + ".pw-form .pw-resume-progress{font-size:.75rem;color:var(--pw-label);margin-bottom:.5rem;}"
+            + ".pw-form .pw-resume-heading{font-size:1.125rem;font-weight:600;color:var(--pw-text);margin-bottom:.5rem;}"
+            + ".pw-form .pw-resume-body{font-size:.875rem;color:var(--pw-label);margin-bottom:1.25rem;}"
+            + ".pw-form .pw-resume-actions{display:flex;align-items:stretch;gap:.75rem;}"
+            + ".pw-form .pw-resume-actions button{flex:1;}"
+            + ".pw-form .pw-resume-link{flex:1;display:flex;align-items:center;justify-content:center;padding:.625rem 1rem;font-size:.9375rem;font-weight:500;color:var(--pw-text);background:transparent;border:2px solid var(--pw-border);border-radius:var(--pw-radius);cursor:pointer;text-decoration:none;text-align:center;}"
+            + ".pw-form .pw-resume-link:hover{background:var(--pw-border);}"
+            + ".pw-form .pw-resume-confirming{color:var(--pw-error);border-color:var(--pw-error);}";
 
         // Optional per-theme custom CSS, injected AFTER the variable styles
         // (inside the shadow root, so it can't leak to the host page).
@@ -236,6 +255,15 @@
     var DIRECTIONAL_ICONS = { arrow: true, chevron: true };
 
     function renderField(field) {
+        // Display-only text block — label holds the text, no input emitted (so
+        // it never enters FormData / answer collection).
+        if (field.type === "placeholder") {
+            var block = el("div", { class: "pw-text-block" });
+            // Placeholder: content is sanitised by DOMPurify in the builder before save.
+            // The embed widget renders stored content directly — no output sanitiser here.
+            block.innerHTML = field.content || "";
+            return block;
+        }
         var span = WIDTH_COLS[field.width] || "pw-col-12";
         var row = el("div", { class: "pw-row " + span });
         var labelChildren = [field.label];
@@ -264,9 +292,49 @@
                 id: "pw-" + field.field_key,
             }, opts);
             input.value = String(currentVal);
+        } else if (field.type === "radio") {
+            // Radio group — one input per option, all sharing the field name so
+            // only one can be selected. The bare-input fallback below rendered a
+            // single empty box and dropped the options entirely.
+            input = el("div", { class: "pw-radio-group" });
+            (field.options || []).forEach(function (opt) {
+                var rid = "pw-radio-" + field.field_key + "-" + opt.replace(/\s+/g, "_");
+                var wrapper = el("div", { class: "pw-radio-option" });
+                var radio = el("input", {
+                    type: "radio",
+                    name: field.field_key,
+                    value: opt,
+                    id: rid,
+                    class: "pw-radio-input",
+                });
+                if (String(currentVal) === opt) radio.setAttribute("checked", "checked");
+                wrapper.appendChild(radio);
+                wrapper.appendChild(el("label", { for: rid, class: "pw-radio-label" }, [opt]));
+                input.appendChild(wrapper);
+            });
+        } else if (field.type === "checkbox") {
+            // Checkbox group — name uses [] so multiple selections post as an array.
+            input = el("div", { class: "pw-checkbox-group" });
+            (field.options || []).forEach(function (opt) {
+                var cid = "pw-checkbox-" + field.field_key + "-" + opt.replace(/\s+/g, "_");
+                var wrapper = el("div", { class: "pw-checkbox-option" });
+                var box = el("input", {
+                    type: "checkbox",
+                    name: field.field_key + "[]",
+                    value: opt,
+                    id: cid,
+                    class: "pw-checkbox-input",
+                });
+                wrapper.appendChild(box);
+                wrapper.appendChild(el("label", { for: cid, class: "pw-checkbox-label" }, [opt]));
+                input.appendChild(wrapper);
+            });
         } else {
+            // datetime → native datetime-local picker; phone → tel; else 1:1.
+            var inputType = field.type === "phone" ? "tel"
+                : (field.type === "datetime" ? "datetime-local" : field.type);
             input = el("input", {
-                type: field.type === "phone" ? "tel" : field.type,
+                type: inputType,
                 name: field.field_key,
                 id: "pw-" + field.field_key,
                 placeholder: field.placeholder || "",
@@ -566,28 +634,48 @@
         render(currentStep);
     }
 
-    // Resume banner (STATE 3) — shown on load when a saved token is present.
-    // The step-0 fields render beneath it, inert until the respondent chooses.
+    // Resume banner — shown on load when a saved draft token is present. A single
+    // self-contained card (itself a .pw-form, so the --pw-* tokens and widget
+    // chrome resolve); NO step fields rendered beneath it.
     function showResumeBanner(token) {
-        var actions = el("div", { class: "ms-resume-actions" });
-        var cont = el("button", { type: "button", class: "pw-btn-hover-lift" }, ["Continue"]);
-        cont.addEventListener("click", function () { resumeDraft(token); });
-        var over = el("button", { type: "button", class: "pw-btn-outline" }, ["Start over"]);
-        over.addEventListener("click", function () { clearDraft(); render(0); });
-        actions.appendChild(cont);
-        actions.appendChild(over);
+        var savedStep = parseInt(localStorage.getItem(LS_KEY + "_step") || "0", 10);
 
-        var banner = el("div", { class: "pw-resume" }, [
-            el("div", { class: "ms-resume-ttl" }, ["Welcome back"]),
-            el("div", { class: "ms-resume-msg" }, ["Continue where you left off, or start over."]),
-            actions,
-        ]);
+        var children = [];
 
-        var grid = el("div", { class: "pw-grid" });
-        stepGroups[0].fields.forEach(function (f) { grid.appendChild(renderField(f)); });
-        var inert = el("div", { class: "ms-inert" }, [grid]);
+        // Progress line — only once at least one step has been completed.
+        if (savedStep > 0) {
+            children.push(el("div", { class: "pw-resume-progress" },
+                ["Step " + savedStep + " of " + totalSteps + " completed"]));
+        }
 
-        mount([banner, inert]);
+        children.push(el("div", { class: "pw-resume-heading" }, ["Welcome back"]));
+        children.push(el("div", { class: "pw-resume-body" },
+            ["You have a saved draft. Continue where you left off or start over."]));
+
+        // Primary "Continue" — same class as the Next/Submit button. Resumes by
+        // setting draftToken + currentStep from the saved values, then renders.
+        var continueBtn = buildPrimaryButton(false, el("span", { class: "pw-btn-label" }, ["Continue"]));
+        continueBtn.setAttribute("type", "button");
+        continueBtn.addEventListener("click", function () { resumeDraft(token); });
+
+        // "Start over" — a text link with a two-click confirm (no window.confirm).
+        var startOver = el("a", { class: "pw-resume-link", href: "#", role: "button" }, ["Start over"]);
+        var confirming = false;
+        startOver.addEventListener("click", function (e) {
+            e.preventDefault();
+            if (!confirming) {
+                confirming = true;
+                startOver.textContent = "Are you sure?";
+                startOver.classList.add("pw-resume-confirming");
+                return;
+            }
+            clearDraft();
+            render(0);
+        });
+
+        children.push(el("div", { class: "pw-resume-actions" }, [continueBtn, startOver]));
+
+        mount([el("div", { class: "pw-form pw-resume-card" }, children)]);
     }
 
     function render(stepIndex) {
