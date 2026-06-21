@@ -64,6 +64,13 @@ class WorkflowEngine
                 continue;
             }
 
+            // Optional field-value conditions gate. NULL/empty conditions match
+            // (no gating); otherwise the stored AND/OR logic is evaluated against
+            // the payload before any side effect or transaction.
+            if (! $this->matchesConditions($workflow, $payload)) {
+                continue;
+            }
+
             // Reset per workflow: send_email actions push onto this list; it is
             // flushed only on a clean commit below, so a throwing run sends nothing.
             $this->pendingEmails = [];
@@ -147,6 +154,17 @@ class WorkflowEngine
 
             default => true,
         };
+    }
+
+    /**
+     * Optional field-value conditions gate, evaluated after trigger_config and
+     * before the action transaction. NULL/empty conditions => matches (no gating).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function matchesConditions(Workflow $workflow, array $payload): bool
+    {
+        return (new WorkflowConditionEvaluator())->matches($workflow->conditions, $payload);
     }
 
     /**

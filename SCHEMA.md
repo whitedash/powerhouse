@@ -1046,6 +1046,13 @@ trigger_type ENUM(form_submitted|webhook_received
   |lead_created|lead_status_changed|manual),
 trigger_config JSON nullable
   -- {"form_id": 4}, {"to": "qualified"}, {"source": "mailchimp"}.
+conditions JSON nullable
+  -- Optional field-value gate evaluated by WorkflowEngine AFTER the
+  -- trigger_config match and BEFORE the action transaction. NULL/empty
+  -- = no gating (fires as before). Shape: {logic, groups:[{logic,
+  -- conditions:[{field_key, operator, value}]}]} — OR between groups,
+  -- AND within a group by default (stored logic honoured). See
+  -- App\Services\WorkflowConditionEvaluator (the 12 operators).
 run_count INT DEFAULT 0, last_run_at TIMESTAMP nullable,
 created_by FK users RESTRICT,
 created_at, updated_at
