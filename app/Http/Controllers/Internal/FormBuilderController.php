@@ -240,20 +240,40 @@ class FormBuilderController extends Controller
             // Optional visual theme; null = default tokens (today's look).
             'theme_id' => ['nullable', 'integer', 'exists:form_themes,id'],
 
-            // Multi-step: when present, the real fields live nested inside steps
-            // (cross-validated below). steps.*.fields shape is checked loosely
-            // here; the per-field rules are applied by the cross-validation pass.
+            // Multi-step: the real fields live nested inside steps. EVERY persisted
+            // field key is ruled explicitly so validated() returns the COMPLETE
+            // field — a partial child rule under steps.*.fields.* would trip
+            // Laravel's excludeUnvalidatedArrayKeys and silently prune the un-ruled
+            // siblings (the multi-step save bug). Ruling `type` with the allowlist
+            // also yields a clean 422 here instead of a DB-enum 500. label and
+            // field_key are nullable because display-only placeholder fields carry
+            // a blank label + a server-synthesised key; the cross-validation pass
+            // below still enforces "required unless placeholder" with step-scoped
+            // messages. (Signed off in scripts/audit-validated-keys.allow.)
             'steps' => ['nullable', 'array'],
             'steps.*.label' => ['nullable', 'string', 'max:255'],
             'steps.*.fields' => ['nullable', 'array'],
+            'steps.*.fields.*.label' => ['nullable', 'string', 'max:255'],
+            'steps.*.fields.*.field_key' => ['nullable', 'string', 'max:100'],
+            'steps.*.fields.*.type' => ['required', Rule::in(self::FIELD_TYPES)],
+            'steps.*.fields.*.content' => ['nullable', 'string'],
+            'steps.*.fields.*.placeholder' => ['nullable', 'string', 'max:255'],
+            'steps.*.fields.*.default_value' => ['nullable', 'string', 'max:255'],
+            'steps.*.fields.*.options' => ['nullable', 'array'],
+            'steps.*.fields.*.options.*' => ['string', 'max:255'],
+            'steps.*.fields.*.is_required' => ['nullable', 'boolean'],
+            'steps.*.fields.*.width' => ['nullable', Rule::enum(FieldWidth::class)],
+            'steps.*.fields.*.sort_order' => ['nullable', 'integer'],
 
-            // Flat fields are now nullable: required only on the legacy
-            // single-step path (steps absent). When steps is present this is
-            // omitted and the nested fields are validated instead.
+            // Flat fields are the legacy single-step path (steps absent), still
+            // posted by older tests; required-per-field there. content is ruled so
+            // this path stays fully-ruled (no prune). The builder always posts
+            // steps, so this branch is dead in production but kept for compat.
             'fields' => ['nullable', 'array', 'min:1'],
             'fields.*.label' => ['required', 'string', 'max:255'],
             'fields.*.field_key' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]*$/', 'max:100'],
             'fields.*.type' => ['required', Rule::in(self::FIELD_TYPES)],
+            'fields.*.content' => ['nullable', 'string'],
             'fields.*.placeholder' => ['nullable', 'string', 'max:255'],
             'fields.*.default_value' => ['nullable', 'string', 'max:255'],
             'fields.*.options' => ['nullable', 'array'],

@@ -1,0 +1,26 @@
+# audit:validated-keys sign-off list.
+# Each line: <relative-php-file>::<wildcard-array-path>   # why it is safe
+# A line asserts that EVERY persisted sibling key under that wildcard array is ruled
+# (so validated() returns the complete element), OR that the blob is read from raw
+# input rather than validated(). Reviewed when added — re-review on any rule change.
+
+# Forms — fields/steps now rule every persisted key (type via Rule::in allowlist).
+app/Http/Controllers/Internal/FormBuilderController.php::steps.*           # step label+fields ruled; sort_order derived from index
+app/Http/Controllers/Internal/FormBuilderController.php::steps.*.fields.*  # all field keys ruled (label,field_key,type,content,placeholder,default_value,options,is_required,width,sort_order)
+app/Http/Controllers/Internal/FormBuilderController.php::fields.*          # legacy flat path; all field keys ruled incl content
+
+# Workflow — action_type ruled; config is persisted from RAW input (not validated()),
+# so its polymorphic keys are never pruned. Per-index config rules only type-check.
+app/Http/Controllers/Internal/WorkflowController.php::actions.*            # action_type ruled; config read from raw input in store()/update()
+
+# Financial line-items — every persisted key ruled; amount/discount/sort_order are
+# computed or derived from the loop index, never read from a pruned sibling.
+app/Http/Requests/StoreInvoiceRequest.php::lines.*                        # id,description,note,quantity,unit_price,product_id,plan_id,discount_type,discount_value ruled; amount computed
+app/Http/Controllers/Internal/ProposalController.php::lines.*             # description,note,quantity,unit_price,product_id,plan_id,discount_type,discount_value ruled; sort_order=index
+app/Http/Controllers/Internal/ProposalController.php::schedule.items.*    # label,amount_type,amount_value,trigger_type,trigger_date ruled; percentage/amount computed; milestone_id/status fixed
+app/Http/Controllers/Internal/PaymentScheduleController.php::items.*      # label,percentage,amount,trigger_type,trigger_date,milestone_id ruled; sort_order=index
+app/Http/Controllers/Internal/MaavelusStatementController.php::lines.*    # customer_id,total_fees,order_count ruled (all persisted keys)
+
+# Reorder endpoints — read only id + sort_order (+ milestone_id), all ruled.
+app/Http/Controllers/Internal/TaskController.php::items.*                 # id,sort_order,milestone_id ruled (all read keys)
+app/Http/Controllers/Internal/MilestoneController.php::items.*            # id,sort_order ruled (all read keys)
