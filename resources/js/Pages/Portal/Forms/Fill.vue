@@ -57,12 +57,17 @@ async function initDraft() {
     });
 }
 
-async function persistStep() {
+async function persistStep(advance = false) {
+    const body = { step: currentStep.value + 1, answers: answers.value };
+    // Only the forward advance (Next) opts into the server's per-step gate;
+    // save-for-later and the final-step persist stay unvalidated (the whole-form
+    // check runs at submit). Backward-compatible — the flag is absent otherwise.
+    if (advance) body.advance = true;
     const res = await fetch(`/portal/forms/${props.form.id}/draft`, {
         method: 'PUT',
         headers: draftHeaders(),
         credentials: 'same-origin',
-        body: JSON.stringify({ step: currentStep.value + 1, answers: answers.value }),
+        body: JSON.stringify(body),
     });
     return res;
 }
@@ -71,7 +76,10 @@ async function nextStep() {
     saving.value = true;
     errors.value = {};
     try {
-        const res = await persistStep();
+        const res = await persistStep(true);
+        // A 422 carries field-keyed errors for the departing step; surface them
+        // on the fields and stay put (local answers are untouched, so input is
+        // preserved). The advance happens only on an ok response.
         if (!res.ok) {
             const d = await res.json().catch(() => ({}));
             errors.value = d.errors ?? {};
@@ -99,6 +107,22 @@ async function saveLater() {
     }
 }
 
+// Resolve the earliest step index owning any failing field_key. The whole-form
+// Submit backstop can 422 on a field from an EARLIER step than the one shown
+// (e.g. save-for-later advanced the resume marker past a step it never
+// validated). Per-field errors only render on the active step, so we jump there
+// rather than leave Submit a silent no-op. Returns null if nothing resolves.
+function earliestErrorStep(errorMap) {
+    let target = null;
+    for (const key of Object.keys(errorMap ?? {})) {
+        const field = props.form.fields.find(f => f.field_key === key);
+        if (!field) continue;
+        const idx = steps.value.findIndex(s => s.id === field.form_step_id);
+        if (idx !== -1 && (target === null || idx < target)) target = idx;
+    }
+    return target;
+}
+
 async function submitForm() {
     submitting.value = true;
     errors.value = {};
@@ -118,6 +142,12 @@ async function submitForm() {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
             errors.value = data.errors ?? {};
+            // The whole-form backstop may fail on a field from an earlier step;
+            // land there so its inline error is visible (step 4 renders it once
+            // the step is active). The full map stays populated, so every other
+            // failing field shows its error when its step is viewed.
+            const target = earliestErrorStep(errors.value);
+            if (target !== null) currentStep.value = target;
             return;
         }
         if (data.redirect) {
@@ -175,10 +205,10 @@ async function submitForm() {
                                 v-for="field in activeFields"
                                 :key="field.field_key"
                                 :field="field"
+                                :error="errors[field.field_key]"
                                 v-model="answers[field.field_key]"
                             />
                         </div>
-                        <p v-for="(msg, key) in errors" :key="key" class="ms-error">{{ Array.isArray(msg) ? msg[0] : msg }}</p>
                         <p v-if="saveMessage" class="ms-save-message">{{ saveMessage }}</p>
                     </div>
                     <footer class="ms-form-footer">
@@ -261,10 +291,10 @@ async function submitForm() {
                                 v-for="field in activeFields"
                                 :key="field.field_key"
                                 :field="field"
+                                :error="errors[field.field_key]"
                                 v-model="answers[field.field_key]"
                             />
                         </div>
-                        <p v-for="(msg, key) in errors" :key="key" class="ms-error">{{ Array.isArray(msg) ? msg[0] : msg }}</p>
                         <p v-if="saveMessage" class="ms-save-message">{{ saveMessage }}</p>
                     </div>
                     <footer class="ms-form-footer ms-form-footer-stack">
@@ -312,5 +342,4 @@ async function submitForm() {
 .ms-text-link .ti { font-size: 15px; }
 
 .ms-save-message { margin: 14px 0 0; font: 500 13px/1.4 'Inter', sans-serif; color: var(--success); }
-.ms-error { margin: 10px 0 0; font: 500 13px/1.4 'Inter', sans-serif; color: var(--danger); }
 </style>

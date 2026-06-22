@@ -198,6 +198,12 @@
             + ".pw-form button.pw-btn-outline.pw-btn-hover-fill::before{background:var(--pw-button-bg);}"
             + ".pw-form button.pw-btn-outline.pw-btn-hover-fill:hover{color:var(--pw-button-text);}"
             + ".pw-form .pw-err{color:var(--pw-error);font-size:12px;margin-top:4px;}"
+            // Per-step error state (design: --danger input border). The modifier
+            // sits on the field row; only direct-child text-like inputs get the
+            // border, so radio/checkbox groups stay message-only (matching the
+            // design's empty .ffr-radio-group error rule).
+            + ".pw-form .pw-row--error > input,.pw-form .pw-row--error > textarea,.pw-form .pw-row--error > select{border-color:var(--pw-error);}"
+            + ".pw-form .pw-row--error > input:focus,.pw-form .pw-row--error > textarea:focus,.pw-form .pw-row--error > select:focus{border-color:var(--pw-error);box-shadow:0 0 0 3px color-mix(in srgb,var(--pw-error) 16%,transparent);}"
             + ".pw-form .pw-success{padding:16px;background:var(--pw-success-bg);border:var(--pw-border-width) solid var(--pw-success-border);border-radius:var(--pw-radius);color:var(--pw-success-text);}"
             + ".pw-form .pw-gdpr{font-size:12px;color:#6b7280;margin-top:8px;}"
             + ".pw-form .pw-gdpr label{font-weight:400;font-size:12px;display:flex;gap:8px;align-items:flex-start;}"
@@ -455,6 +461,32 @@
             return form.querySelector('[id="pw-err-' + key + '"]');
         }
 
+        // Clear every error message + danger border on this step's fields.
+        function clearStepErrors() {
+            stepGroups[stepIndex].fields.forEach(function (f) {
+                var ne = errNode(f.field_key);
+                if (ne) ne.textContent = "";
+                var fieldRow = ne && ne.parentNode;
+                if (fieldRow && fieldRow.classList) fieldRow.classList.remove("pw-row--error");
+            });
+        }
+
+        // Render a 422's field-keyed errors (server keys by field_key, matching
+        // the pw-err-<field_key> nodes). Clears first so a resolved field's stale
+        // error + border don't linger on a re-attempt.
+        function showStepErrors(errors) {
+            clearStepErrors();
+            if (!errors) return;
+            Object.keys(errors).forEach(function (k) {
+                var ne = errNode(k);
+                if (!ne) return;
+                var msg = errors[k];
+                ne.textContent = (msg && msg[0]) ? msg[0] : "This field is invalid.";
+                var fieldRow = ne.parentNode;
+                if (fieldRow && fieldRow.classList) fieldRow.classList.add("pw-row--error");
+            });
+        }
+
         if (CONFIG.is_multistep) {
             form.appendChild(buildProgress(stepIndex));
         }
@@ -511,14 +543,28 @@
             e.preventDefault();
             collectAnswers(form);
 
-            // Intermediate step → save the draft, then advance.
+            // Intermediate step → save the draft with advance:true (runs the
+            // server's per-step gate), then advance ONLY if the step validates.
             if (!isLast) {
                 primary.disabled = true;
                 labelSpan.textContent = "Saving...";
-                saveDraft(stepIndex).then(function () {
+                saveDraft(stepIndex, true).then(function (resp) {
+                    // 422 → the departing step has invalid fields. Render the
+                    // field-keyed errors and stay put — the form DOM is left
+                    // untouched, so the respondent's input is preserved.
+                    if (resp && resp.status === 422) {
+                        return resp.json().then(function (json) {
+                            showStepErrors(json && json.errors);
+                            primary.disabled = false;
+                            labelSpan.textContent = label;
+                        });
+                    }
+                    // Clean (or non-gated) → drop any prior errors and advance.
+                    clearStepErrors();
                     currentStep = stepIndex + 1;
                     render(currentStep);
                 }).catch(function () {
+                    // Network failure (fetch reject) — revert the button state.
                     primary.disabled = false;
                     labelSpan.textContent = label;
                 });
@@ -592,8 +638,8 @@
 
     // Persist one step's answers; lazily creates the draft on first save and
     // stores the token in localStorage so the respondent can resume later.
-    function saveDraft(stepIndex) {
-        if (!CONFIG.is_multistep) return Promise.resolve();
+    function saveDraft(stepIndex, advance) {
+        if (!CONFIG.is_multistep) return Promise.resolve(null);
         var ensure = draftToken
             ? Promise.resolve()
             : fetch(CONFIG.draft_init_url, {
@@ -605,14 +651,25 @@
                 try { localStorage.setItem(LS_KEY, draftToken); } catch (e) {}
             });
         return ensure.then(function () {
+            // `advance` opts into the server's per-step gate (a forward Next).
+            // Save-for-later and the final-step persistence omit it and stay
+            // unvalidated — the whole-form check runs at submit instead.
+            var payload = { step: stepIndex + 1, answers: answers };
+            if (advance) payload.advance = true;
             return fetch(CONFIG.draft_save_url + "/" + draftToken, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", "Accept": "application/json" },
                 credentials: "omit",
-                body: JSON.stringify({ step: stepIndex + 1, answers: answers }),
+                body: JSON.stringify(payload),
             });
-        }).then(function () {
-            try { localStorage.setItem(LS_KEY + "_step", String(stepIndex + 1)); } catch (e) {}
+        }).then(function (resp) {
+            // Mirror the server: bump the local resume marker only when the step
+            // was accepted. On a 422 the server kept current_step on the failing
+            // step, so a later resume must land there too — not past it.
+            if (!resp || resp.ok) {
+                try { localStorage.setItem(LS_KEY + "_step", String(stepIndex + 1)); } catch (e) {}
+            }
+            return resp;
         });
     }
 

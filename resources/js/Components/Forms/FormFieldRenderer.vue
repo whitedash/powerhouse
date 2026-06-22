@@ -20,6 +20,11 @@ const props = defineProps({
     // null = read-only/preview mode. Number included for number-type answers.
     modelValue: { type: [String, Number, Array, Boolean], default: null },
     readonly: { type: Boolean, default: false },
+    // Validation error for THIS field — the parent looks it up by field_key, the
+    // same key the server returns 422 errors under. String, or Laravel's
+    // array-of-messages; null/undefined = no error. Drives the inline .ffr-error
+    // message + the .ffr-field.is-error danger border. Builder preview omits it.
+    error: { type: [String, Array], default: null },
 });
 defineEmits(['update:modelValue']);
 
@@ -43,6 +48,16 @@ const options = computed(() => props.field.options ?? []);
 // Asterisk only in preview mode (modelValue null = nothing bound).
 const showRequiredMark = computed(() => props.field.is_required && props.modelValue === null);
 
+// Inline validation error. Laravel returns errors as { field_key: [msg, …] };
+// accept either that array or a bare string, and normalise to one message.
+const errorMessage = computed(() => {
+    const e = props.error;
+    if (Array.isArray(e)) return e[0] ?? '';
+    return e ?? '';
+});
+const hasError = computed(() => errorMessage.value !== '');
+const errorId = computed(() => `ffr-err-${props.field.field_key}`);
+
 // Client-side output sanitisation for placeholder/text-block content — a
 // defence-in-depth second barrier. The authoritative barrier is server-side:
 // content is allow-list sanitised on save (FormBuilderController) and again when
@@ -58,7 +73,7 @@ const sanitisedContent = computed(() =>
 </script>
 
 <template>
-    <div v-if="field.type !== 'hidden'" class="ffr-field" :class="widthClass">
+    <div v-if="field.type !== 'hidden'" class="ffr-field" :class="[widthClass, { 'is-error': hasError }]">
         <label v-if="field.type !== 'placeholder'" class="ffr-label">
             {{ field.label }}
             <span v-if="showRequiredMark" class="ffr-req">*</span>
@@ -74,6 +89,8 @@ const sanitisedContent = computed(() =>
             :value="modelValue ?? ''"
             :placeholder="field.placeholder"
             :disabled="readonly"
+            :aria-invalid="hasError || null"
+            :aria-describedby="hasError ? errorId : null"
             @input="$emit('update:modelValue', $event.target.value)"
         />
 
@@ -83,6 +100,8 @@ const sanitisedContent = computed(() =>
             :value="modelValue ?? ''"
             :placeholder="field.placeholder"
             :disabled="readonly"
+            :aria-invalid="hasError || null"
+            :aria-describedby="hasError ? errorId : null"
             @input="$emit('update:modelValue', $event.target.value)"
         ></textarea>
 
@@ -91,6 +110,8 @@ const sanitisedContent = computed(() =>
             class="ffr-input ffr-select"
             :value="modelValue ?? ''"
             :disabled="readonly"
+            :aria-invalid="hasError || null"
+            :aria-describedby="hasError ? errorId : null"
             @change="$emit('update:modelValue', $event.target.value)"
         >
             <option value="">{{ field.placeholder || 'Choose…' }}</option>
@@ -120,6 +141,12 @@ const sanitisedContent = computed(() =>
             />
             <span>{{ field.placeholder || field.label }}</span>
         </label>
+
+        <!-- Inline per-field error (server 422, keyed by field_key). Replaces
+             the old flat .ms-error summary in the fill view. -->
+        <p v-if="hasError" :id="errorId" class="ffr-error">
+            <i class="ti ti-alert-circle" aria-hidden="true" /> {{ errorMessage }}
+        </p>
     </div>
 </template>
 
@@ -134,6 +161,14 @@ const sanitisedContent = computed(() =>
 }
 .ffr-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
 .ffr-input:disabled { background: var(--neutral-bg); color: var(--text-secondary); cursor: not-allowed; }
+
+/* Per-field error state (design: --danger border). Border on the text-like
+   inputs; choice fields stay message-only, matching the design's empty
+   .ffr-field.is-error .ffr-radio-group rule. */
+.ffr-field.is-error .ffr-input { border-color: var(--danger); }
+.ffr-field.is-error .ffr-input:focus { border-color: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 16%, transparent); }
+.ffr-error { display: flex; align-items: flex-start; gap: 5px; font: 500 12px/1.4 'Inter', sans-serif; color: var(--danger); margin-top: 2px; }
+.ffr-error .ti { font-size: 14px; line-height: 1.2; flex: none; }
 .ffr-textarea { min-height: 80px; resize: vertical; }
 .ffr-select { appearance: none; }
 .ffr-radio-group { display: flex; flex-direction: column; gap: 8px; }

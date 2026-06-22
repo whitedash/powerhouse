@@ -4,11 +4,15 @@ namespace App\Services;
 
 use App\Models\ActivityLog;
 use App\Models\Form;
+use App\Models\FormField;
 use App\Models\FormSubmission;
 use App\Models\FormSubmissionDraft;
 use App\Models\PortalUser;
+use App\Support\FormFieldRules;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 /**
  * Owns all multi-step draft + submission-promotion logic. Controllers call
@@ -73,21 +77,61 @@ class FormService
     }
 
     /**
+     * Persist one step's answers onto a draft, then (on a forward advance only)
+     * run the per-step gate: validate ONLY the fields on the step being LEFT.
+     *
+     * Order is persist-THEN-validate so a blocked advance keeps the respondent's
+     * input — the answers are saved before the gate can throw. On a failed gate
+     * the resume marker (current_step) is NOT bumped, so resume returns to the
+     * step that has errors. $validateStep is false for save-for-later and for any
+     * legacy client that doesn't opt in, so their behaviour is unchanged.
+     *
      * @param  array<string, mixed>  $answers
      */
-    public function saveStep(FormSubmissionDraft $draft, int $step, array $answers, Request $request): FormSubmissionDraft
+    public function saveStep(FormSubmissionDraft $draft, Form $form, int $step, array $answers, Request $request, bool $validateStep = false): FormSubmissionDraft
     {
         abort_if($step < 1, 422, 'Step must be greater than zero.');
 
+        // Persist FIRST — a blocked advance must preserve the respondent's input.
         $merged = array_merge($draft->data ?? [], $answers);
+        $draft->update(['data' => $merged, 'updated_at' => now()]);
 
-        $draft->update([
-            'data' => $merged,
-            'current_step' => max($draft->current_step, $step),
-            'updated_at' => now(),
-        ]);
+        // Per-step gate (forward advance only): validate ONLY the fields on the
+        // step being left, with the SAME FormFieldRules the final submit uses, so
+        // the gate and the backstop can't drift. A 422 here (field-keyed errors)
+        // blocks the advance; legacy single-step forms have no step rows, so the
+        // field set is empty and nothing is gated.
+        if ($validateStep) {
+            $stepFields = $this->fieldsForStep($form, $step);
+            if ($stepFields->isNotEmpty()) {
+                Validator::make($merged, FormFieldRules::for($stepFields))->validate();
+            }
+        }
+
+        // Advance the resume marker only once the step is clean (or wasn't gated).
+        $draft->update(['current_step' => max($draft->current_step, $step)]);
 
         return $draft;
+    }
+
+    /**
+     * The fields on the step being LEFT during a forward advance. The client
+     * sends `step` as the 1-based index of the NEXT step it is moving to
+     * (currentStep + 1), so the step being validated is the (step - 1)-th step
+     * ordered by sort_order. Out-of-range or single-step forms (no step rows)
+     * yield an empty set, so nothing is gated.
+     *
+     * @return Collection<int, FormField>
+     */
+    private function fieldsForStep(Form $form, int $step): Collection
+    {
+        $departingStep = $form->steps->values()->get($step - 1);
+
+        if ($departingStep === null) {
+            return collect();
+        }
+
+        return $form->fields->where('form_step_id', $departingStep->id)->values();
     }
 
     public function submitDraft(FormSubmissionDraft $draft, Form $form, Request $request, WorkflowEngine $engine, ?PortalUser $portalUser = null): FormSubmission
