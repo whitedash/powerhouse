@@ -259,6 +259,41 @@
   .rp-field input::placeholder { color: var(--text-tertiary); }
   .rp-stub-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-soft); }
 
+  /* Create-role: vertical numbered flow */
+  .rp-flow { display: flex; flex-direction: column; gap: 16px; }
+  .rp-fstep { display: flex; gap: 10px; }
+  .rp-fstep .rp-step-no { margin-top: 1px; }
+  .rp-fbody { flex: 1; min-width: 0; }
+  .rp-fbody .rp-field { margin-top: 6px; }
+
+  /* Starting-point option cards (Start blank / Copy from) */
+  .rp-startpoint { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .rp-sp-opt { display: block; cursor: pointer; }
+  .rp-sp-opt input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .rp-sp-card { border: 1px solid var(--border); border-radius: var(--radius-md); background: #fff; padding: 10px 12px; transition: border-color .12s, background .12s, box-shadow .12s; }
+  .rp-sp-opt:hover .rp-sp-card { border-color: #CBD5E1; }
+  .rp-sp-opt input:checked + .rp-sp-card { border-color: var(--accent); background: var(--warning-bg); box-shadow: 0 0 0 2px rgba(245,158,11,.18); }
+  .rp-sp-opt input:focus-visible + .rp-sp-card { box-shadow: 0 0 0 3px rgba(245,158,11,.3); }
+  .rp-sp-t { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font: 600 13px/1.3 'Inter', sans-serif; color: var(--text-primary); }
+  .rp-sp-t .ti { font-size: 15px; color: var(--text-secondary); }
+  .rp-sp-d { font: 400 11.5px/1.45 'Inter', sans-serif; color: var(--text-secondary); margin-top: 5px; }
+  .rp-sp-d .muted { color: var(--text-tertiary); }
+  .rp-sp-select { height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 26px 0 9px; font: 600 12px/1 'Inter', sans-serif; color: var(--text-primary); background-color: #fff; outline: 0; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat: no-repeat; background-position: right 8px center; }
+
+  /* Seeded-matrix preview (shows the copied state, scopes included) */
+  .rp-preview { margin-top: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+  .rp-preview-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; padding: 9px 12px; background: var(--neutral-bg); border-bottom: 1px solid var(--border-soft); font: 600 12px/1.3 'Inter', sans-serif; color: var(--text-primary); }
+  .rp-preview-head .ti { font-size: 15px; color: var(--accent); }
+  .rp-preview-head b { color: #B45309; }
+  .rp-preview-tag { margin-left: auto; font: 500 9px/1.4 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .06em; color: var(--text-tertiary); background: #fff; border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
+  .rp-preview-body { padding: 6px 0; }
+  .rp-pgroup { padding: 8px 12px 3px; font: 600 10px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .1em; color: var(--text-tertiary); }
+  .rp-prow { display: flex; align-items: center; gap: 10px; padding: 5px 12px; }
+  .rp-prow .nm { font: 500 11.5px/1.3 'JetBrains Mono', monospace; color: var(--text-primary); flex: 1; min-width: 0; }
+  .rp-prow .ctrl { flex-shrink: 0; }
+  .rp-allelse { padding: 9px 12px; margin-top: 2px; border-top: 1px solid var(--border-soft); font: 400 11.5px/1.45 'Inter', sans-serif; color: var(--text-secondary); }
+  .rp-allelse b { color: var(--text-primary); font-weight: 600; }
+
   /* ─── Legend ─── */
   .rp-legend-swatches { display: flex; flex-wrap: wrap; gap: 14px 22px; padding-bottom: 14px; border-bottom: 1px solid var(--border-soft); margin-bottom: 14px; }
   .rp-sw { display: flex; align-items: center; gap: 8px; font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary); }
@@ -1126,39 +1161,95 @@
               <div class="h-icon gold"><i class="ti ti-plus"></i></div>
               <div>
                 <h3>Create a role</h3>
-                <div class="sub">Two steps: name it, then grant permissions</div>
+                <div class="sub">Name it, pick a starting point, then grant via the matrix</div>
               </div>
             </header>
             <div class="card-body">
-              <div class="rp-steps">
-                <div class="rp-step">
+              <div class="rp-flow">
+
+                <!-- Step 1 — name -->
+                <div class="rp-fstep">
                   <span class="rp-step-no">1</span>
-                  <div>
+                  <div class="rp-fbody">
                     <div class="rp-step-t">Name the role</div>
-                    <div class="rp-step-d">Give it a label staff will recognise.</div>
                     <div class="rp-field">
-                      <label>Role name</label>
                       <input type="text" placeholder="e.g. Billing Clerk">
                     </div>
-                    <div class="rp-field">
-                      <label>Start from</label>
-                      <select>
-                        <option>Blank — deny everything</option>
-                        <option>Copy from Staff</option>
-                        <option>Copy from Support Agent</option>
-                        <option>Copy from Sales</option>
-                      </select>
+                  </div>
+                </div>
+
+                <!-- Step 2 — starting point: Start blank / Copy from -->
+                <div class="rp-fstep">
+                  <span class="rp-step-no">2</span>
+                  <div class="rp-fbody">
+                    <div class="rp-step-t">Choose a starting point</div>
+                    <div class="rp-startpoint">
+                      <label class="rp-sp-opt">
+                        <input type="radio" name="rp-start">
+                        <div class="rp-sp-card">
+                          <div class="rp-sp-t"><i class="ti ti-square"></i>Start blank</div>
+                          <div class="rp-sp-d">The new role's matrix opens with <b>everything off</b> — all toggles unchecked and all four scope selectors (Projects, Tasks, Support, Leads) at <b>None</b>.</div>
+                        </div>
+                      </label>
+                      <label class="rp-sp-opt">
+                        <input type="radio" name="rp-start" checked>
+                        <div class="rp-sp-card">
+                          <div class="rp-sp-t"><i class="ti ti-copy"></i>Copy from
+                            <select class="rp-sp-select" aria-label="Source role to copy from">
+                              <option selected>Support Agent</option>
+                              <option>Staff</option>
+                              <option>Sales</option>
+                            </select>
+                          </div>
+                          <div class="rp-sp-d">Opens the matrix <b>pre-filled with that role's complete state</b> — every binary toggle, all four <em>All / Assigned / None</em> scope selectors, <b>and</b> <code class="k">support.view_unassigned</code> — which you then edit. Copying the scopes is the point: they're the fiddly part to set by hand. <span class="muted">Super Admin isn't listed — it bypasses the matrix and stores no toggle state to copy. This is a one-time seed: later changes to the source role don't affect this new role.</span></div>
+                        </div>
+                      </label>
                     </div>
                   </div>
                 </div>
-                <div class="rp-step-arrow"><i class="ti ti-arrow-right"></i></div>
-                <div class="rp-step">
-                  <span class="rp-step-no">2</span>
-                  <div>
-                    <div class="rp-step-t">Grant permissions</div>
-                    <div class="rp-step-d">The new role appears as a column in the matrix above. Toggle each capability on or off — and for the four scoped sections (Projects, Tasks, Support, Leads) pick <em>All / Assigned / None</em> instead of on/off. Starts denied unless you copied an existing role.</div>
+
+                <!-- Step 3 — edit in matrix, with a concrete seeded preview -->
+                <div class="rp-fstep">
+                  <span class="rp-step-no">3</span>
+                  <div class="rp-fbody">
+                    <div class="rp-step-t">Edit permissions in the matrix</div>
+                    <div class="rp-step-d">The new role appears as a column above, pre-filled from your starting point. Adjust toggles and scopes, then save.</div>
+
+                    <div class="rp-preview">
+                      <div class="rp-preview-head"><i class="ti ti-wand"></i>New-role column, seeded from <b>Support Agent</b><span class="rp-preview-tag">Starting point · edit before saving</span></div>
+                      <div class="roles-matrix rp-preview-body">
+                        <div class="rp-pgroup">Support / helpdesk</div>
+                        <div class="rp-prow">
+                          <span class="nm">support.access</span>
+                          <span class="ctrl"><div class="pm-scope"><label><input type="radio" name="pv-support" disabled><span class="s-all">All</span></label><label><input type="radio" name="pv-support" checked disabled><span class="s-asgn">Assigned</span></label><label><input type="radio" name="pv-support" disabled><span class="s-none">None</span></label></div></span>
+                        </div>
+                        <div class="rp-prow">
+                          <span class="nm">support.view_unassigned</span>
+                          <span class="ctrl"><label class="pm-toggle compose"><input type="checkbox" checked disabled><span class="pm-track"><span class="pm-knob"></span></span></label></span>
+                        </div>
+                        <div class="rp-prow">
+                          <span class="nm">support.manage</span>
+                          <span class="ctrl"><label class="pm-toggle"><input type="checkbox" checked disabled><span class="pm-track"><span class="pm-knob"></span></span></label></span>
+                        </div>
+                        <div class="rp-pgroup">Other scoped sections</div>
+                        <div class="rp-prow">
+                          <span class="nm">projects.access</span>
+                          <span class="ctrl"><div class="pm-scope"><label><input type="radio" name="pv-projects" disabled><span class="s-all">All</span></label><label><input type="radio" name="pv-projects" disabled><span class="s-asgn">Assigned</span></label><label><input type="radio" name="pv-projects" checked disabled><span class="s-none">None</span></label></div></span>
+                        </div>
+                        <div class="rp-prow">
+                          <span class="nm">tasks.access</span>
+                          <span class="ctrl"><div class="pm-scope"><label><input type="radio" name="pv-tasks" disabled><span class="s-all">All</span></label><label><input type="radio" name="pv-tasks" disabled><span class="s-asgn">Assigned</span></label><label><input type="radio" name="pv-tasks" checked disabled><span class="s-none">None</span></label></div></span>
+                        </div>
+                        <div class="rp-prow">
+                          <span class="nm">leads.access</span>
+                          <span class="ctrl"><div class="pm-scope"><label><input type="radio" name="pv-leads" disabled><span class="s-all">All</span></label><label><input type="radio" name="pv-leads" disabled><span class="s-asgn">Assigned</span></label><label><input type="radio" name="pv-leads" checked disabled><span class="s-none">None</span></label></div></span>
+                        </div>
+                        <div class="rp-allelse"><b>Everything else: off.</b> All other Access / Manage toggles and every high-stakes action come up unchecked — Support Agent's exact state. Edit any of it before saving.</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
+
               </div>
               <div class="rp-stub-foot">
                 <button class="btn btn-secondary btn-sm">Cancel</button>
