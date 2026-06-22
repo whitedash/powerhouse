@@ -66,6 +66,10 @@ class WorkflowController extends Controller
                 'fields' => $f->fields->map(fn (FormField $field): array => [
                     'key' => $field->field_key,
                     'label' => $field->label,
+                    // Type lets the action-parameter binding picker filter to
+                    // compatible fields (datetime for due dates, email for
+                    // recipients). The conditions picker ignores it.
+                    'type' => $field->type,
                 ])->values(),
             ]);
 
@@ -271,11 +275,27 @@ class WorkflowController extends Controller
                 case 'send_email':
                     $rules["actions.$i.config.subject_template"] = ['required', 'string', 'max:255'];
                     $rules["actions.$i.config.body_template"] = ['required', 'string', 'max:5000'];
-                    $rules["actions.$i.config.to_mode"] = ['required', Rule::in(['fixed', 'context_field'])];
-                    // Recipient is an email address (fixed) or a context field name
-                    // (context_field) — NotInternalUrl/SSRF does not apply here.
-                    $rules["actions.$i.config.to_address"] = ["required_if:actions.$i.config.to_mode,fixed", 'nullable', 'email', 'max:255'];
-                    $rules["actions.$i.config.to_field"] = ["required_if:actions.$i.config.to_mode,context_field", 'nullable', 'string', 'max:255'];
+                    // Recipient via the value-source descriptor: a fixed address
+                    // (source=static) or a context field name (source=field). The
+                    // legacy to_mode/to_field/to_address are kept NULLABLE so
+                    // pre-binding workflows still validate; the engine reads
+                    // recipient_source first and falls back to the legacy keys.
+                    $rules["actions.$i.config.recipient_source.source"] = ['nullable', Rule::in(['static', 'field'])];
+                    $rules["actions.$i.config.recipient_source.static"] = ['nullable', 'email', 'max:255'];
+                    $rules["actions.$i.config.recipient_source.field_key"] = ['nullable', 'string', 'max:100'];
+                    $rules["actions.$i.config.to_mode"] = ['nullable', Rule::in(['fixed', 'context_field'])];
+                    $rules["actions.$i.config.to_address"] = ['nullable', 'email', 'max:255'];
+                    $rules["actions.$i.config.to_field"] = ['nullable', 'string', 'max:255'];
+
+                    break;
+
+                case 'create_task':
+                    // Due date via the value-source descriptor: a datetime form
+                    // field (source=field) or the relative due_in_days offset
+                    // (source=static / no descriptor). due_at is never null.
+                    $rules["actions.$i.config.due_at_source.source"] = ['nullable', Rule::in(['static', 'field'])];
+                    $rules["actions.$i.config.due_at_source.field_key"] = ['nullable', 'string', 'max:100'];
+                    $rules["actions.$i.config.due_in_days"] = ['nullable', 'integer', 'min:0', 'max:3650'];
 
                     break;
 

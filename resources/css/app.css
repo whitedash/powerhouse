@@ -14020,6 +14020,44 @@ select.form-input { padding-right: 30px; appearance: none; background-image: lin
 .wf-cond-group-foot { margin-top: 2px; }
 .wf-cond-add-group { align-self: flex-start; }
 
+/* Value-source input (ValueSourceInput.vue) — a Static | Form-field toggle for a
+   bindable action parameter. Namespaced wf-vs-*; border/radius live in classes
+   (never inline) so audit:sections Check 2 stays green. */
+.wf-vs { display: flex; flex-direction: column; gap: 6px; }
+.wf-vs-toggle {
+    display: inline-flex; align-self: flex-start;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--surface-elevated, #fafafa);
+}
+.wf-vs-tab {
+    border: 0; background: transparent; cursor: pointer;
+    padding: 5px 12px;
+    font: 500 12px/1 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.wf-vs-tab + .wf-vs-tab { border-left: 1px solid var(--border); }
+.wf-vs-tab.active { background: var(--accent); color: #fff; }
+.wf-vs-body { display: flex; flex-direction: column; gap: 5px; }
+.slide-over-wide .wf-vs-body input,
+.slide-over-wide .wf-vs-body select {
+    width: 100%;
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: var(--radius-md);
+    padding: 8px 10px;
+    font: 400 13px/1.3 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: 0;
+    transition: border-color .15s, box-shadow .15s;
+}
+.slide-over-wide .wf-vs-body input:focus,
+.slide-over-wide .wf-vs-body select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft, rgba(245, 158, 11, .18));
+}
+
 /* Switch (used for workflow active toggle) */
 .switch {
     position: relative;
