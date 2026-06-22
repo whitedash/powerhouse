@@ -114,9 +114,11 @@ class WorkflowSendEmailTest extends TestCase
     {
         Mail::fake();
 
-        // send_email (queued in-transaction) THEN a create_task whose
-        // assigned_to FK is invalid → the insert throws, the transaction rolls
-        // back, and the deferred email must never flush.
+        // send_email (queued in-transaction) THEN a create_task whose insert
+        // throws → the transaction rolls back and the deferred email must never
+        // flush. The throw is forced via a non-existent customer_id from the
+        // payload: assigned_to/created_by are now defaulted to a real super_admin
+        // (the default-assignee fix), so those no longer FK-fail.
         $workflow = $this->makeWorkflow([
             [
                 'action_type' => 'send_email',
@@ -131,13 +133,12 @@ class WorkflowSendEmailTest extends TestCase
                 'action_type' => 'create_task',
                 'config' => [
                     'title_template' => 'Boom',
-                    'assigned_to' => 999999, // non-existent user → FK violation
-                    'created_by' => 999999,
                 ],
             ],
         ]);
 
-        app(WorkflowEngine::class)->trigger('form_submitted', ['first_name' => 'Pat']);
+        // customer_id 999999 does not exist → tasks.customer_id FK violation.
+        app(WorkflowEngine::class)->trigger('form_submitted', ['first_name' => 'Pat', 'customer_id' => 999999]);
 
         // After-commit guarantee: nothing sent, and the run rolled back.
         Mail::assertNothingSent();

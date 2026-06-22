@@ -81,7 +81,22 @@ class WorkflowEngine
                     $context = $payload;
 
                     foreach ($workflow->actions as $action) {
-                        $context = $this->executeAction($action, $context);
+                        try {
+                            $context = $this->executeAction($action, $context);
+                        } catch (\Throwable $e) {
+                            // Make the swallowed failure observable with the culprit
+                            // action's identity, then re-throw so the whole-workflow
+                            // rollback still applies (one bad action voids its run —
+                            // this preserves the send_email after-commit guarantee).
+                            Log::warning('Workflow action failed', [
+                                'workflow_id' => $workflow->id,
+                                'action_id' => $action->id,
+                                'action_type' => $action->action_type,
+                                'error' => $e->getMessage(),
+                            ]);
+
+                            throw $e;
+                        }
                     }
 
                     // run_count is bumped atomically so concurrent
@@ -337,6 +352,30 @@ class WorkflowEngine
             }
         }
 
+        // tasks.assigned_to and tasks.created_by are both NOT NULL (FK→users,
+        // RESTRICT). Resolve each through resolveWorkflowActorId so an unset,
+        // null ("Unassigned" in the builder), or stale id falls back to the first
+        // super_admin — never null or a magic "1" that would FK-fail and be
+        // swallowed by trigger(). Resolution happens at run time, so create_task
+        // actions already saved with no assignee start working without a migration.
+        $assignedTo = $this->resolveWorkflowActorId(
+            isset($config['assigned_to']) ? (int) $config['assigned_to'] : null
+        );
+        $createdBy = $this->resolveWorkflowActorId(
+            isset($config['created_by']) ? (int) $config['created_by'] : null
+        );
+
+        // No super_admin exists at all (degenerate) → the NOT NULL FKs can't be
+        // satisfied. Skip + warn rather than let a null insert throw into the
+        // swallow and silently drop the task.
+        if ($assignedTo === null || $createdBy === null) {
+            Log::warning('Workflow create_task skipped: no default assignee could be resolved', [
+                'action_type' => 'create_task',
+            ]);
+
+            return $context;
+        }
+
         Task::create([
             'lead_id' => $context['lead_id'] ?? null,
             'customer_id' => $context['customer_id'] ?? null,
@@ -344,9 +383,9 @@ class WorkflowEngine
             'type' => $config['type'] ?? 'task',
             'priority' => $config['priority'] ?? 'medium',
             'status' => 'todo',
-            'assigned_to' => $config['assigned_to'] ?? null,
+            'assigned_to' => $assignedTo,
             'due_at' => $dueAt,
-            'created_by' => $config['created_by'] ?? 1,
+            'created_by' => $createdBy,
         ]);
 
         return $context;
