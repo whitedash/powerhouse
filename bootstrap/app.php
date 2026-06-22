@@ -15,6 +15,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Sentry\Laravel\Integration;
+use Spatie\Permission\Middleware\PermissionMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -70,6 +71,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'role' => EnsureRole::class,
+            // Phase 3a: Spatie's permission middleware under a NON-colliding
+            // alias. 'role' stays EnsureRole — the coarse "is an internal
+            // operator" gate (the outer role:super_admin,staff group); 'permission'
+            // gates the capability sub-groups that were role:super_admin.
+            'permission' => PermissionMiddleware::class,
             'portal_auth' => EnsurePortalUser::class,
             'auth.portal' => EnsurePortalUser::class,
             'portal_owns' => EnsurePortalDataOwnership::class,

@@ -5,29 +5,28 @@ namespace App\Policies;
 use App\Models\User;
 
 /**
- * Commission rules drive payouts, so management is super_admin-only —
- * matching the referrer payout actions (approveCommission / markPaid) and
- * the Settings route group's role:super_admin gate.
+ * Commission rules drive payouts. Phase 3a: gated by commission.config
+ * (super_admin-only today, super_admin via Gate::before).
  */
 class CommissionRulePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->isSuperAdmin();
+        return $user->hasPermissionTo('commission.config');
     }
 
     public function create(User $user): bool
     {
-        return $user->isSuperAdmin();
+        return $user->hasPermissionTo('commission.config');
     }
 
     public function update(User $user): bool
     {
-        return $user->isSuperAdmin();
+        return $user->hasPermissionTo('commission.config');
     }
 
     public function delete(User $user): bool
     {
-        return $user->isSuperAdmin();
+        return $user->hasPermissionTo('commission.config');
     }
 }

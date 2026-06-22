@@ -1381,7 +1381,9 @@ class CustomerController extends Controller
         Gate::authorize('update', $customer);
 
         $user = $request->user();
-        abort_unless($user?->isSuperAdmin(), 403, 'Only a super_admin can attach a referral.');
+        // Phase 3a: gated by customers.referral.manage (route also carries
+        // permission:customers.referral.manage; this is defence-in-depth).
+        abort_unless($user?->hasPermissionTo('customers.referral.manage') ?? false, 403, 'You do not have permission to attach a referral.');
 
         if (CustomerReferral::where('customer_id', $customer->id)->exists()) {
             return back()->with(

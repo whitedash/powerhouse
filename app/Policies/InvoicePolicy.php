@@ -5,26 +5,31 @@ namespace App\Policies;
 use App\Models\Invoice;
 use App\Models\User;
 
+/**
+ * Phase 3a: the role portion of each gate swaps to a permission; the
+ * invoice-STATUS conditions are preserved verbatim (they're not role checks).
+ * super_admin bypasses via Gate::before.
+ */
 class InvoicePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->isStaff();
+        return $user->hasPermissionTo('invoices.access');
     }
 
     public function view(User $user, ?Invoice $invoice = null): bool
     {
-        return $user->isStaff();
+        return $user->hasPermissionTo('invoices.access');
     }
 
     public function create(User $user): bool
     {
-        return $user->isStaff();
+        return $user->hasPermissionTo('invoices.manage');
     }
 
     public function update(User $user, ?Invoice $invoice = null): bool
     {
-        if (! $user->isStaff()) {
+        if (! $user->hasPermissionTo('invoices.manage')) {
             return false;
         }
 
@@ -36,6 +41,11 @@ class InvoicePolicy
             || in_array($invoice->status, ['draft', 'sent', 'overdue'], true);
     }
 
+    /**
+     * Unbound by any route, and there is no invoices.delete permission in the
+     * matrix — so this stays super_admin-only (super_admin via Gate::before).
+     * Documented phase-3a exception: no permission to map to, none invented.
+     */
     public function delete(User $user, ?Invoice $invoice = null): bool
     {
         return $user->isSuperAdmin();
@@ -43,37 +53,34 @@ class InvoicePolicy
 
     public function void(User $user, ?Invoice $invoice = null): bool
     {
-        return $user->isSuperAdmin();
+        return $user->hasPermissionTo('invoices.void');
     }
 
     /**
-     * Transition draft → sent. Any staff member can send an invoice they
-     * have view rights to; only draft invoices can be sent (controller
-     * enforces the status check; the policy stays simple).
+     * Transition draft → sent. Any operator with invoices.manage can send;
+     * only draft invoices can be sent (controller enforces the status check).
      */
     public function send(User $user, ?Invoice $invoice = null): bool
     {
-        return $user->isStaff();
+        return $user->hasPermissionTo('invoices.manage');
     }
 
     /**
-     * Record a payment against an existing invoice. Distinct from
-     * `update` (which is the draft-editing ability) because marking
-     * paid is a status transition on a sent/overdue invoice.
+     * Record a payment against an existing invoice. Distinct from `update`
+     * because marking paid is a status transition on a sent/overdue invoice.
      */
     public function markPaid(User $user, ?Invoice $invoice = null): bool
     {
-        return $user->isStaff();
+        return $user->hasPermissionTo('invoices.manage');
     }
 
     /**
-     * Generate a Stripe Checkout payment link for an issued invoice.
-     * Same privilege as recording a payment — it's a money-movement
-     * action on a sent/overdue invoice.
+     * Generate a Stripe Checkout payment link for an issued invoice. Same
+     * privilege as recording a payment — a money-movement action.
      */
     public function generatePaymentLink(User $user, ?Invoice $invoice = null): bool
     {
-        if (! $user->isStaff()) {
+        if (! $user->hasPermissionTo('invoices.manage')) {
             return false;
         }
 
@@ -82,13 +89,12 @@ class InvoicePolicy
     }
 
     /**
-     * Send a chase reminder. Distinct from `send` (which is the
-     * draft → sent transition) because reminders go out repeatedly
-     * on already-issued invoices.
+     * Send a chase reminder. Distinct from `send` because reminders go out
+     * repeatedly on already-issued invoices.
      */
     public function sendReminder(User $user, ?Invoice $invoice = null): bool
     {
-        if (! $user->isStaff()) {
+        if (! $user->hasPermissionTo('invoices.manage')) {
             return false;
         }
 
@@ -98,12 +104,10 @@ class InvoicePolicy
 
     /**
      * Pause / resume automated reminders on a single invoice.
-     * Staff can do this for any open invoice; the scheduled command
-     * respects the `reminders_paused` flag.
      */
     public function manageReminders(User $user, ?Invoice $invoice = null): bool
     {
-        if (! $user->isStaff()) {
+        if (! $user->hasPermissionTo('invoices.manage')) {
             return false;
         }
 

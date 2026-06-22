@@ -152,20 +152,24 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // Mutations live outside the throttle group — bulk approvals can
     // genuinely fire several requests close together and they're behind
     // super_admin anyway.
-    Route::middleware('role:super_admin')->prefix('referrers')->name('internal.referrers.')->group(function () {
-        Route::post('/', [InternalReferrerController::class, 'store'])->name('store');
-        Route::put('/{id}', [InternalReferrerController::class, 'update'])->name('update');
-        Route::post('/{id}/reset-password', [InternalReferrerController::class, 'resetPassword'])->name('reset-password');
-        Route::post('/approve-all', [InternalReferrerController::class, 'approveAll'])->name('approve-all');
-        Route::post('/{id}/approve', [InternalReferrerController::class, 'approveCommission'])->name('approve');
-        Route::post('/{id}/mark-paid', [InternalReferrerController::class, 'markPaid'])->name('mark-paid');
+    Route::prefix('referrers')->name('internal.referrers.')->group(function () {
+        Route::middleware('permission:referrers.manage')->group(function () {
+            Route::post('/', [InternalReferrerController::class, 'store'])->name('store');
+            Route::put('/{id}', [InternalReferrerController::class, 'update'])->name('update');
+            Route::post('/{id}/reset-password', [InternalReferrerController::class, 'resetPassword'])->name('reset-password');
+        });
+        Route::middleware('permission:commission.approve')->group(function () {
+            Route::post('/approve-all', [InternalReferrerController::class, 'approveAll'])->name('approve-all');
+            Route::post('/{id}/approve', [InternalReferrerController::class, 'approveCommission'])->name('approve');
+            Route::post('/{id}/mark-paid', [InternalReferrerController::class, 'markPaid'])->name('mark-paid');
+        });
     });
 
     // Impersonation — mint a short-lived signed-token URL pointing at
     // the portal or referrer preview endpoint. super_admin only; the
     // preview endpoints live OUTSIDE the auth group because they're
     // the ones that establish the session on the other guard.
-    Route::middleware('role:super_admin')->group(function () {
+    Route::middleware('permission:impersonate')->group(function () {
         Route::post('/impersonate/portal/{customerId}', [InternalImpersonationController::class, 'portalPreview'])->name('internal.impersonate.portal');
         Route::post('/impersonate/referrer/{referrerId}', [InternalImpersonationController::class, 'referrerPreview'])->name('internal.impersonate.referrer');
     });
@@ -510,20 +514,22 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // pending commissions and detaches the referrer permanently —
     // nothing a regular staff member should be able to trigger on
     // their own.
-    Route::middleware('role:super_admin')->group(function () {
+    Route::middleware('permission:customers.referral.manage')->group(function () {
         Route::post('/customers/{id}/referral', [InternalCustomerController::class, 'addReferral'])->name('internal.customers.referral.add');
         Route::delete('/customers/{id}/referral', [InternalCustomerController::class, 'removeReferral'])->name('internal.customers.referral.remove');
     });
 
     // GDPR tooling — right to erasure (Art. 17) + data portability (Art. 20).
     // super_admin only: erasure is irreversible and the export is full PII.
-    Route::middleware('role:super_admin')->prefix('gdpr/customers')->name('internal.gdpr.')->group(function () {
-        Route::post('/{id}/request-erasure', [InternalGdprController::class, 'requestErasure'])
-            ->whereNumber('id')->name('request-erasure');
-        Route::post('/{id}/process-erasure', [InternalGdprController::class, 'processErasure'])
-            ->whereNumber('id')->name('process-erasure');
+    Route::prefix('gdpr/customers')->name('internal.gdpr.')->group(function () {
+        Route::middleware('permission:gdpr.erase')->group(function () {
+            Route::post('/{id}/request-erasure', [InternalGdprController::class, 'requestErasure'])
+                ->whereNumber('id')->name('request-erasure');
+            Route::post('/{id}/process-erasure', [InternalGdprController::class, 'processErasure'])
+                ->whereNumber('id')->name('process-erasure');
+        });
         Route::get('/{id}/export', [InternalGdprController::class, 'exportData'])
-            ->whereNumber('id')->name('export');
+            ->whereNumber('id')->middleware('permission:gdpr.export')->name('export');
     });
 
     // Product subscriptions on a customer — enabling a new product creates
@@ -544,7 +550,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
 
     // Toggle a customer's auto-suspension exemption (super_admin only).
     Route::post('/customers/{id}/exemption', [InternalCustomerController::class, 'toggleExemption'])
-        ->whereNumber('id')->middleware('role:super_admin')->name('internal.customers.exemption');
+        ->whereNumber('id')->middleware('permission:customers.exemption')->name('internal.customers.exemption');
     // Billing P1: staff toggle of the per-customer auto-collect intent.
     Route::post('/customers/{id}/auto-collect', [InternalCustomerController::class, 'updateAutoCollect'])
         ->whereNumber('id')->name('internal.customers.auto-collect');
@@ -575,7 +581,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // super_admin only — mutates live customer sites. The page lists sites
     // with outstanding updates; the run endpoint updates one site at a time
     // so the UI can show live per-site progress.
-    Route::middleware('role:super_admin')->prefix('wordpress')->group(function () {
+    Route::middleware('permission:wordpress.bulk_update')->prefix('wordpress')->group(function () {
         Route::get('/updates', [InternalWordPressUpdateController::class, 'index'])
             ->name('internal.wordpress.updates');
         Route::post('/updates/site/{id}', [InternalWordPressUpdateController::class, 'updateSite'])
@@ -671,127 +677,150 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // are super_admin-only. Staff can read /settings overview but not the
     // sensitive editors. Nested middleware extends — not replaces — the
     // outer auth + role:super_admin,staff guard.
-    Route::middleware('role:super_admin')->prefix('settings')->name('internal.settings.')->group(function () {
-        // Team
-        Route::get('/team', [InternalSettingsController::class, 'team'])->name('team');
-        Route::post('/team/invite', [InternalSettingsController::class, 'teamInvite'])->name('team.invite');
-        Route::put('/team/{id}/role', [InternalSettingsController::class, 'teamUpdateRole'])->name('team.role');
-        Route::delete('/team/{id}', [InternalSettingsController::class, 'teamRemove'])->name('team.remove');
+    // Phase 3a: the settings admin sub-pages were one role:super_admin group.
+    // They now split into per-capability permission: sub-groups (super_admin
+    // holds every permission, so it still reaches all; staff holds none of
+    // these, so its reach is unchanged). The /settings overview (GET /settings,
+    // above) stays staff-reachable via the outer group.
+    Route::prefix('settings')->name('internal.settings.')->group(function () {
+        // Team management + the roles/permissions matrix admin.
+        Route::middleware('permission:staff.manage')->group(function () {
+            Route::get('/team', [InternalSettingsController::class, 'team'])->name('team');
+            Route::post('/team/invite', [InternalSettingsController::class, 'teamInvite'])->name('team.invite');
+            Route::put('/team/{id}/role', [InternalSettingsController::class, 'teamUpdateRole'])->name('team.role');
+            Route::delete('/team/{id}', [InternalSettingsController::class, 'teamRemove'])->name('team.remove');
 
-        // Roles & permissions matrix (phase 2 — editable, but INERT: nothing
-        // reads this data for enforcement yet; this group's role:super_admin
-        // gate is the only authorization in play).
-        Route::get('/roles', [InternalRoleController::class, 'index'])->name('roles.index');
-        Route::post('/roles', [InternalRoleController::class, 'store'])->name('roles.store');
-        Route::put('/roles/{id}', [InternalRoleController::class, 'update'])->whereNumber('id')->name('roles.update');
-        Route::delete('/roles/{id}', [InternalRoleController::class, 'destroy'])->whereNumber('id')->name('roles.destroy');
-        Route::put('/roles/{id}/permissions', [InternalRoleController::class, 'togglePermission'])->whereNumber('id')->name('roles.permissions');
-        Route::put('/roles/{id}/scope', [InternalRoleController::class, 'setScope'])->whereNumber('id')->name('roles.scope');
+            Route::get('/roles', [InternalRoleController::class, 'index'])->name('roles.index');
+            Route::post('/roles', [InternalRoleController::class, 'store'])->name('roles.store');
+            Route::put('/roles/{id}', [InternalRoleController::class, 'update'])->whereNumber('id')->name('roles.update');
+            Route::delete('/roles/{id}', [InternalRoleController::class, 'destroy'])->whereNumber('id')->name('roles.destroy');
+            Route::put('/roles/{id}/permissions', [InternalRoleController::class, 'togglePermission'])->whereNumber('id')->name('roles.permissions');
+            Route::put('/roles/{id}/scope', [InternalRoleController::class, 'setScope'])->whereNumber('id')->name('roles.scope');
+        });
 
-        // Security
-        Route::get('/security', [InternalSettingsController::class, 'security'])->name('security');
-        Route::post('/security/password', [InternalSettingsController::class, 'securityChangePassword'])->name('security.password');
-        Route::post('/security/sessions/clear', [InternalSettingsController::class, 'securityClearSessions'])->name('security.sessions.clear');
+        // Security — the operator's own password / session page. No matrix
+        // capability maps to it, so it stays super_admin-only via EnsureRole
+        // (access-identical; the one documented phase-3a exception — not a
+        // permission, and not invented as one).
+        Route::middleware('role:super_admin')->group(function () {
+            Route::get('/security', [InternalSettingsController::class, 'security'])->name('security');
+            Route::post('/security/password', [InternalSettingsController::class, 'securityChangePassword'])->name('security.password');
+            Route::post('/security/sessions/clear', [InternalSettingsController::class, 'securityClearSessions'])->name('security.sessions.clear');
+        });
 
-        // Notifications
-        Route::get('/notifications', [InternalSettingsController::class, 'notifications'])->name('notifications');
-        Route::post('/notifications', [InternalSettingsController::class, 'notificationsUpdate'])->name('notifications.update');
+        Route::middleware('permission:settings.notifications')->group(function () {
+            Route::get('/notifications', [InternalSettingsController::class, 'notifications'])->name('notifications');
+            Route::post('/notifications', [InternalSettingsController::class, 'notificationsUpdate'])->name('notifications.update');
+        });
+
         // Billing automation — auto-suspension thresholds.
-        Route::get('/billing', [InternalSettingsController::class, 'billing'])->name('billing');
-        Route::post('/billing', [InternalSettingsController::class, 'billingUpdate'])->name('billing.update');
-        // Reminder templates — edit subject/body per escalation tier
-        // and preview against the most recent invoice.
-        Route::get('/reminder-templates', [InternalSettingsController::class, 'reminderTemplates'])->name('reminder-templates');
-        Route::put('/reminder-templates/{id}', [InternalSettingsController::class, 'reminderTemplatesUpdate'])
-            ->whereNumber('id')
-            ->name('reminder-templates.update');
-        Route::post('/reminder-templates/{id}/preview', [InternalSettingsController::class, 'reminderTemplatesPreview'])
-            ->whereNumber('id')
-            ->name('reminder-templates.preview');
+        Route::middleware('permission:settings.billing_automation')->group(function () {
+            Route::get('/billing', [InternalSettingsController::class, 'billing'])->name('billing');
+            Route::post('/billing', [InternalSettingsController::class, 'billingUpdate'])->name('billing.update');
+        });
 
-        // Integrations
-        Route::get('/integrations', [InternalSettingsController::class, 'integrations'])->name('integrations');
-        Route::get('/integrations/{name}/test', [InternalSettingsController::class, 'integrationTest'])->name('integrations.test');
-        Route::post('/integrations/test/email', [InternalSettingsController::class, 'testEmail'])->name('integrations.test-email');
+        // Reminder templates — edit subject/body per escalation tier.
+        Route::middleware('permission:settings.reminder_templates')->group(function () {
+            Route::get('/reminder-templates', [InternalSettingsController::class, 'reminderTemplates'])->name('reminder-templates');
+            Route::put('/reminder-templates/{id}', [InternalSettingsController::class, 'reminderTemplatesUpdate'])
+                ->whereNumber('id')
+                ->name('reminder-templates.update');
+            Route::post('/reminder-templates/{id}/preview', [InternalSettingsController::class, 'reminderTemplatesPreview'])
+                ->whereNumber('id')
+                ->name('reminder-templates.preview');
+        });
 
-        // Audit log
-        Route::get('/audit-log', [InternalSettingsController::class, 'auditLog'])->name('audit-log');
+        // Integrations (incl. webhook-delivery retry, conceptually).
+        Route::middleware('permission:settings.integrations')->group(function () {
+            Route::get('/integrations', [InternalSettingsController::class, 'integrations'])->name('integrations');
+            Route::get('/integrations/{name}/test', [InternalSettingsController::class, 'integrationTest'])->name('integrations.test');
+            Route::post('/integrations/test/email', [InternalSettingsController::class, 'testEmail'])->name('integrations.test-email');
+        });
 
-        // Danger zone
-        Route::get('/danger', [InternalSettingsController::class, 'danger'])->name('danger');
-        Route::post('/danger/reset-notifications', [InternalSettingsController::class, 'dangerResetNotifications'])->name('danger.reset-notifications');
+        Route::middleware('permission:settings.audit_log')->group(function () {
+            Route::get('/audit-log', [InternalSettingsController::class, 'auditLog'])->name('audit-log');
+        });
 
-        Route::get('/billing-entities', [InternalBillingEntityController::class, 'index'])
-            ->name('billing-entities.index');
-        Route::post('/billing-entities', [InternalBillingEntityController::class, 'store'])
-            ->name('billing-entities.store');
-        Route::put('/billing-entities/{id}', [InternalBillingEntityController::class, 'update'])
-            ->name('billing-entities.update');
-        Route::post('/billing-entities/{id}/logo', [InternalBillingEntityController::class, 'uploadLogo'])
-            ->name('billing-entities.logo');
-        Route::delete('/billing-entities/{id}/logo', [InternalBillingEntityController::class, 'deleteLogo'])
-            ->name('billing-entities.logo.delete');
-        Route::delete('/billing-entities/{id}', [InternalBillingEntityController::class, 'destroy'])
-            ->name('billing-entities.destroy');
+        Route::middleware('permission:settings.danger')->group(function () {
+            Route::get('/danger', [InternalSettingsController::class, 'danger'])->name('danger');
+            Route::post('/danger/reset-notifications', [InternalSettingsController::class, 'dangerResetNotifications'])->name('danger.reset-notifications');
+        });
 
-        Route::get('/products', [InternalProductController::class, 'index'])->name('products.index');
-        Route::post('/products', [InternalProductController::class, 'store'])->name('products.store');
-        Route::put('/products/{id}', [InternalProductController::class, 'update'])->name('products.update');
-        Route::post('/products/{id}/toggle', [InternalProductController::class, 'toggleActive'])->name('products.toggle');
-        Route::post('/products/reorder', [InternalProductController::class, 'updateOrder'])->name('products.reorder');
-        Route::get('/products/{id}/plans', [InternalProductController::class, 'plans'])->name('products.plans');
+        Route::middleware('permission:billing_entities.manage')->group(function () {
+            Route::get('/billing-entities', [InternalBillingEntityController::class, 'index'])
+                ->name('billing-entities.index');
+            Route::post('/billing-entities', [InternalBillingEntityController::class, 'store'])
+                ->name('billing-entities.store');
+            Route::put('/billing-entities/{id}', [InternalBillingEntityController::class, 'update'])
+                ->name('billing-entities.update');
+            Route::post('/billing-entities/{id}/logo', [InternalBillingEntityController::class, 'uploadLogo'])
+                ->name('billing-entities.logo');
+            Route::delete('/billing-entities/{id}/logo', [InternalBillingEntityController::class, 'deleteLogo'])
+                ->name('billing-entities.logo.delete');
+            Route::delete('/billing-entities/{id}', [InternalBillingEntityController::class, 'destroy'])
+                ->name('billing-entities.destroy');
+        });
 
-        // Product cost lines — the product_suppliers pivot. Managed from
-        // the product detail page for margin tracking.
-        Route::get('/products/{id}/suppliers', [InternalProductSupplierController::class, 'index'])
-            ->whereNumber('id')->name('products.suppliers.index');
-        Route::post('/products/{id}/suppliers', [InternalProductSupplierController::class, 'store'])
-            ->whereNumber('id')->name('products.suppliers.store');
-        Route::put('/products/{id}/suppliers/{supplierId}', [InternalProductSupplierController::class, 'update'])
-            ->whereNumber('id')->whereNumber('supplierId')->name('products.suppliers.update');
-        Route::delete('/products/{id}/suppliers/{supplierId}', [InternalProductSupplierController::class, 'destroy'])
-            ->whereNumber('id')->whereNumber('supplierId')->name('products.suppliers.destroy');
+        // Products + plans + categories + prices + product-suppliers.
+        Route::middleware('permission:products.manage')->group(function () {
+            Route::get('/products', [InternalProductController::class, 'index'])->name('products.index');
+            Route::post('/products', [InternalProductController::class, 'store'])->name('products.store');
+            Route::put('/products/{id}', [InternalProductController::class, 'update'])->name('products.update');
+            Route::post('/products/{id}/toggle', [InternalProductController::class, 'toggleActive'])->name('products.toggle');
+            Route::post('/products/reorder', [InternalProductController::class, 'updateOrder'])->name('products.reorder');
+            Route::get('/products/{id}/plans', [InternalProductController::class, 'plans'])->name('products.plans');
 
-        Route::post('/plans', [InternalProductPlanController::class, 'store'])->name('plans.store');
-        Route::put('/plans/{id}', [InternalProductPlanController::class, 'update'])->name('plans.update');
-        Route::delete('/plans/{id}', [InternalProductPlanController::class, 'destroy'])->name('plans.destroy');
-        Route::post('/plans/{id}/toggle', [InternalProductPlanController::class, 'toggleActive'])->name('plans.toggle');
+            Route::get('/products/{id}/suppliers', [InternalProductSupplierController::class, 'index'])
+                ->whereNumber('id')->name('products.suppliers.index');
+            Route::post('/products/{id}/suppliers', [InternalProductSupplierController::class, 'store'])
+                ->whereNumber('id')->name('products.suppliers.store');
+            Route::put('/products/{id}/suppliers/{supplierId}', [InternalProductSupplierController::class, 'update'])
+                ->whereNumber('id')->whereNumber('supplierId')->name('products.suppliers.update');
+            Route::delete('/products/{id}/suppliers/{supplierId}', [InternalProductSupplierController::class, 'destroy'])
+                ->whereNumber('id')->whereNumber('supplierId')->name('products.suppliers.destroy');
 
-        Route::post('/plan-categories', [InternalProductPlanCategoryController::class, 'store'])->name('plan-categories.store');
-        Route::put('/plan-categories/{id}', [InternalProductPlanCategoryController::class, 'update'])->name('plan-categories.update');
-        Route::delete('/plan-categories/{id}', [InternalProductPlanCategoryController::class, 'destroy'])->name('plan-categories.destroy');
+            Route::post('/plans', [InternalProductPlanController::class, 'store'])->name('plans.store');
+            Route::put('/plans/{id}', [InternalProductPlanController::class, 'update'])->name('plans.update');
+            Route::delete('/plans/{id}', [InternalProductPlanController::class, 'destroy'])->name('plans.destroy');
+            Route::post('/plans/{id}/toggle', [InternalProductPlanController::class, 'toggleActive'])->name('plans.toggle');
 
-        Route::post('/plan-prices', [InternalProductPlanPriceController::class, 'store'])->name('plan-prices.store');
-        Route::put('/plan-prices/{id}', [InternalProductPlanPriceController::class, 'update'])->name('plan-prices.update');
-        Route::delete('/plan-prices/{id}', [InternalProductPlanPriceController::class, 'destroy'])->name('plan-prices.destroy');
+            Route::post('/plan-categories', [InternalProductPlanCategoryController::class, 'store'])->name('plan-categories.store');
+            Route::put('/plan-categories/{id}', [InternalProductPlanCategoryController::class, 'update'])->name('plan-categories.update');
+            Route::delete('/plan-categories/{id}', [InternalProductPlanCategoryController::class, 'destroy'])->name('plan-categories.destroy');
 
-        // Commission rules — admin front-end to the commission engine's
-        // rule/config contract (super_admin, inherited from this group).
-        Route::get('/commission-rules', [InternalCommissionRuleController::class, 'index'])->name('commission-rules.index');
-        Route::post('/commission-rules', [InternalCommissionRuleController::class, 'store'])->name('commission-rules.store');
-        Route::put('/commission-rules/{id}', [InternalCommissionRuleController::class, 'update'])
-            ->whereNumber('id')->name('commission-rules.update');
-        Route::post('/commission-rules/{id}/toggle', [InternalCommissionRuleController::class, 'toggleActive'])
-            ->whereNumber('id')->name('commission-rules.toggle');
-        Route::delete('/commission-rules/{id}', [InternalCommissionRuleController::class, 'destroy'])
-            ->whereNumber('id')->name('commission-rules.destroy');
+            Route::post('/plan-prices', [InternalProductPlanPriceController::class, 'store'])->name('plan-prices.store');
+            Route::put('/plan-prices/{id}', [InternalProductPlanPriceController::class, 'update'])->name('plan-prices.update');
+            Route::delete('/plan-prices/{id}', [InternalProductPlanPriceController::class, 'destroy'])->name('plan-prices.destroy');
+        });
 
-        // Deployment maintenance — super_admin (inherited). Replaces the old
-        // public migrate.php / clear-cache.php helper scripts. Write actions
-        // are throttled; each is confirmed + logged.
-        Route::get('/deployment', [InternalDeploymentController::class, 'index'])->name('deployment');
-        Route::post('/deployment/migrate', [InternalDeploymentController::class, 'migrate'])
-            ->middleware('throttle:10,1')->name('deployment.migrate');
-        Route::post('/deployment/clear-cache', [InternalDeploymentController::class, 'clearCache'])
-            ->middleware('throttle:10,1')->name('deployment.clear-cache');
-        Route::post('/deployment/run-both', [InternalDeploymentController::class, 'runBoth'])
-            ->middleware('throttle:10,1')->name('deployment.run-both');
+        // Commission rules — admin front-end to the commission engine.
+        Route::middleware('permission:commission.config')->group(function () {
+            Route::get('/commission-rules', [InternalCommissionRuleController::class, 'index'])->name('commission-rules.index');
+            Route::post('/commission-rules', [InternalCommissionRuleController::class, 'store'])->name('commission-rules.store');
+            Route::put('/commission-rules/{id}', [InternalCommissionRuleController::class, 'update'])
+                ->whereNumber('id')->name('commission-rules.update');
+            Route::post('/commission-rules/{id}/toggle', [InternalCommissionRuleController::class, 'toggleActive'])
+                ->whereNumber('id')->name('commission-rules.toggle');
+            Route::delete('/commission-rules/{id}', [InternalCommissionRuleController::class, 'destroy'])
+                ->whereNumber('id')->name('commission-rules.destroy');
+        });
+
+        // Deployment maintenance — write actions throttled; each confirmed + logged.
+        Route::middleware('permission:deployment.run')->group(function () {
+            Route::get('/deployment', [InternalDeploymentController::class, 'index'])->name('deployment');
+            Route::post('/deployment/migrate', [InternalDeploymentController::class, 'migrate'])
+                ->middleware('throttle:10,1')->name('deployment.migrate');
+            Route::post('/deployment/clear-cache', [InternalDeploymentController::class, 'clearCache'])
+                ->middleware('throttle:10,1')->name('deployment.clear-cache');
+            Route::post('/deployment/run-both', [InternalDeploymentController::class, 'runBoth'])
+                ->middleware('throttle:10,1')->name('deployment.run-both');
+        });
     });
 
     // Maavelus monthly revenue statements — internal-only, super_admin
     // gated. Each statement is an internal record of platform fees +
     // auto-generated referral commissions, not a customer-facing invoice.
-    Route::middleware('role:super_admin')->prefix('maavelus/statements')->name('internal.maavelus-statements.')->group(function () {
+    Route::middleware('permission:maavelus.statements')->prefix('maavelus/statements')->name('internal.maavelus-statements.')->group(function () {
         Route::get('/', [InternalMaavelusStatementController::class, 'index'])->name('index');
         Route::post('/', [InternalMaavelusStatementController::class, 'store'])->name('store');
         Route::get('/{id}', [InternalMaavelusStatementController::class, 'show'])->name('show');

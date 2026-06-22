@@ -197,10 +197,11 @@ class ExpenseController extends Controller
 
     public function approve(int $id, Request $request): RedirectResponse
     {
-        // Approval is super_admin-only — it shifts an expense from
-        // "raised" to "spendable" on the books.
-        if (! $request->user()->isSuperAdmin()) {
-            abort(403, 'Only a super admin can approve expenses.');
+        // Approval shifts an expense from "raised" to "spendable" on the
+        // books. Phase 3a: gated by the expenses.approve permission
+        // (super_admin holds every permission, so it still passes).
+        if (! $request->user()->hasPermissionTo('expenses.approve')) {
+            abort(403, 'You do not have permission to approve expenses.');
         }
 
         $expense = Expense::findOrFail($id);

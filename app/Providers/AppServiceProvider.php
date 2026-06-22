@@ -187,6 +187,13 @@ class AppServiceProvider extends ServiceProvider
 
     private function registerPolicies(): void
     {
+        // Phase 3a: super_admin bypasses every gate/policy check. Returns
+        // true ONLY for super_admin; null (NOT false) for everyone else, so
+        // non-super-admins fall through to the real permission/policy logic
+        // (returning false here would blanket-deny them). First Gate::before
+        // in the app, scoped to super_admin alone.
+        Gate::before(fn ($user, string $ability) => $user instanceof User && $user->isSuperAdmin() ? true : null);
+
         Gate::policy(BillingEntity::class, BillingEntityPolicy::class);
         Gate::policy(Customer::class, CustomerPolicy::class);
         Gate::policy(Invoice::class, InvoicePolicy::class);
@@ -195,9 +202,11 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Person::class, PersonPolicy::class);
         Gate::policy(FormTheme::class, FormThemePolicy::class);
 
-        // Deployment maintenance tools (run migrations / clear caches) are
-        // super_admin-only — no model, so a Gate ability rather than a policy.
-        Gate::define('manage-deployment', fn (User $user): bool => $user->isSuperAdmin());
+        // Deployment maintenance tools (run migrations / clear caches) — no
+        // model, so a Gate ability rather than a policy. Phase 3a: gated by
+        // the deployment.run permission (super_admin bypasses via Gate::before
+        // above; the deployment routes also carry permission:deployment.run).
+        Gate::define('manage-deployment', fn (User $user): bool => $user->hasPermissionTo('deployment.run'));
     }
 
     private function configurePassport(): void
