@@ -226,13 +226,15 @@ class WorkflowEngine
         // leads.created_by is NOT NULL (FK→users). Resolve to a guaranteed-real
         // user — the configured one if it exists, else the first super_admin —
         // never a magic "1" that may not exist (which would FK-fail and, caught
-        // by trigger(), silently drop the lead). If none resolves, skip + report
-        // rather than throw.
+        // by trigger(), silently drop the lead). If none resolves, skip + warn
+        // rather than throw (same shape as actionCreateTask).
         $createdBy = $this->resolveWorkflowActorId(
             isset($config['created_by']) ? (int) $config['created_by'] : null
         );
         if ($createdBy === null) {
-            report(new \RuntimeException('actionCreateLead: no valid created_by (config user or super_admin) — lead not created.'));
+            Log::warning('Workflow create_lead skipped: no default creator could be resolved', [
+                'action_type' => 'create_lead',
+            ]);
 
             return $context;
         }
@@ -253,11 +255,11 @@ class WorkflowEngine
             'status' => $config['status'] ?? 'new',
             'assigned_to' => $config['assigned_to'] ?? null,
             'form_submission_id' => $context['submission_id'] ?? null,
-            // Workflow-fired creates have no acting user, so we
-            // attribute them to the platform owner (user 1). The
-            // form / workflow that fired is still recorded via
-            // form_submission_id + activity_log.
-            'created_by' => $config['created_by'] ?? 1,
+            // Workflow-fired creates have no acting user, so they are
+            // attributed to the resolved actor (the configured user if it
+            // exists, else the first super_admin). The form / workflow that
+            // fired is still recorded via form_submission_id + activity_log.
+            'created_by' => $createdBy,
         ]);
 
         // Back-stamp the submission so the Forms/Submissions
@@ -418,10 +420,25 @@ class WorkflowEngine
             return $context;
         }
 
+        // notes.created_by is NOT NULL (FK→users, RESTRICT). Resolve through
+        // resolveWorkflowActorId so an unset id falls back to the first
+        // super_admin instead of a magic "1" that would FK-fail and be swallowed
+        // by trigger(). If none resolves, skip + warn (same shape as create_task).
+        $createdBy = $this->resolveWorkflowActorId(
+            isset($config['created_by']) ? (int) $config['created_by'] : null
+        );
+        if ($createdBy === null) {
+            Log::warning('Workflow add_note skipped: no default creator could be resolved', [
+                'action_type' => 'add_note',
+            ]);
+
+            return $context;
+        }
+
         Note::create([
             'customer_id' => $context['customer_id'],
             'lead_id' => $context['lead_id'] ?? null,
-            'created_by' => $config['created_by'] ?? 1,
+            'created_by' => $createdBy,
             'type' => 'internal',
             'body' => $body,
         ]);
