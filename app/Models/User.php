@@ -11,6 +11,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Laravel\Passport\Contracts\OAuthenticatable;
 use Laravel\Passport\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 /**
  * @property int $id
@@ -41,7 +42,13 @@ class User extends Authenticatable implements OAuthenticatable
 {
     use HasApiTokens;
     use HasFactory;
+    use HasRoles;
     use Notifiable;
+
+    // Pin Spatie laravel-permission to the staff (web) guard. Additive +
+    // INERT in phase 1: nothing reads roles/permissions for authorization
+    // yet — enforcement still runs off the `role` enum (isStaff/isSuperAdmin).
+    protected $guard_name = 'web';
 
     protected $fillable = [
         'name',

@@ -1073,6 +1073,53 @@ sort_order INT DEFAULT 0, created_at, updated_at
 
 ---
 
+## Roles & permissions (Spatie laravel-permission + scope table)
+
+Added in the roles & permissions Phase 1 build. **INERT in phase 1** —
+populated and access-identical to the current enum, but read by no route /
+policy / controller for authorization yet; enforcement still runs off
+`users.role` (super_admin|staff|referrer). Spatie tables created by its
+published `create_permission_tables` migration; `role_scopes` is custom.
+
+Spatie tables (standard, guard_name = 'web' for internal roles):
+
+## permissions (Spatie)
+id, name, guard_name, created_at, updated_at
+UNIQUE (name, guard_name)
+
+## roles (Spatie)
+id, name, guard_name, created_at, updated_at
+UNIQUE (name, guard_name)
+-- teams feature OFF (config/permission.php teams=false)
+
+## model_has_permissions (Spatie)
+permission_id FK permissions CASCADE, model_type, model_id (morph)
+PRIMARY KEY (permission_id, model_id, model_type)
+INDEX (model_id, model_type)
+
+## model_has_roles (Spatie)
+role_id FK roles CASCADE, model_type, model_id (morph)
+PRIMARY KEY (role_id, model_id, model_type)
+INDEX (model_id, model_type)
+-- internal users (App\Models\User) are attached here via HasRoles
+
+## role_has_permissions (Spatie)
+permission_id FK permissions CASCADE, role_id FK roles CASCADE
+PRIMARY KEY (permission_id, role_id)
+
+## role_scopes (custom — tri-state section access)
+id, role_id FK roles CASCADE,
+area ENUM(projects|tasks|leads|support),
+scope ENUM(all|assigned|none),
+created_at, updated_at
+UNIQUE (role_id, area)   -- one scope per (role, area): invalid states unrepresentable
+INDEX  (area, scope)     -- "which roles have area=X at scope=Y" (audit query)
+-- area/scope backed by App\Enums\ScopeArea / App\Enums\AccessScope (code
+   source of truth; the RoleScope model casts to them). Absence of a
+   (role, area) row is read as None by the future resolver.
+
+---
+
 ## API key storage rule (no schema changes — convention)
 Whenever a future table stores an API key issued *by us* (e.g. for
 external products to call back into Powerhouse), the key column

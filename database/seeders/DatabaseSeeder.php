@@ -11,6 +11,10 @@ class DatabaseSeeder extends Seeder
         $this->call([
             ProductSeeder::class,
             UserSeeder::class,
+            // Roles/permissions/scopes + user backfill. After UserSeeder so
+            // the backfill can mirror existing users' role enum. INERT in
+            // phase 1 — populated but read by no enforcement.
+            RolesAndPermissionsSeeder::class,
             BillingEntitySeeder::class,
             SettingsSeeder::class,
         ]);
