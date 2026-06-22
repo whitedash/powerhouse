@@ -164,4 +164,37 @@ class PortalPerStepValidationTest extends TestCase
         $res->assertStatus(422);
         $res->assertJsonValidationErrors(['email']);
     }
+
+    /**
+     * Regression guard for the off-step Submit error: save-for-later (no advance
+     * flag) persists without the gate AND bumps the resume marker past the
+     * unvalidated step, so the whole-form Submit can 422 on a field belonging to
+     * an EARLIER step than the one the respondent is parked on. The server must
+     * surface that off-step field_key, which is what the client (Fill.vue
+     * earliestErrorStep) resolves to jump back to the offending step — otherwise
+     * Submit is a silent no-op. This asserts the server-side precondition.
+     */
+    public function test_save_for_later_advances_marker_then_submit_surfaces_off_step_error(): void
+    {
+        $form = $this->twoStepForm();
+        $user = $this->portalUser();
+        $draft = $this->draftFor($form, $user);
+
+        // Save-for-later from step 0 with full_name (step 0, required) left blank.
+        // No advance flag → no per-step gate → persists and advances the marker.
+        $save = $this->actingAs($user, 'portal')->putJson("/portal/forms/{$form->id}/draft", [
+            'step' => 1,
+            'answers' => ['email' => 'dana@example.com'],
+        ]);
+        $save->assertOk();
+        // The resume marker is now on the last step, past the unvalidated step 0.
+        $this->assertSame(1, $draft->fresh()->current_step);
+
+        // Whole-form Submit 422s on full_name — a step-0 field, NOT on the last
+        // step the marker points at. The off-step key must be present for the
+        // client jump to resolve.
+        $submit = $this->actingAs($user, 'portal')->postJson("/portal/forms/{$form->id}/draft/submit");
+        $submit->assertStatus(422);
+        $submit->assertJsonValidationErrors(['full_name']);
+    }
 }
