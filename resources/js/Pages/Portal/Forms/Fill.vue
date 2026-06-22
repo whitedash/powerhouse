@@ -57,12 +57,17 @@ async function initDraft() {
     });
 }
 
-async function persistStep() {
+async function persistStep(advance = false) {
+    const body = { step: currentStep.value + 1, answers: answers.value };
+    // Only the forward advance (Next) opts into the server's per-step gate;
+    // save-for-later and the final-step persist stay unvalidated (the whole-form
+    // check runs at submit). Backward-compatible — the flag is absent otherwise.
+    if (advance) body.advance = true;
     const res = await fetch(`/portal/forms/${props.form.id}/draft`, {
         method: 'PUT',
         headers: draftHeaders(),
         credentials: 'same-origin',
-        body: JSON.stringify({ step: currentStep.value + 1, answers: answers.value }),
+        body: JSON.stringify(body),
     });
     return res;
 }
@@ -71,7 +76,10 @@ async function nextStep() {
     saving.value = true;
     errors.value = {};
     try {
-        const res = await persistStep();
+        const res = await persistStep(true);
+        // A 422 carries field-keyed errors for the departing step; surface them
+        // on the fields and stay put (local answers are untouched, so input is
+        // preserved). The advance happens only on an ok response.
         if (!res.ok) {
             const d = await res.json().catch(() => ({}));
             errors.value = d.errors ?? {};
@@ -175,10 +183,10 @@ async function submitForm() {
                                 v-for="field in activeFields"
                                 :key="field.field_key"
                                 :field="field"
+                                :error="errors[field.field_key]"
                                 v-model="answers[field.field_key]"
                             />
                         </div>
-                        <p v-for="(msg, key) in errors" :key="key" class="ms-error">{{ Array.isArray(msg) ? msg[0] : msg }}</p>
                         <p v-if="saveMessage" class="ms-save-message">{{ saveMessage }}</p>
                     </div>
                     <footer class="ms-form-footer">
@@ -261,10 +269,10 @@ async function submitForm() {
                                 v-for="field in activeFields"
                                 :key="field.field_key"
                                 :field="field"
+                                :error="errors[field.field_key]"
                                 v-model="answers[field.field_key]"
                             />
                         </div>
-                        <p v-for="(msg, key) in errors" :key="key" class="ms-error">{{ Array.isArray(msg) ? msg[0] : msg }}</p>
                         <p v-if="saveMessage" class="ms-save-message">{{ saveMessage }}</p>
                     </div>
                     <footer class="ms-form-footer ms-form-footer-stack">
@@ -312,5 +320,4 @@ async function submitForm() {
 .ms-text-link .ti { font-size: 15px; }
 
 .ms-save-message { margin: 14px 0 0; font: 500 13px/1.4 'Inter', sans-serif; color: var(--success); }
-.ms-error { margin: 10px 0 0; font: 500 13px/1.4 'Inter', sans-serif; color: var(--danger); }
 </style>
