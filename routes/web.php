@@ -41,6 +41,7 @@ use App\Http\Controllers\Internal\ProposalController as InternalProposalControll
 use App\Http\Controllers\Internal\ProvisioningController as InternalProvisioningController;
 use App\Http\Controllers\Internal\ReferralLedgerController as InternalReferralLedgerController;
 use App\Http\Controllers\Internal\ReferrerController as InternalReferrerController;
+use App\Http\Controllers\Internal\RoleController as InternalRoleController;
 use App\Http\Controllers\Internal\SearchController as InternalSearchController;
 use App\Http\Controllers\Internal\SettingsController as InternalSettingsController;
 use App\Http\Controllers\Internal\SubscriptionController as InternalSubscriptionController;
@@ -676,6 +677,16 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         Route::post('/team/invite', [InternalSettingsController::class, 'teamInvite'])->name('team.invite');
         Route::put('/team/{id}/role', [InternalSettingsController::class, 'teamUpdateRole'])->name('team.role');
         Route::delete('/team/{id}', [InternalSettingsController::class, 'teamRemove'])->name('team.remove');
+
+        // Roles & permissions matrix (phase 2 — editable, but INERT: nothing
+        // reads this data for enforcement yet; this group's role:super_admin
+        // gate is the only authorization in play).
+        Route::get('/roles', [InternalRoleController::class, 'index'])->name('roles.index');
+        Route::post('/roles', [InternalRoleController::class, 'store'])->name('roles.store');
+        Route::put('/roles/{id}', [InternalRoleController::class, 'update'])->whereNumber('id')->name('roles.update');
+        Route::delete('/roles/{id}', [InternalRoleController::class, 'destroy'])->whereNumber('id')->name('roles.destroy');
+        Route::put('/roles/{id}/permissions', [InternalRoleController::class, 'togglePermission'])->whereNumber('id')->name('roles.permissions');
+        Route::put('/roles/{id}/scope', [InternalRoleController::class, 'setScope'])->whereNumber('id')->name('roles.scope');
 
         // Security
         Route::get('/security', [InternalSettingsController::class, 'security'])->name('security');
