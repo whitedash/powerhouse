@@ -10,6 +10,7 @@ use App\Services\SupportSlaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -26,11 +27,19 @@ class InboundEmailController extends Controller
     public function receive(Request $request): JsonResponse
     {
         $expected = (string) config('services.postmark.inbound_secret');
-        if ($expected !== '') {
-            $provided = (string) ($request->header('X-Postmark-Signature') ?? $request->query('token', ''));
-            if (! hash_equals($expected, $provided)) {
-                abort(401);
-            }
+
+        // Fail closed if the inbound secret was never configured — an
+        // unauthenticated-but-accepted webhook is a forgery surface (mirrors
+        // VerifyStripeWebhook). Prod sets the secret, so legitimate inbound still
+        // verifies; this only closes the unset case.
+        if ($expected === '') {
+            Log::warning('Inbound email webhook rejected: no inbound secret configured');
+            abort(401);
+        }
+
+        $provided = (string) ($request->header('X-Postmark-Signature') ?? $request->query('token', ''));
+        if (! hash_equals($expected, $provided)) {
+            abort(401);
         }
 
         $data = $request->all();
