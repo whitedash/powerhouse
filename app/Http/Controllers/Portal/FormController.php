@@ -11,6 +11,7 @@ use App\Models\FormSubmissionDraft;
 use App\Models\PortalUser;
 use App\Services\FormService;
 use App\Services\WorkflowEngine;
+use App\Support\FormFieldRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -100,7 +101,7 @@ class FormController extends Controller
             ->where('portal_user_id', $portalUser->id)
             ->firstOrFail();
 
-        Validator::make($draft->data ?? [], $this->fieldRules($form))->validate();
+        Validator::make($draft->data ?? [], FormFieldRules::for($form->fields))->validate();
 
         $this->service->submitDraft($draft, $form, $request, $engine, portalUser: $portalUser);
 
@@ -109,36 +110,5 @@ class FormController extends Controller
             'message' => $form->success_message ?? "Thank you! We'll be in touch soon.",
             'redirect' => $form->redirect_url,
         ]);
-    }
-
-    /**
-     * Per-field validation rules from the form's fields — identical to
-     * FormController::submit / FormDraftController::submit.
-     *
-     * @return array<string, string>
-     */
-    private function fieldRules(Form $form): array
-    {
-        $rules = [];
-
-        foreach ($form->fields as $field) {
-            // Placeholder fields are display-only — no input, no rule.
-            if ($field->type === 'placeholder') {
-                continue;
-            }
-            $chain = [$field->is_required ? 'required' : 'nullable'];
-            if ($field->type === 'email') {
-                $chain[] = 'email:rfc';
-            }
-            if ($field->type === 'number') {
-                $chain[] = 'numeric';
-            }
-            if ($field->type === 'date' || $field->type === 'datetime') {
-                $chain[] = 'date';
-            }
-            $rules[$field->field_key] = implode('|', $chain);
-        }
-
-        return $rules;
     }
 }

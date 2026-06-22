@@ -7,6 +7,7 @@ use App\Models\Form;
 use App\Models\FormSubmission;
 use App\Services\AttributionService;
 use App\Services\WorkflowEngine;
+use App\Support\FormFieldRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -81,33 +82,11 @@ class FormController extends Controller
         }
         RateLimiter::hit($rateKey, 3600);
 
-        // Field-derived validation rules. required fires when
-        // the field is marked required; emails get an `email`
-        // rule on top. Other validation extras can be wired in
-        // from form_fields.validation_rules later.
-        $rules = [];
-        foreach ($form->fields as $field) {
-            // Placeholder fields are display-only — no input, no rule.
-            if ($field->type === 'placeholder') {
-                continue;
-            }
-            $chain = [];
-            if ($field->is_required) {
-                $chain[] = 'required';
-            } else {
-                $chain[] = 'nullable';
-            }
-            if ($field->type === 'email') {
-                $chain[] = 'email:rfc';
-            }
-            if ($field->type === 'number') {
-                $chain[] = 'numeric';
-            }
-            if ($field->type === 'date' || $field->type === 'datetime') {
-                $chain[] = 'date';
-            }
-            $rules[$field->field_key] = implode('|', $chain);
-        }
+        // Field-derived validation rules, keyed by field_key, from the shared
+        // FormFieldRules builder — one source of truth with the draft/portal
+        // submit paths (and the per-step gate). Placeholder fields are skipped;
+        // other validation extras can be wired in from form_fields.validation_rules later.
+        $rules = FormFieldRules::for($form->fields);
 
         // Validation failure on a JSON request returns a 422 with
         // an Inertia-shaped errors bag, same as the rest of the app.

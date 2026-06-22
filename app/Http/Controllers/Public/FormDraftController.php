@@ -10,6 +10,7 @@ use App\Models\Form;
 use App\Models\FormSubmissionDraft;
 use App\Services\FormService;
 use App\Services\WorkflowEngine;
+use App\Support\FormFieldRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
@@ -79,9 +80,9 @@ class FormDraftController extends Controller
             ->where('form_id', $form->id)
             ->firstOrFail();
 
-        // Deep per-field validation against the full accumulated draft data —
-        // the same rule-building logic FormController::submit applies once.
-        Validator::make($draft->data ?? [], $this->fieldRules($form))->validate();
+        // Deep per-field validation against the full accumulated draft data,
+        // using the shared FormFieldRules builder (one source of truth).
+        Validator::make($draft->data ?? [], FormFieldRules::for($form->fields))->validate();
 
         $this->service->submitDraft($draft, $form, $request, $engine, portalUser: null);
 
@@ -90,36 +91,5 @@ class FormDraftController extends Controller
             'message' => $form->success_message ?? "Thank you! We'll be in touch soon.",
             'redirect' => $form->redirect_url,
         ]);
-    }
-
-    /**
-     * Build per-field validation rules from the form's fields (required/email/
-     * numeric/date), keyed by field_key — identical to FormController::submit.
-     *
-     * @return array<string, string>
-     */
-    private function fieldRules(Form $form): array
-    {
-        $rules = [];
-
-        foreach ($form->fields as $field) {
-            // Placeholder fields are display-only — no input, no rule.
-            if ($field->type === 'placeholder') {
-                continue;
-            }
-            $chain = [$field->is_required ? 'required' : 'nullable'];
-            if ($field->type === 'email') {
-                $chain[] = 'email:rfc';
-            }
-            if ($field->type === 'number') {
-                $chain[] = 'numeric';
-            }
-            if ($field->type === 'date' || $field->type === 'datetime') {
-                $chain[] = 'date';
-            }
-            $rules[$field->field_key] = implode('|', $chain);
-        }
-
-        return $rules;
     }
 }
