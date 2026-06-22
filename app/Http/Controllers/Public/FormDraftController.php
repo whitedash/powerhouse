@@ -52,7 +52,7 @@ class FormDraftController extends Controller
 
     public function saveStep(string $slug, string $token, SaveStepRequest $request): JsonResponse
     {
-        $form = Form::where('slug', $slug)->where('status', 'active')->firstOrFail();
+        $form = Form::where('slug', $slug)->where('status', 'active')->with(['steps', 'fields'])->firstOrFail();
 
         $draft = FormSubmissionDraft::where('draft_token', $token)
             ->where('form_id', $form->id)
@@ -62,11 +62,15 @@ class FormDraftController extends Controller
             return response()->json(['message' => 'Draft expired.'], 410);
         }
 
+        // `advance` (opt-in, backward-compatible) runs the per-step gate; absent
+        // or false (save-for-later, legacy clients) persists without validating.
         $this->service->saveStep(
             $draft,
+            $form,
             $request->integer('step'),
             (array) $request->input('answers', []),
             $request,
+            validateStep: $request->boolean('advance'),
         );
 
         return response()->json(['ok' => true, 'current_step' => $draft->current_step]);

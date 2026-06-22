@@ -74,17 +74,21 @@ class FormController extends Controller
         /** @var PortalUser $portalUser */
         $portalUser = Auth::guard('portal')->user();
 
-        $form = Form::where('id', $id)->where('status', 'active')->firstOrFail();
+        $form = Form::where('id', $id)->where('status', 'active')->with(['steps', 'fields'])->firstOrFail();
 
         $draft = FormSubmissionDraft::where('form_id', $form->id)
             ->where('portal_user_id', $portalUser->id)
             ->firstOrFail();
 
+        // `advance` (opt-in, backward-compatible) runs the per-step gate; absent
+        // or false (save-for-later, legacy clients) persists without validating.
         $this->service->saveStep(
             $draft,
+            $form,
             $request->integer('step'),
             (array) $request->input('answers', []),
             $request,
+            validateStep: $request->boolean('advance'),
         );
 
         return response()->json(['ok' => true, 'current_step' => $draft->current_step]);
