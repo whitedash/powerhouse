@@ -7,7 +7,8 @@
 @php
     $fields = $form->fields->map(fn ($f) => [
         'label' => $f->label,
-        // Rich-text body for placeholder/text-block fields (server-sanitised).
+        // Rich-text body for placeholder/text-block fields. Allow-list sanitised
+        // server-side in EmbedController before it reaches this view (and on save).
         'content' => $f->content ?? null,
         'field_key' => $f->field_key,
         'type' => $f->type,
@@ -259,8 +260,8 @@
         // it never enters FormData / answer collection).
         if (field.type === "placeholder") {
             var block = el("div", { class: "pw-text-block" });
-            // Placeholder: content is sanitised by DOMPurify in the builder before save.
-            // The embed widget renders stored content directly — no output sanitiser here.
+            // Placeholder: content was allow-list sanitised server-side in
+            // EmbedController (and on save), so it is a safe HTML subset here.
             block.innerHTML = field.content || "";
             return block;
         }
