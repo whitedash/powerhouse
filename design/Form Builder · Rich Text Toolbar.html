@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Powerhouse — Form Builder · Rich Text Toolbar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg-navy: #0F172A;
+    --accent: #F59E0B;
+    --content-bg: #F8FAFC;
+    --card-bg: #FFFFFF;
+    --border: #E2E8F0;
+    --border-soft: #EEF2F7;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+    --info: #3B82F6;
+
+    --success-bg: #ECFDF5;
+    --danger-bg: #FEF2F2;
+    --warning-bg: #FFFBEB;
+    --info-bg: #EFF6FF;
+    --neutral-bg: #F1F5F9;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.05);
+    --shadow-md: 0 4px 12px -2px rgba(15,23,42,.08), 0 1px 3px rgba(15,23,42,.04);
+    --shadow-lg: 0 24px 48px -12px rgba(15,23,42,.18), 0 2px 4px rgba(15,23,42,.04);
+
+    --display:    700 24px/1.25 'Inter', sans-serif;
+    --heading:    600 20px/1.3  'Inter', sans-serif;
+    --subheading: 600 16px/1.4  'Inter', sans-serif;
+    --body:       400 14px/1.5  'Inter', sans-serif;
+    --small:      400 12px/1.4  'Inter', sans-serif;
+    --label:      500 11px/1.2  'Inter', sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: var(--body);
+    color: var(--text-primary);
+    background: #E5E9F0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ─── Artboard (mirrors Whitedash Components sheet) ─────── */
+  .artboard { width: 1440px; margin: 0 auto; background: var(--content-bg); min-height: 100vh; position: relative; }
+  .artboard-header { background: var(--bg-navy); color: #fff; padding: 40px 56px 44px; position: relative; overflow: hidden; }
+  .artboard-header::after {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 600px 200px at 90% 0%, rgba(245,158,11,.18), transparent 70%),
+      radial-gradient(ellipse 400px 200px at 10% 100%, rgba(59,130,246,.08), transparent 70%);
+    pointer-events: none;
+  }
+  .brand-row { display:flex; align-items:center; gap: 14px; margin-bottom: 24px; position:relative; z-index:1; }
+  .brand-mark {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), #FBBF24);
+    display: grid; place-items: center; color: var(--bg-navy);
+    font: 700 18px/1 'Inter', sans-serif; box-shadow: 0 4px 10px rgba(245,158,11,.35);
+  }
+  .brand-name { font: 700 22px/1 'Inter', sans-serif; letter-spacing: -.01em; }
+  .brand-divider { width: 1px; height: 18px; background: rgba(255,255,255,.18); }
+  .brand-tag { font: var(--label); text-transform: uppercase; letter-spacing: .12em; color: rgba(255,255,255,.6); }
+  .header-title { position:relative; z-index:1; }
+  .header-title h1 { font: 700 38px/1.1 'Inter', sans-serif; letter-spacing: -.02em; margin: 0 0 8px; }
+  .header-title p { font: 400 15px/1.5 'Inter', sans-serif; color: rgba(255,255,255,.65); max-width: 620px; margin: 0; }
+  .header-meta { display: flex; gap: 32px; margin-top: 28px; position:relative; z-index:1; }
+  .header-meta div { font: var(--small); color: rgba(255,255,255,.55); }
+  .header-meta strong { display: block; color: #fff; font: 600 14px/1.4 'Inter', sans-serif; margin-top: 4px; letter-spacing: -.005em; }
+
+  /* ─── Sheet body ───────────────────────────────────────── */
+  .sheet { padding: 48px 56px 80px; display: flex; flex-direction: column; gap: 56px; }
+  .section { display:flex; flex-direction: column; gap: 20px; }
+  .section-head { display:flex; align-items:baseline; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .section-head .num { font: var(--label); text-transform: uppercase; letter-spacing: .14em; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+  .section-head h2 { font: var(--heading); margin: 0; letter-spacing: -.01em; }
+  .section-head .desc { font: var(--small); color: var(--text-secondary); margin-left: auto; }
+
+  .surface { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; }
+  .surface .surface-label { font: var(--label); text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary); margin-bottom: 18px; }
+  .row { display:flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .col { display:flex; flex-direction: column; gap: 14px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  .muted { font: var(--small); color: var(--text-secondary); }
+  .mono { font: 500 12px/1.5 'JetBrains Mono', monospace; }
+
+  /* ─── Buttons (subset reused from component sheet) ─────── */
+  .btn { appearance: none; border: 0; cursor: pointer; font: 500 13px/1 'Inter', sans-serif; letter-spacing: -.005em; padding: 0 12px; height: 32px; border-radius: var(--radius-md); display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .btn .ti { font-size: 16px; line-height: 1; }
+  .btn-primary { background: var(--accent); color: var(--bg-navy); font-weight: 600; box-shadow: 0 1px 2px rgba(245,158,11,.3); }
+  .btn-secondary { background: #fff; color: var(--text-primary); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .btn-ghost { background: transparent; color: var(--text-secondary); }
+  .btn-ghost:hover { background: var(--neutral-bg); color: var(--text-primary); }
+  .btn-danger-ghost { background: transparent; color: var(--danger); }
+
+  /* ─── Form-builder field rows (slide-over conventions) ─── */
+  .fieldrow { display: flex; flex-direction: column; gap: 5px; }
+  .fieldrow > label { font: 500 12px/1.3 'Inter', sans-serif; color: var(--text-secondary); }
+  .fieldrow .help { font: var(--small); color: var(--text-secondary); }
+  .input, .select { width: 100%; font: var(--body); color: var(--text-primary); background:#fff; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px 10px; height: 38px; outline: 0; }
+  .input.sm { height: 32px; font: 400 13px/1.3 'Inter', sans-serif; }
+  .select { appearance:none; }
+
+  /* The slide-over field-edit panel chrome (compact mock) */
+  .editpanel { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card-bg); box-shadow: var(--shadow-sm); overflow: hidden; max-width: 460px; }
+  .editpanel-head { display:flex; align-items:center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border-soft); background: #FBFCFE; }
+  .editpanel-head .ti { color: var(--text-secondary); font-size: 18px; }
+  .editpanel-head .title { font: 600 13px/1.3 'Inter', sans-serif; }
+  .editpanel-head .pill { margin-left: auto; font: 500 11px/1 'JetBrains Mono', monospace; color: var(--text-secondary); background: var(--neutral-bg); padding: 4px 8px; border-radius: 999px; }
+  .editpanel-body { padding: 16px; display:flex; flex-direction: column; gap: 16px; }
+
+  /* ═══ THE RICH-TEXT EDITOR (the component being designed) ═══ */
+  .rte { border: 1px solid var(--border); border-radius: var(--radius-md); background: #fff; }
+  .rte.focused { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+  .rte-toolbar { display: flex; align-items: center; gap: 2px; padding: 6px; border-bottom: 1px solid var(--border-soft); flex-wrap: wrap; }
+  .rte-btn { appearance: none; border: 0; background: transparent; cursor: pointer; width: 30px; height: 30px; border-radius: var(--radius-sm); display: inline-grid; place-items: center; color: var(--text-secondary); font-size: 17px; transition: background .12s, color .12s; position: relative; }
+  .rte-btn .ti { font-size: 17px; }
+  .rte-btn:hover { background: var(--neutral-bg); color: var(--text-primary); }
+  .rte-btn.active { background: rgba(245,158,11,.14); color: #B45309; }   /* mark/list is ON at the caret */
+  .rte-btn[aria-disabled="true"] { opacity: .4; cursor: not-allowed; }
+  .rte-divider { width: 1px; height: 18px; background: var(--border); margin: 0 5px; }
+  .rte-content { padding: 12px 14px; min-height: 104px; font: var(--body); color: var(--text-primary); }
+  .rte-content p { margin: 0 0 .55rem; }
+  .rte-content p:last-child { margin-bottom: 0; }
+  .rte-content ul, .rte-content ol { margin: .35rem 0; padding-left: 1.3rem; }
+  .rte-content li { margin: .1rem 0; }
+  .rte-content a { color: var(--accent); text-decoration: underline; }
+  .rte-content.is-empty { color: var(--text-tertiary); }
+  .caret { display:inline-block; width:1.5px; height:1.05em; background: var(--text-primary); vertical-align:-2px; animation: blink 1s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .sel { background: rgba(245,158,11,.22); border-radius: 2px; padding: 0 1px; }
+
+  /* Link popover (the link-insertion interaction) */
+  .pop-anchor { position: relative; display: inline-block; }
+  .link-pop { background:#fff; border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); padding: 10px; width: 320px; }
+  .link-pop .pop-label { font: var(--label); text-transform: uppercase; letter-spacing: .1em; color: var(--text-tertiary); margin-bottom: 8px; display:flex; align-items:center; gap:6px; }
+  .link-pop .pop-row { display:flex; gap: 8px; align-items:center; }
+  .link-pop .input { flex: 1; }
+  .link-pop .pop-foot { display:flex; align-items:center; justify-content: space-between; margin-top: 8px; }
+  .link-pop .scheme-note { font: 500 11px/1.3 'JetBrains Mono', monospace; color: var(--text-tertiary); }
+  /* a little connector tail from the Link button to the popover */
+  .pop-callout { position: relative; margin-top: 8px; }
+  .pop-callout::before { content:""; position:absolute; left: 22px; top: -6px; width: 10px; height: 10px; background:#fff; border-left:1px solid var(--border); border-top:1px solid var(--border); transform: rotate(45deg); }
+
+  /* Spec table: control → tag → command */
+  .spec { width: 100%; border-collapse: collapse; }
+  .spec th, .spec td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--border-soft); font: var(--small); vertical-align: middle; }
+  .spec th { font: var(--label); text-transform: uppercase; letter-spacing: .1em; color: var(--text-tertiary); }
+  .spec tr:last-child td { border-bottom: 0; }
+  .spec .ctrl { display:inline-flex; align-items:center; gap: 9px; font: 500 13px/1 'Inter', sans-serif; color: var(--text-primary); }
+  .spec .ctrl .gi { width: 26px; height: 26px; border-radius: var(--radius-sm); background: var(--neutral-bg); display:inline-grid; place-items:center; color: var(--text-secondary); font-size: 15px; }
+  code, .tag { font: 500 12px/1.5 'JetBrains Mono', monospace; color: var(--text-primary); background: var(--neutral-bg); padding: 2px 6px; border-radius: 4px; }
+  kbd { font: 500 11px/1 'JetBrains Mono', monospace; color: var(--text-secondary); background:#fff; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; padding: 3px 6px; }
+  .ok { color: #047857; font-weight: 600; }
+
+  /* Output / stored HTML block */
+  .codeblock { background: var(--bg-navy); color: #E2E8F0; border-radius: var(--radius-md); padding: 16px 18px; font: 500 12.5px/1.7 'JetBrains Mono', monospace; overflow-x:auto; white-space: pre-wrap; }
+  .codeblock .t { color: #7DD3FC; }        /* tag */
+  .codeblock .a { color: #FBBF24; }        /* attribute */
+  .codeblock .c { color: #64748B; }        /* comment */
+
+  /* Notes / callouts */
+  .note { display:flex; gap: 12px; align-items:flex-start; border: 1px solid var(--border); background:#fff; border-radius: var(--radius-md); padding: 14px 16px; }
+  .note .ti { font-size: 19px; color: var(--info); margin-top: 1px; }
+  .note .n-body { font: var(--small); color: var(--text-secondary); line-height: 1.6; }
+  .note .n-body strong { color: var(--text-primary); }
+
+  .phase2 { border: 1px solid #FDE68A; background: var(--warning-bg); border-radius: var(--radius-lg); padding: 24px 26px; }
+  .phase2-tag { display:inline-flex; align-items:center; gap:7px; font: 600 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: #B45309; background: #FEF3C7; border:1px solid #FDE68A; padding: 6px 11px; border-radius: 999px; margin-bottom: 16px; }
+  .phase2 h3 { font: var(--subheading); margin: 0 0 6px; }
+  .phase2 .lead { font: var(--small); color: #92580C; margin: 0 0 18px; max-width: 760px; line-height: 1.6; }
+  .phase2-cards { display:grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .p2card { background:#fff; border: 1px solid #FDE68A; border-radius: var(--radius-md); padding: 18px 20px; }
+  .p2card .p2head { display:flex; align-items:center; gap: 10px; margin-bottom: 12px; }
+  .p2card .p2head .ti { font-size: 20px; color: var(--warning); }
+  .p2card .p2head .t { font: 600 14px/1.3 'Inter', sans-serif; }
+  .p2card .p2head .new { margin-left:auto; font: 500 11px/1 'JetBrains Mono', monospace; color:#B45309; background:#FEF3C7; padding:3px 7px; border-radius: 4px; }
+  .reqs { list-style: none; margin: 0; padding: 0; display:flex; flex-direction: column; gap: 9px; }
+  .reqs li { font: var(--small); color: var(--text-secondary); line-height: 1.5; display:flex; gap: 9px; }
+  .reqs li .ti { font-size: 15px; color: var(--warning); margin-top: 1px; flex: none; }
+  .reqs li strong { color: var(--text-primary); }
+
+  ul.bul { margin: 0; padding-left: 18px; }
+  ul.bul li { font: var(--small); color: var(--text-secondary); line-height: 1.7; }
+  ul.bul li strong { color: var(--text-primary); }
+</style>
+</head>
+<body>
+<div class="artboard">
+
+  <!-- ─── Header ─────────────────────────────────────────── -->
+  <header class="artboard-header">
+    <div class="brand-row">
+      <div class="brand-mark">P</div>
+      <div class="brand-name">Powerhouse</div>
+      <div class="brand-divider"></div>
+      <div class="brand-tag">Whitedash · Design</div>
+    </div>
+    <div class="header-title">
+      <h1>Form Builder — Rich Text Toolbar</h1>
+      <p>Replaces the plain textarea on the <strong>Text block</strong> (placeholder) field with a minimal
+         formatting editor. Every control maps 1:1 to a tag the server allowlist keeps, so output round-trips
+         cleanly through <span class="mono">FormContentSanitizer</span> → <span class="mono">FormFieldRenderer</span> → embed.</p>
+    </div>
+    <div class="header-meta">
+      <div>Surface<strong>Forms builder slide-over</strong></div>
+      <div>Field type<strong>placeholder (“Text block”)</strong></div>
+      <div>Binds<strong>field.content → HTML</strong></div>
+      <div>Status<strong>Design · Phase 1 (6 controls)</strong></div>
+    </div>
+  </header>
+
+  <div class="sheet">
+
+    <!-- ─── 01 · Where it lives ──────────────────────────── -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">01</span>
+        <h2>Where it lives</h2>
+        <span class="desc">Forms builder slide-over → Text-block field → edit panel</span>
+      </div>
+      <div class="surface">
+        <div class="grid-2">
+          <div>
+            <div class="surface-label">Before — today</div>
+            <div class="editpanel">
+              <div class="editpanel-head">
+                <i class="ti ti-align-left"></i>
+                <span class="title">Text block</span>
+                <span class="pill">placeholder</span>
+              </div>
+              <div class="editpanel-body">
+                <div class="fieldrow">
+                  <label>Content</label>
+                  <textarea class="input" style="height:104px;resize:vertical;padding:10px 12px;line-height:1.5;" readonly>Welcome! Please read the notes below before you continue.</textarea>
+                  <span class="help">Plain textarea — no formatting; HTML typed by hand is the only way to bold/list.</span>
+                </div>
+                <div class="fieldrow">
+                  <label>Type</label>
+                  <div class="select" style="display:flex;align-items:center;color:var(--text-secondary)">Text block</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="surface-label">After — this design</div>
+            <div class="editpanel">
+              <div class="editpanel-head">
+                <i class="ti ti-align-left"></i>
+                <span class="title">Text block</span>
+                <span class="pill">placeholder</span>
+              </div>
+              <div class="editpanel-body">
+                <div class="fieldrow">
+                  <label>Content</label>
+                  <!-- the editor, in-context -->
+                  <div class="rte focused">
+                    <div class="rte-toolbar">
+                      <button class="rte-btn active" title="Bold"><i class="ti ti-bold"></i></button>
+                      <button class="rte-btn" title="Italic"><i class="ti ti-italic"></i></button>
+                      <button class="rte-btn" title="Underline"><i class="ti ti-underline"></i></button>
+                      <span class="rte-divider"></span>
+                      <button class="rte-btn" title="Bullet list"><i class="ti ti-list"></i></button>
+                      <button class="rte-btn" title="Numbered list"><i class="ti ti-list-numbers"></i></button>
+                      <span class="rte-divider"></span>
+                      <button class="rte-btn" title="Link"><i class="ti ti-link"></i></button>
+                    </div>
+                    <div class="rte-content">
+                      <p><strong>Welcome!</strong> Please read the notes below before you continue.</p>
+                    </div>
+                  </div>
+                  <span class="help">Formatting buttons only; the field still stores a single HTML string in <span class="mono">content</span>.</span>
+                </div>
+                <div class="fieldrow">
+                  <label>Type</label>
+                  <div class="select" style="display:flex;align-items:center;color:var(--text-secondary)">Text block</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── 02 · The editor ──────────────────────────────── -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">02</span>
+        <h2>The editor</h2>
+        <span class="desc">Toolbar · grouped controls · content area</span>
+      </div>
+      <div class="surface">
+        <div class="surface-label">Full component — focused, with sample content</div>
+        <div class="rte focused" style="max-width:680px">
+          <div class="rte-toolbar">
+            <button class="rte-btn" title="Bold (⌘B)"><i class="ti ti-bold"></i></button>
+            <button class="rte-btn" title="Italic (⌘I)"><i class="ti ti-italic"></i></button>
+            <button class="rte-btn" title="Underline (⌘U)"><i class="ti ti-underline"></i></button>
+            <span class="rte-divider"></span>
+            <button class="rte-btn active" title="Bullet list"><i class="ti ti-list"></i></button>
+            <button class="rte-btn" title="Numbered list"><i class="ti ti-list-numbers"></i></button>
+            <span class="rte-divider"></span>
+            <button class="rte-btn" title="Link"><i class="ti ti-link"></i></button>
+          </div>
+          <div class="rte-content">
+            <p>Before you submit, please make sure you have:</p>
+            <ul>
+              <li>Read our <a href="#">privacy notice</a><span class="caret"></span></li>
+              <li>Confirmed your <strong>email address</strong> is correct</li>
+              <li>Attached any <em>supporting documents</em></li>
+            </ul>
+            <p>Questions? <u>Reply to the confirmation email.</u></p>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:24px;gap:40px;align-items:flex-start">
+          <div class="col" style="gap:10px">
+            <div class="surface-label" style="margin:0">Button states</div>
+            <div class="row" style="gap:18px">
+              <div class="col" style="gap:6px;align-items:center"><div class="rte" style="display:inline-flex;padding:6px;border-color:var(--border)"><button class="rte-btn"><i class="ti ti-bold"></i></button></div><span class="muted">default</span></div>
+              <div class="col" style="gap:6px;align-items:center"><div class="rte" style="display:inline-flex;padding:6px"><button class="rte-btn" style="background:var(--neutral-bg);color:var(--text-primary)"><i class="ti ti-bold"></i></button></div><span class="muted">hover</span></div>
+              <div class="col" style="gap:6px;align-items:center"><div class="rte" style="display:inline-flex;padding:6px"><button class="rte-btn active"><i class="ti ti-bold"></i></button></div><span class="muted">active (mark on)</span></div>
+              <div class="col" style="gap:6px;align-items:center"><div class="rte" style="display:inline-flex;padding:6px"><button class="rte-btn" aria-disabled="true"><i class="ti ti-bold"></i></button></div><span class="muted">disabled (read-only)</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── 03 · Controls → allowlisted tags ─────────────── -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">03</span>
+        <h2>Controls map only to allowlisted tags</h2>
+        <span class="desc">Sanitiser allowlist: <span class="mono">p br strong em u ul ol li a</span></span>
+      </div>
+      <div class="surface" style="padding:8px 8px">
+        <table class="spec">
+          <thead>
+            <tr><th style="width:200px">Control</th><th>Output tag</th><th>Tiptap command</th><th>Shortcut</th><th style="width:150px">In allowlist</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><span class="ctrl"><span class="gi"><i class="ti ti-bold"></i></span>Bold</span></td><td><span class="tag">&lt;strong&gt;</span></td><td><code>toggleBold()</code></td><td><kbd>⌘B</kbd></td><td><span class="ok">✓ yes</span></td></tr>
+            <tr><td><span class="ctrl"><span class="gi"><i class="ti ti-italic"></i></span>Italic</span></td><td><span class="tag">&lt;em&gt;</span></td><td><code>toggleItalic()</code></td><td><kbd>⌘I</kbd></td><td><span class="ok">✓ yes</span></td></tr>
+            <tr><td><span class="ctrl"><span class="gi"><i class="ti ti-underline"></i></span>Underline</span></td><td><span class="tag">&lt;u&gt;</span></td><td><code>toggleUnderline()</code></td><td><kbd>⌘U</kbd></td><td><span class="ok">✓ yes</span></td></tr>
+            <tr><td><span class="ctrl"><span class="gi"><i class="ti ti-list"></i></span>Bullet list</span></td><td><span class="tag">&lt;ul&gt;&lt;li&gt;</span></td><td><code>toggleBulletList()</code></td><td><kbd>⌘⇧8</kbd></td><td><span class="ok">✓ yes</span></td></tr>
+            <tr><td><span class="ctrl"><span class="gi"><i class="ti ti-list-numbers"></i></span>Numbered list</span></td><td><span class="tag">&lt;ol&gt;&lt;li&gt;</span></td><td><code>toggleOrderedList()</code></td><td><kbd>⌘⇧7</kbd></td><td><span class="ok">✓ yes</span></td></tr>
+            <tr><td><span class="ctrl"><span class="gi"><i class="ti ti-link"></i></span>Link</span></td><td><span class="tag">&lt;a href target rel&gt;</span></td><td><code>setLink({href})</code></td><td><kbd>⌘K</kbd></td><td><span class="ok">✓ yes</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <i class="ti ti-shield-check"></i>
+        <div class="n-body">
+          <strong>Paragraphs and line breaks</strong> (<span class="mono">&lt;p&gt;</span>, <span class="mono">&lt;br&gt;</span>) come from the editor automatically and are also allowlisted.
+          Anchor <span class="mono">href</span> is restricted to <span class="mono">http / https / mailto</span>; <span class="mono">rel="nofollow noopener noreferrer"</span> and <span class="mono">target="_blank"</span> are forced by the sanitiser (and set on the editor's Link extension to match). The editor offers <strong>no</strong> control outside this list, so nothing it produces is silently dropped on save.
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── 04 · Link insertion interaction ──────────────── -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">04</span>
+        <h2>Link insertion &amp; editing</h2>
+        <span class="desc">Inline popover — never <span class="mono">window.prompt</span></span>
+      </div>
+      <div class="surface">
+        <div class="grid-2">
+          <!-- Insert -->
+          <div class="col">
+            <div class="surface-label" style="margin:0">A · Insert on a selection</div>
+            <div class="muted">Select text → click <i class="ti ti-link" style="vertical-align:-2px"></i> (or ⌘K). A popover anchors under the button with the selection preserved.</div>
+            <div class="rte" style="max-width:420px">
+              <div class="rte-toolbar">
+                <button class="rte-btn"><i class="ti ti-bold"></i></button>
+                <button class="rte-btn"><i class="ti ti-italic"></i></button>
+                <button class="rte-btn"><i class="ti ti-underline"></i></button>
+                <span class="rte-divider"></span>
+                <button class="rte-btn"><i class="ti ti-list"></i></button>
+                <button class="rte-btn"><i class="ti ti-list-numbers"></i></button>
+                <span class="rte-divider"></span>
+                <span class="pop-anchor">
+                  <button class="rte-btn active"><i class="ti ti-link"></i></button>
+                </span>
+              </div>
+              <div class="rte-content">
+                <p>Read our <span class="sel">privacy notice</span> before continuing.</p>
+              </div>
+              <div style="padding:0 6px 10px 6px">
+                <div class="pop-callout">
+                  <div class="link-pop">
+                    <div class="pop-label"><i class="ti ti-link" style="font-size:13px"></i> Link URL</div>
+                    <div class="pop-row">
+                      <input class="input sm" placeholder="https://…" value="">
+                      <button class="btn btn-primary">Apply</button>
+                    </div>
+                    <div class="pop-foot">
+                      <span class="scheme-note">http · https · mailto</span>
+                      <span class="muted">↵ Enter applies · Esc cancels</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Edit existing -->
+          <div class="col">
+            <div class="surface-label" style="margin:0">B · Edit / remove an existing link</div>
+            <div class="muted">Caret inside a link (or click it) re-opens the popover pre-filled. <strong>Remove</strong> unlinks the text; <strong>Apply</strong> updates the URL.</div>
+            <div class="rte" style="max-width:420px">
+              <div class="rte-toolbar">
+                <button class="rte-btn"><i class="ti ti-bold"></i></button>
+                <button class="rte-btn"><i class="ti ti-italic"></i></button>
+                <button class="rte-btn"><i class="ti ti-underline"></i></button>
+                <span class="rte-divider"></span>
+                <button class="rte-btn"><i class="ti ti-list"></i></button>
+                <button class="rte-btn"><i class="ti ti-list-numbers"></i></button>
+                <span class="rte-divider"></span>
+                <button class="rte-btn active"><i class="ti ti-link"></i></button>
+              </div>
+              <div class="rte-content">
+                <p>Read our <a href="#">privacy&nbsp;notice</a><span class="caret"></span> before continuing.</p>
+              </div>
+              <div style="padding:0 6px 10px 6px">
+                <div class="pop-callout">
+                  <div class="link-pop">
+                    <div class="pop-label"><i class="ti ti-link" style="font-size:13px"></i> Link URL</div>
+                    <div class="pop-row">
+                      <input class="input sm" value="https://whitedash.com/privacy">
+                      <button class="btn btn-primary">Apply</button>
+                    </div>
+                    <div class="pop-foot">
+                      <button class="btn btn-danger-ghost" style="padding:0 6px"><i class="ti ti-unlink"></i> Remove link</button>
+                      <span class="muted">opens in new tab</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="note" style="margin-top:22px">
+          <i class="ti ti-alert-triangle" style="color:var(--warning)"></i>
+          <div class="n-body">
+            <strong>No native dialogs.</strong> The existing <span class="mono">RichTextEditor.vue</span> uses <span class="mono">window.prompt('URL:')</span> for links/images — the project bans <span class="mono">window.confirm/alert/prompt</span> (all confirmations via <span class="mono">ConfirmModal</span>). This editor uses the inline popover above instead. An invalid / non-http(s)/mailto URL is rejected in the popover (so the user sees why), and is also dropped server-side as a second line of defence.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── 05 · States & stored output ──────────────────── -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">05</span>
+        <h2>States &amp; what gets stored</h2>
+        <span class="desc">Empty · focus · disabled · the HTML that round-trips</span>
+      </div>
+      <div class="surface">
+        <div class="grid-2">
+          <div class="col" style="gap:18px">
+            <div class="col" style="gap:8px">
+              <div class="surface-label" style="margin:0">Empty (placeholder)</div>
+              <div class="rte">
+                <div class="rte-toolbar">
+                  <button class="rte-btn"><i class="ti ti-bold"></i></button>
+                  <button class="rte-btn"><i class="ti ti-italic"></i></button>
+                  <button class="rte-btn"><i class="ti ti-underline"></i></button>
+                  <span class="rte-divider"></span>
+                  <button class="rte-btn"><i class="ti ti-list"></i></button>
+                  <button class="rte-btn"><i class="ti ti-list-numbers"></i></button>
+                  <span class="rte-divider"></span>
+                  <button class="rte-btn"><i class="ti ti-link"></i></button>
+                </div>
+                <div class="rte-content is-empty">Enter your text block content…</div>
+              </div>
+            </div>
+            <div class="col" style="gap:8px">
+              <div class="surface-label" style="margin:0">Disabled (read-only / live preview)</div>
+              <div class="rte" style="opacity:.65">
+                <div class="rte-toolbar" style="background:var(--neutral-bg)">
+                  <button class="rte-btn" aria-disabled="true"><i class="ti ti-bold"></i></button>
+                  <button class="rte-btn" aria-disabled="true"><i class="ti ti-italic"></i></button>
+                  <button class="rte-btn" aria-disabled="true"><i class="ti ti-underline"></i></button>
+                  <span class="rte-divider"></span>
+                  <button class="rte-btn" aria-disabled="true"><i class="ti ti-list"></i></button>
+                  <button class="rte-btn" aria-disabled="true"><i class="ti ti-list-numbers"></i></button>
+                  <span class="rte-divider"></span>
+                  <button class="rte-btn" aria-disabled="true"><i class="ti ti-link"></i></button>
+                </div>
+                <div class="rte-content"><p>Rendered the same way <span class="mono">FormFieldRenderer</span> shows it on the form.</p></div>
+              </div>
+            </div>
+          </div>
+          <div class="col" style="gap:8px">
+            <div class="surface-label" style="margin:0">Stored <span class="mono">field.content</span> for the section-02 sample</div>
+            <div class="codeblock"><span class="t">&lt;p&gt;</span>Before you submit, please make sure you have:<span class="t">&lt;/p&gt;</span>
+<span class="t">&lt;ul&gt;</span>
+  <span class="t">&lt;li&gt;</span>Read our <span class="t">&lt;a</span> <span class="a">href</span>=<span class="a">"https://…/privacy"</span> <span class="a">target</span>=<span class="a">"_blank"</span> <span class="a">rel</span>=<span class="a">"nofollow noopener noreferrer"</span><span class="t">&gt;</span>privacy notice<span class="t">&lt;/a&gt;&lt;/li&gt;</span>
+  <span class="t">&lt;li&gt;</span>Confirmed your <span class="t">&lt;strong&gt;</span>email address<span class="t">&lt;/strong&gt;</span> is correct<span class="t">&lt;/li&gt;</span>
+  <span class="t">&lt;li&gt;</span>Attached any <span class="t">&lt;em&gt;</span>supporting documents<span class="t">&lt;/em&gt;&lt;/li&gt;</span>
+<span class="t">&lt;/ul&gt;</span>
+<span class="t">&lt;p&gt;</span>Questions? <span class="t">&lt;u&gt;</span>Reply to the confirmation email.<span class="t">&lt;/u&gt;&lt;/p&gt;</span>
+<span class="c">// every tag/attr above survives FormContentSanitizer unchanged</span></div>
+            <div class="note">
+              <i class="ti ti-arrows-exchange"></i>
+              <div class="n-body">Saved via <span class="mono">getHTML()</span> → <span class="mono">field.content</span>. Server sanitises on save (<span class="mono">FormBuilderController</span>) and again when the embed widget is served (<span class="mono">EmbedController</span>); the editor's allowlist is intentionally identical, so a clean round-trip means <strong>no visible change</strong> between editing, the on-form render, and the cross-origin embed.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── 06 · Build notes ─────────────────────────────── -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">06</span>
+        <h2>Build notes</h2>
+        <span class="desc">Reuse what exists; restrict it to the allowlist</span>
+      </div>
+      <div class="surface">
+        <ul class="bul">
+          <li><strong>Foundation already exists.</strong> <span class="mono">resources/js/Components/UI/RichTextEditor.vue</span> is a working Tiptap editor (StarterKit + Link + Placeholder), used today only in Help. Build the form-builder editor from the same base rather than a new dependency — but a <em>restricted</em> variant (or a prop) so it can't emit non-allowlisted tags.</li>
+          <li><strong>Trim StarterKit to the allowlist.</strong> Disable the marks/nodes the sanitiser strips anyway — heading, blockquote, code, codeBlock, strike, horizontalRule — and the Image extension. Keep paragraph, bold, italic, bulletList, orderedList, listItem, hardBreak, history.</li>
+          <li><strong>Add underline.</strong> StarterKit has no underline; add <span class="mono">@tiptap/extension-underline</span> so <i class="ti ti-underline" style="vertical-align:-2px"></i> → <span class="mono">&lt;u&gt;</span>.</li>
+          <li><strong>Keep the Link config that already matches the sanitiser:</strong> <span class="mono">openOnClick:false</span>, <span class="mono">HTMLAttributes:{ rel:'noopener noreferrer', target:'_blank' }</span>. Validate the scheme (http/https/mailto) in the popover before <span class="mono">setLink</span>.</li>
+          <li><strong>Replace the prompt-based link/image UI</strong> with the inline popover (§04). No <span class="mono">window.prompt</span>.</li>
+          <li><strong>Drop it into</strong> the <span class="mono">placeholder</span> branch of the field-edit panel in <span class="mono">resources/js/Pages/Internal/Forms/Index.vue</span>, replacing the <span class="mono">&lt;textarea v-model="field.content"&gt;</span>. Bind <span class="mono">v-model="field.content"</span>; the save path and server sanitiser are unchanged.</li>
+          <li><strong>Styling</strong> is namespaced (e.g. <span class="mono">wf-rte-*</span> / scoped) and uses design tokens only — border/radius via classes (keeps <span class="mono">audit:sections</span> green); matches <span class="mono">.slide-over-wide</span> field rhythm.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ─── 07 · Phase 2 ─────────────────────────────────── -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">07</span>
+        <h2>Phase 2 — anticipated, not in the first build</h2>
+        <span class="desc">Tables &amp; images — each needs the hardened path extended first</span>
+      </div>
+      <div class="phase2">
+        <span class="phase2-tag"><i class="ti ti-clock-pause" style="font-size:13px"></i> Phase 2 · do NOT build in pass 1</span>
+        <h3>Tables and images are planned additions</h3>
+        <p class="lead">The first build ships the six controls above and nothing else. Tables and images are deliberately deferred: each adds tags that the <strong>entire</strong> render path currently strips, so they cannot be turned on at the toolbar alone — the allowlist, the renderer, and the embed widget must all be extended in lockstep, or the new markup silently disappears on save (and any gap becomes an XSS surface). Images carry an extra product + security decision on top.</p>
+        <div class="phase2-cards">
+          <div class="p2card">
+            <div class="p2head"><i class="ti ti-table"></i><span class="t">Tables</span><span class="new">new tags</span></div>
+            <ul class="reqs">
+              <li><i class="ti ti-plus"></i><span><strong>Sanitiser:</strong> extend <span class="mono">FormContentSanitizer</span> to allow <span class="mono">table thead tbody tr th td</span> (+ scope/colspan attrs as decided).</span></li>
+              <li><i class="ti ti-plus"></i><span><strong>Renderer:</strong> add the same tags to <span class="mono">FormFieldRenderer.vue</span>'s DOMPurify allowlist, plus table CSS.</span></li>
+              <li><i class="ti ti-plus"></i><span><strong>Embed:</strong> confirm the widget renders tables and that the served (sanitised) markup matches.</span></li>
+              <li><i class="ti ti-plus"></i><span><strong>Editor:</strong> add <span class="mono">@tiptap/extension-table</span> + cell controls (insert/delete row/col).</span></li>
+            </ul>
+          </div>
+          <div class="p2card">
+            <div class="p2head"><i class="ti ti-photo"></i><span class="t">Images</span><span class="new">new tag + decisions</span></div>
+            <ul class="reqs">
+              <li><i class="ti ti-plus"></i><span><strong>Sanitiser / renderer / embed:</strong> allow <span class="mono">&lt;img&gt;</span> with a constrained <span class="mono">src</span> across all three points (as for tables).</span></li>
+              <li><i class="ti ti-alert-triangle"></i><span><strong>Source model (open decision):</strong> upload via <span class="mono">FileUploadService</span> (stored, signed-URL served) <em>vs</em> external URL — drives storage, hosting, and CDN questions.</span></li>
+              <li><i class="ti ti-alert-triangle"></i><span><strong>Security review:</strong> external <span class="mono">src</span> raises SSRF / pixel-tracking / mixed-content / arbitrary-host concerns; an upload path needs type + size limits via <span class="mono">FileUploadService</span>. The current Link extension already disabled base64 images for this reason.</span></li>
+              <li><i class="ti ti-plus"></i><span><strong>Editor:</strong> add image insert UI (inline popover, not <span class="mono">window.prompt</span>) once the source model is chosen.</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class="note" style="margin-top:18px;border-color:#FDE68A;background:#fff">
+          <i class="ti ti-info-circle" style="color:var(--warning)"></i>
+          <div class="n-body">Rule of thumb for both: <strong>a control may not ship until its tag is allowlisted at every render point.</strong> The toolbar is the last thing to change, not the first — otherwise the sanitiser eats the output and the field looks broken.</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+</body>
+</html>
