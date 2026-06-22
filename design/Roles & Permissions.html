@@ -149,12 +149,6 @@
      namespacing rule). pm-* = permission-matrix, rp-* = roles page.
      ═══════════════════════════════════════════════════════════════ */
 
-  /* Super-admin bypass banner */
-  .rp-bypass { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: linear-gradient(0deg, rgba(245,158,11,.07), rgba(245,158,11,.07)), #fff; border: 1px solid #FDE68A; border-radius: var(--radius-md); margin-bottom: 16px; }
-  .rp-bypass .ic { width: 32px; height: 32px; border-radius: 8px; background: rgba(245,158,11,.16); color: #B45309; display: grid; place-items: center; font-size: 18px; flex-shrink: 0; }
-  .rp-bypass .tx { font: 400 12.5px/1.45 'Inter', sans-serif; color: #92400E; }
-  .rp-bypass .tx b { font-weight: 600; color: #78350F; }
-
   /* Matrix table */
   .roles-matrix .pm-table { width: 100%; border-collapse: collapse; }
   .roles-matrix thead th { background: #FBFCFE; border-bottom: 1px solid var(--border); padding: 10px 12px; vertical-align: bottom; }
@@ -407,16 +401,6 @@
           visible</b>; Manage governs whether the user can act on what they can see. Scope is <b>enforced</b> —
           a scoped user can't reach an off-scope item by direct URL, not just by list.
         </p>
-
-        <!-- Super-admin bypass note -->
-        <div class="rp-bypass">
-          <div class="ic"><i class="ti ti-crown"></i></div>
-          <div class="tx">
-            <b>Super Admin bypasses all permissions</b> — it always has full access, can never be locked out, and is
-            <b>not configurable in this matrix</b>, so it has no column here. The columns below are the configurable
-            roles only — Staff, Support Agent, Sales, and any custom roles.
-          </div>
-        </div>
 
         <!-- ═══ THE MATRIX ═══ -->
         <section class="table-card roles-matrix">
