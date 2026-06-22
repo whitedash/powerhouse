@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\Form;
+use App\Models\FormField;
+use App\Services\FormContentSanitizer;
 use App\Support\FormThemeTokens;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -38,6 +40,18 @@ class EmbedController extends Controller
             ->where('status', 'active')
             ->with(['fields', 'steps', 'theme'])
             ->firstOrFail();
+
+        // XSS boundary: the widget assigns placeholder field content straight to
+        // innerHTML on arbitrary third-party (cross-origin) pages. Sanitise it
+        // server-side here with the same allow-list as the save path — this also
+        // cleans any row persisted before the save-time sanitiser existed. The
+        // models are mutated in memory only (no save); the view reads them.
+        $sanitizer = app(FormContentSanitizer::class);
+        $form->fields->each(function (FormField $field) use ($sanitizer): void {
+            if ($field->type === 'placeholder') {
+                $field->content = $sanitizer->sanitize($field->content);
+            }
+        });
 
         // Resolve the form's effective design tokens through the single
         // source of truth: the default token set (today's look) for an

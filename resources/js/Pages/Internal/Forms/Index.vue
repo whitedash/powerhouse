@@ -408,8 +408,8 @@ function save() {
                 sort_order: si,
                 fields: step.fields.map((field, fi) => ({
                     label: field.label,
-                    // Placeholder body — sanitised client-side (belt-and-braces;
-                    // onUpdate already cleans it). null for other types.
+                    // Placeholder body — sent as-is; the server allow-list
+                    // sanitises it on save (FormBuilderController). null for other types.
                     content: field.type === 'placeholder' ? (field.content || '') : null,
                     field_key: field.field_key,
                     type: field.type,
@@ -737,13 +737,12 @@ const totalSubmissions = computed(() =>
                                 <!-- Inline edit panel -->
                                 <div v-if="editingFieldIndex === i" class="fb-field-edit-panel">
                                     <!-- Placeholder: display-only text block. Content (held in
-                                         `label`) + Type only; no key/width/placeholder/options/required. -->
+                                         `content`) + Type only; no key/width/placeholder/options/required. -->
                                     <template v-if="field.type === 'placeholder'">
-                                        <div v-if="field.type === 'placeholder'" class="fb-field-row">
-                                            <label class="fb-label">Content</label>
+                                        <div v-if="field.type === 'placeholder'" class="form-row">
+                                            <label class="small">Content</label>
                                             <textarea
                                                 v-model="field.content"
-                                                class="fb-textarea"
                                                 rows="4"
                                                 placeholder="Enter your text block content…"
                                                 maxlength="5000"

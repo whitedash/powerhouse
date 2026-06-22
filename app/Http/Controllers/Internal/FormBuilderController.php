@@ -10,6 +10,7 @@ use App\Models\FormField;
 use App\Models\FormStep;
 use App\Models\FormSubmission;
 use App\Models\FormTheme;
+use App\Services\FormContentSanitizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -407,7 +408,10 @@ class FormBuilderController extends Controller
         $content = null;
         if ($isPlaceholder) {
             $raw = is_string($field['content'] ?? null) ? $field['content'] : '';
-            $content = $raw; // Sanitised client-side by DOMPurify before save
+            // Server-side allow-list sanitisation (symfony/html-sanitizer): the
+            // STORED body is always clean regardless of the client. The DOMPurify
+            // in the builder/renderer is convenience, not the security boundary.
+            $content = app(FormContentSanitizer::class)->sanitize($raw);
         }
 
         return [

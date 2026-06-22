@@ -43,9 +43,10 @@ const options = computed(() => props.field.options ?? []);
 // Asterisk only in preview mode (modelValue null = nothing bound).
 const showRequiredMark = computed(() => props.field.is_required && props.modelValue === null);
 
-// Output sanitisation for placeholder/text-block content — second barrier
-// (the builder also sanitises on input). Same allowlist as the deleted
-// mews/purifier 'placeholder' profile.
+// Client-side output sanitisation for placeholder/text-block content — a
+// defence-in-depth second barrier. The authoritative barrier is server-side:
+// content is allow-list sanitised on save (FormBuilderController) and again when
+// the embed widget is served (EmbedController). This allowlist mirrors that one.
 const PLACEHOLDER_SANITISE_CONFIG = {
     ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li', 'a'],
     ALLOWED_ATTR: ['href', 'target', 'rel'],
@@ -63,7 +64,7 @@ const sanitisedContent = computed(() =>
             <span v-if="showRequiredMark" class="ffr-req">*</span>
         </label>
 
-        <!-- Placeholder: content sanitised by DOMPurify at input (builder) and output (here) -->
+        <!-- Placeholder: content sanitised server-side on save/serve; DOMPurify here is defence-in-depth -->
         <div v-if="field.type === 'placeholder'" class="ffr-placeholder-text" v-html="sanitisedContent"></div>
 
         <input
