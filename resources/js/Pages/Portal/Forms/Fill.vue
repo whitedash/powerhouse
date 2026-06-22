@@ -107,6 +107,22 @@ async function saveLater() {
     }
 }
 
+// Resolve the earliest step index owning any failing field_key. The whole-form
+// Submit backstop can 422 on a field from an EARLIER step than the one shown
+// (e.g. save-for-later advanced the resume marker past a step it never
+// validated). Per-field errors only render on the active step, so we jump there
+// rather than leave Submit a silent no-op. Returns null if nothing resolves.
+function earliestErrorStep(errorMap) {
+    let target = null;
+    for (const key of Object.keys(errorMap ?? {})) {
+        const field = props.form.fields.find(f => f.field_key === key);
+        if (!field) continue;
+        const idx = steps.value.findIndex(s => s.id === field.form_step_id);
+        if (idx !== -1 && (target === null || idx < target)) target = idx;
+    }
+    return target;
+}
+
 async function submitForm() {
     submitting.value = true;
     errors.value = {};
@@ -126,6 +142,12 @@ async function submitForm() {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
             errors.value = data.errors ?? {};
+            // The whole-form backstop may fail on a field from an earlier step;
+            // land there so its inline error is visible (step 4 renders it once
+            // the step is active). The full map stays populated, so every other
+            // failing field shows its error when its step is viewed.
+            const target = earliestErrorStep(errors.value);
+            if (target !== null) currentStep.value = target;
             return;
         }
         if (data.redirect) {
