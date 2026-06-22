@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Powerhouse — Form Fill · Per-Step Validation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  /* Real design-system tokens, copied from resources/css/app.css :root */
+  :root {
+    --bg-navy: #0F172A;
+    --accent: #F59E0B;
+    --content-bg: #F8FAFC;
+    --card-bg: #FFFFFF;
+    --border: #E2E8F0;
+    --border-soft: #EEF2F7;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+    --info: #3B82F6;
+    --success-bg: #ECFDF5;
+    --danger-bg: #FEF2F2;
+    --warning-bg: #FFFBEB;
+    --info-bg: #EFF6FF;
+    --neutral-bg: #F1F5F9;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.05);
+    --shadow-md: 0 4px 12px -2px rgba(15,23,42,.08), 0 1px 3px rgba(15,23,42,.04);
+    --label: 500 11px/1.2 'Inter', sans-serif;
+    --small: 400 12px/1.4 'Inter', sans-serif;
+    --heading: 600 20px/1.3 'Inter', sans-serif;
+    --subheading: 600 16px/1.4 'Inter', sans-serif;
+    --body: 400 14px/1.5 'Inter', sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { font: var(--body); color: var(--text-primary); background: #E5E9F0; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+  /* ─── Artboard / header (matches the design-sheet family) ─── */
+  .artboard { width: 1440px; margin: 0 auto; background: var(--content-bg); min-height: 100vh; position: relative; }
+  .artboard-header { background: var(--bg-navy); color: #fff; padding: 40px 56px 44px; position: relative; overflow: hidden; }
+  .artboard-header::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse 600px 200px at 90% 0%, rgba(245,158,11,.18), transparent 70%), radial-gradient(ellipse 400px 200px at 10% 100%, rgba(59,130,246,.08), transparent 70%); pointer-events: none; }
+  .brand-row { display:flex; align-items:center; gap: 14px; margin-bottom: 24px; position:relative; z-index:1; }
+  .brand-mark { width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, var(--accent), #FBBF24); display: grid; place-items: center; color: var(--bg-navy); font: 700 18px/1 'Inter', sans-serif; box-shadow: 0 4px 10px rgba(245,158,11,.35); }
+  .brand-name { font: 700 22px/1 'Inter', sans-serif; letter-spacing: -.01em; }
+  .brand-divider { width: 1px; height: 18px; background: rgba(255,255,255,.18); }
+  .brand-tag { font: var(--label); text-transform: uppercase; letter-spacing: .12em; color: rgba(255,255,255,.6); }
+  .header-title { position:relative; z-index:1; }
+  .header-title h1 { font: 700 38px/1.1 'Inter', sans-serif; letter-spacing: -.02em; margin: 0 0 8px; }
+  .header-title p { font: 400 15px/1.5 'Inter', sans-serif; color: rgba(255,255,255,.65); max-width: 640px; margin: 0; }
+  .header-meta { display: flex; gap: 32px; margin-top: 28px; position:relative; z-index:1; }
+  .header-meta div { font: var(--small); color: rgba(255,255,255,.55); }
+  .header-meta strong { display: block; color: #fff; font: 600 14px/1.4 'Inter', sans-serif; margin-top: 4px; }
+
+  .sheet { padding: 48px 56px 80px; display: flex; flex-direction: column; gap: 52px; }
+  .section { display:flex; flex-direction: column; gap: 20px; }
+  .section-head { display:flex; align-items:baseline; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .section-head .num { font: var(--label); text-transform: uppercase; letter-spacing: .14em; color: var(--text-tertiary); }
+  .section-head h2 { font: var(--heading); margin: 0; letter-spacing: -.01em; }
+  .section-head .desc { font: var(--small); color: var(--text-secondary); margin-left: auto; }
+  .surface-label { font: var(--label); text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary); margin-bottom: 14px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+  .muted { font: var(--small); color: var(--text-secondary); }
+  .mono { font: 500 12px/1.5 'JetBrains Mono', monospace; }
+  .stage { background: var(--content-bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; }
+
+  /* ════════════════════════════════════════════════════════════════
+     FORM-FILL FAMILY — mirrors the REAL respondent classes:
+       .ffr-* from resources/js/Components/Forms/FormFieldRenderer.vue
+       .ms-*  from resources/js/Pages/Portal/Forms/Fill.vue
+     (Portal fill + embed are their own design families, exempt from
+     the Internal section-card rule — CONVENTIONS.md:87.)
+     ════════════════════════════════════════════════════════════════ */
+  .fill-shell { max-width: 560px; margin: 0 auto; }
+
+  /* Step progress (Fill.vue .ms-stepper) */
+  .ms-stepper { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+  .ms-step { display: flex; align-items: center; gap: 9px; }
+  .ms-step-num { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font: 600 13px/1 'Inter', sans-serif; background: var(--neutral-bg); color: var(--text-secondary); border: 1px solid var(--border); flex-shrink: 0; }
+  .ms-step.done .ms-step-num { background: var(--accent); color: var(--bg-navy); border-color: var(--accent); }
+  .ms-step.active .ms-step-num { background: #fff; color: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+  .ms-step-label { font: 500 13px/1.2 'Inter', sans-serif; color: var(--text-secondary); white-space: nowrap; }
+  .ms-step.active .ms-step-label { color: var(--text-primary); font-weight: 600; }
+  .ms-step-bar { flex: 1; height: 1px; background: var(--border); min-width: 14px; }
+
+  /* The fill card (Fill.vue <section> + header + .card-pad + .ms-form-footer) */
+  .fill-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+  .fill-head { display: flex; align-items: center; gap: 12px; padding: 18px 24px; border-bottom: 1px solid var(--border-soft); }
+  .fill-head .t { font: var(--subheading); }
+  .fill-head .sub { font: var(--small); color: var(--text-secondary); margin-top: 2px; }
+  .badge-open { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1 'Inter', sans-serif; color: #B45309; background: var(--warning-bg); border: 1px solid #FDE68A; padding: 4px 10px; border-radius: 999px; }
+  .card-pad { padding: 22px 24px; }
+
+  /* Field grid + fields (FormFieldRenderer .ffr-*) */
+  .ffr-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0 16px; }
+  .col-12 { grid-column: span 12; } .col-6 { grid-column: span 6; }
+  .ffr-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .ffr-label { font: 500 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); }
+  .ffr-req { color: var(--danger); margin-left: 2px; }
+  .ffr-input { width: 100%; font: 400 14px/1.4 'Inter', sans-serif; color: var(--text-primary); background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 9px 12px; outline: 0; transition: border-color .15s, box-shadow .15s; }
+  .ffr-input::placeholder { color: var(--text-tertiary); }
+  .ffr-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+  select.ffr-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 34px; }
+  .ffr-radio-group { display: flex; flex-direction: column; gap: 8px; padding-top: 2px; }
+  .ffr-radio { display: flex; align-items: center; gap: 8px; font: 400 14px/1.4 'Inter', sans-serif; color: var(--text-primary); }
+  .ffr-radio input { width: auto; margin: 0; accent-color: var(--accent); }
+
+  /* ─── THE ADDITION THIS DESIGN PINS: per-field error state ─── */
+  /* Canonical message = the embed's existing .pw-err, adopted by the
+     renderer as .ffr-error. Both gain a danger input border. */
+  .ffr-field.is-error .ffr-input { border-color: var(--danger); }
+  .ffr-field.is-error .ffr-input:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 16%, transparent); }
+  .ffr-field.is-error .ffr-radio-group { /* group-level affordance for choice fields */ }
+  .ffr-error { display: flex; align-items: flex-start; gap: 5px; font: 500 12px/1.4 'Inter', sans-serif; color: var(--danger); margin-top: 2px; }
+  .ffr-error .ti { font-size: 14px; line-height: 1.2; flex: none; }
+
+  /* Footer (Fill.vue .ms-form-footer) */
+  .ms-form-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 24px; border-top: 1px solid var(--border-soft); }
+  .ms-footer-right { display: flex; align-items: center; gap: 10px; }
+  .ms-text-link { background: transparent; border: 0; cursor: pointer; font: 400 13px/1.4 'Inter', sans-serif; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 6px; }
+  .ms-text-link .ti { font-size: 16px; }
+  .btn { appearance: none; border: 0; cursor: pointer; font: 500 13px/1 'Inter', sans-serif; padding: 0 16px; height: 38px; border-radius: var(--radius-md); display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .btn .ti { font-size: 16px; }
+  .btn-primary { background: var(--accent); color: var(--bg-navy); font-weight: 600; box-shadow: 0 1px 2px rgba(245,158,11,.3); }
+  .btn-secondary { background: #fff; color: var(--text-primary); border: 1px solid var(--border); }
+
+  /* A small blocked-advance hint (aria-live region; optional, secondary to inline) */
+  .ms-block-hint { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1.4 'Inter', sans-serif; color: var(--danger); }
+  .ms-block-hint .ti { font-size: 15px; }
+
+  /* ─── Anatomy / spec callouts ─── */
+  .anat { display: grid; grid-template-columns: 320px 1fr; gap: 28px; align-items: center; }
+  .callouts { display: flex; flex-direction: column; gap: 12px; }
+  .callout { display: flex; gap: 11px; align-items: flex-start; }
+  .callout .dot { width: 20px; height: 20px; border-radius: 50%; background: var(--danger); color: #fff; font: 700 11px/1 'Inter', sans-serif; display: grid; place-items: center; flex: none; margin-top: 1px; }
+  .callout .ctext { font: var(--small); color: var(--text-secondary); line-height: 1.55; }
+  .callout .ctext strong { color: var(--text-primary); }
+  .callout .ctext code { font: 500 11.5px/1.4 'JetBrains Mono', monospace; background: var(--neutral-bg); padding: 1px 5px; border-radius: 4px; }
+
+  .spec { width: 100%; border-collapse: collapse; }
+  .spec th, .spec td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border-soft); font: var(--small); vertical-align: top; }
+  .spec th { font: var(--label); text-transform: uppercase; letter-spacing: .1em; color: var(--text-tertiary); }
+  .spec tr:last-child td { border-bottom: 0; }
+  .spec code, .pill { font: 500 12px/1.5 'JetBrains Mono', monospace; color: var(--text-primary); background: var(--neutral-bg); padding: 2px 6px; border-radius: 4px; }
+  .swatch-chip { display: inline-flex; align-items: center; gap: 7px; }
+  .swatch-chip i { width: 13px; height: 13px; border-radius: 3px; display: inline-block; }
+
+  /* Notes panel (interaction model) */
+  .notes { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px 26px; }
+  .notes h3 { font: var(--subheading); margin: 0 0 4px; }
+  .notes .lead { font: var(--small); color: var(--text-secondary); margin: 0 0 18px; }
+  .flow { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; margin-bottom: 20px; }
+  .flow-step { background: var(--neutral-bg); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 14px; font: 500 12.5px/1.3 'Inter', sans-serif; color: var(--text-primary); display: flex; align-items: center; gap: 7px; }
+  .flow-step .ti { font-size: 15px; }
+  .flow-step.gate { background: var(--danger-bg); border-color: #FECACA; color: #B91C1C; }
+  .flow-step.go { background: var(--success-bg); border-color: #A7F3D0; color: #047857; }
+  .flow-arrow { display: flex; align-items: center; color: var(--text-tertiary); padding: 0 8px; font-size: 16px; }
+  .rules { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 11px; }
+  .rules li { display: flex; gap: 11px; font: var(--small); color: var(--text-secondary); line-height: 1.55; }
+  .rules li .ti { font-size: 17px; flex: none; margin-top: 1px; }
+  .rules li .ti.ok { color: var(--success); }
+  .rules li .ti.no { color: var(--text-tertiary); }
+  .rules li .ti.gate { color: var(--danger); }
+  .rules li strong { color: var(--text-primary); }
+
+  .note { display:flex; gap: 12px; align-items:flex-start; border: 1px solid var(--border); background:#fff; border-radius: var(--radius-md); padding: 14px 16px; }
+  .note .ti { font-size: 19px; color: var(--info); margin-top: 1px; flex: none; }
+  .note .nb { font: var(--small); color: var(--text-secondary); line-height: 1.6; }
+  .note .nb strong { color: var(--text-primary); }
+</style>
+</head>
+<body>
+<div class="artboard">
+
+  <header class="artboard-header">
+    <div class="brand-row">
+      <div class="brand-mark">P</div>
+      <div class="brand-name">Powerhouse</div>
+      <div class="brand-divider"></div>
+      <div class="brand-tag">Whitedash · Design</div>
+    </div>
+    <div class="header-title">
+      <h1>Form Fill — Per-Step Validation</h1>
+      <p>The respondent form-fill experience (Portal fill + public embed), not the builder. Pins the
+         per-field inline error state shown when a step fails to validate on <strong>Next</strong>, in the
+         existing form-fill visual language.</p>
+    </div>
+    <div class="header-meta">
+      <div>Surface<strong>Portal fill + embed widget</strong></div>
+      <div>Renderers<strong>FormFieldRenderer (.ffr-*) · embed (.pw-*)</strong></div>
+      <div>Error token<strong>--danger (#EF4444)</strong></div>
+      <div>Status<strong>Design · pins the error state</strong></div>
+    </div>
+  </header>
+
+  <div class="sheet">
+
+    <!-- ─── 01 · A step being filled (clean) ─── -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">01</span>
+        <h2>A step being filled</h2>
+        <span class="desc">One step of a multi-step form, before Next</span>
+      </div>
+      <div class="stage">
+        <div class="fill-shell">
+          <div class="ms-stepper">
+            <div class="ms-step done"><span class="ms-step-num"><i class="ti ti-check"></i></span><span class="ms-step-label">Your details</span></div>
+            <span class="ms-step-bar"></span>
+            <div class="ms-step active"><span class="ms-step-num">2</span><span class="ms-step-label">Your visit</span></div>
+            <span class="ms-step-bar"></span>
+            <div class="ms-step"><span class="ms-step-num">3</span><span class="ms-step-label">Preferences</span></div>
+            <span class="ms-step-bar"></span>
+            <div class="ms-step"><span class="ms-step-num">4</span><span class="ms-step-label">Confirm</span></div>
+          </div>
+
+          <div class="fill-card">
+            <div class="fill-head">
+              <div>
+                <div class="t">Your visit</div>
+                <div class="sub">Step 2 of 4</div>
+              </div>
+              <span class="badge-open"><i class="ti ti-progress" style="font-size:13px"></i> In progress</span>
+            </div>
+            <div class="card-pad">
+              <div class="ffr-grid">
+                <div class="ffr-field col-12">
+                  <label class="ffr-label">Full name <span class="ffr-req">*</span></label>
+                  <input class="ffr-input" type="text" placeholder="Your full name">
+                </div>
+                <div class="ffr-field col-12">
+                  <label class="ffr-label">Email address <span class="ffr-req">*</span></label>
+                  <input class="ffr-input" type="email" placeholder="you@example.com">
+                </div>
+                <div class="ffr-field col-12">
+                  <label class="ffr-label">How did you hear about us? <span class="ffr-req">*</span></label>
+                  <div class="ffr-radio-group">
+                    <label class="ffr-radio"><input type="radio" name="hear-a"> Search engine</label>
+                    <label class="ffr-radio"><input type="radio" name="hear-a"> Social media</label>
+                    <label class="ffr-radio"><input type="radio" name="hear-a"> A friend</label>
+                  </div>
+                </div>
+                <div class="ffr-field col-6">
+                  <label class="ffr-label">Number of guests</label>
+                  <input class="ffr-input" type="number" placeholder="2">
+                </div>
+              </div>
+            </div>
+            <footer class="ms-form-footer">
+              <button class="ms-text-link"><i class="ti ti-device-floppy"></i> Save and continue later</button>
+              <div class="ms-footer-right">
+                <button class="btn btn-secondary"><i class="ti ti-arrow-left"></i> Back</button>
+                <button class="btn btn-primary">Next <i class="ti ti-arrow-right"></i></button>
+              </div>
+            </footer>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── 02 · Error state after Next ─── -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">02</span>
+        <h2>After Next, with problems on the step</h2>
+        <span class="desc">Per-field inline errors · advance blocked · step does not change</span>
+      </div>
+      <div class="stage">
+        <div class="fill-shell">
+          <div class="ms-stepper">
+            <div class="ms-step done"><span class="ms-step-num"><i class="ti ti-check"></i></span><span class="ms-step-label">Your details</span></div>
+            <span class="ms-step-bar"></span>
+            <div class="ms-step active"><span class="ms-step-num">2</span><span class="ms-step-label">Your visit</span></div>
+            <span class="ms-step-bar"></span>
+            <div class="ms-step"><span class="ms-step-num">3</span><span class="ms-step-label">Preferences</span></div>
+            <span class="ms-step-bar"></span>
+            <div class="ms-step"><span class="ms-step-num">4</span><span class="ms-step-label">Confirm</span></div>
+          </div>
+
+          <div class="fill-card">
+            <div class="fill-head">
+              <div>
+                <div class="t">Your visit</div>
+                <div class="sub">Step 2 of 4 &nbsp;·&nbsp; still on step 2 — not advanced</div>
+              </div>
+              <span class="badge-open"><i class="ti ti-progress" style="font-size:13px"></i> In progress</span>
+            </div>
+            <div class="card-pad">
+              <div class="ffr-grid">
+                <!-- FAIL: required, left empty -->
+                <div class="ffr-field col-12 is-error">
+                  <label class="ffr-label">Full name <span class="ffr-req">*</span></label>
+                  <input class="ffr-input" type="text" placeholder="Your full name" aria-invalid="true">
+                  <p class="ffr-error"><i class="ti ti-alert-circle"></i> Please enter your full name.</p>
+                </div>
+                <!-- FAIL: invalid email format -->
+                <div class="ffr-field col-12 is-error">
+                  <label class="ffr-label">Email address <span class="ffr-req">*</span></label>
+                  <input class="ffr-input" type="email" value="dana@example" aria-invalid="true">
+                  <p class="ffr-error"><i class="ti ti-alert-circle"></i> Enter a valid email address.</p>
+                </div>
+                <!-- FAIL: required choice not made -->
+                <div class="ffr-field col-12 is-error">
+                  <label class="ffr-label">How did you hear about us? <span class="ffr-req">*</span></label>
+                  <div class="ffr-radio-group">
+                    <label class="ffr-radio"><input type="radio" name="hear-b"> Search engine</label>
+                    <label class="ffr-radio"><input type="radio" name="hear-b"> Social media</label>
+                    <label class="ffr-radio"><input type="radio" name="hear-b"> A friend</label>
+                  </div>
+                  <p class="ffr-error"><i class="ti ti-alert-circle"></i> Please choose an option.</p>
+                </div>
+                <!-- PASS: filled, valid — clean, for contrast -->
+                <div class="ffr-field col-6">
+                  <label class="ffr-label">Number of guests</label>
+                  <input class="ffr-input" type="number" value="4">
+                </div>
+              </div>
+            </div>
+            <footer class="ms-form-footer">
+              <button class="ms-text-link"><i class="ti ti-device-floppy"></i> Save and continue later</button>
+              <div class="ms-footer-right">
+                <span class="ms-block-hint"><i class="ti ti-alert-triangle-filled"></i> 3 fields need attention</span>
+                <button class="btn btn-secondary"><i class="ti ti-arrow-left"></i> Back</button>
+                <button class="btn btn-primary">Next <i class="ti ti-arrow-right"></i></button>
+              </div>
+            </footer>
+          </div>
+          <p class="muted" style="margin:14px 0 0;text-align:center">Failing fields (Full name, Email, How-did-you-hear) carry an inline error; the valid <em>Number of guests</em> stays clean — the contrast is the point.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── 03 · Canonical per-field error treatment ─── -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">03</span>
+        <h2>Canonical per-field error treatment</h2>
+        <span class="desc">Below the input · danger token · matching spacing</span>
+      </div>
+      <div class="stage">
+        <div class="anat">
+          <div>
+            <div class="surface-label">Anatomy of a field in error</div>
+            <div class="ffr-field is-error" style="margin:0;max-width:300px">
+              <label class="ffr-label">Email address <span class="ffr-req">*</span></label>
+              <input class="ffr-input" type="email" value="dana@example" aria-invalid="true" style="border-color:var(--danger);box-shadow:0 0 0 3px color-mix(in srgb, var(--danger) 16%, transparent)">
+              <p class="ffr-error"><i class="ti ti-alert-circle"></i> Enter a valid email address.</p>
+            </div>
+          </div>
+          <div class="callouts">
+            <div class="callout"><span class="dot">1</span><div class="ctext"><strong>Required asterisk</strong> stays as today — <code>.ffr-req</code> in <code>--danger</code> (unchanged).</div></div>
+            <div class="callout"><span class="dot">2</span><div class="ctext"><strong>Input error border</strong> — the existing input gains <code>border-color: var(--danger)</code>; on focus a <code>--danger</code> ring (<code>color-mix(--danger 16%)</code>) replaces the accent ring. Toggled by <code>.ffr-field.is-error</code> + <code>aria-invalid="true"</code>.</div></div>
+            <div class="callout"><span class="dot">3</span><div class="ctext"><strong>Message below the input</strong> — <code>.ffr-error</code>: <code>500 12px/1.4 Inter</code>, <code>color: var(--danger)</code>, <code>margin-top: 2px</code> (sits inside the field's existing 6px flex-gap). Small <code>alert-circle</code> icon, then the message.</div></div>
+            <div class="callout"><span class="dot">4</span><div class="ctext"><strong>Spacing</strong> — no layout shift: the message slots into <code>.ffr-field</code> (flex-column, <code>margin-bottom:14px</code>); the grid row height grows to fit, fields below reflow normally.</div></div>
+          </div>
+        </div>
+
+        <table class="spec" style="margin-top:24px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg)">
+          <thead><tr><th style="width:190px">Property</th><th>Value (token-driven)</th></tr></thead>
+          <tbody>
+            <tr><td>Message placement</td><td>Below the input, inside the field wrapper</td></tr>
+            <tr><td>Message colour</td><td><span class="swatch-chip"><i style="background:var(--danger)"></i> <code>var(--danger)</code> #EF4444</span></td></tr>
+            <tr><td>Message font</td><td><code>500 12px/1.4 'Inter'</code> (matches the embed's <code>.pw-err</code>)</td></tr>
+            <tr><td>Message offset</td><td><code>margin-top: 2px</code> (Portal) ≈ embed <code>margin-top: 4px</code></td></tr>
+            <tr><td>Input border (error)</td><td><span class="swatch-chip"><i style="background:var(--danger)"></i> <code>border-color: var(--danger)</code></span></td></tr>
+            <tr><td>Input focus ring (error)</td><td><code>0 0 0 3px color-mix(in srgb, var(--danger) 16%, transparent)</code></td></tr>
+            <tr><td>Accessibility</td><td><code>aria-invalid="true"</code> on the input + <code>aria-describedby</code> → the <code>.ffr-error</code> id</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ─── 04 · One look, both renderers ─── -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">04</span>
+        <h2>One look, both renderers</h2>
+        <span class="desc">Embed <span class="mono">.pw-err</span> is canonical → Portal adopts it</span>
+      </div>
+      <div class="stage">
+        <div class="note" style="margin-bottom:22px">
+          <i class="ti ti-arrows-exchange"></i>
+          <div class="nb"><strong>The embed already has the right message treatment.</strong> <span class="mono">resources/views/embed/form-widget.blade.php</span> renders a per-field <span class="mono">.pw-err</span> node below each input (<span class="mono">color: var(--pw-error); font-size: 12px; margin-top: 4px</span>) and fills it from the server's 422 <span class="mono">errors[field_key][0]</span>. <strong>The Portal renderer adopts the identical treatment</strong> as <span class="mono">.ffr-error</span>. The only thing both <em>add</em> is the danger input border (the embed shows the message but no border today), so the input affordance matches too.</div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <div class="surface-label">Embed widget — <span class="mono">.pw-err</span> (exists today)</div>
+            <div class="ffr-field is-error" style="margin:0">
+              <label class="ffr-label" style="font-weight:600;color:var(--text-primary)">Email address</label>
+              <input class="ffr-input" type="email" value="dana@example">
+              <p class="ffr-error" style="margin-top:4px"><i class="ti ti-alert-circle"></i> Enter a valid email address.</p>
+            </div>
+            <p class="muted" style="margin-top:10px">Message: present today. Input border: <strong>added</strong> by this design.</p>
+          </div>
+          <div>
+            <div class="surface-label">Portal renderer — <span class="mono">.ffr-error</span> (new, same look)</div>
+            <div class="ffr-field is-error" style="margin:0">
+              <label class="ffr-label">Email address <span class="ffr-req">*</span></label>
+              <input class="ffr-input" type="email" value="dana@example" aria-invalid="true">
+              <p class="ffr-error"><i class="ti ti-alert-circle"></i> Enter a valid email address.</p>
+            </div>
+            <p class="muted" style="margin-top:10px">Message + input border both <strong>added</strong> here; replaces today's flat <span class="mono">.ms-error</span> summary.</p>
+          </div>
+        </div>
+
+        <table class="spec" style="margin-top:24px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg)">
+          <thead><tr><th>Concept</th><th>Embed (.pw-*)</th><th>Portal (.ffr-*)</th></tr></thead>
+          <tbody>
+            <tr><td>Field wrapper</td><td><code>.pw-field</code></td><td><code>.ffr-field</code> (+ <code>.is-error</code>)</td></tr>
+            <tr><td>Input</td><td><code>.pw-input</code></td><td><code>.ffr-input</code></td></tr>
+            <tr><td>Required mark</td><td><code>.pw-req</code></td><td><code>.ffr-req</code></td></tr>
+            <tr><td>Error message</td><td><code>.pw-err</code> (exists)</td><td><code>.ffr-error</code> (new, identical)</td></tr>
+            <tr><td>Error token</td><td><code>--pw-error</code> (theme → danger)</td><td><code>--danger</code></td></tr>
+          </tbody>
+        </table>
+        <div class="note" style="margin-top:20px">
+          <i class="ti ti-shield-check" style="color:var(--success)"></i>
+          <div class="nb">Both classes are <strong>scoped/namespaced</strong> per CONVENTIONS.md — <span class="mono">.ffr-*</span> stays in the FormFieldRenderer scoped block, <span class="mono">.pw-*</span> in the embed's <span class="mono">buildStyleEl</span>. No new global form layout is introduced; this is the error-state addition slotting into the field/row markup the renderers already use.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── 05 · Interaction model (the notes panel) ─── -->
+    <section class="section">
+      <div class="section-head">
+        <span class="num">05</span>
+        <h2>Interaction model the visuals represent</h2>
+        <span class="desc">Validate on advance · block · save-later skips · submit validates all</span>
+      </div>
+      <div class="notes">
+        <h3>What happens, when</h3>
+        <p class="lead">Per-step validation runs at the step boundary; the whole-form check stays at the end.</p>
+
+        <div class="flow">
+          <div class="flow-step"><i class="ti ti-pencil"></i> Fill step 2</div>
+          <span class="flow-arrow"><i class="ti ti-arrow-right"></i></span>
+          <div class="flow-step"><i class="ti ti-arrow-right-bar"></i> Click <strong>Next</strong></div>
+          <span class="flow-arrow"><i class="ti ti-arrow-right"></i></span>
+          <div class="flow-step gate"><i class="ti ti-shield-x"></i> Step 2 invalid → inline errors, stay on step 2</div>
+          <span class="flow-arrow"><i class="ti ti-arrow-right"></i></span>
+          <div class="flow-step go"><i class="ti ti-shield-check"></i> Step 2 clean → advance to step 3</div>
+        </div>
+
+        <ul class="rules">
+          <li><i class="ti ti-shield-half-filled gate"></i><span><strong>Validation fires on advance (Next)</strong> — and only for the <strong>current step's</strong> fields (the fields with this step's <code>form_step_id</code>), never the whole form.</span></li>
+          <li><i class="ti ti-alert-circle gate"></i><span><strong>Failing fields show an inline error</strong> below the input (the treatment in §03); valid fields stay clean. Errors are keyed to the field, not a flat list.</span></li>
+          <li><i class="ti ti-lock gate"></i><span><strong>Advance is blocked</strong> until the step is clean — the step index does not change while any current-step field is invalid.</span></li>
+          <li><i class="ti ti-device-floppy no"></i><span><strong>Save-and-continue-later does NOT validate</strong> — it persists the current input as-is (drafts already save raw), so a respondent can leave with partial/invalid data and resume.</span></li>
+          <li><i class="ti ti-arrow-left no"></i><span><strong>Back does not validate</strong> — moving to an earlier step is always allowed.</span></li>
+          <li><i class="ti ti-checks ok"></i><span><strong>Final Submit validates the whole form</strong> — the existing end-of-form validation stays as the last gate (per-step is an earlier, friendlier catch, not a replacement).</span></li>
+        </ul>
+
+        <div class="note" style="margin-top:20px">
+          <i class="ti ti-info-circle"></i>
+          <div class="nb"><strong>Scope of this file:</strong> it pins the <em>visual error state</em> only. There is no conditional field visibility in forms today, so "skip hidden fields" is not depicted; if value-based show/hide is added later, the per-step check must skip hidden fields and the owning page (not <span class="mono">FormFieldRenderer</span>) must drive it. This is design-only — no renderer, controller, or validation code is changed here.</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+</body>
+</html>
