@@ -141,13 +141,12 @@
 
   .set-body { padding: 28px 32px; min-width: 0; }
   .set-title { font: 700 20px/1.2 'Inter', sans-serif; letter-spacing: -.015em; margin: 0 0 4px; }
-  .set-intro { font: 400 13.5px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin: 0 0 20px; max-width: 720px; }
+  .set-intro { font: 400 13.5px/1.5 'Inter', sans-serif; color: var(--text-secondary); margin: 0 0 20px; max-width: 760px; }
 
   /* ═══════════════════════════════════════════════════════════════
      Roles & Permissions matrix — scoped under .roles-matrix so none
      of these rules leak onto shared primitives (CONVENTIONS.md
-     namespacing rule). In the Vue build these live under the page's
-     .roles-matrix namespace; pm-* = permission-matrix, rp-* = roles page.
+     namespacing rule). pm-* = permission-matrix, rp-* = roles page.
      ═══════════════════════════════════════════════════════════════ */
 
   /* Super-admin bypass banner */
@@ -158,34 +157,42 @@
 
   /* Matrix table */
   .roles-matrix .pm-table { width: 100%; border-collapse: collapse; }
-  .roles-matrix thead th { background: #FBFCFE; border-bottom: 1px solid var(--border); padding: 10px 14px; vertical-align: bottom; }
-  .roles-matrix .pm-head-perm { text-align: left; width: 46%; }
+  .roles-matrix thead th { background: #FBFCFE; border-bottom: 1px solid var(--border); padding: 10px 12px; vertical-align: bottom; }
+  .roles-matrix .pm-head-perm { text-align: left; width: 30%; }
   .roles-matrix .pm-head-perm .h-lbl { font: 500 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary); }
   .roles-matrix .pm-head-role { text-align: center; width: 15%; border-left: 1px solid var(--border-soft); }
-  .roles-matrix .pm-head-role .rname { font: 600 13.5px/1.1 'Inter', sans-serif; color: var(--text-primary); }
-  .roles-matrix .pm-head-role .rcount { display: inline-block; margin-top: 5px; font: 500 10.5px/1 'Inter', sans-serif; color: var(--text-secondary); background: var(--neutral-bg); padding: 3px 7px; border-radius: 999px; }
+  .roles-matrix .pm-head-role .rname { font: 600 13px/1.1 'Inter', sans-serif; color: var(--text-primary); }
+  .roles-matrix .pm-head-role .rcount { display: inline-block; margin-top: 5px; font: 500 10px/1.2 'Inter', sans-serif; color: var(--text-secondary); background: var(--neutral-bg); padding: 3px 7px; border-radius: 999px; }
   .roles-matrix .pm-head-role.sa { background: rgba(245,158,11,.06); }
   .roles-matrix .pm-head-role.sa .rname { color: #B45309; display: inline-flex; align-items: center; gap: 5px; }
   .roles-matrix .pm-head-role.sa .rcount { background: rgba(245,158,11,.16); color: #B45309; }
-  .roles-matrix .pm-head-add { text-align: center; width: 9%; border-left: 1px dashed var(--border); }
-  .roles-matrix .pm-head-add .addbtn { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; color: var(--accent); font: 600 11px/1.1 'Inter', sans-serif; cursor: pointer; }
-  .roles-matrix .pm-head-add .addbtn .ic { width: 26px; height: 26px; border-radius: 50%; border: 1.5px dashed var(--accent); display: grid; place-items: center; font-size: 15px; }
+  .roles-matrix .pm-head-add { text-align: center; width: 5%; border-left: 1px dashed var(--border); }
+  .roles-matrix .pm-head-add .addbtn { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; color: var(--accent); font: 600 9.5px/1.1 'Inter', sans-serif; cursor: pointer; }
+  .roles-matrix .pm-head-add .addbtn .ic { width: 24px; height: 24px; border-radius: 50%; border: 1.5px dashed var(--accent); display: grid; place-items: center; font-size: 14px; }
 
   /* Group separator rows */
-  .roles-matrix .pm-group td { background: var(--neutral-bg); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border-soft); padding: 7px 14px; font: 600 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .1em; color: var(--text-secondary); }
+  .roles-matrix .pm-group td { background: var(--neutral-bg); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border-soft); padding: 7px 12px; font: 600 11px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .1em; color: var(--text-secondary); }
   .roles-matrix .pm-group td .gi { font-size: 13px; vertical-align: -2px; margin-right: 7px; color: var(--text-tertiary); }
+  .roles-matrix .pm-group td .scoped-flag { float: right; text-transform: none; letter-spacing: 0; font: 600 9.5px/1.4 'Inter', sans-serif; color: #1D4ED8; background: var(--info-bg); border: 1px solid #BFDBFE; border-radius: 5px; padding: 1px 7px; }
 
   /* Permission rows */
   .roles-matrix .pm-row { border-bottom: 1px solid var(--border-soft); }
   .roles-matrix .pm-row:hover { background: #FBFCFE; }
-  .roles-matrix .pm-perm { padding: 11px 14px; vertical-align: top; }
+  .roles-matrix .pm-perm { padding: 11px 12px; vertical-align: top; }
   .roles-matrix .pm-perm .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .roles-matrix .pm-name { font: 500 12.5px/1.2 'JetBrains Mono', monospace; color: var(--text-primary); letter-spacing: -.01em; }
-  .roles-matrix .pm-desc { font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 4px; max-width: 540px; }
+  .roles-matrix .pm-desc { font: 400 12px/1.4 'Inter', sans-serif; color: var(--text-secondary); margin-top: 4px; }
+  .roles-matrix .pm-desc .asgn-def { color: #1D4ED8; font-weight: 500; }
+
+  /* Sub-row (a toggle that composes with the scope row above it) */
+  .roles-matrix .pm-row.sub .pm-perm { padding-left: 28px; position: relative; }
+  .roles-matrix .pm-row.sub .pm-perm::before { content: "\ea5d"; font-family: 'tabler-icons'; position: absolute; left: 11px; top: 11px; color: var(--text-tertiary); font-size: 13px; } /* corner-down-right */
 
   /* Type chips */
   .roles-matrix .pm-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 5px; font: 600 9.5px/1.3 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .06em; border: 1px solid transparent; }
   .roles-matrix .pm-tag.access  { color: #0F766E; background: rgba(13,148,136,.1); border-color: rgba(13,148,136,.25); }
+  .roles-matrix .pm-tag.scope   { color: #1D4ED8; background: var(--info-bg); border-color: #BFDBFE; }
+  .roles-matrix .pm-tag.compose { color: #0F766E; background: rgba(13,148,136,.1); border-color: rgba(13,148,136,.25); }
   .roles-matrix .pm-tag.manage  { color: #475569; background: var(--neutral-bg); border-color: var(--border); }
   .roles-matrix .pm-tag.action  { color: #B45309; background: rgba(245,158,11,.12); border-color: #FDE68A; }
   .roles-matrix .pm-tag.danger  { color: #B91C1C; background: var(--danger-bg); border-color: #FECACA; }
@@ -193,10 +200,11 @@
   .roles-matrix .pm-tag .ti { font-size: 11px; }
 
   /* High-stakes / sensitive row treatments — left accent stripe */
-  .roles-matrix .pm-row.danger    { box-shadow: inset 3px 0 0 var(--danger); }
+  .roles-matrix .pm-row.danger { box-shadow: inset 3px 0 0 var(--danger); }
   .roles-matrix .pm-row.danger:hover { background: #FEFafa; }
-  .roles-matrix .pm-row.action    { box-shadow: inset 3px 0 0 var(--accent); }
-  .roles-matrix .pm-row.pii       { box-shadow: inset 3px 0 0 var(--purple); }
+  .roles-matrix .pm-row.action { box-shadow: inset 3px 0 0 var(--accent); }
+  .roles-matrix .pm-row.pii    { box-shadow: inset 3px 0 0 var(--purple); }
+  .roles-matrix .pm-row.scoperow { box-shadow: inset 3px 0 0 var(--info); }
   .roles-matrix .pm-row.danger .pm-name,
   .roles-matrix .pm-row.action .pm-name,
   .roles-matrix .pm-row.pii .pm-name { display: inline-flex; align-items: center; gap: 6px; }
@@ -205,7 +213,7 @@
   .roles-matrix .pm-row.pii .pm-name::before    { font-family: 'tabler-icons'; content: "\ee98"; color: var(--purple); font-size: 13px; } /* eye */
 
   /* Cells */
-  .roles-matrix .pm-cell { text-align: center; padding: 11px 8px; border-left: 1px solid var(--border-soft); vertical-align: middle; }
+  .roles-matrix .pm-cell { text-align: center; padding: 10px 6px; border-left: 1px solid var(--border-soft); vertical-align: middle; }
   .roles-matrix .pm-cell.sa { background: rgba(245,158,11,.04); }
   .roles-matrix .pm-cell.add { border-left: 1px dashed var(--border); }
   .roles-matrix .pm-cell.add::after { content: "·"; color: var(--text-tertiary); }
@@ -219,9 +227,21 @@
   .roles-matrix .pm-toggle input:checked + .pm-track .pm-knob { left: 16px; }
   .roles-matrix .pm-toggle.danger input:checked + .pm-track { background: var(--danger); }
   .roles-matrix .pm-toggle.pii input:checked + .pm-track { background: var(--purple); }
+  .roles-matrix .pm-toggle.compose input:checked + .pm-track { background: var(--teal); }
   .roles-matrix .pm-toggle input:focus-visible + .pm-track { box-shadow: 0 0 0 3px rgba(245,158,11,.3); }
 
-  /* Super-admin "always" indicator (non-editable) */
+  /* Three-way scope segmented control (All / Assigned / None) */
+  .roles-matrix .pm-scope { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: #fff; box-shadow: var(--shadow-sm); }
+  .roles-matrix .pm-scope label { position: relative; display: inline-flex; margin: 0; }
+  .roles-matrix .pm-scope input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .roles-matrix .pm-scope span { display: block; padding: 4px 7px; font: 600 10px/1.4 'Inter', sans-serif; color: var(--text-secondary); cursor: pointer; white-space: nowrap; border-left: 1px solid var(--border-soft); transition: background .12s, color .12s; }
+  .roles-matrix .pm-scope label:first-child span { border-left: 0; }
+  .roles-matrix .pm-scope input:checked + span.s-all  { background: var(--accent); color: var(--bg-navy); }
+  .roles-matrix .pm-scope input:checked + span.s-asgn { background: var(--info); color: #fff; }
+  .roles-matrix .pm-scope input:checked + span.s-none { background: var(--neutral-bg); color: var(--text-primary); box-shadow: inset 0 0 0 1px var(--border); }
+  .roles-matrix .pm-scope input:focus-visible + span { box-shadow: inset 0 0 0 2px rgba(245,158,11,.45); }
+
+  /* Super-admin "always" indicator (non-editable) — used for toggles AND locked scope */
   .roles-matrix .pm-always { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px 3px 6px; border-radius: 999px; background: rgba(245,158,11,.14); color: #B45309; font: 600 10px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .05em; border: 1px solid #FDE68A; cursor: not-allowed; }
   .roles-matrix .pm-always .ti { font-size: 12px; }
 
@@ -243,13 +263,24 @@
   .rp-legend-swatches { display: flex; flex-wrap: wrap; gap: 14px 22px; padding-bottom: 14px; border-bottom: 1px solid var(--border-soft); margin-bottom: 14px; }
   .rp-sw { display: flex; align-items: center; gap: 8px; font: 400 12px/1.3 'Inter', sans-serif; color: var(--text-secondary); }
   .rp-sw b { color: var(--text-primary); font-weight: 600; }
+  .rp-scope-demo { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+  .rp-scope-demo span { padding: 3px 7px; font: 600 9.5px/1.3 'Inter', sans-serif; border-left: 1px solid var(--border-soft); }
+  .rp-scope-demo span:first-child { border-left: 0; background: var(--accent); color: var(--bg-navy); }
+  .rp-scope-demo span:nth-child(2) { background: var(--info); color: #fff; }
+  .rp-scope-demo span:nth-child(3) { background: var(--neutral-bg); color: var(--text-primary); }
   .rp-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 11px; }
   .rp-notes li { display: flex; gap: 9px; font: 400 12.5px/1.5 'Inter', sans-serif; color: var(--text-secondary); }
   .rp-notes li .ti { font-size: 16px; color: var(--text-tertiary); flex-shrink: 0; margin-top: 1px; }
   .rp-notes li b { color: var(--text-primary); font-weight: 600; }
-  .rp-notes li.migrate { padding: 10px 12px; background: var(--info-bg); border: 1px solid #BFDBFE; border-radius: var(--radius-md); }
-  .rp-notes li.migrate .ti { color: var(--info); }
-  .rp-notes li.migrate b { color: #1D4ED8; }
+  .rp-notes li.scopebox { padding: 10px 12px; background: var(--info-bg); border: 1px solid #BFDBFE; border-radius: var(--radius-md); }
+  .rp-notes li.scopebox .ti { color: var(--info); }
+  .rp-notes li.scopebox b { color: #1D4ED8; }
+  .rp-notes li.migrate { padding: 10px 12px; background: var(--warning-bg); border: 1px solid #FDE68A; border-radius: var(--radius-md); }
+  .rp-notes li.migrate .ti { color: #B45309; }
+  .rp-notes li.migrate b { color: #92400E; }
+  .rp-defs { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+  .rp-defs li { display: block; font: 400 11.5px/1.4 'Inter', sans-serif; color: var(--text-secondary); }
+  .rp-defs code { font: 500 11px/1.3 'JetBrains Mono', monospace; color: var(--text-primary); }
   code.k { font: 500 11.5px/1.3 'JetBrains Mono', monospace; background: var(--neutral-bg); padding: 1px 5px; border-radius: 4px; color: var(--text-primary); }
 </style>
 </head>
@@ -331,19 +362,21 @@
       <section class="set-body">
         <h1 class="set-title">Roles &amp; permissions</h1>
         <p class="set-intro">
-          One row per capability, one column per role. <b>Every section has an <em>Access</em> permission
-          (enter &amp; view it) and a <em>Manage</em> permission (act within it)</b> — so a role can be made
-          read-only by granting Access without Manage. High-stakes capabilities are broken out as their own
-          toggles and marked. Permissions are deny-by-default: a new role starts with nothing checked.
+          One row per capability, one column per role. Most sections have an <b>Access</b> toggle (enter &amp; view)
+          and a <b>Manage</b> toggle (act within). Four sections — <b>Projects, Tasks, Support and Leads</b> —
+          replace the Access toggle with a <b>three-way scope</b>: <em>All</em> (every item), <em>Assigned</em>
+          (only items assigned to / owned by the user), or <em>None</em>. Scope governs <b>which items are
+          visible</b>; Manage governs whether the user can act on what they can see. Scope is <b>enforced</b> —
+          a scoped user can't reach an off-scope item by direct URL, not just by list.
         </p>
 
         <!-- Super-admin bypass note -->
         <div class="rp-bypass">
           <div class="ic"><i class="ti ti-crown"></i></div>
           <div class="tx">
-            <b>Super Admin bypasses this matrix entirely.</b> It always holds every permission and can never
-            be locked out, so it has no editable toggles — its column is shown for reference only. The matrix
-            governs every <em>other</em> role.
+            <b>Super Admin bypasses this matrix entirely.</b> It always holds every permission at full scope and
+            can never be locked out, so it has no editable controls — its column is shown for reference only
+            (scopes read <em>All</em>, locked). The matrix governs every <em>other</em> role.
           </div>
         </div>
 
@@ -359,29 +392,34 @@
                 </th>
                 <th class="pm-head-role">
                   <div class="rname">Staff</div>
-                  <div class="rcount">31 / 56 · default</div>
+                  <div class="rcount">Default · all areas</div>
                 </th>
                 <th class="pm-head-role">
                   <div class="rname">Support Agent</div>
-                  <div class="rcount">3 / 56 · example</div>
+                  <div class="rcount">Self-serve support</div>
+                </th>
+                <th class="pm-head-role">
+                  <div class="rname">Sales</div>
+                  <div class="rcount">Scoped · leads + tasks</div>
                 </th>
                 <th class="pm-head-add">
-                  <span class="addbtn" id="addColBtn"><span class="ic"><i class="ti ti-plus"></i></span>New role</span>
+                  <span class="addbtn" id="addColBtn"><span class="ic"><i class="ti ti-plus"></i></span>New</span>
                 </th>
               </tr>
             </thead>
             <tbody>
 
               <!-- ═══ Customers & CRM ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-users gi"></i>Customers &amp; CRM</td></tr>
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-users gi"></i>Customers &amp; CRM</td></tr>
 
               <tr class="pm-row">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">customers.access</span><span class="pm-tag access">Access</span></div>
                   <div class="pm-desc">Enter and view customers, contacts, contracts and customer groups.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -390,8 +428,9 @@
                   <div class="top"><span class="pm-name">customers.manage</span><span class="pm-tag manage">Manage</span></div>
                   <div class="pm-desc">Create/edit customers, contacts, contracts, groups &amp; notes; portal invites; enable/suspend product subs; auto-collect.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -400,7 +439,8 @@
                   <div class="top"><span class="pm-name">customers.referral.manage</span><span class="pm-tag action"><i class="ti ti-lock"></i>SA-only</span></div>
                   <div class="pm-desc">Attach or detach a referral on a customer (voids pending commissions).</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle action"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle action"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle action"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -410,7 +450,8 @@
                   <div class="top"><span class="pm-name">customers.exemption</span><span class="pm-tag action"><i class="ti ti-lock"></i>SA-only</span></div>
                   <div class="pm-desc">Toggle a customer's auto-suspension exemption.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle action"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle action"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle action"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -420,7 +461,8 @@
                   <div class="top"><span class="pm-name">customers.delete</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Hard-delete a customer record. Reserved — today only archive (soft-delete) is exposed.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -430,7 +472,8 @@
                   <div class="top"><span class="pm-name">gdpr.export</span><span class="pm-tag pii"><i class="ti ti-eye"></i>PII</span></div>
                   <div class="pm-desc">Export a customer's full personal data (GDPR Art. 20 — complete PII bundle).</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle pii"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle pii"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle pii"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -440,21 +483,23 @@
                   <div class="top"><span class="pm-name">gdpr.erase</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Erase a customer under right-to-erasure (GDPR Art. 17 — irreversible).</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
 
               <!-- ═══ People ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-user-circle gi"></i>People</td></tr>
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-user-circle gi"></i>People</td></tr>
               <tr class="pm-row">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">people.access</span><span class="pm-tag access">Access</span></div>
                   <div class="pm-desc">Enter and view the cross-company People directory.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -463,8 +508,9 @@
                   <div class="top"><span class="pm-name">people.manage</span><span class="pm-tag manage">Manage</span></div>
                   <div class="pm-desc">Create/edit people and attach/detach them from companies with a role.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -473,21 +519,23 @@
                   <div class="top"><span class="pm-name">people.delete</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Hard-delete a person identity.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
 
               <!-- ═══ Invoices & billing ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-receipt gi"></i>Invoices &amp; billing</td></tr>
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-receipt gi"></i>Invoices &amp; billing</td></tr>
               <tr class="pm-row">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">invoices.access</span><span class="pm-tag access">Access</span></div>
                   <div class="pm-desc">Enter and view invoices and their PDFs.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -496,8 +544,9 @@
                   <div class="top"><span class="pm-name">invoices.manage</span><span class="pm-tag manage">Manage</span></div>
                   <div class="pm-desc">Create/edit, send, record payments, payment links, reminders, stop recurring schedules.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -506,45 +555,49 @@
                   <div class="top"><span class="pm-name">invoices.void</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Void an issued invoice.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
 
-              <!-- ═══ Leads ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-filter gi"></i>Leads (sales pipeline)</td></tr>
-              <tr class="pm-row">
+              <!-- ═══ Leads (SCOPED) ═══ -->
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-filter gi"></i>Leads (sales pipeline)<span class="scoped-flag">Scoped section</span></td></tr>
+              <tr class="pm-row scoperow">
                 <td class="pm-perm">
-                  <div class="top"><span class="pm-name">leads.access</span><span class="pm-tag access">Access</span></div>
-                  <div class="pm-desc">Enter and view the leads pipeline.</div>
+                  <div class="top"><span class="pm-name">leads.access</span><span class="pm-tag scope"><i class="ti ti-adjustments-horizontal"></i>Scope</span></div>
+                  <div class="pm-desc">Section access scope. <span class="asgn-def">Assigned = leads assigned to me.</span></div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
-                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
-                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>All</span></td>
+                <td class="pm-cell"><div class="pm-scope" role="radiogroup" aria-label="Leads scope · Staff"><label><input type="radio" name="sc-leads-staff" checked><span class="s-all">All</span></label><label><input type="radio" name="sc-leads-staff"><span class="s-asgn">Assigned</span></label><label><input type="radio" name="sc-leads-staff"><span class="s-none">None</span></label></div></td>
+                <td class="pm-cell"><div class="pm-scope" role="radiogroup" aria-label="Leads scope · Support Agent"><label><input type="radio" name="sc-leads-support"><span class="s-all">All</span></label><label><input type="radio" name="sc-leads-support"><span class="s-asgn">Assigned</span></label><label><input type="radio" name="sc-leads-support" checked><span class="s-none">None</span></label></div></td>
+                <td class="pm-cell"><div class="pm-scope" role="radiogroup" aria-label="Leads scope · Sales"><label><input type="radio" name="sc-leads-sales"><span class="s-all">All</span></label><label><input type="radio" name="sc-leads-sales" checked><span class="s-asgn">Assigned</span></label><label><input type="radio" name="sc-leads-sales"><span class="s-none">None</span></label></div></td>
                 <td class="pm-cell add"></td>
               </tr>
               <tr class="pm-row">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">leads.manage</span><span class="pm-tag manage">Manage</span></div>
-                  <div class="pm-desc">Pipeline CRUD, status changes, convert to customer, approve/reject deal registrations.</div>
+                  <div class="pm-desc">Pipeline CRUD, status changes, convert to customer, approve/reject deal registrations — on the leads in scope.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
 
               <!-- ═══ Proposals ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-file-description gi"></i>Proposals</td></tr>
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-file-description gi"></i>Proposals</td></tr>
               <tr class="pm-row">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">proposals.access</span><span class="pm-tag access">Access</span></div>
                   <div class="pm-desc">Enter and view proposals and payment schedules.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
               <tr class="pm-row">
@@ -552,67 +605,109 @@
                   <div class="top"><span class="pm-name">proposals.manage</span><span class="pm-tag manage">Manage</span></div>
                   <div class="pm-desc">Proposals CRUD, send, convert to contract; create &amp; trigger payment schedules.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
 
-              <!-- ═══ Projects ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-briefcase gi"></i>Projects (delivery)</td></tr>
-              <tr class="pm-row">
+              <!-- ═══ Projects (SCOPED) ═══ -->
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-briefcase gi"></i>Projects (delivery)<span class="scoped-flag">Scoped section</span></td></tr>
+              <tr class="pm-row scoperow">
                 <td class="pm-perm">
-                  <div class="top"><span class="pm-name">projects.access</span><span class="pm-tag access">Access</span></div>
-                  <div class="pm-desc">Enter and view projects, milestones and time tracking.</div>
+                  <div class="top"><span class="pm-name">projects.access</span><span class="pm-tag scope"><i class="ti ti-adjustments-horizontal"></i>Scope</span></div>
+                  <div class="pm-desc">Section access scope. <span class="asgn-def">Assigned = I'm a member of the project (lead, member or viewer).</span></div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
-                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
-                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>All</span></td>
+                <td class="pm-cell"><div class="pm-scope" role="radiogroup" aria-label="Projects scope · Staff"><label><input type="radio" name="sc-projects-staff" checked><span class="s-all">All</span></label><label><input type="radio" name="sc-projects-staff"><span class="s-asgn">Assigned</span></label><label><input type="radio" name="sc-projects-staff"><span class="s-none">None</span></label></div></td>
+                <td class="pm-cell"><div class="pm-scope" role="radiogroup" aria-label="Projects scope · Support Agent"><label><input type="radio" name="sc-projects-support"><span class="s-all">All</span></label><label><input type="radio" name="sc-projects-support"><span class="s-asgn">Assigned</span></label><label><input type="radio" name="sc-projects-support" checked><span class="s-none">None</span></label></div></td>
+                <td class="pm-cell"><div class="pm-scope" role="radiogroup" aria-label="Projects scope · Sales"><label><input type="radio" name="sc-projects-sales"><span class="s-all">All</span></label><label><input type="radio" name="sc-projects-sales"><span class="s-asgn">Assigned</span></label><label><input type="radio" name="sc-projects-sales" checked><span class="s-none">None</span></label></div></td>
                 <td class="pm-cell add"></td>
               </tr>
               <tr class="pm-row">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">projects.manage</span><span class="pm-tag manage">Manage</span></div>
-                  <div class="pm-desc">Projects, milestones, time entries and files CRUD; generate invoices from billable time.</div>
+                  <div class="pm-desc">Projects, milestones, time entries and files CRUD; generate invoices from billable time — on the projects in scope.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
 
-              <!-- ═══ Support / helpdesk ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-headset gi"></i>Support / helpdesk</td></tr>
+              <!-- ═══ Tasks & activities (SCOPED) ═══ -->
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-checkbox gi"></i>Tasks &amp; activities<span class="scoped-flag">Scoped section</span></td></tr>
+              <tr class="pm-row scoperow">
+                <td class="pm-perm">
+                  <div class="top"><span class="pm-name">tasks.access</span><span class="pm-tag scope"><i class="ti ti-adjustments-horizontal"></i>Scope</span></div>
+                  <div class="pm-desc">Section access scope. <span class="asgn-def">Assigned = tasks strictly assigned to me (the assignee — NOT tasks I created and delegated).</span></div>
+                </td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>All</span></td>
+                <td class="pm-cell"><div class="pm-scope" role="radiogroup" aria-label="Tasks scope · Staff"><label><input type="radio" name="sc-tasks-staff" checked><span class="s-all">All</span></label><label><input type="radio" name="sc-tasks-staff"><span class="s-asgn">Assigned</span></label><label><input type="radio" name="sc-tasks-staff"><span class="s-none">None</span></label></div></td>
+                <td class="pm-cell"><div class="pm-scope" role="radiogroup" aria-label="Tasks scope · Support Agent"><label><input type="radio" name="sc-tasks-support"><span class="s-all">All</span></label><label><input type="radio" name="sc-tasks-support"><span class="s-asgn">Assigned</span></label><label><input type="radio" name="sc-tasks-support" checked><span class="s-none">None</span></label></div></td>
+                <td class="pm-cell"><div class="pm-scope" role="radiogroup" aria-label="Tasks scope · Sales"><label><input type="radio" name="sc-tasks-sales"><span class="s-all">All</span></label><label><input type="radio" name="sc-tasks-sales" checked><span class="s-asgn">Assigned</span></label><label><input type="radio" name="sc-tasks-sales"><span class="s-none">None</span></label></div></td>
+                <td class="pm-cell add"></td>
+              </tr>
               <tr class="pm-row">
                 <td class="pm-perm">
-                  <div class="top"><span class="pm-name">support.access</span><span class="pm-tag access">Access</span></div>
-                  <div class="pm-desc">Enter and view the staff helpdesk and tickets.</div>
+                  <div class="top"><span class="pm-name">tasks.manage</span><span class="pm-tag manage">Manage</span></div>
+                  <div class="pm-desc">Create/edit activities, change status, reschedule, complete, pin, attach files and add task notes — on the tasks in scope.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell add"></td>
+              </tr>
+
+              <!-- ═══ Support / helpdesk (SCOPED + view_unassigned) ═══ -->
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-headset gi"></i>Support / helpdesk<span class="scoped-flag">Scoped section</span></td></tr>
+              <tr class="pm-row scoperow">
+                <td class="pm-perm">
+                  <div class="top"><span class="pm-name">support.access</span><span class="pm-tag scope"><i class="ti ti-adjustments-horizontal"></i>Scope</span></div>
+                  <div class="pm-desc">Section access scope. <span class="asgn-def">Assigned = tickets assigned to me.</span></div>
+                </td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>All</span></td>
+                <td class="pm-cell"><div class="pm-scope" role="radiogroup" aria-label="Support scope · Staff"><label><input type="radio" name="sc-support-staff" checked><span class="s-all">All</span></label><label><input type="radio" name="sc-support-staff"><span class="s-asgn">Assigned</span></label><label><input type="radio" name="sc-support-staff"><span class="s-none">None</span></label></div></td>
+                <td class="pm-cell"><div class="pm-scope" role="radiogroup" aria-label="Support scope · Support Agent"><label><input type="radio" name="sc-support-support"><span class="s-all">All</span></label><label><input type="radio" name="sc-support-support" checked><span class="s-asgn">Assigned</span></label><label><input type="radio" name="sc-support-support"><span class="s-none">None</span></label></div></td>
+                <td class="pm-cell"><div class="pm-scope" role="radiogroup" aria-label="Support scope · Sales"><label><input type="radio" name="sc-support-sales"><span class="s-all">All</span></label><label><input type="radio" name="sc-support-sales"><span class="s-asgn">Assigned</span></label><label><input type="radio" name="sc-support-sales" checked><span class="s-none">None</span></label></div></td>
+                <td class="pm-cell add"></td>
+              </tr>
+              <tr class="pm-row sub">
+                <td class="pm-perm">
+                  <div class="top"><span class="pm-name">support.view_unassigned</span><span class="pm-tag compose"><i class="ti ti-inbox"></i>Composes</span></div>
+                  <div class="pm-desc">Can also see <b>unassigned / untriaged</b> tickets. Composes with the scope above: <em>Assigned</em> + this = own tickets <b>plus</b> the intake pool (a self-serve agent). Redundant when scope = <em>All</em>.</div>
+                </td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle compose"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle compose"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle compose"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
               <tr class="pm-row">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">support.manage</span><span class="pm-tag manage">Manage</span></div>
-                  <div class="pm-desc">Reply to tickets, change status, spin CRM tasks off a ticket.</div>
+                  <div class="pm-desc">Reply to tickets, change status, spin CRM tasks off a ticket — on the tickets in scope.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
 
               <!-- ═══ Forms ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-forms gi"></i>Forms</td></tr>
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-forms gi"></i>Forms</td></tr>
               <tr class="pm-row">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">forms.access</span><span class="pm-tag access">Access</span></div>
                   <div class="pm-desc">Enter and view the form builder and themes.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -621,18 +716,20 @@
                   <div class="top"><span class="pm-name">forms.manage</span><span class="pm-tag manage">Manage</span></div>
                   <div class="pm-desc">Build forms and manage themes (excludes raw CSS and reading submissions).</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
               <tr class="pm-row pii">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">forms.view_submissions</span><span class="pm-tag pii"><i class="ti ti-eye"></i>PII</span></div>
-                  <div class="pm-desc">Read submissions captured through public forms (personal data). Split out from forms.manage by decision — staff hold it today.</div>
+                  <div class="pm-desc">Read submissions captured through public forms (personal data). Split out from forms.manage — staff hold it today.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle pii"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle pii"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle pii"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -641,21 +738,23 @@
                   <div class="top"><span class="pm-name">forms.custom_css</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Edit the raw custom CSS injected into the embed widget's shadow root.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
 
               <!-- ═══ Hosting ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-world gi"></i>Hosting (domains &amp; websites)</td></tr>
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-world gi"></i>Hosting (domains &amp; websites)</td></tr>
               <tr class="pm-row">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">hosting.access</span><span class="pm-tag access">Access</span></div>
                   <div class="pm-desc">Enter and view domains and websites.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -664,8 +763,9 @@
                   <div class="top"><span class="pm-name">hosting.manage</span><span class="pm-tag manage">Manage</span></div>
                   <div class="pm-desc">Domains &amp; websites CRUD, WHOIS, DNS, hosting sync/suspend/reinstate, PageSpeed.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -674,21 +774,23 @@
                   <div class="top"><span class="pm-name">wordpress.bulk_update</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Run bulk WordPress core/plugin/theme updates across live customer sites.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
 
               <!-- ═══ Expenses & suppliers ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-cash gi"></i>Expenses &amp; suppliers</td></tr>
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-cash gi"></i>Expenses &amp; suppliers</td></tr>
               <tr class="pm-row">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">expenses.access</span><span class="pm-tag access">Access</span></div>
                   <div class="pm-desc">Enter and view expenses and the supplier register.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -697,8 +799,9 @@
                   <div class="top"><span class="pm-name">expenses.manage</span><span class="pm-tag manage">Manage</span></div>
                   <div class="pm-desc">Expenses &amp; suppliers CRUD, mark expenses paid, attach receipts.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -707,21 +810,23 @@
                   <div class="top"><span class="pm-name">expenses.approve</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Approve an expense — moves it from raised to spendable on the books.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
 
               <!-- ═══ Workflows ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-route gi"></i>Workflows (automation)</td></tr>
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-route gi"></i>Workflows (automation)</td></tr>
               <tr class="pm-row">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">workflows.access</span><span class="pm-tag access">Access</span></div>
                   <div class="pm-desc">Enter and view automation workflows.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -730,21 +835,23 @@
                   <div class="top"><span class="pm-name">workflows.manage</span><span class="pm-tag manage">Manage</span></div>
                   <div class="pm-desc">Create/edit automation rules and enable/disable them.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
 
               <!-- ═══ Knowledge base ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-book-2 gi"></i>Knowledge base</td></tr>
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-book-2 gi"></i>Knowledge base</td></tr>
               <tr class="pm-row">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">knowledge_base.access</span><span class="pm-tag access">Access</span></div>
                   <div class="pm-desc">Enter and view internal help &amp; docs articles.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -753,21 +860,23 @@
                   <div class="top"><span class="pm-name">knowledge_base.manage</span><span class="pm-tag manage">Manage</span></div>
                   <div class="pm-desc">Create/edit/delete help &amp; docs articles.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
 
               <!-- ═══ Provisioning & subscriptions ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-layout-grid gi"></i>Provisioning &amp; subscriptions</td></tr>
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-layout-grid gi"></i>Provisioning &amp; subscriptions</td></tr>
               <tr class="pm-row">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">provisioning.access</span><span class="pm-tag access">Access</span></div>
                   <div class="pm-desc">Enter and view provisioning and subscription records.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -776,21 +885,23 @@
                   <div class="top"><span class="pm-name">provisioning.manage</span><span class="pm-tag manage">Manage</span></div>
                   <div class="pm-desc">Toggle provisioning; update and cancel subscription records.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
 
               <!-- ═══ Analytics ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-chart-line gi"></i>Analytics &amp; reporting</td></tr>
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-chart-line gi"></i>Analytics &amp; reporting</td></tr>
               <tr class="pm-row">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">analytics.access</span><span class="pm-tag access">Access</span></div>
                   <div class="pm-desc">Enter and view the analytics dashboards.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -799,21 +910,23 @@
                   <div class="top"><span class="pm-name">analytics.manage</span><span class="pm-tag manage">Manage</span></div>
                   <div class="pm-desc">Export reports and the dashboard CSV (aggregate figures — no PII).</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
 
               <!-- ═══ Referrers & commissions ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-users-group gi"></i>Referrers &amp; commissions</td></tr>
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-users-group gi"></i>Referrers &amp; commissions</td></tr>
               <tr class="pm-row">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">referrers.access</span><span class="pm-tag access">Access</span></div>
                   <div class="pm-desc">View referrers and the referral attribution ledger.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -822,7 +935,8 @@
                   <div class="top"><span class="pm-name">referrers.manage</span><span class="pm-tag manage">Manage</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Create/edit referrers and reset their passwords. (Manage here is super-admin-only today.)</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -832,7 +946,8 @@
                   <div class="top"><span class="pm-name">commission.approve</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Approve commission entries and mark referrer payouts as paid.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -842,34 +957,37 @@
                   <div class="top"><span class="pm-name">commission.config</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Manage the commission rules that drive payout calculations.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
 
               <!-- ═══ Maavelus ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-tools-kitchen-2 gi"></i>Maavelus statements</td></tr>
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-tools-kitchen-2 gi"></i>Maavelus statements</td></tr>
               <tr class="pm-row danger">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">maavelus.statements</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Internal monthly platform-fee &amp; commission statements — create, confirm, download, delete.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
 
               <!-- ═══ Platform administration ═══ -->
-              <tr class="pm-group"><td colspan="5"><i class="ti ti-settings gi"></i>Platform administration</td></tr>
+              <tr class="pm-group"><td colspan="6"><i class="ti ti-settings gi"></i>Platform administration</td></tr>
               <tr class="pm-row">
                 <td class="pm-perm">
                   <div class="top"><span class="pm-name">settings.access</span><span class="pm-tag access">Access</span></div>
                   <div class="pm-desc">See the Settings overview shell. Each sub-area below gates individually.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox" checked><span class="pm-track"><span class="pm-knob"></span></span></label></td>
+                <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
               </tr>
@@ -878,7 +996,8 @@
                   <div class="top"><span class="pm-name">staff.manage</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Invite staff, change roles, remove members — and manage roles &amp; this permission matrix.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -888,7 +1007,8 @@
                   <div class="top"><span class="pm-name">impersonate</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Preview the app as a customer (portal) or referrer.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -898,7 +1018,8 @@
                   <div class="top"><span class="pm-name">billing_entities.manage</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Manage billing entities — the legal entities invoices are issued from.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -908,7 +1029,8 @@
                   <div class="top"><span class="pm-name">products.manage</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Manage products, plans, plan categories, prices and product suppliers.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -918,7 +1040,8 @@
                   <div class="top"><span class="pm-name">settings.integrations</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Integration credentials &amp; connection tests. <b>Includes webhook-delivery retry</b> (moved here from staff).</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -928,7 +1051,8 @@
                   <div class="top"><span class="pm-name">settings.notifications</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Workspace notification &amp; support-automation settings.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -938,7 +1062,8 @@
                   <div class="top"><span class="pm-name">settings.billing_automation</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Auto-suspension thresholds &amp; billing automation behaviour.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -948,7 +1073,8 @@
                   <div class="top"><span class="pm-name">settings.reminder_templates</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Edit invoice reminder email templates.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -958,7 +1084,8 @@
                   <div class="top"><span class="pm-name">settings.audit_log</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">View the platform-wide audit log.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -968,7 +1095,8 @@
                   <div class="top"><span class="pm-name">settings.danger</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">The Danger Zone — destructive settings resets.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -978,7 +1106,8 @@
                   <div class="top"><span class="pm-name">deployment.run</span><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span></div>
                   <div class="pm-desc">Run database migrations and clear caches from the deployment panel.</div>
                 </td>
-                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>Always</span></td>
+                <td class="pm-cell sa"><span class="pm-always"><i class="ti ti-lock"></i>On</span></td>
+                <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell"><label class="pm-toggle danger"><input type="checkbox"><span class="pm-track"><span class="pm-knob"></span></span></label></td>
                 <td class="pm-cell add"></td>
@@ -1017,6 +1146,7 @@
                         <option>Blank — deny everything</option>
                         <option>Copy from Staff</option>
                         <option>Copy from Support Agent</option>
+                        <option>Copy from Sales</option>
                       </select>
                     </div>
                   </div>
@@ -1026,7 +1156,7 @@
                   <span class="rp-step-no">2</span>
                   <div>
                     <div class="rp-step-t">Grant permissions</div>
-                    <div class="rp-step-d">The new role appears as a column in the matrix above. Toggle each capability on or off. It starts with nothing granted (deny-by-default) unless you copied from an existing role.</div>
+                    <div class="rp-step-d">The new role appears as a column in the matrix above. Toggle each capability on or off — and for the four scoped sections (Projects, Tasks, Support, Leads) pick <em>All / Assigned / None</em> instead of on/off. Starts denied unless you copied an existing role.</div>
                   </div>
                 </div>
               </div>
@@ -1050,18 +1180,28 @@
               <div class="rp-legend-swatches">
                 <span class="rp-sw"><span class="pm-tag access">Access</span> <b>enter / view</b> a section</span>
                 <span class="rp-sw"><span class="pm-tag manage">Manage</span> <b>act within</b> a section</span>
+                <span class="rp-sw"><span class="rp-scope-demo"><span>All</span><span>Asgn</span><span>None</span></span> <b>scope</b> (visibility)</span>
+                <span class="rp-sw"><span class="pm-tag compose"><i class="ti ti-inbox"></i>Composes</span> stacks with scope</span>
                 <span class="rp-sw"><span class="pm-tag danger"><i class="ti ti-alert-triangle"></i>Danger</span> high-stakes</span>
                 <span class="rp-sw"><span class="pm-tag pii"><i class="ti ti-eye"></i>PII</span> personal data</span>
-                <span class="rp-sw"><span class="pm-tag action"><i class="ti ti-lock"></i>SA-only</span> elevated</span>
-                <span class="rp-sw"><span class="pm-always"><i class="ti ti-lock"></i>Always</span> not editable</span>
+                <span class="rp-sw"><span class="pm-always"><i class="ti ti-lock"></i>On</span> not editable</span>
               </div>
               <ul class="rp-notes">
-                <li><i class="ti ti-eye-cog"></i><span><b>Access vs Manage.</b> Access lets a role <b>enter and view</b> a section; Manage lets it <b>act</b> there. Granting Access without Manage makes the role <b>read-only</b> — exactly what the example <b>Support Agent</b> has on Customers.</span></li>
-                <li><i class="ti ti-crown"></i><span><b>Super Admin bypasses the matrix.</b> It always holds every permission and can never be locked out, so it has no editable toggles — its column is reference-only.</span></li>
+                <li class="scopebox"><i class="ti ti-adjustments-horizontal"></i><span><b>Three-way scope (All / Assigned / None)</b> replaces the on/off Access toggle on four sections. <em>Scope governs which items are visible; Manage governs whether the user can act on them.</em> "Assigned" means, per section:
+                  <ul class="rp-defs">
+                    <li><code>projects.access</code> — I'm a <b>member</b> of the project (lead, member or viewer)</li>
+                    <li><code>tasks.access</code> — tasks <b>strictly assigned to me</b> (the assignee — not ones I created and delegated)</li>
+                    <li><code>support.access</code> — tickets <b>assigned to me</b></li>
+                    <li><code>leads.access</code> — leads <b>assigned to me</b></li>
+                  </ul>
+                </span></li>
+                <li><i class="ti ti-shield-lock"></i><span><b>Scope is enforced, not cosmetic.</b> A scoped user can't reach an off-scope item by direct URL or ID — enforcement is on both the list query <em>and</em> per-item access, so "Assigned" is a real boundary, not just a default filter.</span></li>
+                <li><i class="ti ti-inbox"></i><span><b><code class="k">support.view_unassigned</code> composes with the Support scope.</b> Scope <em>Assigned</em> + this <b>on</b> = the agent's own tickets <b>plus</b> the unassigned intake pool (a self-serve agent — the <b>Support Agent</b> example). <em>Assigned</em> + this <b>off</b> = only tickets routed to them. With scope <em>All</em> the toggle is redundant (everything is already visible).</span></li>
+                <li><i class="ti ti-crown"></i><span><b>Super Admin bypasses the matrix.</b> Always every permission at full scope, never lockable — its column is reference-only (scopes read <em>All</em>, locked).</span></li>
                 <li><i class="ti ti-user-check"></i><span><b><code class="k">account.self</code> is always-on for every operator</b> and is not shown as a toggle: own profile, password, personal notification preferences, My Work, global search and the dashboard.</span></li>
-                <li><i class="ti ti-alert-triangle"></i><span><b>The marked rows are the dangerous ones.</b> Destructive, financial, security and config capabilities (delete, void, GDPR, deployment, impersonation, staff &amp; role management, billing/product/commission config, WordPress bulk updates, Maavelus statements) carry a coloured stripe and a chip. Grant them sparingly.</span></li>
-                <li><i class="ti ti-eye"></i><span><b><code class="k">forms.view_submissions</code> is its own toggle</b> because it exposes PII submitted through public forms — separate from building forms.</span></li>
-                <li class="migrate"><i class="ti ti-git-compare"></i><span><b>Migration safety.</b> The <b>Staff</b> column is access-identical to today — every section's Access + Manage plus staff-level actions are ON, and every super-admin-only capability is OFF — with <b>one deliberate change</b>: webhook-retry moves into <code class="k">settings.integrations</code> (super-admin-only), so it is no longer a staff capability.</span></li>
+                <li><i class="ti ti-alert-triangle"></i><span><b>The marked rows are the dangerous ones</b> (red, ⚠). Destructive / financial / security / config capabilities — grant sparingly. <code class="k">forms.view_submissions</code> is split out (PII) because it exposes data submitted through public forms.</span></li>
+                <li><i class="ti ti-user-cog"></i><span><b>Customers is a future scope candidate.</b> It carries an account-manager assignment (<code class="k">customers.assigned_to</code>), so it could adopt the same All / Assigned / None treatment later. It stays a binary Access/Manage section for now.</span></li>
+                <li class="migrate"><i class="ti ti-git-compare"></i><span><b>Migration safety.</b> The <b>Staff</b> column is access-identical to today — all four scoped sections default to <em>All</em>, every Access/Manage is on, and every super-admin-only capability is off — with one deliberate change: webhook-retry moves into <code class="k">settings.integrations</code> (super-admin-only).</span></li>
               </ul>
             </div>
           </section>
