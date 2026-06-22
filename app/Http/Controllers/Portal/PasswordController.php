@@ -82,13 +82,12 @@ class PasswordController extends Controller
                 'email' => $email,
             ]));
 
-            // Email the secure reset link. We also keep the log line so a
-            // tester (or staff running an on-the-phone reset) can pull the
-            // URL when mail delivery isn't configured locally.
+            // Email the secure reset link to the customer. The reset URL embeds
+            // the single-use plaintext token, so it is NEVER logged (CWE-532):
+            // the log records only the email + the event, not the URL or token.
             Mail::to($user->email)->send(new PortalPasswordReset($user, $resetUrl));
             Log::info('Portal password reset requested', [
                 'email' => $email,
-                'reset_url' => $resetUrl,
             ]);
 
             ActivityLog::create([
