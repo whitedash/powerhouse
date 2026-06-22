@@ -11,6 +11,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\Workflow;
 use App\Models\WorkflowAction;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -321,9 +322,20 @@ class WorkflowEngine
             $context,
         );
 
-        // due_at is mandatory on tasks — default to +3 days when the workflow
-        // config doesn't specify a window (never null).
+        // due_at is mandatory on tasks (never null). Default window: +due_in_days
+        // (def 3) at 09:00. An optional value source instead binds due_at to a
+        // datetime form field; a field that is empty, absent, or fails the strict
+        // 'Y-m-d\TH:i' parse falls back to the offset. Parsing NEVER throws — a
+        // throw here would silently roll the whole workflow run back.
         $dueAt = now()->addDays((int) ($config['due_in_days'] ?? 3))->setTime(9, 0, 0);
+
+        $source = $config['due_at_source'] ?? null;
+        if (is_array($source) && ($source['source'] ?? null) === 'field') {
+            $parsed = $this->parseDateTimeLocal($this->resolveValueSource($source, $context));
+            if ($parsed !== null) {
+                $dueAt = $parsed;
+            }
+        }
 
         Task::create([
             'lead_id' => $context['lead_id'] ?? null,
@@ -455,9 +467,21 @@ class WorkflowEngine
      */
     private function actionSendEmail(array $config, array $context): array
     {
-        $recipient = ($config['to_mode'] ?? 'fixed') === 'context_field'
-            ? $this->resolveField($config['to_field'] ?? null, $context)
-            : ($config['to_address'] ?? config('support.notify_email'));
+        // Recipient via the value-source descriptor when present; otherwise the
+        // legacy to_mode/to_field/to_address (existing pre-binding workflows).
+        $source = $config['recipient_source'] ?? null;
+        if (is_array($source)) {
+            $recipient = $this->resolveValueSource($source, $context);
+            // A static address left blank defaults to the support inbox (mirrors
+            // the legacy fixed mode); a field source resolving to null is a no-op.
+            if (($source['source'] ?? null) !== 'field' && ($recipient === null || trim($recipient) === '')) {
+                $recipient = config('support.notify_email');
+            }
+        } else {
+            $recipient = ($config['to_mode'] ?? 'fixed') === 'context_field'
+                ? $this->resolveField($config['to_field'] ?? null, $context)
+                : ($config['to_address'] ?? config('support.notify_email'));
+        }
 
         // No deliverable address → skip silently (same defensive no-op as the
         // other actions). The run still commits; nothing is queued.
@@ -522,6 +546,51 @@ class WorkflowEngine
         $value = $context[$fieldKey] ?? null;
 
         return $value === null ? null : (string) $value;
+    }
+
+    /**
+     * Resolve a per-parameter value source: a static literal, or a form-field
+     * value via resolveField(). Descriptor shape:
+     *   { source: 'static'|'field', static: <literal>, field_key: <key> }.
+     * Callers apply any type coercion (e.g. datetime parsing).
+     *
+     * @param  array<string, mixed>|null  $descriptor
+     * @param  array<string, mixed>  $context
+     */
+    private function resolveValueSource(?array $descriptor, array $context): ?string
+    {
+        if (! is_array($descriptor)) {
+            return null;
+        }
+
+        if (($descriptor['source'] ?? null) === 'field') {
+            return $this->resolveField($descriptor['field_key'] ?? null, $context);
+        }
+
+        $static = $descriptor['static'] ?? null;
+
+        return is_scalar($static) ? (string) $static : null;
+    }
+
+    /**
+     * Strict-parse the 'Y-m-d\TH:i' string an <input type="datetime-local">
+     * posts (no seconds, no timezone). Returns null — NEVER throws — on empty,
+     * absent, or malformed input, so a bad bound value is handled by the caller
+     * (fallback) rather than aborting the workflow transaction.
+     */
+    private function parseDateTimeLocal(?string $value): ?Carbon
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            $parsed = Carbon::createFromFormat('Y-m-d\TH:i', trim($value));
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $parsed instanceof Carbon ? $parsed : null;
     }
 
     /**

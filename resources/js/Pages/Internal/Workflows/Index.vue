@@ -23,6 +23,7 @@ import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 import PlaceholderHints from './PlaceholderHints.vue';
 import ConditionsEditor from './ConditionsEditor.vue';
+import ValueSourceInput from './ValueSourceInput.vue';
 
 const props = defineProps({
     workflows: { type: Array, required: true },
@@ -119,7 +120,10 @@ function actionSummary(a) {
         case 'webhook_outbound':
             return 'Send an outbound webhook';
         case 'send_email': {
-            const to = c.to_mode === 'context_field' ? `{{${c.to_field || 'field'}}}` : (c.to_address || 'support inbox');
+            const rs = c.recipient_source;
+            const to = rs
+                ? (rs.source === 'field' ? `{{${rs.field_key || 'field'}}}` : (rs.static || 'support inbox'))
+                : (c.to_mode === 'context_field' ? `{{${c.to_field || 'field'}}}` : (c.to_address || 'support inbox'));
             return c.subject_template ? `Email ${to}: ${c.subject_template}` : `Send an email to ${to}`;
         }
         default:
@@ -199,6 +203,11 @@ const selectedFormFields = computed(() => {
     return form && Array.isArray(form.fields) ? form.fields : [];
 });
 
+// Type-filtered views of the selected form's fields, for the action-parameter
+// binding pickers (due date → datetime fields, recipient → email fields).
+const datetimeFields = computed(() => selectedFormFields.value.filter(f => f.type === 'datetime'));
+const emailFields = computed(() => selectedFormFields.value.filter(f => f.type === 'email'));
+
 // Trigger + form-aware placeholder reference for the action editor. Depends only
 // on the selected trigger and (for form_submitted) the chosen form — NOT on the
 // action's position, so it never re-implements the engine's context accumulation.
@@ -273,7 +282,7 @@ function openEdit(w) {
         conditions: w.conditions
             ? JSON.parse(JSON.stringify(w.conditions))
             : { logic: 'or', groups: [] },
-        actions: w.actions.map(a => ({
+        actions: w.actions.map(a => ensureBindings({
             action_type: a.action_type,
             config: { ...(a.config || {}) },
         })),
@@ -293,11 +302,31 @@ function setTrigger(type) {
 // mode up front so its fields render; create_ticket seeds the field-map keys
 // (matching the engine handler's defaults) so it saves valid immediately.
 function defaultConfigFor(type) {
-    if (type === 'send_email') return { to_mode: 'fixed' };
+    if (type === 'send_email') return { recipient_source: { source: 'static', static: '', field_key: '' } };
+    if (type === 'create_task') return { due_in_days: 3, due_at_source: { source: 'static', field_key: '' } };
     if (type === 'create_ticket') {
         return { subject_field: 'subject', message_field: 'message', priority: 'medium', name_field: 'name', email_field: 'email', phone_field: 'phone' };
     }
     return {};
+}
+
+// Backfill the value-source descriptors when loading an EXISTING action for edit,
+// deriving them from the legacy keys so old workflows keep their recipient/due.
+function ensureBindings(a) {
+    const c = a.config;
+    if (a.action_type === 'create_task' && !c.due_at_source) {
+        c.due_at_source = { source: 'static', field_key: '' };
+        if (c.due_in_days == null) c.due_in_days = 3;
+    }
+    if (a.action_type === 'send_email' && !c.recipient_source) {
+        c.recipient_source = c.to_mode === 'context_field'
+            ? { source: 'field', field_key: c.to_field || '', static: '' }
+            : { source: 'static', field_key: '', static: c.to_address || '' };
+        delete c.to_mode;
+        delete c.to_field;
+        delete c.to_address;
+    }
+    return a;
 }
 
 function addAction(type = 'create_lead') {
@@ -593,7 +622,7 @@ function fmtRelative(iso) {
                                             <input v-model="action.config.title_template" type="text" :placeholder="taskTitlePlaceholder" />
                                             <small class="muted">Use <code>&#123;&#123;field_key&#125;&#125;</code> placeholders to splice in submitted values.</small>
                                         </div>
-                                        <div class="grid-3">
+                                        <div class="grid-2">
                                             <div class="form-row">
                                                 <label class="small">Type</label>
                                                 <select v-model="action.config.type">
@@ -606,10 +635,20 @@ function fmtRelative(iso) {
                                                     <option v-for="p in TASK_PRIORITIES" :key="p" :value="p">{{ p }}</option>
                                                 </select>
                                             </div>
-                                            <div class="form-row">
-                                                <label class="small">Due in (days)</label>
-                                                <input v-model.number="action.config.due_in_days" type="number" min="0" max="365" />
-                                            </div>
+                                        </div>
+                                        <div class="form-row">
+                                            <label class="small">Due date</label>
+                                            <ValueSourceInput
+                                                v-model="action.config.due_at_source"
+                                                :fields="datetimeFields"
+                                                static-label="Relative"
+                                                field-label="Datetime field"
+                                            >
+                                                <template #static>
+                                                    <input v-model.number="action.config.due_in_days" type="number" min="0" max="3650" placeholder="days from now (default 3)" />
+                                                </template>
+                                            </ValueSourceInput>
+                                            <small class="muted">Relative = N days from when it runs (09:00). Datetime field = the submitted value (falls back to the offset if empty/invalid).</small>
                                         </div>
                                         <div class="form-row">
                                             <label class="small">Assigned to</label>
@@ -700,24 +739,19 @@ function fmtRelative(iso) {
 
                                     <!-- send_email config -->
                                     <template v-if="action.action_type === 'send_email'">
-                                        <div class="grid-2">
-                                            <div class="form-row">
-                                                <label class="small">Recipient</label>
-                                                <select v-model="action.config.to_mode">
-                                                    <option value="fixed">Fixed address</option>
-                                                    <option value="context_field">From a submitted field</option>
-                                                </select>
-                                            </div>
-                                            <div v-if="action.config.to_mode === 'fixed'" class="form-row">
-                                                <label class="small">To address</label>
-                                                <input v-model="action.config.to_address" type="email" placeholder="support@whitedash.com" />
-                                                <small class="muted">Leave blank to use the support inbox.</small>
-                                            </div>
-                                            <div v-else class="form-row">
-                                                <label class="small">To field</label>
-                                                <input v-model="action.config.to_field" type="text" placeholder="email" />
-                                                <small class="muted">A submitted field key holding the recipient's address.</small>
-                                            </div>
+                                        <div class="form-row">
+                                            <label class="small">Recipient</label>
+                                            <ValueSourceInput
+                                                v-model="action.config.recipient_source"
+                                                :fields="emailFields"
+                                                static-label="Fixed address"
+                                                field-label="Email field"
+                                            >
+                                                <template #static>
+                                                    <input v-model="action.config.recipient_source.static" type="email" placeholder="support@whitedash.com" />
+                                                </template>
+                                            </ValueSourceInput>
+                                            <small class="muted">Fixed = a literal address (blank → support inbox). Email field = a submitted field's value.</small>
                                         </div>
                                         <div class="form-row">
                                             <label class="small">Subject template</label>
