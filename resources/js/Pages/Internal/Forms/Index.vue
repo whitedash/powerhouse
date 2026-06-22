@@ -22,6 +22,7 @@ import {
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 import FormFieldRenderer from '@/Components/Forms/FormFieldRenderer.vue';
+import FormContentEditor from '@/Components/Forms/FormContentEditor.vue';
 
 const props = defineProps({
     forms: { type: Array, required: true },
@@ -741,12 +742,7 @@ const totalSubmissions = computed(() =>
                                     <template v-if="field.type === 'placeholder'">
                                         <div v-if="field.type === 'placeholder'" class="form-row">
                                             <label class="small">Content</label>
-                                            <textarea
-                                                v-model="field.content"
-                                                rows="4"
-                                                placeholder="Enter your text block content…"
-                                                maxlength="5000"
-                                            ></textarea>
+                                            <FormContentEditor v-model="field.content" placeholder="Enter your text block content…" />
                                         </div>
                                         <div class="form-row">
                                             <label class="small">Type</label>
