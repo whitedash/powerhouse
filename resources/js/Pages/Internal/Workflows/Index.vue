@@ -608,9 +608,10 @@ function fmtRelative(iso) {
                                             <div class="form-row">
                                                 <label class="small">Assigned to</label>
                                                 <select v-model.number="action.config.assigned_to">
-                                                    <option :value="null">Unassigned</option>
+                                                    <option :value="null">Default — Super Admin</option>
                                                     <option v-for="u in staff" :key="u.id" :value="u.id">{{ u.name }}</option>
                                                 </select>
+                                                <small class="muted">Left as default, the task is assigned to the primary Super Admin (tasks always have an owner).</small>
                                             </div>
                                         </div>
                                     </template>
