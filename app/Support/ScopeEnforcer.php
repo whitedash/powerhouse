@@ -6,10 +6,12 @@ use App\Enums\AccessScope;
 use App\Enums\ScopeArea;
 use App\Models\Project;
 use App\Models\RoleScope;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use LogicException;
 
 /**
@@ -108,8 +110,42 @@ class ScopeEnforcer
     }
 
     /**
+     * Apply the mandatory scope to an EAGER-LOAD relation — the project board's
+     * tasks, a customer's / lead's activity list, a task's child tasks. Those
+     * surfaces never hit applyToList(): the tasks ride in on a parent's
+     * ->with(), so the filter has to attach to the relation, not a top-level
+     * list query. Same three-way behaviour as applyToList (All → untouched;
+     * None → empty; Assigned → the area filter) applied to the relation's
+     * underlying Eloquent builder, which getQuery() exposes. Mutates in place.
+     *
+     * super_admin resolves to All HERE, not via Gate::before — that bypass
+     * covers gate/policy checks, never eager-load queries, so an unscoped admin
+     * would otherwise see a filtered board.
+     *
+     * @param  Relation<Model, Model, *>  $relation
+     */
+    public static function constrainRelation(Relation $relation, ?Authenticatable $user, ScopeArea $area): void
+    {
+        $scope = self::effectiveScope($user, $area);
+
+        if ($scope === AccessScope::All) {
+            return;
+        }
+
+        if ($scope === AccessScope::None || ! $user instanceof User) {
+            $relation->whereRaw('1 = 0'); // load nothing
+
+            return;
+        }
+
+        // Same per-area expression the list path uses — applied to the
+        // relation's query so the seam stays the single source of truth.
+        self::assignedListFilter($relation->getQuery(), $area, (int) $user->id);
+    }
+
+    /**
      * PER-AREA SEAM — the "Assigned" list filter. Projects = pivot membership;
-     * Tasks/Leads/Support will add where('assigned_to', $userId) arms here.
+     * Tasks = own assignment. (Leads/Support add their arms in later phases.)
      *
      * @template TModel of Model
      *
@@ -120,6 +156,11 @@ class ScopeEnforcer
     {
         return match ($area) {
             ScopeArea::Projects => $query->whereHas('members', fn ($q) => $q->where('user_id', $userId)),
+            // Tasks: "Assigned" is STRICTLY the assignee — deliberately NOT
+            // created_by. Existing ownership checks (which allow creator OR
+            // assignee to mutate) compose on TOP of this; a task you created
+            // but delegated is invisible under Assigned scope.
+            ScopeArea::Tasks => $query->where('assigned_to', $userId),
             default => throw new LogicException("No Assigned-scope list filter registered for area: {$area->value}"),
         };
     }
@@ -133,6 +174,9 @@ class ScopeEnforcer
         return match ($area) {
             ScopeArea::Projects => $item instanceof Project
                 && $item->members()->where('user_id', $userId)->exists(),
+            // Mirror of the Tasks list filter: strictly the assignee.
+            ScopeArea::Tasks => $item instanceof Task
+                && $item->assigned_to === $userId,
             default => throw new LogicException("No Assigned-scope item check registered for area: {$area->value}"),
         };
     }

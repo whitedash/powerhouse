@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Internal;
 
 use App\Enums\ReferralStatus;
+use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Contact;
@@ -14,6 +15,7 @@ use App\Models\User;
 use App\Services\AttributionService;
 use App\Services\DealRegistrationService;
 use App\Services\NotificationService;
+use App\Support\ScopeEnforcer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -158,8 +160,14 @@ class LeadController extends Controller
             'assignedTo:id,name,avatar_colour',
             'createdBy:id,name',
             'customer:id,name',
-            'tasks' => fn ($q) => $q->with('assignedTo:id,name,avatar_colour')
-                ->orderByRaw('due_at IS NULL, due_at ASC'),
+            // Lead activities ride the Tasks scope: Assigned → own only; None
+            // → none; All/super_admin → all (phase 3b-ii — eager load isn't
+            // covered by Gate::before, so constrainRelation handles the bypass).
+            'tasks' => function ($q) {
+                $q->with('assignedTo:id,name,avatar_colour')
+                    ->orderByRaw('due_at IS NULL, due_at ASC');
+                ScopeEnforcer::constrainRelation($q, auth()->user(), ScopeArea::Tasks);
+            },
             'notesThread' => fn ($q) => $q->with('createdBy:id,name,avatar_colour')
                 ->orderByDesc('created_at'),
         ])->findOrFail($id);

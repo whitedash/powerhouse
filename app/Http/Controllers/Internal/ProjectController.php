@@ -16,6 +16,7 @@ use App\Models\Supplier;
 use App\Models\TaskAttachment;
 use App\Models\TimeEntry;
 use App\Models\User;
+use App\Support\ScopeEnforcer;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -135,10 +136,16 @@ class ProjectController extends Controller
                     'tasks',
                     'tasks as completed_count' => fn ($q2) => $q2->where('status', 'complete'),
                 ]),
-            'tasks' => fn ($q) => $q
-                ->with(['assignedTo:id,name,avatar_colour', 'milestone:id,title'])
-                ->orderBy('milestone_id')
-                ->orderBy('sort_order'),
+            // Project board: under Assigned, a member sees ONLY their own
+            // assigned tasks on a project they can open; All/super_admin see
+            // every task (the Gate::before bypass doesn't reach this eager
+            // load, so constrainRelation resolves super_admin → All itself).
+            'tasks' => function ($q) use ($request) {
+                $q->with(['assignedTo:id,name,avatar_colour', 'milestone:id,title'])
+                    ->orderBy('milestone_id')
+                    ->orderBy('sort_order');
+                ScopeEnforcer::constrainRelation($q, $request->user(), ScopeArea::Tasks);
+            },
             'timeEntries' => fn ($q) => $q
                 ->with('user:id,name,avatar_colour')
                 ->with('task:id,title')
@@ -308,7 +315,18 @@ class ProjectController extends Controller
 
         $taskFiles = collect();
         if (Schema::hasTable('task_attachments')) {
-            $taskFiles = TaskAttachment::whereHas('task', fn ($q) => $q->where('project_id', $id))
+            $taskFiles = TaskAttachment::whereHas('task', function ($q) use ($id) {
+                $q->where('project_id', $id);
+                // Tasks scope (phase 3b-ii): the Files tab lists task
+                // attachments as standalone task artifacts (with their task
+                // titles), so it filters to the user's in-scope tasks exactly
+                // like the board — Assigned → own only, None → none, All/
+                // super_admin → all. Without this, a member not assigned to a
+                // task would learn its title via its attachment. (Project-level
+                // surfaces — project files merely TAGGED to a task, and time
+                // entries — stay Projects-scoped per the 3b-i boundary.)
+                ScopeEnforcer::applyToList($q, auth()->user(), ScopeArea::Tasks);
+            })
                 ->with(['uploadedBy:id,name', 'task:id,title'])
                 ->orderByDesc('created_at')
                 ->get()

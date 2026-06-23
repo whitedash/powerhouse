@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Contact;
@@ -14,6 +15,7 @@ use App\Models\User;
 use App\Services\FileUploadService;
 use App\Services\GoogleCalendarService;
 use App\Services\NotificationService;
+use App\Support\ScopeEnforcer;
 use App\Support\TaskDueDate;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -50,10 +52,21 @@ class TaskController extends Controller
             'parentTask:id,title,type',
             'notes' => fn ($q) => $q->orderBy('created_at')
                 ->with('author:id,name,avatar_colour'),
-            'childTasks' => fn ($q) => $q->with('assignedTo:id,name,avatar_colour'),
+            // Child tasks ride the Tasks scope too — under Assigned, a parent
+            // surfaces only the user's own sub-tasks (super_admin/All: all).
+            'childTasks' => function ($q) use ($request) {
+                $q->with('assignedTo:id,name,avatar_colour');
+                ScopeEnforcer::constrainRelation($q, $request->user(), ScopeArea::Tasks);
+            },
             'attachments' => fn ($q) => $q->orderByDesc('created_at')
                 ->with('uploadedBy:id,name'),
         ])->findOrFail($id);
+
+        // Scope gate FIRST: under Assigned, a task not assigned to the user is
+        // invisible regardless of the customer/lead view gate below — that's
+        // the strict-assigned rule (visibility), which then composes with the
+        // existing per-subject authorisation. None → 403; All/super_admin → ok.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
 
         // Authorisation. Tasks attached to a customer ride the
         // CustomerPolicy::view check; orphan tasks (customer_id null)
@@ -81,8 +94,10 @@ class TaskController extends Controller
         // operator a one-click jump to anything else they need to
         // chase on this account.
         $related = $task->customer_id
-            ? Task::where('customer_id', $task->customer_id)
-                ->where('id', '!=', $task->id)
+            ? $this->scopeList(
+                Task::where('customer_id', $task->customer_id)->where('id', '!=', $task->id),
+                ScopeArea::Tasks,
+            )
                 // Active = anything not terminal. The PM sprint widened
                 // the enum from {open,complete} to the six-state set,
                 // so "open" is now expressed as "not in (complete,
@@ -235,6 +250,11 @@ class TaskController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        // None scope (phase 3b-ii) is walled off the Tasks area entirely —
+        // no creating a task you could never see or act on (and no injecting
+        // work into another user's queue). All/super_admin pass.
+        $this->authorizeScopeSection(ScopeArea::Tasks);
+
         $data = $request->validate($this->rules(), $this->messages());
 
         $userId = $request->user()->id;
@@ -341,6 +361,10 @@ class TaskController extends Controller
     public function update(int $id, Request $request): RedirectResponse
     {
         $task = Task::findOrFail($id);
+        // Scope (phase 3b-ii) gates VISIBILITY before the ownership check
+        // below gates MUTATION — the user must satisfy BOTH. None → 403;
+        // Assigned → 403 unless it's their task; All/super_admin → passes.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
 
         // Editable by the creator, the assignee, or a super_admin. Anyone
@@ -391,6 +415,10 @@ class TaskController extends Controller
     public function complete(int $id, Request $request): RedirectResponse
     {
         $task = Task::findOrFail($id);
+        // Scope (phase 3b-ii) gates VISIBILITY before the ownership check
+        // below gates MUTATION — the user must satisfy BOTH. None → 403;
+        // Assigned → 403 unless it's their task; All/super_admin → passes.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
 
         // Only the assignee or a super_admin can mark a task complete.
         $user = $request->user();
@@ -437,6 +465,10 @@ class TaskController extends Controller
     public function reschedule(int $id, Request $request): JsonResponse
     {
         $task = Task::findOrFail($id);
+        // Scope (phase 3b-ii) gates VISIBILITY before the ownership check
+        // below gates MUTATION — the user must satisfy BOTH. None → 403;
+        // Assigned → 403 unless it's their task; All/super_admin → passes.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
 
         // Same edit rule as update(): creator, assignee, or super_admin.
@@ -494,6 +526,10 @@ class TaskController extends Controller
     public function quickComplete(int $id, Request $request): RedirectResponse
     {
         $task = Task::findOrFail($id);
+        // Scope (phase 3b-ii) gates VISIBILITY before the ownership check
+        // below gates MUTATION — the user must satisfy BOTH. None → 403;
+        // Assigned → 403 unless it's their task; All/super_admin → passes.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
 
         if ($task->assigned_to !== $user->id && ! $user->isSuperAdmin()) {
@@ -529,6 +565,10 @@ class TaskController extends Controller
     public function quickReschedule(int $id, Request $request): RedirectResponse
     {
         $task = Task::findOrFail($id);
+        // Scope (phase 3b-ii) gates VISIBILITY before the ownership check
+        // below gates MUTATION — the user must satisfy BOTH. None → 403;
+        // Assigned → 403 unless it's their task; All/super_admin → passes.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
 
         if ($task->created_by !== $user->id
@@ -567,6 +607,10 @@ class TaskController extends Controller
     public function togglePin(int $id, Request $request): RedirectResponse
     {
         $task = Task::findOrFail($id);
+        // Scope (phase 3b-ii) gates VISIBILITY before the ownership check
+        // below gates MUTATION — the user must satisfy BOTH. None → 403;
+        // Assigned → 403 unless it's their task; All/super_admin → passes.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
 
         if ($task->created_by !== $user->id
@@ -587,6 +631,10 @@ class TaskController extends Controller
     public function destroy(int $id, Request $request): RedirectResponse
     {
         $task = Task::findOrFail($id);
+        // Scope (phase 3b-ii) gates VISIBILITY before the ownership check
+        // below gates MUTATION — the user must satisfy BOTH. None → 403;
+        // Assigned → 403 unless it's their task; All/super_admin → passes.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
 
         if ($task->created_by !== $user->id && ! $user->isSuperAdmin()) {
@@ -696,6 +744,10 @@ class TaskController extends Controller
      */
     private function authorizeTaskView(Task $task, User $user): void
     {
+        // Scope first (phase 3b-ii) — an attachment can't be pulled for a task
+        // the user can't see. Composes with the per-subject gate below.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
+
         if ($task->customer_id !== null) {
             Gate::authorize('view', $task->customer);
         } else {
@@ -716,6 +768,10 @@ class TaskController extends Controller
      */
     private function authorizeTaskEdit(Task $task, User $user): void
     {
+        // Scope first (phase 3b-ii): can't attach/remove files on a task
+        // outside the user's scope. Composes with the ownership rule below.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
+
         abort_unless(
             $task->created_by === $user->id
                 || $task->assigned_to === $user->id
@@ -771,6 +827,10 @@ class TaskController extends Controller
     public function updateStatus(int $id, Request $request): JsonResponse|RedirectResponse
     {
         $task = Task::findOrFail($id);
+        // Scope (phase 3b-ii) gates VISIBILITY before the ownership check
+        // below gates MUTATION — the user must satisfy BOTH. None → 403;
+        // Assigned → 403 unless it's their task; All/super_admin → passes.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
 
         // Same access rule as complete(): assignee or super_admin.
         // PM workflows assume the assignee owns transitions; if you
@@ -858,6 +918,17 @@ class TaskController extends Controller
         ]);
 
         $taskIds = array_map(static fn (array $i): int => (int) $i['id'], $data['items']);
+
+        // Scope (phase 3b-ii): the board only renders the user's in-scope
+        // tasks, but a forged reorder could smuggle foreign ids — reject
+        // unless EVERY id is in scope. None → empty set → 403; Assigned → 403
+        // if any id isn't theirs; All/super_admin → passes.
+        $inScopeCount = $this->scopeList(Task::whereIn('id', $taskIds), ScopeArea::Tasks)->count();
+        abort_unless(
+            $inScopeCount === count(array_unique($taskIds)),
+            403,
+            'You do not have access to one or more of these tasks.',
+        );
 
         // Milestones the moved tasks belonged to BEFORE the move — moving
         // the last open task out can leave the remainder all-complete.

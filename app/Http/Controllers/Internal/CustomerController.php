@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Internal;
 
 use App\Enums\PersonRole;
+use App\Enums\ScopeArea;
 use App\Events\PaginatedListAccessed;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCustomerRequest;
@@ -35,6 +36,7 @@ use App\Models\User;
 use App\Models\Website;
 use App\Services\PersonService;
 use App\Support\RecurringRevenue;
+use App\Support\ScopeEnforcer;
 use App\Support\TaskDueDate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -241,8 +243,15 @@ class CustomerController extends Controller
             // open + notes — and order them so pinned/incomplete rise
             // to the top, completed sink to the bottom. The sidebar
             // card filters down to open ones client-side.
-            'tasks' => fn ($q) => $q->with(['contact:id,name', 'assignedTo:id,name'])
-                ->orderByRaw('is_pinned DESC, status = "complete", due_at IS NULL, due_at ASC, created_at DESC'),
+            // Customer activity timeline: under Assigned the user sees only
+            // their own activities on this account; None sees none; All/
+            // super_admin see everything (phase 3b-ii — the eager load isn't
+            // covered by Gate::before, so constrainRelation handles the bypass).
+            'tasks' => function ($q) {
+                $q->with(['contact:id,name', 'assignedTo:id,name'])
+                    ->orderByRaw('is_pinned DESC, status = "complete", due_at IS NULL, due_at ASC, created_at DESC');
+                ScopeEnforcer::constrainRelation($q, auth()->user(), ScopeArea::Tasks);
+            },
             'domains',
             'invoices' => fn ($q) => $q->with('billingEntity:id,name')
                 ->orderByDesc('created_at')
@@ -982,6 +991,10 @@ class CustomerController extends Controller
 
     public function storeTask(int $id, Request $request): RedirectResponse
     {
+        // None scope (phase 3b-ii) is walled off Tasks entirely — no creating
+        // an activity it could never see. All/super_admin pass.
+        $this->authorizeScopeSection(ScopeArea::Tasks);
+
         $customer = Customer::findOrFail($id);
         Gate::authorize('update', $customer);
 

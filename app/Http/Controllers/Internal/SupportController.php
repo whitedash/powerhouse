@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Mail\SupportTicketCreated;
 use App\Mail\SupportTicketReply;
@@ -328,6 +329,10 @@ class SupportController extends Controller
      */
     public function createTask(int $id, Request $request): RedirectResponse
     {
+        // None scope (phase 3b-ii) is walled off Tasks entirely — no spinning
+        // off a CRM task it could never see. All/super_admin pass.
+        $this->authorizeScopeSection(ScopeArea::Tasks);
+
         $ticket = SupportTicket::with('customer:id,name')->findOrFail($id);
 
         $data = $request->validate([

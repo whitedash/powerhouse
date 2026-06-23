@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Customer;
@@ -42,6 +43,11 @@ class NoteController extends Controller
         // the wrong account from a forged form post).
         if (! empty($data['task_id'])) {
             $task = Task::findOrFail($data['task_id']);
+            // Scope (phase 3b-ii): adding a note threads it onto the task's
+            // activity detail page — a side-door into a task you couldn't
+            // otherwise see. Gate it the same as the task itself (None always;
+            // Assigned unless it's yours; All/super_admin pass).
+            $this->authorizeScopeItem(ScopeArea::Tasks, $task);
             abort_unless(
                 $task->customer_id === null || $task->customer_id === $customer->id,
                 422,
