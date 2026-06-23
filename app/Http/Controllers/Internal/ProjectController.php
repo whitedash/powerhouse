@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Customer;
@@ -49,11 +50,13 @@ class ProjectController extends Controller
     public function index(Request $request): Response
     {
         Gate::authorize('viewAny', Customer::class);
+        // Scope (phase 3b): None → no section access; Assigned → the list is
+        // mandatorily filtered to the user's projects; All/super_admin → all.
+        $this->authorizeScopeSection(ScopeArea::Projects);
 
         $userId = $request->user()->id;
 
-        $projects = Project::query()
-            ->whereNull('archived_at')
+        $projects = $this->scopeList(Project::query()->whereNull('archived_at'), ScopeArea::Projects)
             ->with([
                 'customer:id,name',
                 'lead:id,name,avatar_colour',
@@ -84,14 +87,13 @@ class ProjectController extends Controller
             ->withQueryString()
             ->through(fn (Project $p): array => $this->mapProject($p));
 
+        // Summary reflects the same scope so an Assigned user's counts match
+        // their filtered list (no leaking of non-member project totals).
         $summary = [
-            'total' => Project::whereNull('archived_at')->count(),
-            'active' => Project::where('status', 'active')->whereNull('archived_at')->count(),
-            'on_hold' => Project::where('status', 'on_hold')->whereNull('archived_at')->count(),
-            'overdue' => Project::where('status', 'active')
-                ->whereNull('archived_at')
-                ->where('due_date', '<', now())
-                ->count(),
+            'total' => $this->scopeList(Project::query()->whereNull('archived_at'), ScopeArea::Projects)->count(),
+            'active' => $this->scopeList(Project::query()->where('status', 'active')->whereNull('archived_at'), ScopeArea::Projects)->count(),
+            'on_hold' => $this->scopeList(Project::query()->where('status', 'on_hold')->whereNull('archived_at'), ScopeArea::Projects)->count(),
+            'overdue' => $this->scopeList(Project::query()->where('status', 'active')->whereNull('archived_at')->where('due_date', '<', now()), ScopeArea::Projects)->count(),
         ];
 
         $customers = Customer::whereNull('archived_at')
@@ -148,6 +150,8 @@ class ProjectController extends Controller
                 ->orderByDesc('logged_at')
                 ->take(50),
         ])->whereNull('archived_at')->findOrFail($id);
+
+        $this->authorizeScopeItem(ScopeArea::Projects, $project);
 
         // Time aggregates run against the table directly so the
         // headline numbers don't drift if the eager-load above is
@@ -373,6 +377,8 @@ class ProjectController extends Controller
     public function store(Request $request): RedirectResponse
     {
         Gate::authorize('viewAny', Customer::class);
+        // Creating a project requires section access (None → 403).
+        $this->authorizeScopeSection(ScopeArea::Projects);
 
         $data = $this->validate($request);
 
@@ -427,6 +433,7 @@ class ProjectController extends Controller
         Gate::authorize('viewAny', Customer::class);
 
         $project = Project::findOrFail($id);
+        $this->authorizeScopeItem(ScopeArea::Projects, $project);
         $data = $this->validate($request);
 
         DB::transaction(function () use ($project, $data, $request) {
@@ -486,6 +493,7 @@ class ProjectController extends Controller
         Gate::authorize('viewAny', Customer::class);
 
         $project = Project::findOrFail($id);
+        $this->authorizeScopeItem(ScopeArea::Projects, $project);
 
         $project->update(['archived_at' => now()]);
 
@@ -509,6 +517,7 @@ class ProjectController extends Controller
         Gate::authorize('viewAny', Customer::class);
 
         $project = Project::findOrFail($id);
+        $this->authorizeScopeItem(ScopeArea::Projects, $project);
 
         $data = $request->validate([
             'entry_ids' => 'required|array|min:1',
