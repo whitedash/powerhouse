@@ -365,10 +365,17 @@ class DashboardController extends Controller
         // New leads — amber. Anything created in the last 48h that
         // hasn't moved off 'new' yet is a fair signal someone needs
         // to make first contact. Capped at 2 so the panel doesn't
-        // drown out invoices and tickets on busy weeks.
-        Lead::where('status', 'new')
-            ->whereNull('customer_id')
-            ->where('created_at', '>=', $now->copy()->subDays(2))
+        // drown out invoices and tickets on busy weeks. Scoped (phase
+        // 3b-iii): the widget lists lead identities, so Assigned sees only
+        // their own (new leads are usually unassigned → empty, which is
+        // correct — triaging/assigning new leads is an All-scope job); None
+        // sees none. All/super_admin unchanged.
+        $this->scopeList(
+            Lead::where('status', 'new')
+                ->whereNull('customer_id')
+                ->where('created_at', '>=', $now->copy()->subDays(2)),
+            ScopeArea::Leads,
+        )
             ->orderByDesc('created_at')
             ->take(2)
             ->get()

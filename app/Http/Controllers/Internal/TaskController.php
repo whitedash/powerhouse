@@ -44,7 +44,10 @@ class TaskController extends Controller
     {
         $task = Task::with([
             'customer:id,name,city',
-            'lead:id,first_name,last_name,company',
+            // assigned_to is needed for the lead-scope gate below (phase
+            // 3b-iii) — a partial select without it reads NULL and would
+            // wrongly block the owner from their own lead-linked activity.
+            'lead:id,first_name,last_name,company,assigned_to',
             'contact:id,customer_id,name,email,phone,job_title',
             'assignedTo:id,name,avatar_colour,role',
             'createdBy:id,name',
@@ -76,10 +79,17 @@ class TaskController extends Controller
         if ($task->customer_id !== null) {
             Gate::authorize('view', $task->customer);
         } elseif ($task->lead_id !== null) {
-            // Lead-linked activities ride the same gate as the lead
-            // pages themselves — any staffer who can open the lead
-            // can open its activities.
-            Gate::authorize('viewAny', Customer::class);
+            // Lead-linked activities ride the LEAD's scope (phase 3b-iii):
+            // "any staffer who can open the lead can open its activities" — now
+            // ENFORCED, not just intended. Under Assigned, a task linked to a
+            // lead that isn't yours is blocked, so the eager-loaded lead can't
+            // leak. All/super_admin pass; a dangling lead (FK gone) has no
+            // identity to leak, so it's allowed.
+            abort_unless(
+                $task->lead === null || ScopeEnforcer::allows($user, ScopeArea::Leads, $task->lead),
+                403,
+                'You do not have access to this lead.',
+            );
         } else {
             abort_unless(
                 $task->assigned_to === $user->id
@@ -260,6 +270,9 @@ class TaskController extends Controller
         $userId = $request->user()->id;
         $this->guardContactBelongsToCustomer($data);
         [$leadId, $customerId] = $this->guardSingleSubject($data);
+        // Leads scope (phase 3b-iii): can't link a lead you can't see, even via
+        // a forged lead_id (validation only checks existence).
+        $this->guardLeadInScope($leadId);
 
         $task = DB::transaction(function () use ($data, $request, $userId, $leadId, $customerId) {
             $task = Task::create([
@@ -339,7 +352,12 @@ class TaskController extends Controller
                     'sub' => $c->city,
                 ]);
         } else {
-            $options = Lead::query()
+            // Leads scope (phase 3b-iii): the "Link to lead" picker must only
+            // offer leads the user can actually see — otherwise it enumerates
+            // every lead's name/company. Assigned → own only; None → none;
+            // All/super_admin → all. (Pairs with the store/update lead-scope
+            // guard so a forged lead_id can't be linked either.)
+            $options = $this->scopeList(Lead::query(), ScopeArea::Leads)
                 ->when($q !== '', fn ($query) => $query->where(fn ($w) => $w
                     ->where('first_name', 'like', "%{$q}%")
                     ->orWhere('last_name', 'like', "%{$q}%")
@@ -379,6 +397,9 @@ class TaskController extends Controller
         $data = $request->validate($this->rules(forUpdate: true), $this->messages());
         $this->guardContactBelongsToCustomer($data);
         [$leadId, $customerId] = $this->guardSingleSubject($data, $task);
+        // Leads scope (phase 3b-iii): can't re-link a task to a lead you can't
+        // see, even via a forged lead_id.
+        $this->guardLeadInScope($leadId);
 
         $before = $task->only(['title', 'type', 'priority', 'description', 'due_at', 'duration_minutes']);
         $previousAssignee = $task->assigned_to;
@@ -1143,6 +1164,22 @@ class TaskController extends Controller
         );
 
         return [$leadId, $customerId];
+    }
+
+    /**
+     * Leads scope (phase 3b-iii): a task may only be linked to a lead the
+     * current user can see. The lead_id validation rule is exists-only, so
+     * without this an Assigned-scope user could forge a link to an out-of-scope
+     * lead and then read its identity back via the task's lead eager-load.
+     * No-op for All / super_admin (allows() short-circuits).
+     */
+    private function guardLeadInScope(?int $leadId): void
+    {
+        if ($leadId === null) {
+            return;
+        }
+
+        $this->authorizeScopeItem(ScopeArea::Leads, Lead::findOrFail($leadId));
     }
 
     /**

@@ -62,10 +62,16 @@ class LeadController extends Controller
     public function index(Request $request): Response
     {
         Gate::authorize('viewAny', Customer::class);
+        // None scope (phase 3b-iii) is walled off Leads entirely.
+        $this->authorizeScopeSection(ScopeArea::Leads);
 
         $userId = $request->user()->id;
 
-        $leads = Lead::query()
+        // Mandatory scope filter, ALWAYS-ON (phase 3b-iii): All → whole
+        // pipeline; Assigned → only the user's leads (the existing
+        // assigned_to_me toggle below becomes redundant but harmless under
+        // Assigned, and still works under All); None → never reaches here.
+        $leads = $this->scopeList(Lead::query(), ScopeArea::Leads)
             ->with([
                 'assignedTo:id,name,avatar_colour',
                 'createdBy:id,name',
@@ -123,8 +129,13 @@ class LeadController extends Controller
                 ->where('referral_status', 'pending_review')->count(),
         ];
 
-        // Referral-review queue — pending_review deals awaiting approval.
-        $referralReview = Lead::whereNull('customer_id')
+        // Referral-review queue — pending_review deals awaiting approval. Also
+        // scoped (phase 3b-iii): it lists lead identities, so an Assigned user
+        // must not see deals not assigned to them. Pending deals are normally
+        // unassigned, so the queue empties under Assigned — consistent with the
+        // per-item approve/reject gate (review is effectively an All-scope job).
+        $referralReview = $this->scopeList(Lead::query(), ScopeArea::Leads)
+            ->whereNull('customer_id')
             ->where('referral_status', ReferralStatus::PendingReview->value)
             ->with('referrer.user:id,name')
             ->orderBy('registered_at')
@@ -172,6 +183,12 @@ class LeadController extends Controller
                 ->orderByDesc('created_at'),
         ])->findOrFail($id);
 
+        // Scope (phase 3b-iii): a non-assigned lead is invisible by direct ID
+        // under Assigned (and NULL-assigned counts as non-assigned). None →
+        // 403; All/super_admin → allowed. The viewAny(Customer) gate above does
+        // NOT check assignment, so without this any staffer could open any lead.
+        $this->authorizeScopeItem(ScopeArea::Leads, $lead);
+
         $staff = User::whereIn('role', ['super_admin', 'staff'])
             ->orderBy('name')
             ->get(['id', 'name', 'avatar_colour']);
@@ -186,6 +203,8 @@ class LeadController extends Controller
     public function store(Request $request): RedirectResponse
     {
         Gate::authorize('viewAny', Customer::class);
+        // None scope (phase 3b-iii): no creating a lead it could never see.
+        $this->authorizeScopeSection(ScopeArea::Leads);
 
         $data = $this->validateRow($request);
 
@@ -213,6 +232,11 @@ class LeadController extends Controller
         Gate::authorize('viewAny', Customer::class);
 
         $lead = Lead::findOrFail($id);
+        // Scope (phase 3b-iii): blocks a lead outside the user's scope by
+        // direct ID — None always; Assigned unless it's theirs (NULL-assigned
+        // counts as not theirs); All/super_admin pass. Composes with the
+        // per-method permission/state checks below.
+        $this->authorizeScopeItem(ScopeArea::Leads, $lead);
         if ($lead->customer_id !== null) {
             return back()->with('error', 'Converted leads are read-only here. Edit the customer instead.');
         }
@@ -246,6 +270,11 @@ class LeadController extends Controller
         ]);
 
         $lead = Lead::findOrFail($id);
+        // Scope (phase 3b-iii): blocks a lead outside the user's scope by
+        // direct ID — None always; Assigned unless it's theirs (NULL-assigned
+        // counts as not theirs); All/super_admin pass. Composes with the
+        // per-method permission/state checks below.
+        $this->authorizeScopeItem(ScopeArea::Leads, $lead);
         if ($lead->customer_id !== null) {
             return response()->json(['ok' => false, 'message' => 'Converted lead.'], 422);
         }
@@ -283,6 +312,11 @@ class LeadController extends Controller
         Gate::authorize('viewAny', Customer::class);
 
         $lead = Lead::findOrFail($id);
+        // Scope (phase 3b-iii): blocks a lead outside the user's scope by
+        // direct ID — None always; Assigned unless it's theirs (NULL-assigned
+        // counts as not theirs); All/super_admin pass. Composes with the
+        // per-method permission/state checks below.
+        $this->authorizeScopeItem(ScopeArea::Leads, $lead);
 
         if ($lead->customer_id !== null) {
             return back()->with('error', 'This lead has already been converted.');
@@ -392,6 +426,11 @@ class LeadController extends Controller
         Gate::authorize('review', Lead::class);
 
         $lead = Lead::findOrFail($id);
+        // Scope (phase 3b-iii): blocks a lead outside the user's scope by
+        // direct ID — None always; Assigned unless it's theirs (NULL-assigned
+        // counts as not theirs); All/super_admin pass. Composes with the
+        // per-method permission/state checks below.
+        $this->authorizeScopeItem(ScopeArea::Leads, $lead);
         if ($lead->referral_status !== ReferralStatus::PendingReview) {
             return back()->with('error', 'This deal is not awaiting review.');
         }
@@ -413,6 +452,11 @@ class LeadController extends Controller
         ]);
 
         $lead = Lead::findOrFail($id);
+        // Scope (phase 3b-iii): blocks a lead outside the user's scope by
+        // direct ID — None always; Assigned unless it's theirs (NULL-assigned
+        // counts as not theirs); All/super_admin pass. Composes with the
+        // per-method permission/state checks below.
+        $this->authorizeScopeItem(ScopeArea::Leads, $lead);
         if ($lead->referral_status !== ReferralStatus::PendingReview) {
             return back()->with('error', 'This deal is not awaiting review.');
         }
@@ -427,6 +471,11 @@ class LeadController extends Controller
         Gate::authorize('viewAny', Customer::class);
 
         $lead = Lead::findOrFail($id);
+        // Scope (phase 3b-iii): blocks a lead outside the user's scope by
+        // direct ID — None always; Assigned unless it's theirs (NULL-assigned
+        // counts as not theirs); All/super_admin pass. Composes with the
+        // per-method permission/state checks below.
+        $this->authorizeScopeItem(ScopeArea::Leads, $lead);
 
         if ($lead->customer_id !== null) {
             return back()->with('error', 'Cannot delete a converted lead.');

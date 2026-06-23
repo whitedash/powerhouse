@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Enums\AccessScope;
 use App\Enums\ScopeArea;
+use App\Models\Lead;
 use App\Models\Project;
 use App\Models\RoleScope;
 use App\Models\Task;
@@ -145,7 +146,7 @@ class ScopeEnforcer
 
     /**
      * PER-AREA SEAM — the "Assigned" list filter. Projects = pivot membership;
-     * Tasks = own assignment. (Leads/Support add their arms in later phases.)
+     * Tasks / Leads = own assignment. (Support adds its arm in the last phase.)
      *
      * @template TModel of Model
      *
@@ -161,6 +162,12 @@ class ScopeEnforcer
             // assignee to mutate) compose on TOP of this; a task you created
             // but delegated is invisible under Assigned scope.
             ScopeArea::Tasks => $query->where('assigned_to', $userId),
+            // Leads: "Assigned" is the assignee (leads.assigned_to, a NULLABLE
+            // FK). The = comparison excludes NULL rows, so an Assigned-scoped
+            // user sees NEITHER other people's leads NOR unassigned ones — a
+            // lead assigned to nobody is, deliberately, not "mine". (Leads has
+            // no "view unassigned" composition permission, unlike Support.)
+            ScopeArea::Leads => $query->where('assigned_to', $userId),
             default => throw new LogicException("No Assigned-scope list filter registered for area: {$area->value}"),
         };
     }
@@ -176,6 +183,10 @@ class ScopeEnforcer
                 && $item->members()->where('user_id', $userId)->exists(),
             // Mirror of the Tasks list filter: strictly the assignee.
             ScopeArea::Tasks => $item instanceof Task
+                && $item->assigned_to === $userId,
+            // Mirror of the Leads list filter: strictly the assignee. A
+            // NULL-assigned lead fails the === comparison, so it's not "mine".
+            ScopeArea::Leads => $item instanceof Lead
                 && $item->assigned_to === $userId,
             default => throw new LogicException("No Assigned-scope item check registered for area: {$area->value}"),
         };

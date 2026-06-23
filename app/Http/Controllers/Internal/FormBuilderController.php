@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Internal;
 
 use App\Enums\FieldWidth;
+use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Form;
@@ -11,6 +12,7 @@ use App\Models\FormStep;
 use App\Models\FormSubmission;
 use App\Models\FormTheme;
 use App\Services\FormContentSanitizer;
+use App\Support\ScopeEnforcer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -181,7 +183,16 @@ class FormBuilderController extends Controller
 
         $submissions = FormSubmission::query()
             ->where('form_id', $form->id)
-            ->with('lead:id,first_name,last_name,status,customer_id')
+            // Leads scope (phase 3b-iii): the submissions table cross-references
+            // the CRM lead each submission became (name/status/customer_id). That
+            // linkage must follow Leads scope — under Assigned, a submission whose
+            // lead isn't yours loads no lead (the row still shows; the CRM cross-
+            // reference is hidden). All/super_admin see every linkage. The WHERE on
+            // assigned_to applies in SQL regardless of the column subset selected.
+            ->with(['lead' => function ($q) {
+                $q->select('id', 'first_name', 'last_name', 'status', 'customer_id');
+                ScopeEnforcer::constrainRelation($q, auth()->user(), ScopeArea::Leads);
+            }])
             ->orderByDesc('created_at')
             ->limit(200)
             ->get()
