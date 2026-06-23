@@ -19,6 +19,7 @@ import {
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import { useDirtyClose } from '@/Composables/useDirtyClose';
 
 const props = defineProps({
     themes: { type: Object, required: true },        // paginator
@@ -124,6 +125,10 @@ const deleteMessage = computed(() => {
         ? `${n} form${n === 1 ? '' : 's'} use this theme — they will revert to the default look. This can't be undone.`
         : "This theme isn't used by any form. This can't be undone.";
 });
+
+/* ─── Unsaved-changes discard guard (Issue B). Route every close surface
+ *     (overlay dismiss, X, Escape, Cancel) through editorGuard.attemptClose. ─── */
+const editorGuard = useDirtyClose(() => editor.isDirty, () => { editorOpen.value = false; });
 </script>
 
 <template>
@@ -201,11 +206,11 @@ const deleteMessage = computed(() => {
         </div>
 
         <!-- Editor slide-over -->
-        <div v-if="editorOpen" class="slide-over-overlay" @click.self="editorOpen = false">
+        <div v-if="editorOpen" class="slide-over-overlay" v-overlay-dismiss="editorGuard.attemptClose">
             <div class="slide-over slide-over-wide">
                 <div class="slide-over-head">
                     <h2>{{ editingId ? 'Edit theme' : 'New theme' }}</h2>
-                    <button type="button" class="icon-btn" @click="editorOpen = false">
+                    <button type="button" class="icon-btn" @click="editorGuard.attemptClose">
                         <IconX :size="18" stroke-width="1.75" />
                     </button>
                 </div>
@@ -339,7 +344,7 @@ const deleteMessage = computed(() => {
                     </section>
 
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="editorOpen = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="editorGuard.attemptClose">Cancel</button>
                         <button type="submit" class="btn btn-primary" :disabled="editor.processing">
                             {{ editor.processing ? 'Saving…' : (editingId ? 'Save theme' : 'Create theme') }}
                         </button>
@@ -355,6 +360,18 @@ const deleteMessage = computed(() => {
             confirm-label="Delete"
             variant="danger"
             @confirm="doDelete"
+        />
+
+        <!-- Unsaved-changes discard confirmation (Issue B) -->
+        <ConfirmModal
+            :show="editorGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="editorGuard.confirmDiscard"
+            @cancel="editorGuard.cancelDiscard"
         />
     </InternalLayout>
 </template>

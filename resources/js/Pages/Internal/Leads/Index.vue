@@ -21,6 +21,7 @@ import {
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import { useDirtyClose } from '@/Composables/useDirtyClose';
 
 const props = defineProps({
     leads: { type: Array, required: true },
@@ -238,6 +239,12 @@ function confirmReject() {
 
 function money(n) { return `£${Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`; }
 function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(0, 2).join('').toUpperCase(); }
+
+/* ─── Unsaved-changes discard guards (Issue B). Route every close surface
+ *     (overlay dismiss, X, Escape, Cancel) through <guard>.attemptClose. ─── */
+const createGuard = useDirtyClose(() => form.isDirty, () => { showCreate.value = false; });
+const lostGuard = useDirtyClose(() => lostReason.value.trim() !== '', () => { showLostModal.value = false; });
+const rejectGuard = useDirtyClose(() => rejectReason.value.trim() !== '', () => { showReject.value = false; rejectId.value = null; });
 </script>
 
 <template>
@@ -479,11 +486,11 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
 
         <!-- New lead slide-over -->
         <Teleport to="body">
-            <div v-if="showCreate" class="slide-over-overlay" @click.self="showCreate = false">
+            <div v-if="showCreate" class="slide-over-overlay" v-overlay-dismiss="createGuard.attemptClose">
                 <div class="slide-over" style="width: 480px;">
                     <div class="slide-over-head">
                         <h2>New lead</h2>
-                        <button type="button" class="icon-btn" @click="showCreate = false">
+                        <button type="button" class="icon-btn" @click="createGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -567,7 +574,7 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
                         </div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showCreate = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="createGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="form.processing" @click="submitCreate">
                             {{ form.processing ? 'Adding…' : 'Add lead' }}
                         </button>
@@ -578,11 +585,11 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
 
         <!-- Lost modal — replaces window.prompt -->
         <Teleport to="body">
-            <div v-if="showLostModal" class="slide-over-overlay" @click.self="showLostModal = false">
+            <div v-if="showLostModal" class="slide-over-overlay" v-overlay-dismiss="lostGuard.attemptClose">
                 <div class="slide-over" style="width: 440px;">
                     <div class="slide-over-head">
                         <h2>Mark lead as lost</h2>
-                        <button type="button" class="icon-btn" @click="showLostModal = false">
+                        <button type="button" class="icon-btn" @click="lostGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -601,7 +608,7 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
                         </div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showLostModal = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="lostGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="!lostReason.trim()" @click="confirmLost">Mark as lost</button>
                     </div>
                 </div>
@@ -610,11 +617,11 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
 
         <!-- Reject deal — reason required -->
         <Teleport to="body">
-            <div v-if="showReject" class="slide-over-overlay" @click.self="showReject = false">
+            <div v-if="showReject" class="slide-over-overlay" v-overlay-dismiss="rejectGuard.attemptClose">
                 <div class="slide-over" style="width: 440px;">
                     <div class="slide-over-head">
                         <h2>Reject this deal</h2>
-                        <button type="button" class="icon-btn" @click="showReject = false">
+                        <button type="button" class="icon-btn" @click="rejectGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -633,7 +640,7 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
                         </div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showReject = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="rejectGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="!rejectReason.trim()" @click="confirmReject">Reject deal</button>
                     </div>
                 </div>
@@ -647,6 +654,38 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
             message="The lead and its pipeline history will be removed. Any tasks or notes hung off the lead will be detached but not deleted."
             confirm-label="Delete lead"
             @confirm="confirmDelete"
+        />
+
+        <!-- Unsaved-changes discard confirmations (Issue B) -->
+        <ConfirmModal
+            :show="createGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes to this lead. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="createGuard.confirmDiscard"
+            @cancel="createGuard.cancelDiscard"
+        />
+        <ConfirmModal
+            :show="lostGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard reason?"
+            message="You have an unsaved lost reason. Discard it?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="lostGuard.confirmDiscard"
+            @cancel="lostGuard.cancelDiscard"
+        />
+        <ConfirmModal
+            :show="rejectGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard reason?"
+            message="You have an unsaved rejection reason. Discard it?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="rejectGuard.confirmDiscard"
+            @cancel="rejectGuard.cancelDiscard"
         />
     </InternalLayout>
 </template>

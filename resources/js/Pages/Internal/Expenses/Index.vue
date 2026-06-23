@@ -22,6 +22,7 @@ import {
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import { useDirtyClose } from '@/Composables/useDirtyClose';
 
 const props = defineProps({
     expenses: { type: Object, required: true },
@@ -181,6 +182,10 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true, preserveSt
 function moneyGBP(value) {
     return `£${Number(value || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
+
+/* ─── Unsaved-changes discard guard (Issue B). Route every close surface
+ *     (overlay dismiss, X, Escape, Cancel) through formGuard.attemptClose. ─── */
+const formGuard = useDirtyClose(() => form.isDirty, () => { showForm.value = false; });
 </script>
 
 <template>
@@ -340,11 +345,11 @@ function moneyGBP(value) {
 
         <!-- ─── Add/Edit slide-over ─── -->
         <Teleport to="body">
-            <div v-if="showForm" class="slide-over-overlay" @click.self="showForm = false">
+            <div v-if="showForm" class="slide-over-overlay" v-overlay-dismiss="formGuard.attemptClose">
                 <div class="slide-over" style="width: 520px;">
                     <div class="slide-over-head">
                         <h2>{{ editingId ? 'Edit expense' : 'Add expense' }}</h2>
-                        <button type="button" class="icon-btn" @click="showForm = false">
+                        <button type="button" class="icon-btn" @click="formGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -436,7 +441,7 @@ function moneyGBP(value) {
                         </div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showForm = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="formGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="form.processing" @click="submit">
                             {{ form.processing ? 'Saving…' : (editingId ? 'Save' : 'Record expense') }}
                         </button>
@@ -452,6 +457,18 @@ function moneyGBP(value) {
             message="This expense will be permanently removed. The receipt file will also be deleted."
             confirm-label="Delete expense"
             @confirm="confirmDelete"
+        />
+
+        <!-- Unsaved-changes discard confirmation (Issue B) -->
+        <ConfirmModal
+            :show="formGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="formGuard.confirmDiscard"
+            @cancel="formGuard.cancelDiscard"
         />
     </InternalLayout>
 </template>

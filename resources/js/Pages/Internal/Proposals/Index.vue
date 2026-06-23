@@ -21,6 +21,7 @@ import {
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import { useDirtyClose } from '@/Composables/useDirtyClose';
 
 const props = defineProps({
     proposals: { type: Object, required: true },
@@ -196,6 +197,9 @@ function confirmDelete() {
 function go(url) { if (url) router.visit(url, { preserveScroll: true, preserveState: true }); }
 
 function money(n) { return `£${Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
+
+/* ─── Unsaved-changes discard guard (Issue B) ─── */
+const createGuard = useDirtyClose(() => form.isDirty, () => { showCreate.value = false; });
 </script>
 
 <template>
@@ -311,11 +315,11 @@ function money(n) { return `£${Number(n || 0).toLocaleString('en-GB', { minimum
 
         <!-- New proposal slide-over -->
         <Teleport to="body">
-            <div v-if="showCreate" class="slide-over-overlay" @click.self="showCreate = false">
+            <div v-if="showCreate" class="slide-over-overlay" v-overlay-dismiss="createGuard.attemptClose">
                 <div class="slide-over" style="width: 640px;">
                     <div class="slide-over-head">
                         <h2>New proposal</h2>
-                        <button type="button" class="icon-btn" @click="showCreate = false">
+                        <button type="button" class="icon-btn" @click="createGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -441,7 +445,7 @@ function money(n) { return `£${Number(n || 0).toLocaleString('en-GB', { minimum
                         </div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showCreate = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="createGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="form.processing" @click="submit">
                             {{ form.processing ? 'Creating…' : 'Create proposal' }}
                         </button>
@@ -457,6 +461,18 @@ function money(n) { return `£${Number(n || 0).toLocaleString('en-GB', { minimum
             message="The draft will be permanently removed. Sent and accepted proposals cannot be deleted from here."
             confirm-label="Delete proposal"
             @confirm="confirmDelete"
+        />
+
+        <!-- Unsaved-changes discard confirmation (Issue B) -->
+        <ConfirmModal
+            :show="createGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes to this proposal. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="createGuard.confirmDiscard"
+            @cancel="createGuard.cancelDiscard"
         />
     </InternalLayout>
 </template>

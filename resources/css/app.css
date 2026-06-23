@@ -3630,7 +3630,11 @@ h3 .opt {
 /* ─── ConfirmModal (global) ─── */
 .confirm-modal-root {
     position: relative;
-    z-index: 50;
+    /* Topmost interactive layer (below only transient toasts at 9999): a
+       confirmation can be raised from within a slide-over (z 100) / *-modal-
+       overlay (120) / fp-preview (200) / sidebar (1000) — e.g. the unsaved-
+       changes discard guard — so it must stack above them, not behind. */
+    z-index: 1100;
 }
 .confirm-modal-backdrop {
     position: fixed;

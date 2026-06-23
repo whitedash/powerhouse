@@ -22,6 +22,7 @@ import {
 } from '@tabler/icons-vue';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import { useDirtyClose } from '@/Composables/useDirtyClose';
 
 const props = defineProps({
     products: { type: Array, default: () => [] },
@@ -259,6 +260,10 @@ function confirmRemoveSupplier() {
         onFinish: () => { showRemoveSupplier.value = false; supplierToRemove.value = null; },
     });
 }
+
+/* ─── Unsaved-changes discard guard (Issue B). Route every close surface
+ *     (overlay dismiss, X, Escape, Cancel) through supplierGuard.attemptClose. ─── */
+const supplierGuard = useDirtyClose(() => supplierForm.isDirty, () => { showSupplierForm.value = false; });
 </script>
 
 
@@ -735,11 +740,11 @@ function confirmRemoveSupplier() {
 
         <!-- ═══ Add/Edit supplier cost slide-over ═══ -->
         <Teleport to="body">
-            <div v-if="showSupplierForm" class="slide-over-overlay" @click.self="showSupplierForm = false">
+            <div v-if="showSupplierForm" class="slide-over-overlay" v-overlay-dismiss="supplierGuard.attemptClose">
                 <div class="slide-over product-supplier-form" style="width: 460px;">
                     <div class="slide-over-head">
                         <h2>{{ editingSupplierId ? 'Edit supplier cost' : 'Add supplier cost' }}</h2>
-                        <button type="button" class="icon-btn" @click="showSupplierForm = false">
+                        <button type="button" class="icon-btn" @click="supplierGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -781,7 +786,7 @@ function confirmRemoveSupplier() {
                         </div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showSupplierForm = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="supplierGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="supplierForm.processing" @click="submitSupplier">
                             {{ supplierForm.processing ? 'Saving…' : (editingSupplierId ? 'Save' : 'Add cost') }}
                         </button>
@@ -806,6 +811,18 @@ function confirmRemoveSupplier() {
             confirm-label="Discard and switch"
             variant="warning"
             @confirm="handleSwitchConfirm"
+        />
+
+        <!-- Unsaved-changes discard confirmation (Issue B) -->
+        <ConfirmModal
+            :show="supplierGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="supplierGuard.confirmDiscard"
+            @cancel="supplierGuard.cancelDiscard"
         />
 
     </SettingsLayout>

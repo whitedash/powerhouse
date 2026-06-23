@@ -1137,7 +1137,7 @@ function performComplete() {
             <div
                 v-if="showAllAttention"
                 class="attention-modal-backdrop"
-                @click.self="showAllAttention = false"
+                v-overlay-dismiss="() => (showAllAttention = false)"
             >
                 <div class="attention-modal">
                     <div class="attention-modal-header">

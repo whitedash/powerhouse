@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { reactive, ref } from 'vue';
 
 /**
  * useDirtyClose — unsaved-changes discard safeguard for a panel (Issue B).
@@ -39,7 +39,11 @@ export function useDirtyClose(isDirty, close) {
         confirmingDiscard.value = false;
     }
 
-    return { confirmingDiscard, attemptClose, confirmDiscard, cancelDiscard };
+    // reactive() so the nested `confirmingDiscard` ref auto-unwraps when panels
+    // read it as `guard.confirmingDiscard` (e.g. `:show="guard.confirmingDiscard"`).
+    // A plain object would expose the Ref itself (always truthy), rendering the
+    // discard ConfirmModal permanently.
+    return reactive({ confirmingDiscard, attemptClose, confirmDiscard, cancelDiscard });
 }
 
 export default useDirtyClose;

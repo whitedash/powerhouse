@@ -23,6 +23,7 @@ import {
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import { useDirtyClose } from '@/Composables/useDirtyClose';
 
 const props = defineProps({
     project: { type: Object, required: true },
@@ -707,6 +708,15 @@ function actionLabel(action) {
     };
     return map[action] ?? action;
 }
+
+/* ─── Unsaved-changes discard guards (Issue B). Route every close surface
+ *     (overlay dismiss, X, Escape, Cancel) through <guard>.attemptClose. ─── */
+const editGuard = useDirtyClose(() => editForm.isDirty, () => { showEdit.value = false; });
+const milestoneGuard = useDirtyClose(() => milestoneForm.isDirty, () => { showMilestone.value = false; });
+const logTimeGuard = useDirtyClose(() => logForm.isDirty, () => { showLogTime.value = false; });
+const expenseGuard = useDirtyClose(() => expenseForm.isDirty, () => { showAddExpense.value = false; });
+const invoiceGuard = useDirtyClose(() => invoiceForm.isDirty, () => { showInvoiceModal.value = false; });
+const blockedGuard = useDirtyClose(() => blockedReason.value.trim() !== '', () => { showBlockedModal.value = false; });
 </script>
 
 <template>
@@ -1532,11 +1542,11 @@ function actionLabel(action) {
 
         <!-- ─── Edit project slide-over ─── -->
         <Teleport to="body">
-            <div v-if="showEdit" class="slide-over-overlay" @click.self="showEdit = false">
+            <div v-if="showEdit" class="slide-over-overlay" v-overlay-dismiss="editGuard.attemptClose">
                 <div class="slide-over" style="width: 560px;">
                     <div class="slide-over-head">
                         <h2>Edit project</h2>
-                        <button type="button" class="icon-btn" @click="showEdit = false">
+                        <button type="button" class="icon-btn" @click="editGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -1601,7 +1611,7 @@ function actionLabel(action) {
                         </div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showEdit = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="editGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="editForm.processing" @click="submitEdit">Save</button>
                     </div>
                 </div>
@@ -1610,11 +1620,11 @@ function actionLabel(action) {
 
         <!-- ─── Milestone slide-over ─── -->
         <Teleport to="body">
-            <div v-if="showMilestone" class="slide-over-overlay" @click.self="showMilestone = false">
+            <div v-if="showMilestone" class="slide-over-overlay" v-overlay-dismiss="milestoneGuard.attemptClose">
                 <div class="slide-over" style="width: 460px;">
                     <div class="slide-over-head">
                         <h2>{{ milestoneForm.id ? 'Edit milestone' : 'Add milestone' }}</h2>
-                        <button type="button" class="icon-btn" @click="showMilestone = false">
+                        <button type="button" class="icon-btn" @click="milestoneGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -1644,7 +1654,7 @@ function actionLabel(action) {
                     </form>
                     <div class="slide-over-foot">
                         <button v-if="milestoneForm.id" type="button" class="btn btn-ghost danger" @click="deleteMilestone(milestoneForm.id); showMilestone = false">Delete</button>
-                        <button type="button" class="btn btn-ghost" @click="showMilestone = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="milestoneGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="milestoneForm.processing" @click="submitMilestone">{{ milestoneForm.id ? 'Save' : 'Add' }}</button>
                     </div>
                 </div>
@@ -1653,11 +1663,11 @@ function actionLabel(action) {
 
         <!-- ─── Log time slide-over ─── -->
         <Teleport to="body">
-            <div v-if="showLogTime" class="slide-over-overlay" @click.self="showLogTime = false">
+            <div v-if="showLogTime" class="slide-over-overlay" v-overlay-dismiss="logTimeGuard.attemptClose">
                 <div class="slide-over" style="width: 480px;">
                     <div class="slide-over-head">
                         <h2>Log time</h2>
-                        <button type="button" class="icon-btn" @click="showLogTime = false">
+                        <button type="button" class="icon-btn" @click="logTimeGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -1707,7 +1717,7 @@ function actionLabel(action) {
                         </div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showLogTime = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="logTimeGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="logForm.processing || !logForm.task_id" @click="submitLogTime">Log time</button>
                     </div>
                 </div>
@@ -1716,11 +1726,11 @@ function actionLabel(action) {
 
         <!-- ─── Add expense slide-over (Cost tab) ─── -->
         <Teleport to="body">
-            <div v-if="showAddExpense" class="slide-over-overlay" @click.self="showAddExpense = false">
+            <div v-if="showAddExpense" class="slide-over-overlay" v-overlay-dismiss="expenseGuard.attemptClose">
                 <div class="slide-over" style="width: 480px;">
                     <div class="slide-over-head">
                         <h2>Add expense</h2>
-                        <button type="button" class="icon-btn" @click="showAddExpense = false">
+                        <button type="button" class="icon-btn" @click="expenseGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -1765,7 +1775,7 @@ function actionLabel(action) {
                         </div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showAddExpense = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="expenseGuard.attemptClose">Cancel</button>
                         <button
                             type="button"
                             class="btn btn-primary"
@@ -1779,11 +1789,11 @@ function actionLabel(action) {
 
         <!-- ─── Invoice generation modal ─── -->
         <Teleport to="body">
-            <div v-if="showInvoiceModal" class="slide-over-overlay" @click.self="showInvoiceModal = false">
+            <div v-if="showInvoiceModal" class="slide-over-overlay" v-overlay-dismiss="invoiceGuard.attemptClose">
                 <div class="slide-over" style="width: 560px;">
                     <div class="slide-over-head">
                         <h2>Generate invoice from time</h2>
-                        <button type="button" class="icon-btn" @click="showInvoiceModal = false">
+                        <button type="button" class="icon-btn" @click="invoiceGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -1814,7 +1824,7 @@ function actionLabel(action) {
                         </div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showInvoiceModal = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="invoiceGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="invoiceForm.processing || invoiceForm.entry_ids.length === 0 || !invoiceForm.billing_entity_id" @click="submitInvoice">
                             Generate draft invoice
                         </button>
@@ -1855,11 +1865,11 @@ function actionLabel(action) {
 
         <!-- ─── Blocked-reason modal (replaces window.prompt) ─── -->
         <Teleport to="body">
-            <div v-if="showBlockedModal" class="slide-over-overlay" @click.self="showBlockedModal = false">
+            <div v-if="showBlockedModal" class="slide-over-overlay" v-overlay-dismiss="blockedGuard.attemptClose">
                 <div class="slide-over" style="width: 460px;">
                     <div class="slide-over-head">
                         <h2>What's blocking this task?</h2>
-                        <button type="button" class="icon-btn" @click="showBlockedModal = false">
+                        <button type="button" class="icon-btn" @click="blockedGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -1878,7 +1888,7 @@ function actionLabel(action) {
                         </div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showBlockedModal = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="blockedGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="!blockedReason.trim()" @click="confirmBlocked">Mark blocked</button>
                     </div>
                 </div>
@@ -1887,7 +1897,7 @@ function actionLabel(action) {
 
         <!-- Edit task slide-over -->
         <Teleport to="body">
-            <div v-if="showEditTask" class="slide-over-overlay" @click.self="showEditTask = false">
+            <div v-if="showEditTask" class="slide-over-overlay" v-overlay-dismiss="() => (showEditTask = false)">
                 <div class="slide-over" style="width: 480px;">
                     <div class="slide-over-head">
                         <h2>Edit task</h2>
@@ -1960,6 +1970,68 @@ function actionLabel(action) {
             message="The task and any attached time entries / notes will be removed. This cannot be undone."
             confirm-label="Delete"
             @confirm="confirmDeleteTask"
+        />
+
+        <!-- Unsaved-changes discard confirmations (Issue B) -->
+        <ConfirmModal
+            :show="editGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="editGuard.confirmDiscard"
+            @cancel="editGuard.cancelDiscard"
+        />
+        <ConfirmModal
+            :show="milestoneGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="milestoneGuard.confirmDiscard"
+            @cancel="milestoneGuard.cancelDiscard"
+        />
+        <ConfirmModal
+            :show="logTimeGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="logTimeGuard.confirmDiscard"
+            @cancel="logTimeGuard.cancelDiscard"
+        />
+        <ConfirmModal
+            :show="expenseGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="expenseGuard.confirmDiscard"
+            @cancel="expenseGuard.cancelDiscard"
+        />
+        <ConfirmModal
+            :show="invoiceGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="invoiceGuard.confirmDiscard"
+            @cancel="invoiceGuard.cancelDiscard"
+        />
+        <ConfirmModal
+            :show="blockedGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="blockedGuard.confirmDiscard"
+            @cancel="blockedGuard.cancelDiscard"
         />
     </InternalLayout>
 </template>
