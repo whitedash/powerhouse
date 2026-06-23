@@ -114,18 +114,26 @@ class LeadController extends Controller
         $pipeline = fn ($q) => $q->whereNull('customer_id')
             ->where(fn ($q2) => $q2->whereNull('referral_status')->orWhere('referral_status', 'approved'));
 
+        // KPI chips follow the user's EFFECTIVE scope (phase 3b-iv follow-up):
+        // All/super_admin → whole-pipeline totals (scopeList is a no-op);
+        // Assigned → "my pipeline" (the same assigned_to filter the kanban
+        // uses). $scoped() yields a fresh scoped base per chip. This keeps the
+        // chips consistent with the scoped list instead of showing team totals
+        // to a scoped rep.
+        $scoped = fn () => $this->scopeList(Lead::query(), ScopeArea::Leads);
+
         $summary = [
-            'total' => Lead::where($pipeline)->count(),
-            'new' => Lead::where($pipeline)->where('status', 'new')->count(),
-            'qualified_plus' => Lead::where($pipeline)
+            'total' => $scoped()->where($pipeline)->count(),
+            'new' => $scoped()->where($pipeline)->where('status', 'new')->count(),
+            'qualified_plus' => $scoped()->where($pipeline)
                 ->whereIn('status', ['qualified', 'proposal', 'negotiation'])->count(),
-            'total_pipeline_value' => (float) Lead::where($pipeline)
+            'total_pipeline_value' => (float) $scoped()->where($pipeline)
                 ->whereNotIn('status', ['lost', 'won'])
                 ->sum('estimated_value'),
-            'converted_this_month' => Lead::whereNotNull('customer_id')
+            'converted_this_month' => $scoped()->whereNotNull('customer_id')
                 ->where('converted_at', '>=', now()->startOfMonth())
                 ->count(),
-            'pending_review' => Lead::whereNull('customer_id')
+            'pending_review' => $scoped()->whereNull('customer_id')
                 ->where('referral_status', 'pending_review')->count(),
         ];
 

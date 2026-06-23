@@ -120,6 +120,24 @@ class LeadScopeTest extends TestCase
 
     // ─── Index list filtered ───
 
+    public function test_index_kpis_follow_effective_scope(): void
+    {
+        // 3b-iv follow-up: the KPI chips reflect the user's effective scope, not
+        // team totals — Assigned → "my pipeline"; All → whole pipeline.
+        $user = $this->userWith('Leads KPI', AccessScope::Assigned);
+        $other = User::factory()->create();
+        $this->lead(['created_by' => $other->id, 'assigned_to' => $user->id, 'status' => 'new']);
+        $this->lead(['created_by' => $other->id, 'assigned_to' => $other->id, 'status' => 'new']);
+        $this->lead(['created_by' => $other->id, 'assigned_to' => $other->id, 'status' => 'new']);
+
+        $this->actingAs($user)->get('/leads')->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->where('summary.total', 1)->where('summary.new', 1));
+
+        $staff = User::factory()->create(); // All → unchanged whole-pipeline totals
+        $this->actingAs($staff)->get('/leads')->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->where('summary.total', 3)->where('summary.new', 3));
+    }
+
     public function test_index_lists_only_assigned_leads_and_all_sees_everything(): void
     {
         $user = $this->userWith('Leads Idx', AccessScope::Assigned);

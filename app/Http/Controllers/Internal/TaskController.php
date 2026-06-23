@@ -51,7 +51,17 @@ class TaskController extends Controller
             'contact:id,customer_id,name,email,phone,job_title',
             'assignedTo:id,name,avatar_colour,role',
             'createdBy:id,name',
-            'ticket:id,subject,status',
+            // A triage task can link to a support ticket; its subject is shown
+            // on the activity page. That cross-reference rides the SAME composed
+            // Support scope (phase 3b-iv) — under Assigned the ticket only loads
+            // if it's the user's own (or unassigned + view_unassigned); else it
+            // resolves null and the subject is hidden. The task itself stays
+            // visible (its own Tasks-scope gate already ran). The WHERE on
+            // assigned_to applies in SQL despite the column subset selected.
+            'ticket' => function ($q) use ($request) {
+                $q->select('id', 'subject', 'status', 'assigned_to');
+                ScopeEnforcer::constrainRelation($q, $request->user(), ScopeArea::Support);
+            },
             'parentTask:id,title,type',
             'notes' => fn ($q) => $q->orderBy('created_at')
                 ->with('author:id,name,avatar_colour'),

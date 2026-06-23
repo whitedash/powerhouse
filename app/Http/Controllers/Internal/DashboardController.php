@@ -275,10 +275,15 @@ class DashboardController extends Controller
                 ]);
             });
 
-        // SLA-breached tickets — red.
-        SupportTicket::whereIn('status', ['open', 'in_progress'])
-            ->whereNotNull('sla_breach_at')
-            ->where('sla_breach_at', '<', $now)
+        // SLA-breached tickets — red. Scoped (phase 3b-iv): the widget lists
+        // ticket subjects, so Assigned sees only their own (+ unassigned pool
+        // with view_unassigned); None sees none. All/super_admin unchanged.
+        $this->scopeList(
+            SupportTicket::whereIn('status', ['open', 'in_progress'])
+                ->whereNotNull('sla_breach_at')
+                ->where('sla_breach_at', '<', $now),
+            ScopeArea::Support,
+        )
             ->with('customer:id,name')
             ->orderBy('sla_breach_at')
             ->get()

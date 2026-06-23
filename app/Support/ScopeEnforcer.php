@@ -7,13 +7,13 @@ use App\Enums\ScopeArea;
 use App\Models\Lead;
 use App\Models\Project;
 use App\Models\RoleScope;
+use App\Models\SupportTicket;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use LogicException;
 
 /**
  * Shared scope-enforcement mechanism for the four scoped sections
@@ -89,7 +89,7 @@ class ScopeEnforcer
             return $query->whereRaw('1 = 0'); // matches nothing
         }
 
-        return self::assignedListFilter($query, $area, (int) $user->id);
+        return self::assignedListFilter($query, $area, $user);
     }
 
     /**
@@ -107,7 +107,7 @@ class ScopeEnforcer
             return false;
         }
 
-        return self::assignedItemAllows($area, $item, (int) $user->id);
+        return self::assignedItemAllows($area, $item, $user);
     }
 
     /**
@@ -141,20 +141,28 @@ class ScopeEnforcer
 
         // Same per-area expression the list path uses — applied to the
         // relation's query so the seam stays the single source of truth.
-        self::assignedListFilter($relation->getQuery(), $area, (int) $user->id);
+        self::assignedListFilter($relation->getQuery(), $area, $user);
     }
 
     /**
      * PER-AREA SEAM — the "Assigned" list filter. Projects = pivot membership;
-     * Tasks / Leads = own assignment. (Support adds its arm in the last phase.)
+     * Tasks / Leads = own assignment; Support = own assignment COMPOSED with the
+     * support.view_unassigned permission.
+     *
+     * Takes the full User (not just its id) because Support's clause SHAPE
+     * depends per-user on a permission — phase 3b-iv evolved this signature from
+     * int $userId to User $user so the seam arm can ask hasPermissionTo(). The
+     * three callers all already hold the validated User, so it's a clean change.
      *
      * @template TModel of Model
      *
      * @param  Builder<TModel>  $query
      * @return Builder<TModel>
      */
-    private static function assignedListFilter(Builder $query, ScopeArea $area, int $userId): Builder
+    private static function assignedListFilter(Builder $query, ScopeArea $area, User $user): Builder
     {
+        $userId = (int) $user->id;
+
         return match ($area) {
             ScopeArea::Projects => $query->whereHas('members', fn ($q) => $q->where('user_id', $userId)),
             // Tasks: "Assigned" is STRICTLY the assignee — deliberately NOT
@@ -168,7 +176,21 @@ class ScopeEnforcer
             // lead assigned to nobody is, deliberately, not "mine". (Leads has
             // no "view unassigned" composition permission, unlike Support.)
             ScopeArea::Leads => $query->where('assigned_to', $userId),
-            default => throw new LogicException("No Assigned-scope list filter registered for area: {$area->value}"),
+            // Support: own assignment, COMPOSED with support.view_unassigned.
+            // Without the permission → only own tickets (NULL excluded). WITH it
+            // → own tickets PLUS the unassigned intake pool, but NEVER another
+            // agent's ticket. (super_admin/All never reach here — they short-
+            // circuit to All in effectiveScope.) The grouped where keeps the
+            // OR from leaking past any other clauses chained onto the query.
+            ScopeArea::Support => $query->where(function (Builder $q) use ($user, $userId): void {
+                $q->where('assigned_to', $userId);
+                if ($user->hasPermissionTo('support.view_unassigned')) {
+                    $q->orWhereNull('assigned_to');
+                }
+            }),
+            // No default: the match is exhaustive over ScopeArea's four cases,
+            // so a NEW area becomes a compile-time gap here (caught by PHPStan /
+            // PHP's UnhandledMatchError) rather than silently slipping through.
         };
     }
 
@@ -176,8 +198,10 @@ class ScopeEnforcer
      * PER-AREA SEAM — the "Assigned" per-item predicate (same ownership rule
      * as assignedListFilter, evaluated against one model).
      */
-    private static function assignedItemAllows(ScopeArea $area, Model $item, int $userId): bool
+    private static function assignedItemAllows(ScopeArea $area, Model $item, User $user): bool
     {
+        $userId = (int) $user->id;
+
         return match ($area) {
             ScopeArea::Projects => $item instanceof Project
                 && $item->members()->where('user_id', $userId)->exists(),
@@ -188,7 +212,13 @@ class ScopeEnforcer
             // NULL-assigned lead fails the === comparison, so it's not "mine".
             ScopeArea::Leads => $item instanceof Lead
                 && $item->assigned_to === $userId,
-            default => throw new LogicException("No Assigned-scope item check registered for area: {$area->value}"),
+            // Mirror of the Support list filter's composition: own ticket always;
+            // an unassigned ticket ONLY with support.view_unassigned; another
+            // agent's ticket never.
+            ScopeArea::Support => $item instanceof SupportTicket
+                && ($item->assigned_to === $userId
+                    || ($item->assigned_to === null && $user->hasPermissionTo('support.view_unassigned'))),
+            // Exhaustive over ScopeArea — see assignedListFilter.
         };
     }
 }

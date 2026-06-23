@@ -33,11 +33,17 @@ class SupportController extends Controller
 
     public function index(Request $request): Response
     {
+        // None scope (phase 3b-iv) is walled off the helpdesk entirely.
+        $this->authorizeScopeSection(ScopeArea::Support);
+
         $statusFilter = $request->string('status')->toString() ?: null;
         $priorityFilter = $request->string('priority')->toString() ?: null;
         $search = $request->string('search')->toString() ?: null;
 
-        $tickets = SupportTicket::query()
+        // Mandatory composed filter (phase 3b-iv): All → every ticket; Assigned
+        // → own tickets, PLUS the unassigned intake pool iff the agent holds
+        // support.view_unassigned, but NEVER another agent's; None → 403 above.
+        $tickets = $this->scopeList(SupportTicket::query(), ScopeArea::Support)
             ->with(['customer:id,name', 'assignedTo:id,name'])
             ->withCount('messages')
             ->when($statusFilter, fn ($q, $s) => $q->where('status', $s))
@@ -120,6 +126,11 @@ class SupportController extends Controller
             'assignedTo:id,name',
         ])->findOrFail($id);
 
+        // Scope (phase 3b-iv): a ticket outside the user's composed scope is
+        // blocked by direct ID — own = allow; unassigned = allow only with
+        // support.view_unassigned; another agent's = 403; All/super_admin = any.
+        $this->authorizeScopeItem(ScopeArea::Support, $ticket);
+
         // Active products this customer is on — surfaced in the
         // sidebar so support staff have the context without a tab
         // switch into the customer record.
@@ -190,6 +201,9 @@ class SupportController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        // None scope (phase 3b-iv): no opening a ticket it could never see.
+        $this->authorizeScopeSection(ScopeArea::Support);
+
         $data = $request->validate([
             'customer_id' => ['required', 'integer', 'exists:customers,id'],
             'subject' => ['required', 'string', 'max:255'],
@@ -247,6 +261,11 @@ class SupportController extends Controller
     public function reply(int $id, Request $request): RedirectResponse
     {
         $ticket = SupportTicket::with('customer.primaryContact')->findOrFail($id);
+        // Scope (phase 3b-iv): same composition as show. A self-serve agent
+        // (Assigned + view_unassigned) may reply to an UNASSIGNED ticket — the
+        // gate permits it; the ticket stays in the pool until claimed via
+        // updateStatus. Another agent's ticket → 403.
+        $this->authorizeScopeItem(ScopeArea::Support, $ticket);
 
         $data = $request->validate([
             'message' => ['required', 'string', 'max:5000'],
@@ -334,6 +353,9 @@ class SupportController extends Controller
         $this->authorizeScopeSection(ScopeArea::Tasks);
 
         $ticket = SupportTicket::with('customer:id,name')->findOrFail($id);
+        // Scope (phase 3b-iv): must be able to SEE the ticket to spin a task off
+        // it. Composes with the Tasks section gate above.
+        $this->authorizeScopeItem(ScopeArea::Support, $ticket);
 
         $data = $request->validate([
             'title' => ['required', 'string', 'max:500'],
@@ -397,6 +419,10 @@ class SupportController extends Controller
     public function updateStatus(int $id, Request $request): RedirectResponse
     {
         $ticket = SupportTicket::findOrFail($id);
+        // Scope (phase 3b-iv): gate on the CURRENT assignment (pre-update). A
+        // self-serve agent can claim an unassigned ticket here (allowed, then
+        // sets assigned_to); a plain Assigned agent can't touch another's.
+        $this->authorizeScopeItem(ScopeArea::Support, $ticket);
 
         $data = $request->validate([
             'status' => ['required', 'in:open,in_progress,awaiting_customer,resolved,closed'],
@@ -473,14 +499,19 @@ class SupportController extends Controller
      */
     private function buildSummary(): array
     {
+        // KPI chips follow the SAME composed scope as the list (phase 3b-iv):
+        // All → whole-desk counts; Assigned → the agent's own (+ unassigned pool
+        // with view_unassigned). $scoped() yields a fresh scoped base per call.
+        $scoped = fn () => $this->scopeList(SupportTicket::query(), ScopeArea::Support);
+
         return [
-            'open' => SupportTicket::where('status', 'open')->count(),
-            'in_progress' => SupportTicket::where('status', 'in_progress')->count(),
-            'awaiting_customer' => SupportTicket::where('status', 'awaiting_customer')->count(),
-            'sla_breached' => SupportTicket::whereIn('status', ['open', 'in_progress'])
+            'open' => $scoped()->where('status', 'open')->count(),
+            'in_progress' => $scoped()->where('status', 'in_progress')->count(),
+            'awaiting_customer' => $scoped()->where('status', 'awaiting_customer')->count(),
+            'sla_breached' => $scoped()->whereIn('status', ['open', 'in_progress'])
                 ->where('sla_breach_at', '<', now())
                 ->count(),
-            'resolved_today' => SupportTicket::where('status', 'resolved')
+            'resolved_today' => $scoped()->where('status', 'resolved')
                 ->where('updated_at', '>=', now()->startOfDay())
                 ->count(),
         ];
