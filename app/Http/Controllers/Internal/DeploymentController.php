@@ -96,6 +96,25 @@ class DeploymentController extends Controller
     }
 
     /**
+     * Run the roles & permissions seeder — the cutover step that populates the
+     * roles/permissions/scope tables and backfills existing users into Spatie.
+     * Idempotent (findOrCreate / syncPermissions / updateOrCreate / assignRole),
+     * so re-running converges without duplicating. Reachable pre-cutover: the
+     * super_admin bypass is Gate::before (enum isSuperAdmin), not the not-yet-
+     * seeded deployment.run permission.
+     */
+    public function seedRoles(Request $request): RedirectResponse
+    {
+        Gate::authorize('manage-deployment');
+
+        return $this->run($request, 'seed-roles', function (): string {
+            Artisan::call('db:seed', ['--class' => 'RolesAndPermissionsSeeder', '--force' => true]);
+
+            return trim(Artisan::output());
+        });
+    }
+
+    /**
      * Run one maintenance action: capture its output, log it, flash the
      * result back to the Deployment page.
      */
@@ -113,7 +132,7 @@ class DeploymentController extends Controller
 
         $this->log($request, $action, $ok, $output);
 
-        $labels = ['migrate' => 'Migrations', 'clear-cache' => 'Caches', 'run-both' => 'Migrations + caches'];
+        $labels = ['migrate' => 'Migrations', 'clear-cache' => 'Caches', 'run-both' => 'Migrations + caches', 'seed-roles' => 'Roles seed'];
         $label = $labels[$action] ?? $action;
 
         return back()

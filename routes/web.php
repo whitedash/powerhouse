@@ -814,6 +814,8 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
                 ->middleware('throttle:10,1')->name('deployment.clear-cache');
             Route::post('/deployment/run-both', [InternalDeploymentController::class, 'runBoth'])
                 ->middleware('throttle:10,1')->name('deployment.run-both');
+            Route::post('/deployment/seed-roles', [InternalDeploymentController::class, 'seedRoles'])
+                ->middleware('throttle:10,1')->name('deployment.seed-roles');
         });
     });
 

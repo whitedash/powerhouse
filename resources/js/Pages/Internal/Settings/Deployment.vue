@@ -7,7 +7,7 @@
  */
 import { ref, computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
-import { IconRefresh, IconDatabase, IconTrash, IconPlayerPlay, IconCircleCheck, IconAlertTriangle, IconChevronLeft, IconChevronRight } from '@tabler/icons-vue';
+import { IconRefresh, IconDatabase, IconTrash, IconPlayerPlay, IconShieldLock, IconCircleCheck, IconAlertTriangle, IconChevronLeft, IconChevronRight } from '@tabler/icons-vue';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 
@@ -55,6 +55,13 @@ const ACTIONS = {
         title: 'Run migrations and clear caches?',
         message: 'Runs migrations (--force) then clears all caches. The usual post-deploy step.',
         confirmLabel: 'Run both',
+        variant: 'warning',
+    },
+    'seed-roles': {
+        url: '/settings/deployment/seed-roles',
+        title: 'Seed roles & permissions?',
+        message: 'Runs RolesAndPermissionsSeeder — creates the staff/super_admin roles, permissions, and scope rows, and backfills existing users into Spatie. Idempotent: safe to re-run (it converges, never duplicates). Run this once after migrations during the roles cutover.',
+        confirmLabel: 'Seed roles',
         variant: 'warning',
     },
 };
@@ -182,7 +189,14 @@ function refresh() {
                     <button type="button" class="btn btn-secondary" :disabled="processing" @click="ask('run-both')">
                         <IconPlayerPlay :size="15" stroke-width="1.75" /> Run both
                     </button>
+                    <button type="button" class="btn btn-secondary" :disabled="processing" @click="ask('seed-roles')">
+                        <IconShieldLock :size="15" stroke-width="1.75" /> Seed roles
+                    </button>
                 </div>
+                <p class="muted small dep-actions-note">
+                    <strong>Seed roles</strong> runs RolesAndPermissionsSeeder (the roles cutover step — run once after migrations).
+                    It is <strong>idempotent</strong>: safe to re-run, it converges without duplicating.
+                </p>
             </section>
 
             <!-- Last run output -->
@@ -233,5 +247,6 @@ function refresh() {
 .dep-pending-list li { font-weight: 600; color: var(--warning, #b45309); }
 .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; }
 .dep-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.dep-actions-note { margin: 10px 0 0; line-height: 1.5; }
 .dep-output { background: var(--ink, #111b28); color: var(--on-dark, #eef2f7); border-radius: var(--radius-md, 8px); padding: 12px 14px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; line-height: 1.5; overflow-x: auto; white-space: pre-wrap; word-break: break-word; max-height: 360px; overflow-y: auto; }
 </style>
