@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Public\ProposalAcceptanceController;
 use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Milestone;
 use App\Models\PaymentScheduleItem;
+use App\Models\Project;
 use App\Models\Task;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -36,6 +38,9 @@ class MilestoneController extends Controller
             'due_date' => 'nullable|date',
             'sort_order' => 'nullable|integer|min:0',
         ]);
+
+        // Scope (phase 3b): can't add a milestone to a project outside scope.
+        $this->authorizeScopeItem(ScopeArea::Projects, Project::findOrFail($data['project_id']));
 
         $milestone = DB::transaction(function () use ($data, $request) {
             // If the operator didn't pass a sort_order, drop the new
@@ -66,6 +71,7 @@ class MilestoneController extends Controller
         Gate::authorize('viewAny', Customer::class);
 
         $milestone = Milestone::findOrFail($id);
+        $this->authorizeScopeItem(ScopeArea::Projects, Project::findOrFail($milestone->project_id));
 
         $data = $request->validate([
             'title' => 'required|string|max:255',
@@ -122,6 +128,7 @@ class MilestoneController extends Controller
         Gate::authorize('viewAny', Customer::class);
 
         $milestone = Milestone::findOrFail($id);
+        $this->authorizeScopeItem(ScopeArea::Projects, Project::findOrFail($milestone->project_id));
 
         DB::transaction(function () use ($milestone, $request) {
             // Detach tasks rather than deleting them — work logged
@@ -157,6 +164,16 @@ class MilestoneController extends Controller
             'items.*.id' => 'required|integer|exists:milestones,id',
             'items.*.sort_order' => 'required|integer|min:0',
         ]);
+
+        // Scope (phase 3b): every milestone being reordered must belong to a
+        // project the user can access — don't let an Assigned user reorder a
+        // non-member project's board by ID.
+        $projectIds = Milestone::whereIn('id', collect($data['items'])->pluck('id'))
+            ->pluck('project_id')
+            ->unique();
+        foreach ($projectIds as $projectId) {
+            $this->authorizeScopeItem(ScopeArea::Projects, Project::findOrFail($projectId));
+        }
 
         DB::transaction(function () use ($data) {
             foreach ($data['items'] as $item) {

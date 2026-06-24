@@ -4,6 +4,7 @@ import { Link } from '@inertiajs/vue3';
 import {
     IconBuildingCog,
     IconUsers,
+    IconShieldLock,
     IconCreditCard,
     IconShieldCheck,
     IconBell,
@@ -26,6 +27,7 @@ const props = defineProps({
 const items = computed(() => [
     { key: 'general', label: 'General', href: '/settings', icon: IconBuildingCog },
     { key: 'team', label: 'Team members', href: '/settings/team', icon: IconUsers },
+    { key: 'roles', label: 'Roles & permissions', href: '/settings/roles', icon: IconShieldLock },
     { key: 'billing-entities', label: 'Billing entities', href: '/settings/billing-entities', icon: IconCreditCard },
     { key: 'security', label: 'Security', href: '/settings/security', icon: IconShieldCheck },
     { key: 'notifications', label: 'Notifications', href: '/settings/notifications', icon: IconBell },

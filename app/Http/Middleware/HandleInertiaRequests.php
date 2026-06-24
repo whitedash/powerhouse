@@ -2,10 +2,16 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\AccessScope;
+use App\Enums\ScopeArea;
 use App\Models\Invoice;
 use App\Models\PortalUser;
 use App\Models\Product;
 use App\Models\SupportTicket;
+use App\Support\ScopeEnforcer;
+use Closure;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -116,18 +122,21 @@ class HandleInertiaRequests extends Middleware
                         60,
                         fn () => Invoice::where('status', 'sent')->count(),
                     ),
-                    'support_sla_breached' => Cache::remember(
+                    // Support badges follow the composed Support scope (phase
+                    // 3b-iv), consistent with the now-scoped helpdesk list +
+                    // KPIs — otherwise a scoped agent would see the platform
+                    // total in the nav but their own slice on the page.
+                    'support_sla_breached' => $this->supportBadge(
+                        $request->user(),
                         'nav.support_sla_breached',
-                        60,
-                        fn () => SupportTicket::whereNotIn('status', ['resolved', 'closed'])
+                        fn (Builder $q) => $q->whereNotIn('status', ['resolved', 'closed'])
                             ->whereNotNull('sla_breach_at')
-                            ->where('sla_breach_at', '<', now())
-                            ->count(),
+                            ->where('sla_breach_at', '<', now()),
                     ),
-                    'support_open' => Cache::remember(
+                    'support_open' => $this->supportBadge(
+                        $request->user(),
                         'nav.support_open',
-                        60,
-                        fn () => SupportTicket::whereNotIn('status', ['resolved', 'closed'])->count(),
+                        fn (Builder $q) => $q->whereNotIn('status', ['resolved', 'closed']),
                     ),
                 ]
                 : null,
@@ -182,5 +191,36 @@ class HandleInertiaRequests extends Middleware
                 ? $request->user()->unreadNotifications()->count()
                 : 0,
         ]);
+    }
+
+    /**
+     * A support nav-badge count under the user's composed Support scope.
+     *
+     * All-scope users (staff/super_admin — the common case) keep the shared,
+     * cached platform count: fast, and the existing Cache::forget('nav.support_*')
+     * invalidation on any ticket status/SLA change still applies. Assigned agents
+     * get a per-user composed count (own + unassigned-with-permission), computed
+     * per request because it isn't shareable. None → 0.
+     *
+     * Takes ?Authenticatable (not User) because the nav is shared for ANY guard —
+     * a PortalUser falls through effectiveScope to None → 0 (the portal UI ignores
+     * these internal badges anyway), which also avoids a type error on portal pages.
+     *
+     * @param  Closure(Builder<SupportTicket>): Builder<SupportTicket>  $filter
+     */
+    private function supportBadge(?Authenticatable $user, string $cacheKey, Closure $filter): int
+    {
+        $scope = ScopeEnforcer::effectiveScope($user, ScopeArea::Support);
+
+        if ($scope === AccessScope::None) {
+            return 0;
+        }
+
+        if ($scope === AccessScope::All) {
+            return Cache::remember($cacheKey, 60, fn (): int => $filter(SupportTicket::query())->count());
+        }
+
+        // Assigned: compose the scope filter, then the badge's status/SLA filter.
+        return $filter(ScopeEnforcer::applyToList(SupportTicket::query(), $user, ScopeArea::Support))->count();
     }
 }

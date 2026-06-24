@@ -11,6 +11,16 @@ use Illuminate\Database\Eloquent\Model;
  * true run order (newest first).
  *
  * No timestamps — the framework table has only id/migration/batch.
+ *
+ * Columns are declared explicitly here because the `migrations` table is
+ * created by the framework migrator, not a repo migration, so larastan's
+ * migration scanner can't infer them (and adding Spatie's config()-driven
+ * permission migration disrupts the scan's fallback). Pure type annotation
+ * — no behaviour change.
+ *
+ * @property int $id
+ * @property string $migration
+ * @property int $batch
  */
 class SchemaMigration extends Model
 {

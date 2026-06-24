@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Models\Contact;
 use App\Models\Customer;
@@ -125,7 +126,10 @@ class SearchController extends Controller
         // ── Open / in-progress / awaiting tickets. Resolved tickets
         //    aren't in the result set because they're not actionable
         //    work — search them via the Support page filter instead.
-        $tickets = SupportTicket::with('customer:id,name')
+        // Support scope (phase 3b-iv): ⌘K must not surface ticket subjects the
+        // user can't see. Composed filter — All → any; Assigned → own (+ the
+        // unassigned pool with view_unassigned); None → none.
+        $tickets = $this->scopeList(SupportTicket::with('customer:id,name'), ScopeArea::Support)
             ->where('subject', 'like', "%{$q}%")
             ->whereIn('status', ['open', 'in_progress', 'awaiting_customer'])
             ->take(3)

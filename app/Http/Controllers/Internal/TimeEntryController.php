@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Customer;
+use App\Models\Project;
 use App\Models\Task;
 use App\Models\TimeEntry;
 use Illuminate\Http\RedirectResponse;
@@ -49,6 +51,9 @@ class TimeEntryController extends Controller
             return back()->with('error', 'Time can only be logged on tasks that belong to a project.');
         }
 
+        // Scope (phase 3b): can't log time against a project outside scope.
+        $this->authorizeScopeItem(ScopeArea::Projects, Project::findOrFail($task->project_id));
+
         $entry = TimeEntry::create([
             'task_id' => $task->id,
             'project_id' => $task->project_id,
@@ -74,6 +79,10 @@ class TimeEntryController extends Controller
         Gate::authorize('viewAny', Customer::class);
 
         $entry = TimeEntry::findOrFail($id);
+        // Scope (phase 3b) governs VISIBILITY and composes with the owner-only
+        // mutation check below — the user must satisfy BOTH (project in scope
+        // AND owns the entry). Scope is checked first.
+        $this->authorizeScopeItem(ScopeArea::Projects, Project::findOrFail($entry->project_id));
         $user = $request->user();
 
         if ($entry->user_id !== $user->id && ! $user->isSuperAdmin()) {
@@ -105,6 +114,10 @@ class TimeEntryController extends Controller
         Gate::authorize('viewAny', Customer::class);
 
         $entry = TimeEntry::findOrFail($id);
+        // Scope (phase 3b) governs VISIBILITY and composes with the owner-only
+        // mutation check below — the user must satisfy BOTH (project in scope
+        // AND owns the entry). Scope is checked first.
+        $this->authorizeScopeItem(ScopeArea::Projects, Project::findOrFail($entry->project_id));
         $user = $request->user();
 
         if ($entry->user_id !== $user->id && ! $user->isSuperAdmin()) {

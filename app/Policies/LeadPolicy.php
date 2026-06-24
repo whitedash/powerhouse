@@ -7,11 +7,13 @@ use App\Models\User;
 /**
  * Leads carry two distinct actor lanes:
  *  - register: a referrer (role=referrer) with an active referrer record
- *    submitting a deal from the partner portal.
- *  - review:   staff approving/rejecting a registered deal.
+ *    submitting a deal from the partner portal. UNCHANGED in phase 3a —
+ *    this is a referrer check, not an internal capability, and referrer is
+ *    not part of the permission system.
+ *  - review:   an operator approving/rejecting a registered deal — phase 3a
+ *    gates this on leads.manage (super_admin via Gate::before).
  *
- * The existing pipeline CRUD on LeadController still rides CustomerPolicy
- * (viewAny) — this policy only governs the deal-registration abilities.
+ * The pipeline CRUD on LeadController still rides CustomerPolicy (viewAny).
  */
 class LeadPolicy
 {
@@ -24,6 +26,6 @@ class LeadPolicy
 
     public function review(User $user): bool
     {
-        return $user->isStaff();
+        return $user->hasPermissionTo('leads.manage');
     }
 }

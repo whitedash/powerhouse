@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\CommissionLedger;
@@ -274,10 +275,15 @@ class DashboardController extends Controller
                 ]);
             });
 
-        // SLA-breached tickets — red.
-        SupportTicket::whereIn('status', ['open', 'in_progress'])
-            ->whereNotNull('sla_breach_at')
-            ->where('sla_breach_at', '<', $now)
+        // SLA-breached tickets — red. Scoped (phase 3b-iv): the widget lists
+        // ticket subjects, so Assigned sees only their own (+ unassigned pool
+        // with view_unassigned); None sees none. All/super_admin unchanged.
+        $this->scopeList(
+            SupportTicket::whereIn('status', ['open', 'in_progress'])
+                ->whereNotNull('sla_breach_at')
+                ->where('sla_breach_at', '<', $now),
+            ScopeArea::Support,
+        )
             ->with('customer:id,name')
             ->orderBy('sla_breach_at')
             ->get()
@@ -341,8 +347,12 @@ class DashboardController extends Controller
         // work that can't proceed without someone unblocking; the
         // sub-label exposes the reason inline.
         if ($userId !== null) {
-            Task::where('status', 'blocked')
-                ->where('assigned_to', $userId)
+            // Already self-filtered; scopeList no-ops under All/Assigned and
+            // empties this widget under None (phase 3b-ii: no task visibility).
+            $this->scopeList(
+                Task::where('status', 'blocked')->where('assigned_to', $userId),
+                ScopeArea::Tasks,
+            )
                 ->take(2)
                 ->get()
                 ->each(function (Task $t) use ($items) {
@@ -360,10 +370,17 @@ class DashboardController extends Controller
         // New leads — amber. Anything created in the last 48h that
         // hasn't moved off 'new' yet is a fair signal someone needs
         // to make first contact. Capped at 2 so the panel doesn't
-        // drown out invoices and tickets on busy weeks.
-        Lead::where('status', 'new')
-            ->whereNull('customer_id')
-            ->where('created_at', '>=', $now->copy()->subDays(2))
+        // drown out invoices and tickets on busy weeks. Scoped (phase
+        // 3b-iii): the widget lists lead identities, so Assigned sees only
+        // their own (new leads are usually unassigned → empty, which is
+        // correct — triaging/assigning new leads is an All-scope job); None
+        // sees none. All/super_admin unchanged.
+        $this->scopeList(
+            Lead::where('status', 'new')
+                ->whereNull('customer_id')
+                ->where('created_at', '>=', $now->copy()->subDays(2)),
+            ScopeArea::Leads,
+        )
             ->orderByDesc('created_at')
             ->take(2)
             ->get()
@@ -385,10 +402,15 @@ class DashboardController extends Controller
         // Scoped to the operator because the dashboard is personal:
         // someone else's overdue task isn't *your* problem.
         if ($userId !== null) {
-            Task::whereNotIn('status', ['complete', 'cancelled'])
-                ->whereNotNull('due_at')
-                ->where('due_at', '<', $now)
-                ->where('assigned_to', $userId)
+            // Self-filtered already; scopeList no-ops under All/Assigned and
+            // empties under None (phase 3b-ii).
+            $this->scopeList(
+                Task::whereNotIn('status', ['complete', 'cancelled'])
+                    ->whereNotNull('due_at')
+                    ->where('due_at', '<', $now)
+                    ->where('assigned_to', $userId),
+                ScopeArea::Tasks,
+            )
                 ->with('customer:id,name')
                 ->orderBy('due_at')
                 ->get()
@@ -489,7 +511,9 @@ class DashboardController extends Controller
             return [];
         }
 
-        return Task::where('assigned_to', $userId)
+        // Self-filtered already; scopeList no-ops under All/Assigned and
+        // empties the sidebar list under None (phase 3b-ii).
+        return $this->scopeList(Task::where('assigned_to', $userId), ScopeArea::Tasks)
             // After the PM sprint, "open" became any non-terminal
             // status — the dashboard sidebar list still wants
             // anything actionable on this operator's plate.

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Jobs\ScanProjectFile;
 use App\Models\ActivityLog;
@@ -26,6 +27,7 @@ class ProjectFileController extends Controller
     {
         Gate::authorize('viewAny', Customer::class);
         $project = Project::findOrFail($projectId);
+        $this->authorizeScopeItem(ScopeArea::Projects, $project);
 
         $request->validate([
             'files' => ['required', 'array', 'min:1', 'max:10'],
@@ -76,6 +78,7 @@ class ProjectFileController extends Controller
     {
         Gate::authorize('viewAny', Customer::class);
         $file = ProjectFile::findOrFail($fileId);
+        $this->authorizeScopeItem(ScopeArea::Projects, Project::findOrFail($file->project_id));
 
         if ($file->scan_status === 'infected') {
             abort(403, 'This file has been flagged as malicious.');
@@ -103,6 +106,7 @@ class ProjectFileController extends Controller
     {
         Gate::authorize('viewAny', Customer::class);
         $file = ProjectFile::findOrFail($fileId);
+        $this->authorizeScopeItem(ScopeArea::Projects, Project::findOrFail($file->project_id));
 
         if ($file->path !== '') {
             Storage::disk('private')->delete($file->path);

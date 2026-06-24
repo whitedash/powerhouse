@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\Task;
@@ -33,7 +34,10 @@ class MyWorkController extends Controller
         $userId = $request->user()->id;
         $now = now();
 
-        $allTasks = Task::where('assigned_to', $userId)
+        // MyWork is intrinsically self-only (assigned_to = me); scopeList only
+        // ADDS constraints, so it's a no-op under All/Assigned and correctly
+        // empties the page under None (phase 3b-ii: None = no task visibility).
+        $allTasks = $this->scopeList(Task::where('assigned_to', $userId), ScopeArea::Tasks)
             ->whereNotIn('status', ['complete', 'cancelled'])
             ->with([
                 'project:id,title,colour',
@@ -156,7 +160,9 @@ class MyWorkController extends Controller
         $start = Carbon::parse($request->string('start')->toString() ?: now()->startOfMonth()->toDateString());
         $end = Carbon::parse($request->string('end')->toString() ?: now()->endOfMonth()->toDateString());
 
-        $tasks = Task::where('assigned_to', $user->id)
+        // Self-only already (assigned_to = me); scopeList no-ops under
+        // All/Assigned and empties the calendar feed under None (phase 3b-ii).
+        $tasks = $this->scopeList(Task::where('assigned_to', $user->id), ScopeArea::Tasks)
             ->whereNotIn('status', ['complete', 'cancelled'])
             ->where(function ($q) use ($start, $end): void {
                 $q->whereBetween('due_at', [$start, $end])

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Contact;
@@ -14,6 +15,7 @@ use App\Models\User;
 use App\Services\FileUploadService;
 use App\Services\GoogleCalendarService;
 use App\Services\NotificationService;
+use App\Support\ScopeEnforcer;
 use App\Support\TaskDueDate;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -42,18 +44,42 @@ class TaskController extends Controller
     {
         $task = Task::with([
             'customer:id,name,city',
-            'lead:id,first_name,last_name,company',
+            // assigned_to is needed for the lead-scope gate below (phase
+            // 3b-iii) — a partial select without it reads NULL and would
+            // wrongly block the owner from their own lead-linked activity.
+            'lead:id,first_name,last_name,company,assigned_to',
             'contact:id,customer_id,name,email,phone,job_title',
             'assignedTo:id,name,avatar_colour,role',
             'createdBy:id,name',
-            'ticket:id,subject,status',
+            // A triage task can link to a support ticket; its subject is shown
+            // on the activity page. That cross-reference rides the SAME composed
+            // Support scope (phase 3b-iv) — under Assigned the ticket only loads
+            // if it's the user's own (or unassigned + view_unassigned); else it
+            // resolves null and the subject is hidden. The task itself stays
+            // visible (its own Tasks-scope gate already ran). The WHERE on
+            // assigned_to applies in SQL despite the column subset selected.
+            'ticket' => function ($q) use ($request) {
+                $q->select('id', 'subject', 'status', 'assigned_to');
+                ScopeEnforcer::constrainRelation($q, $request->user(), ScopeArea::Support);
+            },
             'parentTask:id,title,type',
             'notes' => fn ($q) => $q->orderBy('created_at')
                 ->with('author:id,name,avatar_colour'),
-            'childTasks' => fn ($q) => $q->with('assignedTo:id,name,avatar_colour'),
+            // Child tasks ride the Tasks scope too — under Assigned, a parent
+            // surfaces only the user's own sub-tasks (super_admin/All: all).
+            'childTasks' => function ($q) use ($request) {
+                $q->with('assignedTo:id,name,avatar_colour');
+                ScopeEnforcer::constrainRelation($q, $request->user(), ScopeArea::Tasks);
+            },
             'attachments' => fn ($q) => $q->orderByDesc('created_at')
                 ->with('uploadedBy:id,name'),
         ])->findOrFail($id);
+
+        // Scope gate FIRST: under Assigned, a task not assigned to the user is
+        // invisible regardless of the customer/lead view gate below — that's
+        // the strict-assigned rule (visibility), which then composes with the
+        // existing per-subject authorisation. None → 403; All/super_admin → ok.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
 
         // Authorisation. Tasks attached to a customer ride the
         // CustomerPolicy::view check; orphan tasks (customer_id null)
@@ -63,10 +89,17 @@ class TaskController extends Controller
         if ($task->customer_id !== null) {
             Gate::authorize('view', $task->customer);
         } elseif ($task->lead_id !== null) {
-            // Lead-linked activities ride the same gate as the lead
-            // pages themselves — any staffer who can open the lead
-            // can open its activities.
-            Gate::authorize('viewAny', Customer::class);
+            // Lead-linked activities ride the LEAD's scope (phase 3b-iii):
+            // "any staffer who can open the lead can open its activities" — now
+            // ENFORCED, not just intended. Under Assigned, a task linked to a
+            // lead that isn't yours is blocked, so the eager-loaded lead can't
+            // leak. All/super_admin pass; a dangling lead (FK gone) has no
+            // identity to leak, so it's allowed.
+            abort_unless(
+                $task->lead === null || ScopeEnforcer::allows($user, ScopeArea::Leads, $task->lead),
+                403,
+                'You do not have access to this lead.',
+            );
         } else {
             abort_unless(
                 $task->assigned_to === $user->id
@@ -81,8 +114,10 @@ class TaskController extends Controller
         // operator a one-click jump to anything else they need to
         // chase on this account.
         $related = $task->customer_id
-            ? Task::where('customer_id', $task->customer_id)
-                ->where('id', '!=', $task->id)
+            ? $this->scopeList(
+                Task::where('customer_id', $task->customer_id)->where('id', '!=', $task->id),
+                ScopeArea::Tasks,
+            )
                 // Active = anything not terminal. The PM sprint widened
                 // the enum from {open,complete} to the six-state set,
                 // so "open" is now expressed as "not in (complete,
@@ -235,11 +270,19 @@ class TaskController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        // None scope (phase 3b-ii) is walled off the Tasks area entirely —
+        // no creating a task you could never see or act on (and no injecting
+        // work into another user's queue). All/super_admin pass.
+        $this->authorizeScopeSection(ScopeArea::Tasks);
+
         $data = $request->validate($this->rules(), $this->messages());
 
         $userId = $request->user()->id;
         $this->guardContactBelongsToCustomer($data);
         [$leadId, $customerId] = $this->guardSingleSubject($data);
+        // Leads scope (phase 3b-iii): can't link a lead you can't see, even via
+        // a forged lead_id (validation only checks existence).
+        $this->guardLeadInScope($leadId);
 
         $task = DB::transaction(function () use ($data, $request, $userId, $leadId, $customerId) {
             $task = Task::create([
@@ -319,7 +362,12 @@ class TaskController extends Controller
                     'sub' => $c->city,
                 ]);
         } else {
-            $options = Lead::query()
+            // Leads scope (phase 3b-iii): the "Link to lead" picker must only
+            // offer leads the user can actually see — otherwise it enumerates
+            // every lead's name/company. Assigned → own only; None → none;
+            // All/super_admin → all. (Pairs with the store/update lead-scope
+            // guard so a forged lead_id can't be linked either.)
+            $options = $this->scopeList(Lead::query(), ScopeArea::Leads)
                 ->when($q !== '', fn ($query) => $query->where(fn ($w) => $w
                     ->where('first_name', 'like', "%{$q}%")
                     ->orWhere('last_name', 'like', "%{$q}%")
@@ -341,6 +389,10 @@ class TaskController extends Controller
     public function update(int $id, Request $request): RedirectResponse
     {
         $task = Task::findOrFail($id);
+        // Scope (phase 3b-ii) gates VISIBILITY before the ownership check
+        // below gates MUTATION — the user must satisfy BOTH. None → 403;
+        // Assigned → 403 unless it's their task; All/super_admin → passes.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
 
         // Editable by the creator, the assignee, or a super_admin. Anyone
@@ -355,6 +407,9 @@ class TaskController extends Controller
         $data = $request->validate($this->rules(forUpdate: true), $this->messages());
         $this->guardContactBelongsToCustomer($data);
         [$leadId, $customerId] = $this->guardSingleSubject($data, $task);
+        // Leads scope (phase 3b-iii): can't re-link a task to a lead you can't
+        // see, even via a forged lead_id.
+        $this->guardLeadInScope($leadId);
 
         $before = $task->only(['title', 'type', 'priority', 'description', 'due_at', 'duration_minutes']);
         $previousAssignee = $task->assigned_to;
@@ -391,6 +446,10 @@ class TaskController extends Controller
     public function complete(int $id, Request $request): RedirectResponse
     {
         $task = Task::findOrFail($id);
+        // Scope (phase 3b-ii) gates VISIBILITY before the ownership check
+        // below gates MUTATION — the user must satisfy BOTH. None → 403;
+        // Assigned → 403 unless it's their task; All/super_admin → passes.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
 
         // Only the assignee or a super_admin can mark a task complete.
         $user = $request->user();
@@ -437,6 +496,10 @@ class TaskController extends Controller
     public function reschedule(int $id, Request $request): JsonResponse
     {
         $task = Task::findOrFail($id);
+        // Scope (phase 3b-ii) gates VISIBILITY before the ownership check
+        // below gates MUTATION — the user must satisfy BOTH. None → 403;
+        // Assigned → 403 unless it's their task; All/super_admin → passes.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
 
         // Same edit rule as update(): creator, assignee, or super_admin.
@@ -494,6 +557,10 @@ class TaskController extends Controller
     public function quickComplete(int $id, Request $request): RedirectResponse
     {
         $task = Task::findOrFail($id);
+        // Scope (phase 3b-ii) gates VISIBILITY before the ownership check
+        // below gates MUTATION — the user must satisfy BOTH. None → 403;
+        // Assigned → 403 unless it's their task; All/super_admin → passes.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
 
         if ($task->assigned_to !== $user->id && ! $user->isSuperAdmin()) {
@@ -529,6 +596,10 @@ class TaskController extends Controller
     public function quickReschedule(int $id, Request $request): RedirectResponse
     {
         $task = Task::findOrFail($id);
+        // Scope (phase 3b-ii) gates VISIBILITY before the ownership check
+        // below gates MUTATION — the user must satisfy BOTH. None → 403;
+        // Assigned → 403 unless it's their task; All/super_admin → passes.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
 
         if ($task->created_by !== $user->id
@@ -567,6 +638,10 @@ class TaskController extends Controller
     public function togglePin(int $id, Request $request): RedirectResponse
     {
         $task = Task::findOrFail($id);
+        // Scope (phase 3b-ii) gates VISIBILITY before the ownership check
+        // below gates MUTATION — the user must satisfy BOTH. None → 403;
+        // Assigned → 403 unless it's their task; All/super_admin → passes.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
 
         if ($task->created_by !== $user->id
@@ -587,6 +662,10 @@ class TaskController extends Controller
     public function destroy(int $id, Request $request): RedirectResponse
     {
         $task = Task::findOrFail($id);
+        // Scope (phase 3b-ii) gates VISIBILITY before the ownership check
+        // below gates MUTATION — the user must satisfy BOTH. None → 403;
+        // Assigned → 403 unless it's their task; All/super_admin → passes.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
 
         if ($task->created_by !== $user->id && ! $user->isSuperAdmin()) {
@@ -696,6 +775,10 @@ class TaskController extends Controller
      */
     private function authorizeTaskView(Task $task, User $user): void
     {
+        // Scope first (phase 3b-ii) — an attachment can't be pulled for a task
+        // the user can't see. Composes with the per-subject gate below.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
+
         if ($task->customer_id !== null) {
             Gate::authorize('view', $task->customer);
         } else {
@@ -716,6 +799,10 @@ class TaskController extends Controller
      */
     private function authorizeTaskEdit(Task $task, User $user): void
     {
+        // Scope first (phase 3b-ii): can't attach/remove files on a task
+        // outside the user's scope. Composes with the ownership rule below.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
+
         abort_unless(
             $task->created_by === $user->id
                 || $task->assigned_to === $user->id
@@ -771,6 +858,10 @@ class TaskController extends Controller
     public function updateStatus(int $id, Request $request): JsonResponse|RedirectResponse
     {
         $task = Task::findOrFail($id);
+        // Scope (phase 3b-ii) gates VISIBILITY before the ownership check
+        // below gates MUTATION — the user must satisfy BOTH. None → 403;
+        // Assigned → 403 unless it's their task; All/super_admin → passes.
+        $this->authorizeScopeItem(ScopeArea::Tasks, $task);
 
         // Same access rule as complete(): assignee or super_admin.
         // PM workflows assume the assignee owns transitions; if you
@@ -858,6 +949,17 @@ class TaskController extends Controller
         ]);
 
         $taskIds = array_map(static fn (array $i): int => (int) $i['id'], $data['items']);
+
+        // Scope (phase 3b-ii): the board only renders the user's in-scope
+        // tasks, but a forged reorder could smuggle foreign ids — reject
+        // unless EVERY id is in scope. None → empty set → 403; Assigned → 403
+        // if any id isn't theirs; All/super_admin → passes.
+        $inScopeCount = $this->scopeList(Task::whereIn('id', $taskIds), ScopeArea::Tasks)->count();
+        abort_unless(
+            $inScopeCount === count(array_unique($taskIds)),
+            403,
+            'You do not have access to one or more of these tasks.',
+        );
 
         // Milestones the moved tasks belonged to BEFORE the move — moving
         // the last open task out can leave the remainder all-complete.
@@ -1072,6 +1174,22 @@ class TaskController extends Controller
         );
 
         return [$leadId, $customerId];
+    }
+
+    /**
+     * Leads scope (phase 3b-iii): a task may only be linked to a lead the
+     * current user can see. The lead_id validation rule is exists-only, so
+     * without this an Assigned-scope user could forge a link to an out-of-scope
+     * lead and then read its identity back via the task's lead eager-load.
+     * No-op for All / super_admin (allows() short-circuits).
+     */
+    private function guardLeadInScope(?int $leadId): void
+    {
+        if ($leadId === null) {
+            return;
+        }
+
+        $this->authorizeScopeItem(ScopeArea::Leads, Lead::findOrFail($leadId));
     }
 
     /**
