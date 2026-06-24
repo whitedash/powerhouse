@@ -119,10 +119,14 @@ class RolesAndPermissionsSeeder extends Seeder
         //    assignment tables. Enforcement still reads the enum this phase;
         //    this only makes the new tables reflect reality. assignRole is
         //    idempotent. referrer users get no Spatie role (design §5.1).
-        foreach (User::where('role', 'super_admin')->get() as $user) {
+        //    Eager-load `roles`: Spatie's assignRole reads $user->roles to
+        //    diff existing assignments, which would lazy-load (and trip
+        //    Model::preventLazyLoading() outside production) on a backfill
+        //    over pre-existing users — exactly the cutover scenario.
+        foreach (User::where('role', 'super_admin')->with('roles')->get() as $user) {
             $user->assignRole($superAdmin);
         }
-        foreach (User::where('role', 'staff')->get() as $user) {
+        foreach (User::where('role', 'staff')->with('roles')->get() as $user) {
             $user->assignRole($staff);
         }
 
