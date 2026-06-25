@@ -571,22 +571,26 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         ->whereNumber('id')->middleware('permission:settings.integrations')->name('internal.webhooks.deliveries.retry');
 
     // ─── Websites (cPanel / WHM / PageSpeed) ───
-    // Managed from the customer detail Websites tab.
-    Route::post('/websites', [InternalWebsiteController::class, 'store'])->name('internal.websites.store');
+    // Managed from the customer detail Websites tab. All 8 are WRITES → require
+    // permission:hosting.manage (the section capability). Each method also gates
+    // the per-customer Gate::authorize('update', $website->customer) IDOR guard
+    // (CustomerPolicy::update = customers.manage) — composed, both must pass.
+    Route::post('/websites', [InternalWebsiteController::class, 'store'])
+        ->middleware('permission:hosting.manage')->name('internal.websites.store');
     Route::put('/websites/{id}', [InternalWebsiteController::class, 'update'])
-        ->whereNumber('id')->name('internal.websites.update');
+        ->whereNumber('id')->middleware('permission:hosting.manage')->name('internal.websites.update');
     Route::delete('/websites/{id}', [InternalWebsiteController::class, 'destroy'])
-        ->whereNumber('id')->name('internal.websites.destroy');
+        ->whereNumber('id')->middleware('permission:hosting.manage')->name('internal.websites.destroy');
     Route::post('/websites/{id}/sync-hosting', [InternalWebsiteController::class, 'syncHosting'])
-        ->whereNumber('id')->name('internal.websites.sync-hosting');
+        ->whereNumber('id')->middleware('permission:hosting.manage')->name('internal.websites.sync-hosting');
     Route::post('/websites/{id}/check-pagespeed', [InternalWebsiteController::class, 'checkPageSpeed'])
-        ->whereNumber('id')->name('internal.websites.check-pagespeed');
+        ->whereNumber('id')->middleware('permission:hosting.manage')->name('internal.websites.check-pagespeed');
     Route::post('/websites/{id}/sync-wordpress', [InternalWebsiteController::class, 'syncWordPress'])
-        ->whereNumber('id')->name('internal.websites.sync-wordpress');
+        ->whereNumber('id')->middleware('permission:hosting.manage')->name('internal.websites.sync-wordpress');
     Route::post('/websites/{id}/suspend-hosting', [InternalWebsiteController::class, 'suspendHosting'])
-        ->whereNumber('id')->name('internal.websites.suspend-hosting');
+        ->whereNumber('id')->middleware('permission:hosting.manage')->name('internal.websites.suspend-hosting');
     Route::post('/websites/{id}/reinstate-hosting', [InternalWebsiteController::class, 'reinstateHosting'])
-        ->whereNumber('id')->name('internal.websites.reinstate-hosting');
+        ->whereNumber('id')->middleware('permission:hosting.manage')->name('internal.websites.reinstate-hosting');
 
     // ─── WordPress bulk plugin updates (MainWP) ───
     // super_admin only — mutates live customer sites. The page lists sites
@@ -629,24 +633,36 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // Cancels a recurring template. Doesn't void the row — just stops
     // the artisan generator from cloning it again.
     Route::post('/invoices/{id}/stop-recurring', [InternalInvoiceController::class, 'stopRecurring'])->whereNumber('id')->name('internal.invoices.stop-recurring');
-    Route::get('/domains', [InternalDomainController::class, 'index'])->name('internal.domains.index');
+    // ─── Domains (registrar / WHOIS / DNS / SSL health) ───
+    // READS gate permission:hosting.access; WRITES gate permission:hosting.manage.
+    // The write routes (store/update/destroy/check) were previously gated only by
+    // the in-method customers.access (viewAny) — a WRITE behind a READ perm; the
+    // hosting.manage middleware closes that. The in-method customers.access check
+    // is preserved (composed) — see DomainController.
+    Route::get('/domains', [InternalDomainController::class, 'index'])
+        ->middleware('permission:hosting.access')->name('internal.domains.index');
     // WHOIS lookup — fires from the Add/Edit slide-over BEFORE the
-    // domain row exists, so it has no {id} segment. Sits ahead of
-    // the {id}-bound routes below.
+    // domain row exists, so it has no {id} segment. Read-only lookup →
+    // hosting.access. Sits ahead of the {id}-bound routes below.
     Route::post('/domains/whois-lookup', [InternalDomainController::class, 'whoisLookup'])
-        ->name('internal.domains.whois');
-    Route::post('/domains', [InternalDomainController::class, 'store'])->name('internal.domains.store');
+        ->middleware('permission:hosting.access')->name('internal.domains.whois');
+    Route::post('/domains', [InternalDomainController::class, 'store'])
+        ->middleware('permission:hosting.manage')->name('internal.domains.store');
     Route::put('/domains/{id}', [InternalDomainController::class, 'update'])
         ->whereNumber('id')
+        ->middleware('permission:hosting.manage')
         ->name('internal.domains.update');
     Route::delete('/domains/{id}', [InternalDomainController::class, 'destroy'])
         ->whereNumber('id')
+        ->middleware('permission:hosting.manage')
         ->name('internal.domains.destroy');
     Route::post('/domains/{id}/check', [InternalDomainController::class, 'checkHealth'])
         ->whereNumber('id')
+        ->middleware('permission:hosting.manage')
         ->name('internal.domains.check');
     Route::get('/domains/{id}/dns', [InternalDomainController::class, 'dnsRecords'])
         ->whereNumber('id')
+        ->middleware('permission:hosting.access')
         ->name('internal.domains.dns');
     Route::get('/analytics', [InternalAnalyticsController::class, 'index'])->middleware('permission:analytics.access')->name('internal.analytics.index');
 
