@@ -408,15 +408,22 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     });
 
     // ─── Workflows ───
+    // Read gates workflows.access; mutations gate workflows.manage. workflows.manage
+    // is the automation control point: WorkflowEngine executes on events (system
+    // authority), so gating who can BUILD/EDIT/toggle a workflow is what controls
+    // the ungated per-execution automation actions (create_lead/update_lead_status/
+    // assign_to_user, create_ticket, create_task) deferred in sprint steps 5/7/8.
     Route::prefix('workflows')->name('internal.workflows.')->group(function () {
-        Route::get('/', [InternalWorkflowController::class, 'index'])->name('index');
-        Route::post('/', [InternalWorkflowController::class, 'store'])->name('store');
+        Route::get('/', [InternalWorkflowController::class, 'index'])
+            ->middleware('permission:workflows.access')->name('index');
+        Route::post('/', [InternalWorkflowController::class, 'store'])
+            ->middleware('permission:workflows.manage')->name('store');
         Route::put('/{id}', [InternalWorkflowController::class, 'update'])
-            ->whereNumber('id')->name('update');
+            ->whereNumber('id')->middleware('permission:workflows.manage')->name('update');
         Route::delete('/{id}', [InternalWorkflowController::class, 'destroy'])
-            ->whereNumber('id')->name('destroy');
+            ->whereNumber('id')->middleware('permission:workflows.manage')->name('destroy');
         Route::post('/{id}/toggle', [InternalWorkflowController::class, 'toggle'])
-            ->whereNumber('id')->name('toggle');
+            ->whereNumber('id')->middleware('permission:workflows.manage')->name('toggle');
     });
 
     // ─── Proposals ───
@@ -670,11 +677,19 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // Help & docs — staff editor + viewer for the support_knowledge_base
     // articles. The customer portal has its own help routes (TBD) that
     // filter on is_public=true.
-    Route::get('/help', [InternalHelpController::class, 'index'])->name('internal.help.index');
-    Route::post('/help', [InternalHelpController::class, 'store'])->name('internal.help.store');
-    Route::get('/help/{slug}', [InternalHelpController::class, 'show'])->name('internal.help.show');
-    Route::put('/help/{id}', [InternalHelpController::class, 'update'])->name('internal.help.update');
-    Route::delete('/help/{id}', [InternalHelpController::class, 'destroy'])->name('internal.help.destroy');
+    // Staff KB editor. Reads gate knowledge_base.access, mutations knowledge_base.manage.
+    // NB: routes are named internal.help.* but the PERMISSION tokens are knowledge_base.*
+    // (the public /kb viewer in Public\KnowledgeBaseController stays ungated).
+    Route::get('/help', [InternalHelpController::class, 'index'])
+        ->middleware('permission:knowledge_base.access')->name('internal.help.index');
+    Route::post('/help', [InternalHelpController::class, 'store'])
+        ->middleware('permission:knowledge_base.manage')->name('internal.help.store');
+    Route::get('/help/{slug}', [InternalHelpController::class, 'show'])
+        ->middleware('permission:knowledge_base.access')->name('internal.help.show');
+    Route::put('/help/{id}', [InternalHelpController::class, 'update'])
+        ->middleware('permission:knowledge_base.manage')->name('internal.help.update');
+    Route::delete('/help/{id}', [InternalHelpController::class, 'destroy'])
+        ->middleware('permission:knowledge_base.manage')->name('internal.help.destroy');
 
     Route::get('/provisioning', [InternalProvisioningController::class, 'index'])->middleware('permission:provisioning.access')->name('internal.provisioning.index');
     Route::post('/provisioning/toggle', [InternalProvisioningController::class, 'toggle'])->middleware('permission:provisioning.manage')->name('internal.provisioning.toggle');
