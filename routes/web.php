@@ -688,14 +688,22 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // /support path can host the PUBLIC submit-ticket form. Route NAMES stay
     // internal.support.* so every route() reference is unaffected; only the
     // paths changed (same approach as the / → /dashboard move).
+    // Reads (index/show) stay scope-only (authorizeScopeSection/Item in-method).
+    // The 4 mutations require permission:support.manage, COMPOSING with the
+    // in-method Support scope + support.view_unassigned predicate (both must
+    // pass). createTask additionally keeps its in-method Tasks-section scope gate.
     Route::get('/helpdesk', [InternalSupportController::class, 'index'])->name('internal.support.index');
-    Route::post('/helpdesk', [InternalSupportController::class, 'store'])->name('internal.support.store');
+    Route::post('/helpdesk', [InternalSupportController::class, 'store'])
+        ->middleware('permission:support.manage')->name('internal.support.store');
     Route::get('/helpdesk/{id}', [InternalSupportController::class, 'show'])->name('internal.support.show');
-    Route::post('/helpdesk/{id}/reply', [InternalSupportController::class, 'reply'])->name('internal.support.reply');
-    Route::post('/helpdesk/{id}/status', [InternalSupportController::class, 'updateStatus'])->name('internal.support.status');
+    Route::post('/helpdesk/{id}/reply', [InternalSupportController::class, 'reply'])
+        ->middleware('permission:support.manage')->name('internal.support.reply');
+    Route::post('/helpdesk/{id}/status', [InternalSupportController::class, 'updateStatus'])
+        ->middleware('permission:support.manage')->name('internal.support.status');
     // Spin a CRM activity off a ticket — the new task is scoped to
     // the ticket's customer and an internal note is appended.
-    Route::post('/helpdesk/{id}/task', [InternalSupportController::class, 'createTask'])->name('internal.support.task.create');
+    Route::post('/helpdesk/{id}/task', [InternalSupportController::class, 'createTask'])
+        ->middleware('permission:support.manage')->name('internal.support.task.create');
 
     // Help & docs — staff editor + viewer for the support_knowledge_base
     // articles. The customer portal has its own help routes (TBD) that
