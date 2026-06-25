@@ -122,6 +122,15 @@ class ExpenseController extends Controller
 
         $data = $this->validateRow($request);
 
+        // Same money-control as approve()/update(): creating an expense directly
+        // in an approved or paid state requires expenses.approve, not just
+        // customers.access — otherwise store() is a side-door around the approval
+        // gate (super_admin bypasses via Gate::before through can()).
+        $newStatus = $data['status'] ?? 'pending';
+        if (in_array($newStatus, ['approved', 'paid'], true) && ! $request->user()->can('expenses.approve')) {
+            abort(403, 'You do not have permission to create an expense in an approved or paid state.');
+        }
+
         DB::transaction(function () use ($request, $data, $uploads) {
             $receiptPath = null;
             $receiptOriginalName = null;
@@ -166,6 +175,21 @@ class ExpenseController extends Controller
 
         $expense = Expense::findOrFail($id);
         $data = $this->validateRow($request, allowReceipt: false);
+
+        // Privileged status transitions are NOT a free rider on customers.access:
+        // moving an expense to approved/paid through this generic update is the
+        // same money-control action as ExpenseController::approve(), so it
+        // requires expenses.approve (super_admin bypasses via Gate::before).
+        // Editing other fields, or leaving the status unchanged, stays under the
+        // customers.access gate above — nothing is weakened.
+        $newStatus = $data['status'] ?? $expense->status;
+        // can() (not hasPermissionTo) so super_admin bypasses via Gate::before
+        // even without the explicit permission, consistent with the policy gates.
+        if ($newStatus !== $expense->status
+            && in_array($newStatus, ['approved', 'paid'], true)
+            && ! $request->user()->can('expenses.approve')) {
+            abort(403, 'You do not have permission to approve or mark expenses paid.');
+        }
 
         $before = $expense->only(['description', 'amount', 'status', 'category']);
         $vatAmount = round(((float) $data['amount']) * ((float) ($data['vat_rate'] ?? 0)) / 100, 2);

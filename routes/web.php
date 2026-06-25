@@ -404,7 +404,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         Route::delete('/{id}', [InternalFormBuilderController::class, 'destroy'])
             ->whereNumber('id')->name('destroy');
         Route::get('/{id}/submissions', [InternalFormBuilderController::class, 'submissions'])
-            ->whereNumber('id')->name('submissions');
+            ->whereNumber('id')->middleware('permission:forms.view_submissions')->name('submissions');
     });
 
     // ─── Workflows ───
@@ -557,7 +557,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
 
     // Manual re-queue of a failed/abandoned webhook delivery.
     Route::post('/webhooks/deliveries/{id}/retry', [InternalSettingsController::class, 'retryWebhookDelivery'])
-        ->whereNumber('id')->name('internal.webhooks.deliveries.retry');
+        ->whereNumber('id')->middleware('permission:settings.integrations')->name('internal.webhooks.deliveries.retry');
 
     // ─── Websites (cPanel / WHM / PageSpeed) ───
     // Managed from the customer detail Websites tab.
@@ -637,7 +637,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::get('/domains/{id}/dns', [InternalDomainController::class, 'dnsRecords'])
         ->whereNumber('id')
         ->name('internal.domains.dns');
-    Route::get('/analytics', [InternalAnalyticsController::class, 'index'])->name('internal.analytics.index');
+    Route::get('/analytics', [InternalAnalyticsController::class, 'index'])->middleware('permission:analytics.access')->name('internal.analytics.index');
 
     // Product overview pages — one per product, navigated to from
     // the sidebar Products section. Lives outside the settings group
@@ -665,10 +665,10 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::put('/help/{id}', [InternalHelpController::class, 'update'])->name('internal.help.update');
     Route::delete('/help/{id}', [InternalHelpController::class, 'destroy'])->name('internal.help.destroy');
 
-    Route::get('/provisioning', [InternalProvisioningController::class, 'index'])->name('internal.provisioning.index');
+    Route::get('/provisioning', [InternalProvisioningController::class, 'index'])->middleware('permission:provisioning.access')->name('internal.provisioning.index');
     Route::post('/provisioning/toggle', [InternalProvisioningController::class, 'toggle'])->name('internal.provisioning.toggle');
 
-    Route::get('/subscriptions', [InternalSubscriptionController::class, 'index'])->name('internal.subscriptions.index');
+    Route::get('/subscriptions', [InternalSubscriptionController::class, 'index'])->middleware('permission:provisioning.access')->name('internal.subscriptions.index');
     Route::put('/subscriptions/{id}', [InternalSubscriptionController::class, 'update'])->name('internal.subscriptions.update');
     Route::post('/subscriptions/{id}/cancel', [InternalSubscriptionController::class, 'cancel'])->name('internal.subscriptions.cancel');
     Route::get('/settings', [InternalSettingsController::class, 'index'])->name('internal.settings.index');

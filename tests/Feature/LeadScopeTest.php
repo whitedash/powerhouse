@@ -293,6 +293,12 @@ class LeadScopeTest extends TestCase
         // The form submissions table cross-references the CRM lead each
         // submission became — that linkage must follow Leads scope.
         $user = $this->userWith('Leads Forms', AccessScope::Assigned);
+        // Reaching the submissions page now requires forms.view_submissions
+        // (Issue-A: it returns submission PII). This test's purpose is the
+        // lead-identity hiding WITHIN the page under Leads scope, so grant the
+        // access permission and keep exercising that.
+        $user->givePermissionTo('forms.view_submissions');
+        $user = $user->fresh();
         $other = User::factory()->create();
         $mine = $this->lead(['created_by' => $other->id, 'assigned_to' => $user->id]);
         $theirs = $this->lead(['created_by' => $other->id, 'assigned_to' => $other->id]);
