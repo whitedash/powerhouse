@@ -43,6 +43,11 @@ class SupportScopeTest extends TestCase
     private function supportRole(string $name, AccessScope $support, bool $viewUnassigned = false, ?AccessScope $tasks = null): Role
     {
         $role = Role::create(['name' => $name, 'guard_name' => 'web']);
+        // Step 8: SupportController@createTask now ALSO requires tasks.manage
+        // (a support-originated CRM task is a tasks-section action). Granted here
+        // so the support-scope test that spins a task off a ticket stays green;
+        // the other support tests don't create tasks and are unaffected.
+        $role->givePermissionTo('tasks.manage');
         if ($viewUnassigned) {
             $role->givePermissionTo('support.view_unassigned');
         }

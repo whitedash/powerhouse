@@ -51,6 +51,10 @@ class TaskScopeTest extends TestCase
     {
         $role = Role::create(['name' => $name, 'guard_name' => 'web']);
         $role->givePermissionTo('customers.access');
+        // Step 8: task mutations now require tasks.manage. These tests exercise
+        // the Tasks SCOPE layer, so grant tasks.manage to every role — scope
+        // denials still 403 (from scope), success paths still pass.
+        $role->givePermissionTo('tasks.manage');
         RoleScope::create(['role_id' => $role->id, 'area' => ScopeArea::Tasks->value, 'scope' => $tasks->value]);
         if ($projects !== null) {
             RoleScope::create(['role_id' => $role->id, 'area' => ScopeArea::Projects->value, 'scope' => $projects->value]);

@@ -39,6 +39,12 @@ class ProjectsManageEnforcementTest extends TestCase
         if ($permissions !== []) {
             $role->givePermissionTo($permissions);
         }
+        // Step 8: task mutations now require tasks.manage. These tests exercise
+        // the projects.manage + cross-section milestone IDOR layer (not the
+        // tasks.manage gate), so grant tasks.manage to every role here — the
+        // task-touching cases (reorder/store/status) then 403 from the PROJECT
+        // guard, not the new capability gate, keeping the IDOR closure under test.
+        $role->givePermissionTo('tasks.manage');
         foreach ($scopes as $area => $scope) {
             RoleScope::create(['role_id' => $role->id, 'area' => $area, 'scope' => $scope]);
         }

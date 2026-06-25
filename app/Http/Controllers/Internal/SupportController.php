@@ -351,6 +351,10 @@ class SupportController extends Controller
         // None scope (phase 3b-ii) is walled off Tasks entirely — no spinning
         // off a CRM task it could never see. All/super_admin pass.
         $this->authorizeScopeSection(ScopeArea::Tasks);
+        // Capability (sprint step 8): a support-originated CRM task ALSO requires
+        // tasks.manage. support.manage (route gate, step 7) governs the ticket
+        // side; injecting a Task is a tasks-section action gated independently.
+        abort_unless($request->user()->can('tasks.manage'), 403, 'You do not have permission to manage tasks.');
 
         $ticket = SupportTicket::with('customer:id,name')->findOrFail($id);
         // Scope (phase 3b-iv): must be able to SEE the ticket to spin a task off
