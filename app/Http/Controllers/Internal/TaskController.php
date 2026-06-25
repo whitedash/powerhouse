@@ -9,6 +9,7 @@ use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\Milestone;
+use App\Models\Project;
 use App\Models\Task;
 use App\Models\TaskAttachment;
 use App\Models\User;
@@ -283,6 +284,29 @@ class TaskController extends Controller
         // Leads scope (phase 3b-iii): can't link a lead you can't see, even via
         // a forged lead_id (validation only checks existence).
         $this->guardLeadInScope($leadId);
+
+        // Bucketing a NEW task onto a project/milestone is a project mutation on
+        // that project — require projects.manage + Projects scope (mirrors the
+        // reorderTasks re-bucket guard; the /tasks routes aren't under the
+        // projects middleware). CRM tasks (no project_id/milestone_id) are
+        // unaffected. Closes the create-task-onto-foreign-milestone IDOR.
+        if (! empty($data['milestone_id'])) {
+            $milestone = Milestone::find($data['milestone_id']);
+            abort_unless(
+                $milestone !== null && $this->canManageMilestoneProject($milestone),
+                403,
+                'You cannot create a task on a milestone in a project you do not manage.',
+            );
+            if (! empty($data['project_id']) && (int) $milestone->project_id !== (int) $data['project_id']) {
+                abort(422, 'The milestone does not belong to the given project.');
+            }
+        } elseif (! empty($data['project_id'])) {
+            abort_unless(
+                $this->canManageProject(Project::find($data['project_id'])),
+                403,
+                'You cannot create a task on a project you do not manage.',
+            );
+        }
 
         $task = DB::transaction(function () use ($data, $request, $userId, $leadId, $customerId) {
             $task = Task::create([
@@ -961,6 +985,28 @@ class TaskController extends Controller
             'You do not have access to one or more of these tasks.',
         );
 
+        // IDOR fix: moving a task ONTO a different milestone is a project
+        // mutation on the destination milestone's project. Require
+        // projects.manage + Projects scope on that project — not just that the
+        // milestone id exists. Without this, a Tasks-scoped non-member could
+        // re-bucket a task onto (and cascade-complete) any project's milestone.
+        // Unchanged milestone ids (within-column sort reorders) are skipped.
+        $currentMilestones = Task::whereIn('id', $taskIds)->pluck('milestone_id', 'id');
+        foreach ($data['items'] as $item) {
+            if (! array_key_exists('milestone_id', $item) || $item['milestone_id'] === null) {
+                continue;
+            }
+            if ((int) ($currentMilestones[$item['id']] ?? 0) === (int) $item['milestone_id']) {
+                continue;
+            }
+            $dest = Milestone::find((int) $item['milestone_id']);
+            abort_unless(
+                $dest !== null && $this->canManageMilestoneProject($dest),
+                403,
+                'You cannot move a task onto a milestone in a project you do not manage.',
+            );
+        }
+
         // Milestones the moved tasks belonged to BEFORE the move — moving
         // the last open task out can leave the remainder all-complete.
         $affectedMilestoneIds = Task::whereIn('id', $taskIds)
@@ -1009,6 +1055,27 @@ class TaskController extends Controller
     }
 
     /**
+     * Whether the acting user may MUTATE the given milestone's project — holds
+     * projects.manage AND has Projects-scope access to that project. Gates the
+     * cross-section milestone side-effects (cascade-completion + reorder
+     * re-bucket) reached from the tasks controller, where the project route
+     * middleware doesn't apply. super_admin passes via Gate::before through can().
+     */
+    private function canManageProject(?Project $project): bool
+    {
+        $user = auth()->user();
+
+        return $project !== null && $user !== null
+            && $user->can('projects.manage')
+            && ScopeEnforcer::allows($user, ScopeArea::Projects, $project);
+    }
+
+    private function canManageMilestoneProject(Milestone $milestone): bool
+    {
+        return $this->canManageProject(Project::find($milestone->project_id));
+    }
+
+    /**
      * Roll the parent milestone to completed when every one of its
      * tasks is done. Idempotent — calling this on an already-completed
      * milestone is a no-op. Returns the milestone ONLY when this call
@@ -1018,6 +1085,16 @@ class TaskController extends Controller
     private function checkMilestoneCompletion(int $milestoneId): ?Milestone
     {
         $milestone = Milestone::findOrFail($milestoneId);
+
+        // Auto-completing a milestone is a project mutation: only cascade it when
+        // the acting user can manage the milestone's project (projects.manage +
+        // Projects scope). A task-assignee on a project they don't manage still
+        // completes their own task, but does NOT cascade-complete that project's
+        // milestone — closing the cross-section escalation. super_admin passes.
+        if (! $this->canManageMilestoneProject($milestone)) {
+            return null;
+        }
+
         $total = Task::where('milestone_id', $milestoneId)->count();
         $done = Task::where('milestone_id', $milestoneId)
             ->where('status', 'complete')
