@@ -50,6 +50,12 @@ class SupportEnforcementTest extends TestCase
         RoleScope::create(['role_id' => $role->id, 'area' => ScopeArea::Support->value, 'scope' => $support->value]);
         if ($tasks !== null) {
             RoleScope::create(['role_id' => $role->id, 'area' => ScopeArea::Tasks->value, 'scope' => $tasks->value]);
+            // Combined Priority-2 tree: SupportController@createTask now also
+            // requires tasks.manage (step 8) on top of support.manage (step 7).
+            // A user given Tasks scope here also gets tasks.manage so the
+            // createTask success path works; the support.manage 403 tests are
+            // unaffected (their route gate fires first).
+            $role->givePermissionTo('tasks.manage');
         }
         $user = User::factory()->create(); // enum staff → clears EnsureRole
         $user->syncRoles([$role->name]);
