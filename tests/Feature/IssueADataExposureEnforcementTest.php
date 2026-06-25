@@ -153,8 +153,9 @@ class IssueADataExposureEnforcementTest extends TestCase
 
     public function test_expense_update_detail_edit_without_status_change_still_works(): void
     {
-        // Editing details (status unchanged) stays under customers.access — not weakened.
-        $user = $this->userWith(['customers.access']);
+        // Editing details (status unchanged) now requires expenses.manage (sprint
+        // step 2) but NOT expenses.approve (no status change).
+        $user = $this->userWith(['customers.access', 'expenses.manage']);
         $expense = $this->makeExpense('pending');
 
         $this->actingAs($user)
@@ -167,7 +168,7 @@ class IssueADataExposureEnforcementTest extends TestCase
 
     public function test_expense_update_to_approved_succeeds_with_approve(): void
     {
-        $user = $this->userWith(['customers.access', 'expenses.approve']);
+        $user = $this->userWith(['customers.access', 'expenses.manage', 'expenses.approve']);
         $expense = $this->makeExpense('pending');
 
         $this->actingAs($user)
@@ -319,8 +320,9 @@ class IssueADataExposureEnforcementTest extends TestCase
 
     public function test_expense_store_as_pending_allowed_without_approve(): void
     {
-        // Creating a normal (pending) expense stays under customers.access — not weakened.
-        $user = $this->userWith(['customers.access']);
+        // Creating a normal (pending) expense now requires expenses.manage (sprint
+        // step 2) but NOT expenses.approve (status pending).
+        $user = $this->userWith(['customers.access', 'expenses.manage']);
         $this->actingAs($user)
             ->post('/expenses', $this->expensePayload(['status' => 'pending', 'description' => 'Normal expense']))
             ->assertRedirect();
@@ -329,7 +331,7 @@ class IssueADataExposureEnforcementTest extends TestCase
 
     public function test_expense_store_as_approved_succeeds_with_approve(): void
     {
-        $user = $this->userWith(['customers.access', 'expenses.approve']);
+        $user = $this->userWith(['customers.access', 'expenses.manage', 'expenses.approve']);
         $this->actingAs($user)
             ->post('/expenses', $this->expensePayload(['status' => 'approved', 'description' => 'Legit approved']))
             ->assertRedirect();
