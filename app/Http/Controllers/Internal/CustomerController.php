@@ -994,6 +994,9 @@ class CustomerController extends Controller
         // None scope (phase 3b-ii) is walled off Tasks entirely — no creating
         // an activity it could never see. All/super_admin pass.
         $this->authorizeScopeSection(ScopeArea::Tasks);
+        // Capability (sprint step 8): creating a Task requires tasks.manage,
+        // composing with the Tasks scope above + the customer update gate below.
+        abort_unless($request->user()->can('tasks.manage'), 403, 'You do not have permission to manage tasks.');
 
         $customer = Customer::findOrFail($id);
         Gate::authorize('update', $customer);

@@ -275,6 +275,9 @@ class TaskController extends Controller
         // no creating a task you could never see or act on (and no injecting
         // work into another user's queue). All/super_admin pass.
         $this->authorizeScopeSection(ScopeArea::Tasks);
+        // Capability (step 8): tasks.manage required to create a task. Composes
+        // with the Tasks scope above and the step-4 milestone/project guards below.
+        $this->authorizeTaskManage($request->user());
 
         $data = $request->validate($this->rules(), $this->messages());
 
@@ -418,6 +421,7 @@ class TaskController extends Controller
         // Assigned → 403 unless it's their task; All/super_admin → passes.
         $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
+        $this->authorizeTaskManage($user); // capability gate (step 8)
 
         // Editable by the creator, the assignee, or a super_admin. Anyone
         // else editing somebody else's activity would mask ownership.
@@ -477,6 +481,7 @@ class TaskController extends Controller
 
         // Only the assignee or a super_admin can mark a task complete.
         $user = $request->user();
+        $this->authorizeTaskManage($user); // capability gate (step 8)
         if ($task->assigned_to !== $user->id && ! $user->isSuperAdmin()) {
             abort(403, 'You can only complete activities assigned to you.');
         }
@@ -525,6 +530,7 @@ class TaskController extends Controller
         // Assigned → 403 unless it's their task; All/super_admin → passes.
         $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
+        $this->authorizeTaskManage($user); // capability gate (step 8)
 
         // Same edit rule as update(): creator, assignee, or super_admin.
         if ($task->created_by !== $user->id
@@ -586,6 +592,7 @@ class TaskController extends Controller
         // Assigned → 403 unless it's their task; All/super_admin → passes.
         $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
+        $this->authorizeTaskManage($user); // capability gate (step 8)
 
         if ($task->assigned_to !== $user->id && ! $user->isSuperAdmin()) {
             abort(403, 'You can only complete activities assigned to you.');
@@ -625,6 +632,7 @@ class TaskController extends Controller
         // Assigned → 403 unless it's their task; All/super_admin → passes.
         $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
+        $this->authorizeTaskManage($user); // capability gate (step 8)
 
         if ($task->created_by !== $user->id
             && $task->assigned_to !== $user->id
@@ -667,6 +675,7 @@ class TaskController extends Controller
         // Assigned → 403 unless it's their task; All/super_admin → passes.
         $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
+        $this->authorizeTaskManage($user); // capability gate (step 8)
 
         if ($task->created_by !== $user->id
             && $task->assigned_to !== $user->id
@@ -691,6 +700,7 @@ class TaskController extends Controller
         // Assigned → 403 unless it's their task; All/super_admin → passes.
         $this->authorizeScopeItem(ScopeArea::Tasks, $task);
         $user = $request->user();
+        $this->authorizeTaskManage($user); // capability gate (step 8)
 
         if ($task->created_by !== $user->id && ! $user->isSuperAdmin()) {
             abort(403, 'Only the creator or a super_admin can delete an activity.');
@@ -826,6 +836,9 @@ class TaskController extends Controller
         // Scope first (phase 3b-ii): can't attach/remove files on a task
         // outside the user's scope. Composes with the ownership rule below.
         $this->authorizeScopeItem(ScopeArea::Tasks, $task);
+        // Capability (step 8): tasks.manage required to attach/remove files
+        // (covers uploadAttachment + destroyAttachment via this shared helper).
+        $this->authorizeTaskManage($user);
 
         abort_unless(
             $task->created_by === $user->id
@@ -834,6 +847,18 @@ class TaskController extends Controller
             403,
             'You can only modify activities you own or are assigned to.',
         );
+    }
+
+    /**
+     * Capability gate (sprint step 8): tasks.manage governs whether the user
+     * may MUTATE tasks at all. Sits ON TOP of the scope (visibility) gate and
+     * BENEATH the per-item ownership + step-4 milestone/project guards — a user
+     * who can SEE their tasks (scope) but lacks tasks.manage cannot change them.
+     * super_admin bypasses via Gate::before (->can()).
+     */
+    private function authorizeTaskManage(User $user): void
+    {
+        abort_unless($user->can('tasks.manage'), 403, 'You do not have permission to manage tasks.');
     }
 
     private function formatBytes(int $bytes): string
@@ -891,6 +916,7 @@ class TaskController extends Controller
         // PM workflows assume the assignee owns transitions; if you
         // need someone else to move the card, reassign first.
         $user = $request->user();
+        $this->authorizeTaskManage($user); // capability gate (step 8)
         if ($task->assigned_to !== $user->id
             && $task->created_by !== $user->id
             && ! $user->isSuperAdmin()) {
@@ -984,6 +1010,9 @@ class TaskController extends Controller
             403,
             'You do not have access to one or more of these tasks.',
         );
+        // Capability (step 8): tasks.manage required to reorder/re-bucket tasks.
+        // Composes with the scope check above and the step-4 milestone guard below.
+        $this->authorizeTaskManage($request->user());
 
         // IDOR fix: moving a task ONTO a different milestone is a project
         // mutation on the destination milestone's project. Require
