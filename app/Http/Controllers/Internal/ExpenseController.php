@@ -246,6 +246,13 @@ class ExpenseController extends Controller
     public function markPaid(int $id, Request $request): RedirectResponse
     {
         Gate::authorize('viewAny', Customer::class);
+        // Marking an expense paid is the same money-control as approve(): it
+        // requires expenses.approve, composing with the expenses.manage route
+        // gate (so reaching status=paid needs approve on every path, matching
+        // the store/update guards). super_admin bypasses via Gate::before.
+        if (! $request->user()->can('expenses.approve')) {
+            abort(403, 'You do not have permission to mark expenses paid.');
+        }
 
         $expense = Expense::findOrFail($id);
 

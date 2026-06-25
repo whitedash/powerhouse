@@ -454,16 +454,20 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // inside the controller; the rest of the methods sit behind the
     // surrounding staff/super_admin role group.
     Route::prefix('expenses')->name('internal.expenses.')->group(function () {
+        // Reads (index, receipt) stay on customers.access for now — expenses.access
+        // is a separate sprint step. Mutations require expenses.manage; approve
+        // keeps its expenses.approve-only gate (separation of duties).
         Route::get('/', [InternalExpenseController::class, 'index'])->name('index');
-        Route::post('/', [InternalExpenseController::class, 'store'])->name('store');
+        Route::post('/', [InternalExpenseController::class, 'store'])
+            ->middleware('permission:expenses.manage')->name('store');
         Route::put('/{id}', [InternalExpenseController::class, 'update'])
-            ->whereNumber('id')->name('update');
+            ->whereNumber('id')->middleware('permission:expenses.manage')->name('update');
         Route::delete('/{id}', [InternalExpenseController::class, 'destroy'])
-            ->whereNumber('id')->name('destroy');
+            ->whereNumber('id')->middleware('permission:expenses.manage')->name('destroy');
         Route::post('/{id}/approve', [InternalExpenseController::class, 'approve'])
             ->whereNumber('id')->name('approve');
         Route::post('/{id}/mark-paid', [InternalExpenseController::class, 'markPaid'])
-            ->whereNumber('id')->name('mark-paid');
+            ->whereNumber('id')->middleware('permission:expenses.manage')->name('mark-paid');
         Route::get('/{id}/receipt', [InternalExpenseController::class, 'receipt'])
             ->whereNumber('id')->name('receipt');
     });
@@ -473,11 +477,12 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // expenses reference the supplier (deactivate instead).
     Route::prefix('suppliers')->name('internal.suppliers.')->group(function () {
         Route::get('/', [InternalSupplierController::class, 'index'])->name('index');
-        Route::post('/', [InternalSupplierController::class, 'store'])->name('store');
+        Route::post('/', [InternalSupplierController::class, 'store'])
+            ->middleware('permission:expenses.manage')->name('store');
         Route::put('/{id}', [InternalSupplierController::class, 'update'])
-            ->whereNumber('id')->name('update');
+            ->whereNumber('id')->middleware('permission:expenses.manage')->name('update');
         Route::delete('/{id}', [InternalSupplierController::class, 'destroy'])
-            ->whereNumber('id')->name('destroy');
+            ->whereNumber('id')->middleware('permission:expenses.manage')->name('destroy');
     });
 
     // My account — staff/super_admin self-service profile + password.
