@@ -368,23 +368,29 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // kanban applies it optimistically; everything else is a
     // standard redirect-back round-trip.
     Route::prefix('leads')->name('internal.leads.')->group(function () {
+        // Reads (index/show) stay scope-only. The 5 CRUD/convert mutations
+        // require leads.manage (composing with the in-method Leads scope).
+        // approve/reject already gate leads.manage in-method via LeadPolicy::review
+        // — left alone (no double-gate). convert ALSO requires customers.manage
+        // in-method (it mints a Customer — see LeadController::convert).
         Route::get('/', [InternalLeadController::class, 'index'])->name('index');
-        Route::post('/', [InternalLeadController::class, 'store'])->name('store');
+        Route::post('/', [InternalLeadController::class, 'store'])
+            ->middleware('permission:leads.manage')->name('store');
         Route::get('/{id}', [InternalLeadController::class, 'show'])
             ->whereNumber('id')->name('show');
         Route::put('/{id}', [InternalLeadController::class, 'update'])
-            ->whereNumber('id')->name('update');
+            ->whereNumber('id')->middleware('permission:leads.manage')->name('update');
         Route::post('/{id}/status', [InternalLeadController::class, 'updateStatus'])
-            ->whereNumber('id')->name('status');
+            ->whereNumber('id')->middleware('permission:leads.manage')->name('status');
         Route::post('/{id}/convert', [InternalLeadController::class, 'convert'])
-            ->whereNumber('id')->name('convert');
-        // Deal-registration review actions.
+            ->whereNumber('id')->middleware('permission:leads.manage')->name('convert');
+        // Deal-registration review actions (already gate leads.manage via LeadPolicy::review).
         Route::post('/{id}/referral/approve', [InternalLeadController::class, 'approveReferral'])
             ->whereNumber('id')->name('referral.approve');
         Route::post('/{id}/referral/reject', [InternalLeadController::class, 'rejectReferral'])
             ->whereNumber('id')->name('referral.reject');
         Route::delete('/{id}', [InternalLeadController::class, 'destroy'])
-            ->whereNumber('id')->name('destroy');
+            ->whereNumber('id')->middleware('permission:leads.manage')->name('destroy');
     });
 
     // ─── Forms (form builder) ───
