@@ -423,20 +423,24 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // CRUD + send + download + convert to contract. The public-side
     // acceptance flow lives outside this auth group (see below).
     Route::prefix('proposals')->name('internal.proposals.')->group(function () {
-        Route::get('/', [InternalProposalController::class, 'index'])->name('index');
-        Route::post('/', [InternalProposalController::class, 'store'])->name('store');
+        // Reads require proposals.access; mutations require proposals.manage.
+        // Both compose with the in-method viewAny(Customer) = customers.access.
+        Route::get('/', [InternalProposalController::class, 'index'])
+            ->middleware('permission:proposals.access')->name('index');
+        Route::post('/', [InternalProposalController::class, 'store'])
+            ->middleware('permission:proposals.manage')->name('store');
         Route::get('/{id}', [InternalProposalController::class, 'show'])
-            ->whereNumber('id')->name('show');
+            ->whereNumber('id')->middleware('permission:proposals.access')->name('show');
         Route::delete('/{id}', [InternalProposalController::class, 'destroy'])
-            ->whereNumber('id')->name('destroy');
+            ->whereNumber('id')->middleware('permission:proposals.manage')->name('destroy');
         Route::post('/{id}/send', [InternalProposalController::class, 'send'])
-            ->whereNumber('id')->name('send');
+            ->whereNumber('id')->middleware('permission:proposals.manage')->name('send');
         Route::get('/{id}/pdf', [InternalProposalController::class, 'downloadPdf'])
-            ->whereNumber('id')->name('pdf');
+            ->whereNumber('id')->middleware('permission:proposals.access')->name('pdf');
         Route::get('/{id}/accepted-pdf', [InternalProposalController::class, 'downloadAcceptedPdf'])
-            ->whereNumber('id')->name('accepted-pdf');
+            ->whereNumber('id')->middleware('permission:proposals.access')->name('accepted-pdf');
         Route::post('/{id}/convert', [InternalProposalController::class, 'convertToContract'])
-            ->whereNumber('id')->name('convert');
+            ->whereNumber('id')->middleware('permission:proposals.manage')->name('convert');
     });
 
     // Payment schedules attach to a proposal or project. The
@@ -444,7 +448,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // is its own POST so it can be called from the proposal Show
     // page's per-item button without nesting URLs.
     Route::post('/payment-schedules', [InternalPaymentScheduleController::class, 'store'])
-        ->name('internal.payment-schedules.store');
+        ->middleware('permission:proposals.manage')->name('internal.payment-schedules.store');
     Route::post('/payment-schedules/items/{itemId}/trigger', [InternalPaymentScheduleController::class, 'triggerItem'])
         ->whereNumber('itemId')
         ->name('internal.payment-schedules.items.trigger');
