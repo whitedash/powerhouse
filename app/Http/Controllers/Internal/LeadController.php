@@ -326,6 +326,12 @@ class LeadController extends Controller
         // per-method permission/state checks below.
         $this->authorizeScopeItem(ScopeArea::Leads, $lead);
 
+        // convert MINTS a Customer + Contact — a customers.manage action. The
+        // route already requires leads.manage; require customers.manage too so
+        // convert isn't a back-door to customer creation for a leads-only role
+        // (direct customer creation requires customers.manage). super_admin bypasses.
+        Gate::authorize('create', Customer::class);
+
         if ($lead->customer_id !== null) {
             return back()->with('error', 'This lead has already been converted.');
         }
