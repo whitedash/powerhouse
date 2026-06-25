@@ -287,40 +287,47 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // staff/super_admin role gate; the customer policy guards each
     // controller method individually.
     Route::prefix('projects')->name('internal.projects.')->group(function () {
+        // Reads (index/show/files.download) stay scope-only; mutations require
+        // projects.manage, composing with the in-method Projects scope +
+        // ownership/invoiced/invoices.manage checks.
         Route::get('/', [InternalProjectController::class, 'index'])->name('index');
-        Route::post('/', [InternalProjectController::class, 'store'])->name('store');
+        Route::post('/', [InternalProjectController::class, 'store'])
+            ->middleware('permission:projects.manage')->name('store');
         Route::get('/{id}', [InternalProjectController::class, 'show'])
             ->whereNumber('id')->name('show');
         Route::put('/{id}', [InternalProjectController::class, 'update'])
-            ->whereNumber('id')->name('update');
+            ->whereNumber('id')->middleware('permission:projects.manage')->name('update');
         Route::delete('/{id}', [InternalProjectController::class, 'destroy'])
-            ->whereNumber('id')->name('destroy');
+            ->whereNumber('id')->middleware('permission:projects.manage')->name('destroy');
         // Convert a set of unbilled, billable time entries into a
         // draft invoice. Lives on the project resource because the
-        // selection is always "from one project".
+        // selection is always "from one project". (Also keeps its
+        // in-method invoices.manage gate — Issue-A.)
         Route::post('/{id}/invoice', [InternalProjectController::class, 'generateInvoice'])
-            ->whereNumber('id')->name('invoice.generate');
+            ->whereNumber('id')->middleware('permission:projects.manage')->name('invoice.generate');
 
         // Project files — upload (scanned async), secure download, delete.
         // The /files/{fileId} paths are two-segment so they never collide
         // with the numeric /{id} project routes above.
         Route::post('/{id}/files', [InternalProjectFileController::class, 'upload'])
-            ->whereNumber('id')->name('files.upload');
+            ->whereNumber('id')->middleware('permission:projects.manage')->name('files.upload');
         Route::get('/files/{fileId}/download', [InternalProjectFileController::class, 'download'])
             ->whereNumber('fileId')->name('files.download');
         Route::delete('/files/{fileId}', [InternalProjectFileController::class, 'destroy'])
-            ->whereNumber('fileId')->name('files.destroy');
+            ->whereNumber('fileId')->middleware('permission:projects.manage')->name('files.destroy');
     });
 
     Route::prefix('milestones')->name('internal.milestones.')->group(function () {
-        Route::post('/', [InternalMilestoneController::class, 'store'])->name('store');
+        Route::post('/', [InternalMilestoneController::class, 'store'])
+            ->middleware('permission:projects.manage')->name('store');
         // Reorder is registered before {id} so it doesn't get
         // caught by the numeric route-model binding rule below.
-        Route::post('/reorder', [InternalMilestoneController::class, 'reorder'])->name('reorder');
+        Route::post('/reorder', [InternalMilestoneController::class, 'reorder'])
+            ->middleware('permission:projects.manage')->name('reorder');
         Route::put('/{id}', [InternalMilestoneController::class, 'update'])
-            ->whereNumber('id')->name('update');
+            ->whereNumber('id')->middleware('permission:projects.manage')->name('update');
         Route::delete('/{id}', [InternalMilestoneController::class, 'destroy'])
-            ->whereNumber('id')->name('destroy');
+            ->whereNumber('id')->middleware('permission:projects.manage')->name('destroy');
     });
 
     // PM-only task endpoints. Distinct from /tasks above (which is
@@ -339,11 +346,12 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         ->whereNumber('id')->name('internal.tasks.quick-reschedule');
 
     Route::prefix('time-entries')->name('internal.time-entries.')->group(function () {
-        Route::post('/', [InternalTimeEntryController::class, 'store'])->name('store');
+        Route::post('/', [InternalTimeEntryController::class, 'store'])
+            ->middleware('permission:projects.manage')->name('store');
         Route::put('/{id}', [InternalTimeEntryController::class, 'update'])
-            ->whereNumber('id')->name('update');
+            ->whereNumber('id')->middleware('permission:projects.manage')->name('update');
         Route::delete('/{id}', [InternalTimeEntryController::class, 'destroy'])
-            ->whereNumber('id')->name('destroy');
+            ->whereNumber('id')->middleware('permission:projects.manage')->name('destroy');
     });
 
     // Personal task dashboard — separate page, no per-user data leak
