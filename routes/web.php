@@ -533,20 +533,22 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     });
 
     // Product subscriptions on a customer — enabling a new product creates
-    // a CustomerProduct, suspending removes their access. Both stay open
-    // to staff (alongside super_admin) so account managers can wire up
-    // a new sub without escalating every time.
-    Route::post('/customers/{id}/products', [InternalCustomerController::class, 'enableProduct'])->name('internal.customers.products.enable');
-    Route::post('/customers/{id}/products/{productId}/suspend', [InternalCustomerController::class, 'suspendProduct'])->name('internal.customers.products.suspend');
+    // a CustomerProduct, suspending removes their access. These are
+    // provisioning mutations: they require provisioning.manage (section gate)
+    // and compose with the per-customer customers.manage check in-method.
+    Route::post('/customers/{id}/products', [InternalCustomerController::class, 'enableProduct'])
+        ->middleware('permission:provisioning.manage')->name('internal.customers.products.enable');
+    Route::post('/customers/{id}/products/{productId}/suspend', [InternalCustomerController::class, 'suspendProduct'])
+        ->middleware('permission:provisioning.manage')->name('internal.customers.products.suspend');
 
     // Reasoned suspend / reinstate of a single subscription (fires the
     // product webhook + records who acted). Operates on the CustomerProduct id.
     Route::post('/customer-products/{id}/suspend', [InternalCustomerProductController::class, 'suspend'])
-        ->whereNumber('id')->name('internal.customer-products.suspend');
+        ->whereNumber('id')->middleware('permission:provisioning.manage')->name('internal.customer-products.suspend');
     Route::post('/customer-products/{id}/reinstate', [InternalCustomerProductController::class, 'reinstate'])
-        ->whereNumber('id')->name('internal.customer-products.reinstate');
+        ->whereNumber('id')->middleware('permission:provisioning.manage')->name('internal.customer-products.reinstate');
     Route::put('/customer-products/{id}', [InternalCustomerProductController::class, 'update'])
-        ->whereNumber('id')->name('internal.customer-products.update');
+        ->whereNumber('id')->middleware('permission:provisioning.manage')->name('internal.customer-products.update');
 
     // Toggle a customer's auto-suspension exemption (super_admin only).
     Route::post('/customers/{id}/exemption', [InternalCustomerController::class, 'toggleExemption'])
@@ -666,11 +668,11 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::delete('/help/{id}', [InternalHelpController::class, 'destroy'])->name('internal.help.destroy');
 
     Route::get('/provisioning', [InternalProvisioningController::class, 'index'])->middleware('permission:provisioning.access')->name('internal.provisioning.index');
-    Route::post('/provisioning/toggle', [InternalProvisioningController::class, 'toggle'])->name('internal.provisioning.toggle');
+    Route::post('/provisioning/toggle', [InternalProvisioningController::class, 'toggle'])->middleware('permission:provisioning.manage')->name('internal.provisioning.toggle');
 
     Route::get('/subscriptions', [InternalSubscriptionController::class, 'index'])->middleware('permission:provisioning.access')->name('internal.subscriptions.index');
-    Route::put('/subscriptions/{id}', [InternalSubscriptionController::class, 'update'])->name('internal.subscriptions.update');
-    Route::post('/subscriptions/{id}/cancel', [InternalSubscriptionController::class, 'cancel'])->name('internal.subscriptions.cancel');
+    Route::put('/subscriptions/{id}', [InternalSubscriptionController::class, 'update'])->middleware('permission:provisioning.manage')->name('internal.subscriptions.update');
+    Route::post('/subscriptions/{id}/cancel', [InternalSubscriptionController::class, 'cancel'])->middleware('permission:provisioning.manage')->name('internal.subscriptions.cancel');
     Route::get('/settings', [InternalSettingsController::class, 'index'])->name('internal.settings.index');
 
     // Settings sub-pages that mutate global config (billing entities, etc.)
