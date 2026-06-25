@@ -40,11 +40,18 @@ class SupportScopeTest extends TestCase
         $this->seed(RolesAndPermissionsSeeder::class);
     }
 
-    private function supportRole(string $name, AccessScope $support, bool $viewUnassigned = false, ?AccessScope $tasks = null): Role
+    // $manage grants support.manage (step 7): the section-wide gate the 4 ticket
+    // MUTATIONS now require via route middleware. Mutation tests pass manage:true
+    // so the SCOPE composition (assigned / view_unassigned) stays the layer under
+    // test rather than being masked by the manage gate 403ing first.
+    private function supportRole(string $name, AccessScope $support, bool $viewUnassigned = false, ?AccessScope $tasks = null, bool $manage = false): Role
     {
         $role = Role::create(['name' => $name, 'guard_name' => 'web']);
         if ($viewUnassigned) {
             $role->givePermissionTo('support.view_unassigned');
+        }
+        if ($manage) {
+            $role->givePermissionTo('support.manage');
         }
         RoleScope::create(['role_id' => $role->id, 'area' => ScopeArea::Support->value, 'scope' => $support->value]);
         if ($tasks !== null) {
@@ -54,10 +61,10 @@ class SupportScopeTest extends TestCase
         return $role;
     }
 
-    private function userWith(string $name, AccessScope $support, bool $viewUnassigned = false, ?AccessScope $tasks = null): User
+    private function userWith(string $name, AccessScope $support, bool $viewUnassigned = false, ?AccessScope $tasks = null, bool $manage = false): User
     {
         $user = User::factory()->create(); // enum staff → clears EnsureRole
-        $user->syncRoles([$this->supportRole($name, $support, $viewUnassigned, $tasks)->name]);
+        $user->syncRoles([$this->supportRole($name, $support, $viewUnassigned, $tasks, $manage)->name]);
 
         return $user->fresh();
     }
@@ -168,7 +175,9 @@ class SupportScopeTest extends TestCase
 
     public function test_none_blocks_section_item_and_creation(): void
     {
-        $user = $this->userWith('Sup None 2', AccessScope::None);
+        // manage:true so the create 403 proves the None SCOPE blocks (not the
+        // manage gate). Reads are scope-only (manage doesn't gate them).
+        $user = $this->userWith('Sup None 2', AccessScope::None, manage: true);
         $mine = $this->ticket(['assigned_to' => $user->id]);
 
         $this->actingAs($user)->get('/helpdesk')->assertForbidden();              // section gate
@@ -182,7 +191,7 @@ class SupportScopeTest extends TestCase
     {
         // Self-serve + Tasks=All so the Tasks section gate on createTask passes
         // and the SUPPORT gate is what's exercised.
-        $user = $this->userWith('Sup Actions', AccessScope::Assigned, viewUnassigned: true, tasks: AccessScope::All);
+        $user = $this->userWith('Sup Actions', AccessScope::Assigned, viewUnassigned: true, tasks: AccessScope::All, manage: true);
         $other = User::factory()->create();
         $theirs = $this->ticket(['assigned_to' => $other->id]);
         $unassigned = $this->ticket(['assigned_to' => null]);
@@ -203,7 +212,7 @@ class SupportScopeTest extends TestCase
     public function test_action_methods_deny_unassigned_without_view_unassigned(): void
     {
         // Plain Assigned agent (no view_unassigned) cannot act on the pool.
-        $user = $this->userWith('Sup NoPool', AccessScope::Assigned, viewUnassigned: false);
+        $user = $this->userWith('Sup NoPool', AccessScope::Assigned, viewUnassigned: false, manage: true);
         $unassigned = $this->ticket(['assigned_to' => null]);
 
         $this->actingAs($user)->post("/helpdesk/{$unassigned->id}/reply", [])->assertForbidden();
@@ -214,7 +223,7 @@ class SupportScopeTest extends TestCase
 
     public function test_self_serve_agent_can_reply_to_unassigned_then_claim_it(): void
     {
-        $user = $this->userWith('Sup Grab', AccessScope::Assigned, viewUnassigned: true);
+        $user = $this->userWith('Sup Grab', AccessScope::Assigned, viewUnassigned: true, manage: true);
         $unassigned = $this->ticket(['assigned_to' => null]);
 
         // Gate permits replying to the pool ticket; reply does NOT auto-assign,
