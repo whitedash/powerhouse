@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Public\ProposalAcceptanceController;
 use App\Models\ActivityLog;
 use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\Milestone;
 use App\Models\PaymentScheduleItem;
 use App\Models\Project;
@@ -79,6 +80,21 @@ class MilestoneController extends Controller
             'due_date' => 'nullable|date',
             'status' => ['required', Rule::in(self::STATUSES)],
         ]);
+
+        // Completing a milestone that has pending on-milestone payment items
+        // spawns invoices (triggerMilestoneItems below) — that is invoice
+        // CREATION, so it requires invoices.manage, the same gate as the other
+        // invoice side-doors. Enforced ONLY when invoices would actually be
+        // created, so completing a milestone with no billing items stays a plain
+        // projects.manage action. super_admin bypasses via Gate::before.
+        if ($data['status'] === 'completed' && $milestone->status !== 'completed'
+            && PaymentScheduleItem::where('milestone_id', $milestone->id)
+                ->where('trigger_type', 'on_milestone')
+                ->where('status', 'pending')
+                ->exists()
+            && ! Gate::allows('create', Invoice::class)) {
+            abort(403, 'Completing this milestone generates an invoice — you need the invoices.manage permission.');
+        }
 
         $before = $milestone->only(['title', 'status', 'due_date']);
 

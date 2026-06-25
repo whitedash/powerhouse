@@ -533,6 +533,10 @@ class ProjectController extends Controller
     public function generateInvoice(int $id, Request $request): RedirectResponse
     {
         Gate::authorize('viewAny', Customer::class);
+        // Generating an invoice from project time is invoice CREATION — it must
+        // require invoices.manage, the same gate as the primary invoice store,
+        // not just customers.access. Composes with the Projects scope check below.
+        Gate::authorize('create', Invoice::class);
 
         $project = Project::findOrFail($id);
         $this->authorizeScopeItem(ScopeArea::Projects, $project);

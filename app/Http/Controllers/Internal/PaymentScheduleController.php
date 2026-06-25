@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Public\ProposalAcceptanceController;
 use App\Models\ActivityLog;
 use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\PaymentSchedule;
 use App\Models\PaymentScheduleItem;
 use Illuminate\Http\RedirectResponse;
@@ -105,6 +106,12 @@ class PaymentScheduleController extends Controller
     public function triggerItem(int $itemId, Request $request): RedirectResponse
     {
         Gate::authorize('viewAny', Customer::class);
+        // Spawning a draft invoice for a schedule item is invoice CREATION —
+        // require invoices.manage (same gate as the primary invoice store), not
+        // just customers.access. The shared generateScheduleInvoice() is also
+        // used by the PUBLIC proposal-acceptance flow (a customer action), so the
+        // gate lives here at the staff entry point, not in the shared method.
+        Gate::authorize('create', Invoice::class);
 
         /** @var PaymentScheduleItem $item */
         $item = PaymentScheduleItem::with('schedule')->findOrFail($itemId);
