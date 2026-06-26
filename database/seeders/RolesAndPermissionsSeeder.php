@@ -52,7 +52,7 @@ class RolesAndPermissionsSeeder extends Seeder
         'workflows.access', 'workflows.manage',
         'knowledge_base.access', 'knowledge_base.manage',
         'provisioning.access', 'provisioning.manage',
-        'analytics.access', 'analytics.manage',
+        'analytics.access',
         'referrers.access',
         'settings.access',
     ];
@@ -65,7 +65,7 @@ class RolesAndPermissionsSeeder extends Seeder
      * @var list<string>
      */
     private const SUPER_ADMIN_ONLY = [
-        'customers.referral.manage', 'customers.exemption', 'customers.delete',
+        'customers.referral.manage', 'customers.exemption',
         'gdpr.export', 'gdpr.erase',
         'people.delete',
         'invoices.void',
