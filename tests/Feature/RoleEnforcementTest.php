@@ -127,7 +127,8 @@ class RoleEnforcementTest extends TestCase
 
     public function test_permission_catalogue_is_seeded(): void
     {
-        // Guards the bridge: all 55 boolean permissions exist on the web guard.
-        $this->assertSame(55, Permission::where('guard_name', 'web')->count());
+        // Guards the bridge: all boolean permissions exist on the web guard.
+        // Step 12: 53 (was 55) — customers.delete + analytics.manage dropped (phantoms).
+        $this->assertSame(53, Permission::where('guard_name', 'web')->count());
     }
 }

@@ -37,8 +37,8 @@ class CustomerPolicy
         return $user->hasPermissionTo('customers.manage');
     }
 
-    public function delete(User $user, ?Customer $customer = null): bool
-    {
-        return $user->hasPermissionTo('customers.delete');
-    }
+    // NOTE (sprint step 12): the delete() policy method + customers.delete
+    // permission were removed — they gated a hard-delete that never existed
+    // (only soft-archive, via customers.manage). No 'delete' ability is invoked
+    // on a Customer anywhere, so the method was dead code.
 }

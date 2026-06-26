@@ -36,7 +36,6 @@ class PermissionMatrix
                 self::row('customers.manage', 'Manage', 'manage', 'Create/edit customers, contacts, contracts, groups & notes; portal invites; enable/suspend product subs; auto-collect.'),
                 self::row('customers.referral.manage', 'Danger', 'danger', 'Attach or detach a referral on a customer (voids pending commissions).'),
                 self::row('customers.exemption', 'Danger', 'danger', "Toggle a customer's auto-suspension exemption."),
-                self::row('customers.delete', 'Danger', 'danger', 'Hard-delete a customer record.'),
                 self::row('gdpr.export', 'PII', 'pii', "Export a customer's full personal data (GDPR Art. 20)."),
                 self::row('gdpr.erase', 'Danger', 'danger', 'Erase a customer under right-to-erasure (GDPR Art. 17 — irreversible).'),
             ]],
@@ -101,7 +100,6 @@ class PermissionMatrix
             ]],
             ['key' => 'analytics', 'label' => 'Analytics & reporting', 'icon' => 'chart', 'scoped' => false, 'rows' => [
                 self::row('analytics.access', 'Access', 'access', 'Enter and view the analytics dashboards.'),
-                self::row('analytics.manage', 'Manage', 'manage', 'Export reports and the dashboard CSV (aggregate figures — no PII).'),
             ]],
             ['key' => 'referrers', 'label' => 'Referrers & commissions', 'icon' => 'users-group', 'scoped' => false, 'rows' => [
                 self::row('referrers.access', 'Access', 'access', 'View referrers and the referral attribution ledger.'),

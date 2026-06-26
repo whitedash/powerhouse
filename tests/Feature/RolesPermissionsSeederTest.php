@@ -38,7 +38,7 @@ class RolesPermissionsSeederTest extends TestCase
         'workflows.access', 'workflows.manage',
         'knowledge_base.access', 'knowledge_base.manage',
         'provisioning.access', 'provisioning.manage',
-        'analytics.access', 'analytics.manage',
+        'analytics.access',
         'referrers.access',
         'settings.access',
     ];
@@ -52,7 +52,8 @@ class RolesPermissionsSeederTest extends TestCase
         $expected = collect(self::EXPECTED_STAFF)->sort()->values()->all();
 
         $this->assertSame($expected, $actual);
-        $this->assertCount(30, $staff->permissions);
+        // Step 12: analytics.manage dropped (phantom) → staff holds 29 (was 30).
+        $this->assertCount(29, $staff->permissions);
     }
 
     public function test_webhook_retry_carveout_staff_lacks_settings_integrations(): void
@@ -95,7 +96,8 @@ class RolesPermissionsSeederTest extends TestCase
             Permission::where('guard_name', 'web')->count(),
             $superAdmin->permissions->count(),
         );
-        $this->assertSame(55, Permission::where('guard_name', 'web')->count());
+        // Step 12: customers.delete + analytics.manage dropped (phantoms) → 53 (was 55).
+        $this->assertSame(53, Permission::where('guard_name', 'web')->count());
         $this->assertSame(4, RoleScope::where('role_id', $superAdmin->id)->count());
     }
 
@@ -111,7 +113,7 @@ class RolesPermissionsSeederTest extends TestCase
         $this->assertSame($perms, Permission::count());
         $this->assertSame($roles, Role::count());
         $this->assertSame($scopes, RoleScope::count());
-        $this->assertCount(30, Role::findByName('staff', 'web')->permissions);
+        $this->assertCount(29, Role::findByName('staff', 'web')->permissions);
     }
 
     public function test_backfill_mirrors_role_enum_into_spatie(): void
