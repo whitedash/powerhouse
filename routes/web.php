@@ -133,12 +133,19 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::middleware('throttle:60,1')->group(function () {
         Route::get('/customers', [InternalCustomerController::class, 'index'])->name('internal.customers.index');
         Route::get('/invoices', [InternalInvoiceController::class, 'index'])->name('internal.invoices.index');
-        Route::get('/referrers', [InternalReferrerController::class, 'index'])->name('internal.referrers.index');
+        // Referrer ledger reads gate referrers.access (sprint step 10); the
+        // /referrals attribution ledger uses the same permission (no separate
+        // referrals.access). Mutations/commission stay referrers.manage +
+        // commission.approve below.
+        Route::get('/referrers', [InternalReferrerController::class, 'index'])
+            ->middleware('permission:referrers.access')->name('internal.referrers.index');
         // Referral attribution ledger — every customer_referrals row,
         // filterable. Read-only; same scraping throttle as the lists.
-        Route::get('/referrals', [InternalReferralLedgerController::class, 'index'])->name('internal.referrals.index');
+        Route::get('/referrals', [InternalReferralLedgerController::class, 'index'])
+            ->middleware('permission:referrers.access')->name('internal.referrals.index');
         Route::get('/referrers/{id}', [InternalReferrerController::class, 'show'])
             ->whereNumber('id')
+            ->middleware('permission:referrers.access')
             ->name('internal.referrers.show');
         // Global topbar search — JSON endpoint, queries multiple
         // models with LIKE. Cheap enough at our scale to live under
@@ -479,10 +486,11 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // inside the controller; the rest of the methods sit behind the
     // surrounding staff/super_admin role group.
     Route::prefix('expenses')->name('internal.expenses.')->group(function () {
-        // Reads (index, receipt) stay on customers.access for now — expenses.access
-        // is a separate sprint step. Mutations require expenses.manage; approve
-        // keeps its expenses.approve-only gate (separation of duties).
-        Route::get('/', [InternalExpenseController::class, 'index'])->name('index');
+        // Reads (index, receipt) gate expenses.access (sprint step 10). Mutations
+        // require expenses.manage; approve keeps its expenses.approve-only gate
+        // (separation of duties).
+        Route::get('/', [InternalExpenseController::class, 'index'])
+            ->middleware('permission:expenses.access')->name('index');
         Route::post('/', [InternalExpenseController::class, 'store'])
             ->middleware('permission:expenses.manage')->name('store');
         Route::put('/{id}', [InternalExpenseController::class, 'update'])
@@ -494,14 +502,16 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         Route::post('/{id}/mark-paid', [InternalExpenseController::class, 'markPaid'])
             ->whereNumber('id')->middleware('permission:expenses.manage')->name('mark-paid');
         Route::get('/{id}/receipt', [InternalExpenseController::class, 'receipt'])
-            ->whereNumber('id')->name('receipt');
+            ->whereNumber('id')->middleware('permission:expenses.access')->name('receipt');
     });
 
     // ─── Suppliers ───
     // Vendor register. CRUD only; deletion is blocked server-side when
     // expenses reference the supplier (deactivate instead).
     Route::prefix('suppliers')->name('internal.suppliers.')->group(function () {
-        Route::get('/', [InternalSupplierController::class, 'index'])->name('index');
+        // Supplier register read (feeds the expense form) — gate expenses.access.
+        Route::get('/', [InternalSupplierController::class, 'index'])
+            ->middleware('permission:expenses.access')->name('index');
         Route::post('/', [InternalSupplierController::class, 'store'])
             ->middleware('permission:expenses.manage')->name('store');
         Route::put('/{id}', [InternalSupplierController::class, 'update'])
@@ -735,7 +745,8 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::get('/subscriptions', [InternalSubscriptionController::class, 'index'])->middleware('permission:provisioning.access')->name('internal.subscriptions.index');
     Route::put('/subscriptions/{id}', [InternalSubscriptionController::class, 'update'])->middleware('permission:provisioning.manage')->name('internal.subscriptions.update');
     Route::post('/subscriptions/{id}/cancel', [InternalSubscriptionController::class, 'cancel'])->middleware('permission:provisioning.manage')->name('internal.subscriptions.cancel');
-    Route::get('/settings', [InternalSettingsController::class, 'index'])->name('internal.settings.index');
+    Route::get('/settings', [InternalSettingsController::class, 'index'])
+        ->middleware('permission:settings.access')->name('internal.settings.index');
 
     // Settings sub-pages that mutate global config (billing entities, etc.)
     // are super_admin-only. Staff can read /settings overview but not the
@@ -745,7 +756,8 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // They now split into per-capability permission: sub-groups (super_admin
     // holds every permission, so it still reaches all; staff holds none of
     // these, so its reach is unchanged). The /settings overview (GET /settings,
-    // above) stays staff-reachable via the outer group.
+    // above) now requires permission:settings.access (sprint step 10) — seeded
+    // staff hold it; the sub-pages keep their own per-capability gates below.
     Route::prefix('settings')->name('internal.settings.')->group(function () {
         // Team management + the roles/permissions matrix admin.
         Route::middleware('permission:staff.manage')->group(function () {
