@@ -408,9 +408,15 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // The actual public endpoints (/forms/{slug}/submit,
     // /forms/{slug}/embed.js, /webhooks/{slug}) live OUTSIDE
     // this auth group at the bottom of the file.
+    // Reads gate forms.access; mutations gate forms.manage; the submissions
+    // PII read keeps its own forms.view_submissions gate (Issue-A). The group
+    // mixes reads and mutations, so each route carries its own middleware
+    // (the proposals pattern). Theme routes self-gate via FormThemePolicy.
     Route::prefix('forms')->name('internal.forms.')->group(function () {
-        Route::get('/', [InternalFormBuilderController::class, 'index'])->name('index');
-        Route::post('/', [InternalFormBuilderController::class, 'store'])->name('store');
+        Route::get('/', [InternalFormBuilderController::class, 'index'])
+            ->middleware('permission:forms.access')->name('index');
+        Route::post('/', [InternalFormBuilderController::class, 'store'])
+            ->middleware('permission:forms.manage')->name('store');
 
         // Reusable design themes (the design editor). Defined BEFORE the
         // /{id} routes; the {id} routes are whereNumber so "themes" never
@@ -425,9 +431,9 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         });
 
         Route::put('/{id}', [InternalFormBuilderController::class, 'update'])
-            ->whereNumber('id')->name('update');
+            ->whereNumber('id')->middleware('permission:forms.manage')->name('update');
         Route::delete('/{id}', [InternalFormBuilderController::class, 'destroy'])
-            ->whereNumber('id')->name('destroy');
+            ->whereNumber('id')->middleware('permission:forms.manage')->name('destroy');
         Route::get('/{id}/submissions', [InternalFormBuilderController::class, 'submissions'])
             ->whereNumber('id')->middleware('permission:forms.view_submissions')->name('submissions');
     });
