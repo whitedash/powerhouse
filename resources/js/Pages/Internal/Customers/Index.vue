@@ -155,6 +155,8 @@ function locationLine(c) {
 }
 
 function formatMrr(amount) {
+    // Redacted per-customer MRR (no analytics.access) → null → em-dash. (Step 11.)
+    if (amount === null || amount === undefined) return '—';
     const value = Number(amount || 0);
     return '£' + Math.round(value).toLocaleString('en-GB');
 }

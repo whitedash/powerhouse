@@ -226,6 +226,8 @@ function locationLine() {
 }
 
 function formatGBP(value) {
+    // Redacted MRR (no analytics.access) → null → em-dash. (Step 11.)
+    if (value === null || value === undefined) return '—';
     return '£' + Math.round(Number(value || 0)).toLocaleString('en-GB');
 }
 

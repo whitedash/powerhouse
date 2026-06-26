@@ -11,6 +11,7 @@ use App\Models\ProductPlan;
 use App\Models\ProductPlanPrice;
 use App\Models\Website;
 use App\Support\RecurringRevenue;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -32,7 +33,7 @@ class ProductOverviewController extends Controller
      * book without bouncing between Customers / Subscriptions /
      * Provisioning.
      */
-    public function show(string $slug): Response
+    public function show(Request $request, string $slug): Response
     {
         $product = Product::where('slug', $slug)
             ->where('is_active', true)
@@ -78,6 +79,31 @@ class ProductOverviewController extends Controller
             $recentCustomers = $this->buildWhitedashRecentCustomers($product);
         }
 
+        $planDistribution = $this->buildPlanDistribution($product);
+
+        // Financial-figure redaction (sprint step 11): MRR/ARR + per-plan and
+        // per-customer revenue require analytics.access. The PAGE stays reachable
+        // (its base gate is permission:provisioning.access on the route); only the
+        // money figures are nulled so the real numbers never reach a non-analytics
+        // client (the Vue renders "—" / hides the figure). Catalog list prices
+        // (plan prices_summary) are NOT revenue and stay. super_admin passes can().
+        $canAnalytics = $request->user()->can('analytics.access');
+        if (! $canAnalytics) {
+            $kpis['mrr'] = null;
+            $kpis['arr'] = null;
+            $planDistribution = array_map(function (array $row): array {
+                $row['mrr'] = null;
+
+                return $row;
+            }, $planDistribution);
+            $recentCustomers = array_map(function (array $row): array {
+                $row['mrr'] = null;
+                $row['price'] = null;
+
+                return $row;
+            }, $recentCustomers);
+        }
+
         return Inertia::render('Internal/Products/Show', [
             'product' => [
                 'id' => $product->id,
@@ -88,7 +114,7 @@ class ProductOverviewController extends Controller
                 'is_active' => $product->is_active,
             ],
             'kpis' => $kpis,
-            'plan_distribution' => $this->buildPlanDistribution($product),
+            'plan_distribution' => $planDistribution,
             'no_plan_count' => CustomerProduct::where('product_id', $product->id)
                 ->whereNull('plan_id')
                 ->whereIn('status', ['active', 'trial'])

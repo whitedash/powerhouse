@@ -56,6 +56,8 @@ const breadcrumbs = [{ label: 'Subscriptions' }];
 
 /* ─── Money + dates ─── */
 function gbp(n) {
+    // Redacted analytics figure (no analytics.access) → null → em-dash. (Step 11.)
+    if (n === null || n === undefined) return '—';
     return new Intl.NumberFormat('en-GB', {
         style: 'currency',
         currency: 'GBP',
@@ -63,6 +65,7 @@ function gbp(n) {
     }).format(Number(n || 0));
 }
 function gbpRound(n) {
+    if (n === null || n === undefined) return '—';
     return new Intl.NumberFormat('en-GB', {
         style: 'currency',
         currency: 'GBP',
