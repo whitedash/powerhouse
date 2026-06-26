@@ -698,9 +698,11 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::get('/analytics', [InternalAnalyticsController::class, 'index'])->middleware('permission:analytics.access')->name('internal.analytics.index');
 
     // Product overview pages — one per product, navigated to from
-    // the sidebar Products section. Lives outside the settings group
-    // because it's read-only for staff (no super_admin gate).
-    Route::get('/products/{slug}', [InternalProductOverviewController::class, 'show'])->name('internal.products.show');
+    // the sidebar Products section. Base access requires provisioning.access
+    // (it's a product/provisioning surface); the financial KPIs on the page are
+    // further redacted in-method unless the user holds analytics.access (step 11).
+    Route::get('/products/{slug}', [InternalProductOverviewController::class, 'show'])
+        ->middleware('permission:provisioning.access')->name('internal.products.show');
     // Staff support desk. Moved off /support → /helpdesk so the bare
     // /support path can host the PUBLIC submit-ticket form. Route NAMES stay
     // internal.support.* so every route() reference is unaffected; only the

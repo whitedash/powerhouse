@@ -127,9 +127,26 @@ class SubscriptionController extends Controller
                 ])->values()->all(),
             ])->values()->all());
 
+        // Financial-figure redaction (sprint step 11): the aggregate MRR/ARR +
+        // per-product MRR in the analytics block require analytics.access. The
+        // page stays reachable for subscription management (the per-row
+        // operational pricing remains so provisioning staff can still manage
+        // subscriptions); only the analytics aggregates are nulled. super_admin
+        // passes via Gate::before through can().
+        $analytics = $this->buildAnalytics();
+        if (! $request->user()->can('analytics.access')) {
+            $analytics['mrr'] = null;
+            $analytics['arr'] = null;
+            $analytics['by_product'] = array_map(function (array $p): array {
+                $p['mrr'] = null;
+
+                return $p;
+            }, $analytics['by_product']);
+        }
+
         return Inertia::render('Internal/Subscriptions/Index', [
             'subscriptions' => $subscriptions,
-            'analytics' => $this->buildAnalytics(),
+            'analytics' => $analytics,
             'products' => Product::where('is_active', true)
                 ->orderBy('sort_order')
                 ->get(['id', 'name', 'slug', 'icon_colour'])

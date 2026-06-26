@@ -34,11 +34,14 @@ const breadcrumbs = computed(() => [{ label: props.product.name }]);
 
 /* ─── Money + dates ─── */
 function gbp(n) {
+    // Redacted KPI (no analytics.access) → null → em-dash, not a misleading £0. (Step 11.)
+    if (n === null || n === undefined) return '—';
     return new Intl.NumberFormat('en-GB', {
         style: 'currency', currency: 'GBP', minimumFractionDigits: 2,
     }).format(Number(n || 0));
 }
 function gbpRound(n) {
+    if (n === null || n === undefined) return '—';
     return new Intl.NumberFormat('en-GB', {
         style: 'currency', currency: 'GBP', maximumFractionDigits: 0,
     }).format(Number(n || 0));

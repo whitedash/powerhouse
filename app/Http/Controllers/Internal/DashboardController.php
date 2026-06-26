@@ -84,19 +84,53 @@ class DashboardController extends Controller
         // (red first) — the modal renders the full list grouped by type.
         $attention = $this->buildAttention($now, $request->user()?->id);
 
+        // Financial-figure redaction (sprint step 11): MRR / pending-£ /
+        // commission-£ require analytics.access. The page stays reachable (counts
+        // and ops data remain); the money figures are nulled so the real numbers
+        // never reach a non-analytics client (the Vue renders "—"). super_admin
+        // passes via Gate::before through can().
+        $canAnalytics = $request->user()->can('analytics.access');
+        $stats = $this->buildStats($now);
+        $products = $this->buildProducts();
+        $thisMonth = $this->buildThisMonth($monthStart, $prevMonthStart, $prevMonthEnd);
+        $pendingCommissions = (float) CommissionLedger::where('status', 'pending')
+            ->sum('commission_amount');
+        $referrers = $this->buildReferrers($monthStart);
+
+        if (! $canAnalytics) {
+            $stats['mrr'] = null;
+            $stats['pending_invoices_amount'] = null;
+            $thisMonth['commissions_due'] = null;
+            $pendingCommissions = null;
+            $products = array_map(function (array $p): array {
+                $p['mrr'] = null;
+
+                return $p;
+            }, $products);
+            // Referrer commission £ is redacted too (consistent with the
+            // commission totals above); the leaderboard keeps names + counts.
+            // (Specific invoice amounts in attention/activity stay — operational,
+            // gated on customers.access — per the step-11 scope decision.)
+            $referrers = array_map(function (array $r): array {
+                $r['commission_this_month'] = null;
+                $r['pending_payout'] = null;
+
+                return $r;
+            }, $referrers);
+        }
+
         return Inertia::render('Internal/Dashboard', [
             'greeting' => $this->buildGreeting($request),
             'today' => $now->format('l, j F Y'),
-            'stats' => $this->buildStats($now),
-            'products' => $this->buildProducts(),
+            'stats' => $stats,
+            'products' => $products,
             'attention' => $attention,
             'attention_count' => count($attention),
             'activity' => $this->buildActivity(),
             'tasks' => $this->buildTasks($request),
-            'this_month' => $this->buildThisMonth($monthStart, $prevMonthStart, $prevMonthEnd),
-            'referrers' => $this->buildReferrers($monthStart),
-            'total_pending_commissions' => (float) CommissionLedger::where('status', 'pending')
-                ->sum('commission_amount'),
+            'this_month' => $thisMonth,
+            'referrers' => $referrers,
+            'total_pending_commissions' => $pendingCommissions,
             'platform_health' => $this->buildPlatformHealth(),
             // Slim payloads for the New-task slide-over (linkable customer
             // + assignable user select). Active customers only; archived
@@ -128,6 +162,13 @@ class DashboardController extends Controller
     {
         Gate::authorize('viewAny', Customer::class);
 
+        // Financial-figure redaction (sprint step 11): the £ rows/columns (MRR,
+        // ARR, pending-£, revenue-£, per-product MRR) require analytics.access.
+        // The CSV stays reachable for the non-financial ops snapshot (counts,
+        // tickets, SLA, new/churned) — mirroring the dashboard page redaction so
+        // a staff member exports exactly what they can see. super_admin passes can().
+        $canAnalytics = $request->user()->can('analytics.access');
+
         $now = now();
         $monthStart = $now->copy()->startOfMonth();
         $stats = $this->buildStats($now);
@@ -140,7 +181,7 @@ class DashboardController extends Controller
 
         $filename = 'powerhouse-report-'.$now->format('Y-m-d').'.csv';
 
-        return response()->streamDownload(function () use ($now, $stats, $thisMonth, $products) {
+        return response()->streamDownload(function () use ($now, $stats, $thisMonth, $products, $canAnalytics) {
             $out = fopen('php://output', 'w');
 
             fputcsv($out, ['Report generated', $now->format('Y-m-d H:i T')]);
@@ -148,10 +189,14 @@ class DashboardController extends Controller
 
             fputcsv($out, ['Headline']);
             fputcsv($out, ['Total customers', $stats['total_customers'] ?? 0]);
-            fputcsv($out, ['MRR (£)', number_format((float) ($stats['mrr'] ?? 0), 2, '.', '')]);
-            fputcsv($out, ['ARR (£)', number_format((float) ($stats['mrr'] ?? 0) * 12, 2, '.', '')]);
+            if ($canAnalytics) {
+                fputcsv($out, ['MRR (£)', number_format((float) ($stats['mrr'] ?? 0), 2, '.', '')]);
+                fputcsv($out, ['ARR (£)', number_format((float) ($stats['mrr'] ?? 0) * 12, 2, '.', '')]);
+            }
             fputcsv($out, ['Pending invoices (count)', $stats['pending_invoices_count'] ?? 0]);
-            fputcsv($out, ['Pending invoices (£)', number_format((float) ($stats['pending_invoices_amount'] ?? 0), 2, '.', '')]);
+            if ($canAnalytics) {
+                fputcsv($out, ['Pending invoices (£)', number_format((float) ($stats['pending_invoices_amount'] ?? 0), 2, '.', '')]);
+            }
             fputcsv($out, ['Open tickets', $stats['open_tickets_count'] ?? 0]);
             fputcsv($out, ['SLA-breached tickets', $stats['overdue_sla_count'] ?? 0]);
             fputcsv($out, []);
@@ -159,17 +204,19 @@ class DashboardController extends Controller
             fputcsv($out, ['This month']);
             fputcsv($out, ['New customers', $thisMonth['new_customers'] ?? 0]);
             fputcsv($out, ['Churned customers', $thisMonth['churned_customers'] ?? 0]);
-            fputcsv($out, ['Revenue collected (£)', number_format((float) ($thisMonth['revenue_collected'] ?? 0), 2, '.', '')]);
+            if ($canAnalytics) {
+                fputcsv($out, ['Revenue collected (£)', number_format((float) ($thisMonth['revenue_collected'] ?? 0), 2, '.', '')]);
+            }
             fputcsv($out, []);
 
             fputcsv($out, ['Active by product']);
-            fputcsv($out, ['Product', 'Active customers', 'MRR (£)']);
+            fputcsv($out, $canAnalytics ? ['Product', 'Active customers', 'MRR (£)'] : ['Product', 'Active customers']);
             foreach ($products as $p) {
-                fputcsv($out, [
-                    $p['name'] ?? '',
-                    $p['customer_count'] ?? 0,
-                    number_format((float) ($p['mrr'] ?? 0), 2, '.', ''),
-                ]);
+                $row = [$p['name'] ?? '', $p['customer_count'] ?? 0];
+                if ($canAnalytics) {
+                    $row[] = number_format((float) ($p['mrr'] ?? 0), 2, '.', '');
+                }
+                fputcsv($out, $row);
             }
 
             fclose($out);

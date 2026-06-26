@@ -134,8 +134,12 @@ class CustomerController extends Controller
         // Whole recurring revenue per customer (services + hosting + domains),
         // computed once for the page rather than per-row.
         $recurring = RecurringRevenue::compute();
+        // Per-customer MRR contribution is an analytics figure (sprint step 11) —
+        // redacted per row unless the user holds analytics.access. super_admin
+        // passes via can(). Non-financial customer data stays.
+        $canAnalytics = $request->user()->can('analytics.access');
 
-        $paginator->through(function (Customer $customer) use ($recurring): array {
+        $paginator->through(function (Customer $customer) use ($recurring, $canAnalytics): array {
             $products = $customer->customerProducts
                 ->groupBy('product_id')
                 ->map(function ($group): array {
@@ -180,7 +184,7 @@ class CustomerController extends Controller
                     ]
                     : null,
                 'products' => $products,
-                'mrr' => $mrr,
+                'mrr' => $canAnalytics ? $mrr : null,
                 'referrer' => $referrerUser
                     ? ['name' => $referrerUser->name]
                     : null,
@@ -224,7 +228,7 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function show(int $id): Response
+    public function show(Request $request, int $id): Response
     {
         $customer = Customer::with([
             'contacts' => fn ($q) => $q->orderByDesc('is_primary')
@@ -434,7 +438,9 @@ class CustomerController extends Controller
                 // catalog (see the top-level `hosting_plans` prop) — no longer
                 // sourced from a pre-enabled CustomerProduct.
 
-                'mrr' => $mrr,
+                // Per-customer MRR is an analytics figure (step 11) — redacted
+                // unless analytics.access. total_spend (invoice history) stays.
+                'mrr' => $request->user()->can('analytics.access') ? $mrr : null,
                 'total_spend' => $totalSpend,
                 'open_invoices' => $openInvoiceCount,
                 'open_tickets' => $openTicketCount,

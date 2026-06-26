@@ -71,6 +71,9 @@ const breadcrumbs = [{ label: 'Overview' }];
 
 /* ─── Formatting helpers ─── */
 function gbp(n, dp = 0) {
+    // Redacted financial figures (no analytics.access) arrive as null — render an
+    // em-dash so they read as "hidden", not a misleading £0. (Sprint step 11.)
+    if (n === null || n === undefined) return '—';
     return '£' + Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: dp, maximumFractionDigits: dp });
 }
 function n(v) { return Number(v || 0).toLocaleString('en-GB'); }
@@ -86,7 +89,11 @@ const subLine = computed(() => {
 
 /* ─── KPI helpers ─── */
 const newCustomersThisMonth = computed(() => props.this_month?.new_customers ?? 0);
-const totalMrr = computed(() => props.products.reduce((sum, p) => sum + Number(p.mrr || 0), 0));
+const totalMrr = computed(() =>
+    // Redacted (no analytics.access) → null so gbp() renders "—", not a false £0.
+    props.products.some((p) => p.mrr === null)
+        ? null
+        : props.products.reduce((sum, p) => sum + Number(p.mrr || 0), 0));
 
 /* ─── Products ─── */
 const PROD_CLASS = { maavelus: 'maa', myorderpad: 'mop', whitedash: 'wdb', smscube: 'sms' };

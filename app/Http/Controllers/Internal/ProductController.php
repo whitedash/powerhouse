@@ -131,7 +131,7 @@ class ProductController extends Controller
      * the Settings index because this is the page where staff actually
      * manage plans + categories + prices end-to-end.
      */
-    public function plans(int $id): Response
+    public function plans(Request $request, int $id): Response
     {
         $product = Product::with([
             'planCategories' => fn ($q) => $q->orderBy('sort_order')
@@ -143,6 +143,12 @@ class ProductController extends Controller
         ])->findOrFail($id);
 
         Gate::authorize('update', $product);
+
+        // Per-plan aggregate MRR (sum of active subscriptions' contribution) is an
+        // analytics figure (sprint step 11) — redacted unless analytics.access. The
+        // plan-builder stays reachable (products.manage); only the MRR is gated.
+        // super_admin passes via Gate::before through can().
+        $canAnalytics = $request->user()->can('analytics.access');
 
         return Inertia::render('Internal/Settings/ProductPlans', [
             'product' => [
@@ -158,12 +164,12 @@ class ProductController extends Controller
                 'description' => $cat->description,
                 'sort_order' => $cat->sort_order,
                 'is_public' => $cat->is_public,
-                'plans' => $cat->plans->map(fn (ProductPlan $p): array => $this->mapPlan($p))
+                'plans' => $cat->plans->map(fn (ProductPlan $p): array => $this->mapPlan($p, $canAnalytics))
                     ->values()
                     ->all(),
             ])->values()->all(),
             'uncategorised' => $product->plans
-                ->map(fn (ProductPlan $p): array => $this->mapPlan($p))
+                ->map(fn (ProductPlan $p): array => $this->mapPlan($p, $canAnalytics))
                 ->values()
                 ->all(),
         ]);
@@ -172,7 +178,7 @@ class ProductController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function mapPlan(ProductPlan $plan): array
+    private function mapPlan(ProductPlan $plan, bool $canAnalytics): array
     {
         return [
             'id' => $plan->id,
@@ -192,11 +198,12 @@ class ProductController extends Controller
             // mrr_contribution is a model accessor, not a column, so a
             // raw ->sum('mrr_contribution') would return 0. We hydrate
             // the active customer_products and sum via the accessor.
-            'mrr' => (float) CustomerProduct::where('plan_id', $plan->id)
+            // Per-plan aggregate MRR redacted unless analytics.access (step 11).
+            'mrr' => $canAnalytics ? (float) CustomerProduct::where('plan_id', $plan->id)
                 ->where('status', 'active')
                 ->with('planPrice')
                 ->get()
-                ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution),
+                ->sum(fn (CustomerProduct $cp): float => $cp->mrr_contribution) : null,
             'prices' => $plan->activePrices->map(fn (ProductPlanPrice $pp): array => [
                 'id' => $pp->id,
                 'price' => (float) $pp->price,
