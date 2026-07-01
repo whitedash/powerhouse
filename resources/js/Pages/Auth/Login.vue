@@ -1,7 +1,7 @@
 <script setup>
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-vue';
+import { IconAlertCircle, IconArrowLeft, IconInfoCircle } from '@tabler/icons-vue';
 
 const page = usePage();
 
@@ -12,6 +12,7 @@ const form = useForm({
 });
 
 const flashError = computed(() => page.props.flash?.error);
+const flashInfo = computed(() => page.props.flash?.info);
 const generalError = computed(() => form.errors.email || flashError.value);
 
 function submit() {
@@ -34,6 +35,11 @@ function submit() {
                     <div class="login-sub">Whitedash</div>
                 </div>
             </a>
+
+            <div v-if="flashInfo" class="login-info">
+                <IconInfoCircle :size="18" stroke-width="2" />
+                <span>{{ flashInfo }}</span>
+            </div>
 
             <div v-if="generalError" class="login-error">
                 <IconAlertCircle :size="18" stroke-width="2" />
@@ -137,6 +143,17 @@ function submit() {
     gap: 8px;
     background: var(--danger-bg);
     color: var(--danger);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    font: 500 13px/1.4 'Inter', sans-serif;
+}
+
+.login-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--info-bg);
+    color: var(--info);
     border-radius: var(--radius-md);
     padding: 10px 14px;
     font: 500 13px/1.4 'Inter', sans-serif;
