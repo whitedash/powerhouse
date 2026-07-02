@@ -88,7 +88,7 @@ const SOURCE_CLASS = {
                 <div v-else class="rl-empty">
                     <IconShare :size="40" stroke-width="1.5" />
                     <h3>No attributions yet</h3>
-                    <p>Referral attributions appear here once a referred lead converts or a customer is linked to a referrer.</p>
+                    <p>Referral attributions appear here once a referred lead converts or a company is linked to a referrer.</p>
                 </div>
 
                 <div v-if="referrals.data.length" class="tbl-foot">

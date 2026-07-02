@@ -171,7 +171,7 @@ function gotoCustomer(id) {
                     <div class="kpi-top"><div class="kpi-icon teal"><IconUsers :size="18" stroke-width="1.75" /></div></div>
                     <div class="kpi-mid">
                         <div class="kpi-value">{{ kpis.active_customers }}</div>
-                        <div class="kpi-label">Active customers</div>
+                        <div class="kpi-label">Active companies</div>
                     </div>
                     <div class="kpi-foot" :class="{ up: kpis.new_this_month > 0 }">
                         +{{ kpis.new_this_month }} this month
@@ -293,12 +293,12 @@ function gotoCustomer(id) {
                         </template>
                     </section>
 
-                    <!-- Recent customers -->
+                    <!-- Recent companies -->
                     <section class="card" style="margin-top: 16px;">
                         <header class="card-header">
                             <div class="h-icon"><IconUsers :size="16" stroke-width="1.75" /></div>
                             <div>
-                                <h3>Recent customers</h3>
+                                <h3>Recent companies</h3>
                                 <div class="sub">Most recently enrolled</div>
                             </div>
                             <div class="right">
@@ -416,7 +416,7 @@ function gotoCustomer(id) {
                         </header>
                         <div class="quick-action-row" @click="gotoCustomers">
                             <div class="quick-action-icon" style="color: var(--success);"><IconUserPlus :size="16" stroke-width="1.75" /></div>
-                            <div class="quick-action-label">Enable for a new customer</div>
+                            <div class="quick-action-label">Enable for a new company</div>
                             <IconArrowRight :size="14" stroke-width="1.75" style="color: var(--text-tertiary);" />
                         </div>
                         <div class="quick-action-row" @click="gotoPlans">

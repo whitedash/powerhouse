@@ -279,7 +279,7 @@ const hasMoreCustomers = computed(() => props.customers.length > 8);
                 <div class="kpi-card teal">
                     <div class="kpi-top"><IconUsers :size="16" stroke-width="1.75" /></div>
                     <div class="kpi-value">{{ kpis.active_customers }}</div>
-                    <div class="kpi-label">Active customers</div>
+                    <div class="kpi-label">Active companies</div>
                     <div class="kpi-trend">{{ kpis.total_customers }} total ever</div>
                 </div>
                 <div class="kpi-card gold">
@@ -501,7 +501,7 @@ const hasMoreCustomers = computed(() => props.customers.length > 8);
                             <div class="h-icon"><IconChartBar :size="16" stroke-width="1.75" /></div>
                             <div>
                                 <h3>6-month performance</h3>
-                                <div class="sub">Commission &amp; new customers</div>
+                                <div class="sub">Commission &amp; new companies</div>
                             </div>
                         </div>
                         <div class="ref-show-trend">
@@ -523,7 +523,7 @@ const hasMoreCustomers = computed(() => props.customers.length > 8);
                         </div>
                         <div class="ref-show-trend-legend">
                             <span><span class="dot gold" />Commission</span>
-                            <span><span class="dot teal" />New customers</span>
+                            <span><span class="dot teal" />New companies</span>
                         </div>
                     </section>
 

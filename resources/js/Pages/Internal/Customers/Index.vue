@@ -336,7 +336,7 @@ function submit() {
     });
 }
 
-// Dashboard's "+ New customer" button navigates here with ?create=1
+// Dashboard's "+ New company" button navigates here with ?create=1
 // so the slide-over pops open on mount. Strip the param from the URL
 // once consumed so a reload doesn't re-open it.
 onMounted(() => {

@@ -399,7 +399,7 @@ const icons = {
                                     {{ customer.billing_email }}
                                 </a>
                             </div>
-                            <div v-else class="col-value">No customer linked</div>
+                            <div v-else class="col-value">No company linked</div>
                         </div>
                         <div>
                             <div class="stack">

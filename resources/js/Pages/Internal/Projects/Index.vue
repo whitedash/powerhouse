@@ -245,7 +245,7 @@ const createGuard = useDirtyClose(() => form.isDirty, closeCreate);
                 </div>
 
                 <select v-model="customerId" class="filter-select">
-                    <option value="">All customers</option>
+                    <option value="">All companies</option>
                     <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</option>
                 </select>
 

@@ -289,7 +289,7 @@ const STATUS = {
                     <input v-model="search" type="text" placeholder="Search sites or customers…" />
                 </div>
                 <select v-model="customerFilter" class="field-input wu-cust">
-                    <option value="all">All customers</option>
+                    <option value="all">All companies</option>
                     <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</option>
                 </select>
                 <div class="wu-spacer"></div>

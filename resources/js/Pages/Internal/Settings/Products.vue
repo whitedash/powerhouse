@@ -481,11 +481,11 @@ const supplierGuard = useDirtyClose(() => supplierForm.isDirty, () => { showSupp
                     <div class="sec-label">Stats</div>
                     <div class="stats-card">
                         <div class="stats-row">
-                            <span class="k">Active customers</span>
+                            <span class="k">Active companies</span>
                             <span class="v">{{ selectedProduct.active_customers }}</span>
                         </div>
                         <div class="stats-row">
-                            <span class="k">Total customers ever</span>
+                            <span class="k">Total companies ever</span>
                             <span class="v">{{ selectedProduct.total_customers }}</span>
                         </div>
                         <a

@@ -100,8 +100,8 @@ function performDelete() {
         <div class="cg-page">
             <div v-if="groups.length === 0" class="cg-empty">
                 <IconUsers :size="40" stroke-width="1.5" />
-                <h3>No customer groups yet</h3>
-                <p>Use groups to tag customers as VIP, beta testers, or anything else worth filtering by.</p>
+                <h3>No company groups yet</h3>
+                <p>Use groups to tag companies as VIP, beta testers, or anything else worth filtering by.</p>
                 <button type="button" class="btn btn-primary" @click="openCreate">
                     <IconPlus :size="14" stroke-width="1.75" /> Create first group
                 </button>
