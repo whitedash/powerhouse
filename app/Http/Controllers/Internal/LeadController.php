@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Internal;
 
+use App\Enums\PersonRole;
 use App\Enums\ReferralStatus;
 use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
@@ -18,6 +19,7 @@ use App\Services\DealRegistrationService;
 use App\Services\FileUploadService;
 use App\Services\LeadImportService;
 use App\Services\NotificationService;
+use App\Services\PersonService;
 use App\Support\ScopeEnforcer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -474,7 +476,7 @@ class LeadController extends Controller
             // contact — name alone is too thin for a contact row
             // (we still need *some* way to reach them).
             if ($lead->email !== null || $lead->phone !== null) {
-                Contact::create([
+                $contact = Contact::create([
                     'customer_id' => $customer->id,
                     'name' => $lead->name,
                     'email' => $lead->email,
@@ -483,6 +485,27 @@ class LeadController extends Controller
                     'role' => 'owner',
                     'is_primary' => true,
                 ]);
+
+                // Same people-layer funnel as CustomerController::store: dedupe
+                // the human by email and link the Person + customer_person
+                // pivot. Previously convert() created this Contact with
+                // person_id null — orphaned from the cross-company identity,
+                // so a converted lead's owner was invisible to Customer::people.
+                $people = app(PersonService::class);
+                $person = $people->createOrLinkFromContact(
+                    null, // no operator-picked person on the convert form
+                    $lead->name,
+                    $lead->email,
+                    $request->user(),
+                );
+                $contact->update(['person_id' => $person->id]);
+                $people->attachCompany(
+                    $person,
+                    $customer,
+                    PersonRole::Owner, // the primary contact is always 'owner' here
+                    $lead->job_title,
+                    $request->user(),
+                );
             }
 
             // Migrate any tasks + notes that hung off the lead.
