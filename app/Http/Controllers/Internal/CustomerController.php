@@ -877,7 +877,7 @@ class CustomerController extends Controller
     {
         $data = $request->validated();
 
-        [$customer, $contact] = DB::transaction(function () use ($data, $request) {
+        $customer = DB::transaction(function () use ($data, $request) {
             $customer = Customer::create([
                 'name' => $data['name'],
                 'trading_name' => $data['trading_name'] ?? null,
@@ -918,15 +918,14 @@ class CustomerController extends Controller
 
             $this->logActivity($request, 'customer.created', $customer, after: ['name' => $customer->name]);
 
-            return [$customer, $contact];
-        });
-
-        // Additive people-layer link (Layer 1): dedupe the human by email and
-        // tie the primary contact to a Person + a customer_person row. This is
-        // BEST-EFFORT and runs AFTER commit — the Customer + Contact are the
-        // critical records and must never be rolled back by a Person-link
-        // failure. Comms still read customer->primaryContact (untouched).
-        try {
+            // People-layer link (Layer 1): dedupe the human by email and tie
+            // the primary contact to a Person + a customer_person pivot row.
+            // NOW inside the transaction (was best-effort after-commit): the
+            // Person resolve recovers from the people.email UNIQUE race
+            // internally (see PersonService::createOrLinkFromContact), so a
+            // throw here is a genuine error that SHOULD roll the whole create
+            // back rather than being silently swallowed into an unlinked
+            // contact. Comms still read customer->primaryContact.
             $people = app(PersonService::class);
             $person = $people->createOrLinkFromContact(
                 $data['person_id'] ?? null,
@@ -942,9 +941,9 @@ class CustomerController extends Controller
                 $contact->job_title,
                 $request->user(),
             );
-        } catch (\Throwable $e) {
-            report($e);
-        }
+
+            return $customer;
+        });
 
         return redirect()
             ->route('internal.customers.show', $customer->id)

@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Person;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -92,14 +93,38 @@ class PersonService
             }
         }
 
-        if ($email !== null && $email !== '') {
-            $byEmail = Person::where('email', $email)->first();
-            if ($byEmail !== null) {
-                return $byEmail;
-            }
+        // Trim-normalise before matching, mirroring ContactMatchService: the
+        // utf8mb4_unicode_ci collation already folds case/accents, but leading
+        // or trailing whitespace would otherwise miss an existing Person.
+        $email = trim((string) $email);
+        if ($email === '') {
+            // No email to dedupe on — an email-less person is always fresh.
+            return $this->create(['name' => $name, 'email' => null], $actor);
         }
 
-        return $this->create(['name' => $name, 'email' => $email], $actor);
+        $byEmail = Person::where('email', $email)->first();
+        if ($byEmail !== null) {
+            return $byEmail;
+        }
+
+        // No match at check time — but a concurrent customer-create for the
+        // same new email can insert the Person between this check and ours.
+        // The people.email UNIQUE index then rejects our insert; recover by
+        // re-reading and reusing the winner rather than letting the exception
+        // propagate (previously swallowed by CustomerController's after-commit
+        // catch, which silently left contacts.person_id null).
+        try {
+            return $this->create(['name' => $name, 'email' => $email], $actor);
+        } catch (QueryException $e) {
+            // lockForUpdate forces a current read: the winner committed after
+            // our transaction's snapshot, so a plain SELECT could miss it.
+            $winner = Person::where('email', $email)->lockForUpdate()->first();
+            if ($winner !== null) {
+                return $winner;
+            }
+
+            throw $e; // a different constraint — do not swallow it
+        }
     }
 
     /**
