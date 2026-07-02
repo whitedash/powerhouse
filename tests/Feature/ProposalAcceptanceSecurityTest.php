@@ -43,7 +43,10 @@ class ProposalAcceptanceSecurityTest extends TestCase
             'vat_rate' => 20,
             'vat_amount' => 200,
             'total' => 1200,
-            'acceptance_token' => $token,
+            // Tokens are hashed at rest (merged from fix/proposal-token-hash-at-rest):
+            // store the hash; tests hit the route with the raw $token, which the
+            // lookup hashes to match.
+            'acceptance_token' => hash('sha256', $token),
             'acceptance_token_expires_at' => now()->addDays(30),
             'created_by' => $admin->id,
         ]);
