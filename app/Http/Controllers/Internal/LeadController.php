@@ -293,6 +293,29 @@ class LeadController extends Controller
             ->with('import_summary', $summary);
     }
 
+    /**
+     * Downloadable CSV template for the import: the exact header the
+     * parser reads (LeadImportService::COLUMNS) plus one obviously-fake
+     * example row (Ofcom-reserved phone, example.com). A download, not
+     * an upload — FileUploadService is deliberately not involved.
+     */
+    public function importTemplate(): \Illuminate\Http\Response
+    {
+        Gate::authorize('viewAny', Customer::class);
+        $this->authorizeScopeSection(ScopeArea::Leads);
+
+        $csv = implode("\n", [
+            implode(',', LeadImportService::COLUMNS),
+            'Alex,Example,alex@example.com,07700 900000,Example Bakery Ltd,Owner,1500,"Example row — delete it before importing"',
+            '',
+        ]);
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="leads-import-template.csv"',
+        ]);
+    }
+
     public function update(int $id, Request $request): RedirectResponse
     {
         Gate::authorize('viewAny', Customer::class);

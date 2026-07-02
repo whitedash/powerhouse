@@ -43,8 +43,9 @@ class LeadImportService
      */
     public const MAX_ROWS = 250;
 
-    /** CSV columns the import accepts; anything else in the header is ignored. */
-    private const COLUMNS = [
+    /** CSV columns the import accepts; anything else in the header is ignored.
+     *  Public: the template download + tests derive the header from it. */
+    public const COLUMNS = [
         'first_name', 'last_name', 'email', 'phone',
         'company', 'job_title', 'estimated_value', 'notes',
     ];
