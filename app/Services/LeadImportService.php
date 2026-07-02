@@ -43,11 +43,20 @@ class LeadImportService
      */
     public const MAX_ROWS = 250;
 
-    /** CSV columns the import accepts; anything else in the header is ignored. */
-    private const COLUMNS = [
+    /** CSV columns the import accepts; anything else in the header is ignored.
+     *  Public: the template download + tests derive the header from it. */
+    public const COLUMNS = [
         'first_name', 'last_name', 'email', 'phone',
         'company', 'job_title', 'estimated_value', 'notes',
     ];
+
+    /** The template download's example row carries this address — rows
+     *  matching it are ignored visibly (never imported, never a
+     *  duplicate-skip, never a validation failure). The controller's
+     *  template body derives the row from this const, so the pair can't
+     *  drift. Email over the notes cell as the match key: notes get
+     *  edited while the row lingers; the address doesn't. */
+    public const TEMPLATE_EXAMPLE_EMAIL = 'alex@example.com';
 
     /** Bounds hostile input: bytes fgetcsv reads per line, cells per row. */
     private const MAX_LINE_BYTES = 65536;
@@ -64,6 +73,7 @@ class LeadImportService
      * @return array{
      *     created: int,
      *     total_rows: int,
+     *     example_ignored: int,
      *     skipped: list<array{row: int, name: string, matched_on: string}>,
      *     flagged: list<array{row: int, name: string, matched_on: string, customer: string|null}>,
      *     failed: list<array{row: int, reason: string}>,
@@ -93,6 +103,7 @@ class LeadImportService
         $summary = [
             'created' => 0,
             'total_rows' => count($rows),
+            'example_ignored' => 0,
             'skipped' => [],
             'flagged' => [],
             'failed' => [],
@@ -121,7 +132,7 @@ class LeadImportService
      * @param  list<string|null>  $cells
      * @param  list<string>  $header
      * @param  array<string, true>  $seen
-     * @param  array{created: int, total_rows: int, skipped: list<array{row: int, name: string, matched_on: string}>, flagged: list<array{row: int, name: string, matched_on: string, customer: string|null}>, failed: list<array{row: int, reason: string}>}  $summary
+     * @param  array{created: int, total_rows: int, example_ignored: int, skipped: list<array{row: int, name: string, matched_on: string}>, flagged: list<array{row: int, name: string, matched_on: string, customer: string|null}>, failed: list<array{row: int, reason: string}>}  $summary
      */
     private function importRow(int $rowNumber, array $cells, array $header, string $sourceDetail, User $actor, array &$seen, array &$summary): void
     {
@@ -153,6 +164,15 @@ class LeadImportService
         $email = $this->matcher->normalizeEmail($valid['email'] ?? null);
         $phone = $this->matcher->normalizePhone($valid['phone'] ?? null);
         $name = trim(($valid['first_name'] ?? '').' '.($valid['last_name'] ?? ''));
+
+        // The template's placeholder row, imported unedited — common enough
+        // to handle. Ignored visibly, before dedup: not a created lead, not
+        // a duplicate-skip, not a failure, and never enters the seen-set.
+        if ($email !== null && mb_strtolower($email) === self::TEMPLATE_EXAMPLE_EMAIL) {
+            $summary['example_ignored']++;
+
+            return;
+        }
 
         if ($email === null && $phone === null) {
             $summary['failed'][] = [

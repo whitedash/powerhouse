@@ -385,6 +385,8 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
             ->middleware('permission:leads.manage')->name('store');
         Route::post('/import', [InternalLeadController::class, 'import'])
             ->middleware('permission:leads.manage')->name('import');
+        Route::get('/import/template', [InternalLeadController::class, 'importTemplate'])
+            ->middleware('permission:leads.manage')->name('import.template');
         Route::get('/{id}', [InternalLeadController::class, 'show'])
             ->whereNumber('id')->name('show');
         Route::put('/{id}', [InternalLeadController::class, 'update'])

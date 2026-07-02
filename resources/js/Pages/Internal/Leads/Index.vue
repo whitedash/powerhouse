@@ -18,7 +18,7 @@ import {
     IconPlus, IconSearch, IconX, IconUserPlus, IconLayoutKanban,
     IconList, IconTrophy, IconBan, IconChevronLeft, IconChevronRight,
     IconDots, IconTrash, IconArrowRight, IconShieldCheck, IconCircleCheck,
-    IconUpload, IconFileSpreadsheet,
+    IconUpload, IconFileSpreadsheet, IconDownload,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -351,6 +351,12 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
                         <span class="muted">({{ importSummary.total_rows }} row{{ importSummary.total_rows === 1 ? '' : 's' }} in file)</span>
                     </p>
 
+                    <p v-if="importSummary.example_ignored" class="muted small">
+                        {{ importSummary.example_ignored }} template example
+                        row{{ importSummary.example_ignored === 1 ? '' : 's' }} ignored —
+                        delete it from your CSV to silence this.
+                    </p>
+
                     <details v-if="importSummary.skipped.length" class="lis-group">
                         <summary>{{ importSummary.skipped.length }} skipped as duplicates</summary>
                         <ul>
@@ -681,6 +687,15 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
                     </div>
                     <form class="slide-over-body" @submit.prevent="submitImport">
                         <div class="form-section">
+                            <div class="lis-template-row">
+                                <!-- Plain <a>, not <Link>: Inertia must not
+                                     intercept — the browser handles the
+                                     attachment download in place. -->
+                                <a href="/leads/import/template" class="ghost-link">
+                                    <IconDownload :size="13" stroke-width="2" />
+                                    Download template
+                                </a>
+                            </div>
                             <label
                                 class="file-upload-zone"
                                 :class="{ dragging: isDraggingImport }"
@@ -818,6 +833,7 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
     color: var(--text-secondary);
 }
 .lis-file { font-weight: 600; color: var(--text-primary); }
+.lis-template-row { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 
 /* Deal-registration: review queue + protection badge. */
 .referral-review {

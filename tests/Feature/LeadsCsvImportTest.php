@@ -265,6 +265,44 @@ class LeadsCsvImportTest extends TestCase
         $this->assertSame(0, Lead::count());
     }
 
+    public function test_unedited_template_example_row_is_ignored_visibly(): void
+    {
+        // Round-trip: download the real template, submit it unedited.
+        $template = $this->actingAs($this->admin)
+            ->get('/leads/import/template')
+            ->getContent();
+
+        $this->importCsv($template)->assertSessionHas('warning');
+
+        $summary = session('import_summary');
+        $this->assertSame(0, $summary['created']);
+        $this->assertSame(1, $summary['example_ignored']);
+        // Distinct outcome: not a duplicate-skip, not a validation failure.
+        $this->assertSame([], $summary['skipped']);
+        $this->assertSame([], $summary['failed']);
+        $this->assertSame(0, Lead::count());
+    }
+
+    public function test_template_download_is_gated_and_matches_the_parser_columns(): void
+    {
+        // Same permission bar as the import itself.
+        $stripped = User::factory()->create();
+        $stripped->syncRoles([]);
+        $this->actingAs($stripped->fresh())->get('/leads/import/template')->assertForbidden();
+
+        $response = $this->actingAs($this->admin)->get('/leads/import/template');
+
+        $response->assertOk()
+            ->assertHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->assertDownload('leads-import-template.csv');
+
+        // Header row must be exactly what the parser reads, in order.
+        $this->assertSame(
+            implode(',', LeadImportService::COLUMNS),
+            strtok($response->getContent(), "\n"),
+        );
+    }
+
     public function test_over_cap_file_is_rejected_whole(): void
     {
         $rows = array_map(

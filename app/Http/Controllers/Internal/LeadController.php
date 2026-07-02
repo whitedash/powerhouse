@@ -270,7 +270,8 @@ class LeadController extends Controller
             $uploads->delete($path);
         }
 
-        $problems = count($summary['skipped']) + count($summary['flagged']) + count($summary['failed']);
+        $problems = count($summary['skipped']) + count($summary['flagged'])
+            + count($summary['failed']) + $summary['example_ignored'];
         $headline = sprintf(
             '%d lead%s imported (%d row%s in file).',
             $summary['created'],
@@ -283,14 +284,45 @@ class LeadController extends Controller
             return back()->with('success', $headline);
         }
 
+        $detail = sprintf(
+            ' %d skipped as duplicates, %d flagged, %d failed',
+            count($summary['skipped']),
+            count($summary['flagged']),
+            count($summary['failed']),
+        );
+        if ($summary['example_ignored'] > 0) {
+            $detail .= sprintf(', %d template example row%s ignored',
+                $summary['example_ignored'],
+                $summary['example_ignored'] === 1 ? '' : 's',
+            );
+        }
+
         return back()
-            ->with('warning', $headline.sprintf(
-                ' %d skipped as duplicates, %d flagged, %d failed — see the import summary.',
-                count($summary['skipped']),
-                count($summary['flagged']),
-                count($summary['failed']),
-            ))
+            ->with('warning', $headline.$detail.' — see the import summary.')
             ->with('import_summary', $summary);
+    }
+
+    /**
+     * Downloadable CSV template for the import: the exact header the
+     * parser reads (LeadImportService::COLUMNS) plus one obviously-fake
+     * example row (Ofcom-reserved phone, example.com). A download, not
+     * an upload — FileUploadService is deliberately not involved.
+     */
+    public function importTemplate(): \Illuminate\Http\Response
+    {
+        Gate::authorize('viewAny', Customer::class);
+        $this->authorizeScopeSection(ScopeArea::Leads);
+
+        $csv = implode("\n", [
+            implode(',', LeadImportService::COLUMNS),
+            'Alex,Example,'.LeadImportService::TEMPLATE_EXAMPLE_EMAIL.',07700 900000,Example Bakery Ltd,Owner,1500,"Example row — delete it before importing"',
+            '',
+        ]);
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="leads-import-template.csv"',
+        ]);
     }
 
     public function update(int $id, Request $request): RedirectResponse
