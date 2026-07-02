@@ -6,6 +6,16 @@ id, name, email, password, role ENUM(super_admin|staff|referrer),
 avatar_colour, two_factor_secret TEXT (encrypted),
 two_factor_confirmed_at,
 last_login_at, last_login_ip, created_at, updated_at
+-- plus (2026_05_31): notification_preferences JSON nullable —
+   per-user notification opt-in/out map; null = all defaults
+   (User::wantsNotification() treats a missing key as true).
+-- plus (2026_06_02): google_access_token TEXT nullable (encrypted),
+   google_refresh_token TEXT nullable (encrypted),
+   google_token_expires_at nullable, google_calendar_id nullable,
+   google_sync_enabled BOOLEAN DEFAULT false — per-user Google
+   Calendar connection; tokens encrypted via the model cast
+   (TEXT because ciphertext overflows varchar 255); null
+   calendar_id means 'primary'.
 
 ## customers
 id, name, trading_name, company_number, vat_number,
@@ -38,6 +48,11 @@ erasure_requested_by BIGINT FK users nullable ON DELETE SET NULL
 data_export_last_at TIMESTAMP nullable
   -- GDPR Art. 20: last right-to-portability export timestamp.
 archived_at nullable, created_at, updated_at
+-- plus (2026_05_30): portal_last_login_at TIMESTAMP nullable,
+   portal_login_count INT UNSIGNED DEFAULT 0 — account-level portal
+   login aggregate (SSO sprint); PortalAuthController::login() bumps
+   both on every successful portal login, so SSO/OAuth flows need no
+   extra hook.
 
 ## contacts
 id, customer_id FK, name, email, phone nullable,
@@ -84,6 +99,19 @@ id, customer_id FK, name, email, password,
 two_factor_secret nullable, two_factor_confirmed_at nullable,
 email_verified_at nullable, last_login_at nullable,
 created_at, updated_at
+-- plus (2026_05_29): contact_id FK->contacts nullable (set null) —
+   ties a portal login to the specific contact it belongs to, so
+   one customer can invite each contact as a distinct login;
+   nullable = existing rows need no backfill.
+
+## portal_password_resets
+email VARCHAR(255) PRIMARY KEY, token VARCHAR(255),
+created_at nullable
+-- Portal twin of Laravel's password_reset_tokens, keyed separately so
+   a staff and a portal reset cycle can run concurrently for the same
+   email. token holds a HASH of the plaintext (never the plaintext);
+   no updated_at — the controller deletes on use, and a re-request
+   replaces the row.
 
 ## products
 id, slug VARCHAR(50) UNIQUE, name, description,
@@ -145,17 +173,36 @@ INDEXES: (plan_id, is_active, sort_order)
 
 ## customer_products
 id, customer_id FK, product_id FK,
+-- External provisioning (2026_06_03): consumer apps Powerhouse creates
+-- the account in (currently MyOrderPad); the SSO token carries
+-- external_user_id so the consumer resolves the account on auto-login.
+external_user_id nullable, external_email nullable,
+provisioned_at TIMESTAMP nullable,
+provision_status DEFAULT 'pending', -- VARCHAR(255), not an enum
 plan_id FK product_plans nullable ON DELETE SET NULL,
 plan_price_id FK product_plan_prices nullable ON DELETE SET NULL,
+label VARCHAR(100) nullable,
+-- label tells multiple subscriptions of the same product apart per
+-- customer ("Main website", "Blog"); the (customer_id, product_id)
+-- index is deliberately non-unique to allow that.
 billing_entity_id FK nullable,
 stripe_subscription_id VARCHAR(100) nullable,
 stripe_price_id VARCHAR(100) nullable,
 plan VARCHAR(100) nullable, price_monthly DECIMAL(10,2) nullable,
 interval_count TINYINT UNSIGNED DEFAULT 1,
 interval_unit ENUM(day|week|month|year|one_time) DEFAULT 'month',
-status ENUM(active|trial|suspended|cancelled),
+status ENUM(active|trial|suspended|cancelled|pending),
+-- 'pending' (2026_05_29) = portal self-service signup awaiting staff
+-- approval from the internal Provisioning page.
 trial_ends_at nullable, started_at nullable,
 next_billing_date DATE nullable,
+auto_invoice BOOLEAN DEFAULT false,
+auto_invoice_entity_id FK billing_entities nullable (SET NULL),
+last_invoiced_at DATE nullable,
+-- Auto-invoicing (2026_05_30): the daily invoices:generate-subscriptions
+-- sweep drafts an invoice on next_billing_date and rolls the date
+-- forward; NULL entity falls back to the first active billing entity;
+-- last_invoiced_at is the audit breadcrumb the command writes.
 discount_pct DECIMAL(5,2) nullable,
 discount_expires_at DATE nullable,
 cancels_at DATE nullable,
@@ -173,7 +220,9 @@ reinstatement_reason TEXT nullable,
 reinstated_at TIMESTAMP nullable,
 reinstated_by BIGINT FK users nullable (SET NULL),
 created_at, updated_at
-INDEXES: (customer_id, product_id), status, next_billing_date
+INDEXES: (customer_id, product_id), status, next_billing_date,
+(status, auto_invoice, next_billing_date) -- auto-invoice sweep,
+(provision_status, external_user_id) -- provisioning sweep/reconcile
 
 ## billing_entities
 id, name, legal_name, company_number, vat_number,
@@ -185,6 +234,10 @@ vat_registered BOOLEAN DEFAULT true
 address JSON, bank_name,
 sort_code TEXT (encrypted), account_number TEXT (encrypted),
 account_name TEXT (encrypted),
+iban TEXT nullable (encrypted), bic TEXT nullable (encrypted),
+  -- 2026_06_09: international bank details (IBAN + BIC/SWIFT) per entity,
+  -- alongside the UK fields; encrypted at rest like the other bank columns.
+  -- Nullable — entities without them render no IBAN/BIC on invoices.
 logo_path nullable, postmark_sender_email,
 postmark_sender_name, postmark_domain nullable,
 qbo_realm_id nullable,
@@ -200,6 +253,14 @@ status ENUM(draft|sent|partially_paid|paid|overdue|void),
   -- partially_paid added in the 6-fixes sprint; markPaid()
   -- accumulates amount_paid and branches status on whether
   -- the running total covers invoice.total.
+is_recurring BOOLEAN DEFAULT false,
+recurring_interval_count TINYINT UNSIGNED nullable,
+recurring_interval_unit ENUM(week|month|year) nullable,
+recurring_next_date DATE nullable, recurring_ends_at DATE nullable,
+parent_invoice_id FK invoices nullable (SET NULL),
+  -- Recurring templates: invoices:generate-recurring clones the
+  -- template into a draft child on each recurring_next_date;
+  -- parent_invoice_id tracks lineage from the child side.
 subtotal DECIMAL(10,2), vat_rate DECIMAL(5,2),
 vat_amount DECIMAL(10,2), total DECIMAL(10,2),
 amount_paid DECIMAL(10,2) DEFAULT 0,
@@ -223,6 +284,7 @@ next_reminder_at nullable,
 reminders_paused BOOLEAN DEFAULT FALSE,
 created_by BIGINT FK users, created_at, updated_at
 INDEX (next_reminder_at, reminders_paused, status)
+INDEX (is_recurring, recurring_next_date) invoices_recurring_sweep_idx
 
 ## invoice_lines
 id, invoice_id FK,
@@ -234,10 +296,26 @@ unit_price DECIMAL(10,2),
 amount DECIMAL(10,2)
   -- POST-discount value. computeLineDiscount() is the only writer.
 discount_type ENUM(percentage|fixed) nullable,
-discount_value DECIMAL(10,2) DEFAULT 0,
-discount_amount DECIMAL(10,2) DEFAULT 0
+discount_value DECIMAL(10,2) nullable DEFAULT 0,
+discount_amount DECIMAL(10,2) nullable DEFAULT 0
   -- Cooked discount £ — stored for audit; never recomputed on read.
 sort_order INT DEFAULT 0, created_at, updated_at
+
+## reminder_templates
+id, name VARCHAR(100),
+tier ENUM(due_soon|due_today|first_reminder|second_reminder|
+  final_notice) UNIQUE,
+subject VARCHAR(255), body LONGTEXT,
+tone ENUM(friendly|firm|urgent|final),
+is_active BOOLEAN DEFAULT true,
+variables_used JSON nullable
+  -- Which {{placeholders}} the body references — a management-UI
+  -- usage hint only; not enforced at write time.
+created_at, updated_at
+-- One template per escalation tier: when an invoice reminder fires
+-- (see reminder_count / next_reminder_at on invoices) the renderer
+-- looks the row up by tier. ENUM + UNIQUE make one-per-tier a DB
+-- constraint, not a convention.
 
 ## stripe_customers   (Billing P1)
 id, customer_id FK customers (cascade) UNIQUE,
@@ -540,11 +618,20 @@ INDEX (trigger_type, trigger_date, status) -- date-cron (Sprint 2)
 
 ## domains
 id, customer_id FK nullable, domain VARCHAR(255) UNIQUE,
+registered_at DATE nullable,
+status ENUM(active|expiring_soon|expired|parked|transferred)
+  DEFAULT 'active'
+  -- Domains & DNS sprint (2026_05_30): computed health flag so the index
+  -- page and the artisan checker don't recompute on every read; the
+  -- check command writes it back whenever it runs.
 cloudflare_zone_id VARCHAR(100) nullable,
 registrar VARCHAR(100) nullable,
 is_in_cloudflare BOOLEAN DEFAULT false,
 is_proxied BOOLEAN DEFAULT false,
 expiry_date DATE nullable, ssl_expiry_date DATE nullable,
+ssl_status ENUM(active|expiring|expired|none) DEFAULT 'none'
+  -- Computed SSL health flag; same write-back as status.
+nameservers JSON nullable,
 auto_renew BOOLEAN DEFAULT false,
 product_plan_id FK product_plans nullable (SET NULL)
   -- DERIVED cached link to the matched is_domain plan (set on save +
@@ -560,7 +647,12 @@ renewal_invoiced_for DATE nullable
 hosting_provider VARCHAR(100) nullable,
 hosting_renewal_date DATE nullable,
 hosting_notes TEXT nullable,
+notes TEXT nullable
+  -- Operator notes for the domain management surface; kept separate from
+  -- the legacy hosting_notes so the customer-page hosting card doesn't
+  -- show generic domain notes alongside hosting-specific ones.
 last_synced_at nullable, created_at, updated_at
+-- INDEX (status) domains_status_idx
 
 ## websites (Websites sprint — cPanel/WHM/PageSpeed)
 id,
@@ -630,13 +722,19 @@ INDEX (customer_id, status), (cpanel_username),
 ## contracts
 id, customer_id FK, created_by FK users,
 type ENUM(service_agreement|sow|retainer|nda|other),
-title VARCHAR(255), value DECIMAL(10,2) nullable,
+title VARCHAR(255), description TEXT nullable
+  -- Operator's plain-English summary (customer-facing surface);
+  -- `notes` below stays the internal-only field.
+value DECIMAL(10,2) nullable,
 status ENUM(draft|sent|signed|countersigned|expired|void),
 sent_at nullable, signed_at nullable,
 signed_ip VARCHAR(45) nullable,
 countersigned_at nullable,
 start_date DATE nullable, end_date DATE nullable,
 pdf_path VARCHAR(500) nullable,
+file_original_name VARCHAR(255) nullable
+  -- Upload's friendly filename, used only for the download header;
+  -- storage paths stay uuid-generated by FileUploadService.
 notes TEXT nullable, created_at, updated_at
 
 ## support_tickets
@@ -751,8 +849,12 @@ lead_id FK leads nullable SET NULL (Leads sprint)
   -- A note can hang off a customer, a task, or a lead. On lead
   -- conversion LeadController::convert() re-targets the lead's
   -- notes at the new customer (lead_id = null, customer_id set).
+task_id FK tasks nullable SET NULL
+  -- Scopes a note to an activity thread on the task detail page.
+  -- SET NULL keeps the note for the audit trail after the parent
+  -- task is gone; the customer link is the authoritative anchor.
 type ENUM(internal|call|meeting|email),
-body TEXT, created_at, updated_at
+body TEXT, is_pinned BOOLEAN DEFAULT false, created_at, updated_at
 
 ## tasks
 id, customer_id FK nullable,
@@ -761,6 +863,10 @@ milestone_id FK milestones nullable (PM Sprint 1),
 lead_id FK leads nullable SET NULL (Leads sprint)
   -- Column landed empty in PM Sprint 1. The FK was added by
   -- the leads migration once the referenced table existed.
+ticket_id FK support_tickets nullable SET NULL
+  -- Link back to the spawning support ticket. TicketIntakeService
+  -- stamps it on new triage tasks; older triage tasks keep null
+  -- and fall back to the ticket ref in the title text.
 contact_id FK nullable,
 parent_task_id FK tasks nullable,
 assigned_to FK users, created_by FK users,
@@ -772,6 +878,14 @@ status ENUM(todo|in_progress|in_review|blocked|complete|cancelled)
   DEFAULT 'todo' (PM Sprint 1: widened from {open,complete}),
 due_date DATE nullable (legacy — kept for safety),
 due_at TIMESTAMP nullable (canonical schedule),
+start_at TIMESTAMP nullable (Calendar sprint),
+end_at TIMESTAMP nullable,
+location VARCHAR(255) nullable,
+is_all_day BOOLEAN DEFAULT true
+  -- true = due_at is a date-only deadline (the legacy shape);
+  -- false = timed event, start_at/end_at carry the real slot.
+google_event_id VARCHAR(255) nullable
+  -- Google Calendar event id once the task is mirrored there.
 completed_at TIMESTAMP nullable,
 outcome TEXT nullable,
 duration_minutes UNSIGNED INT nullable,
@@ -786,8 +900,24 @@ created_at, updated_at
 -- INDEX (project_id, milestone_id, sort_order) tasks_pm_board_idx
 -- INDEX (project_id, status) tasks_pm_status_idx
 -- INDEX (assigned_to, status) tasks_mywork_idx
+-- INDEX (start_at) tasks_start_at_index (Calendar sprint)
+-- INDEX (google_event_id) tasks_google_event_id_index
 -- Migration 2026_05_30_070004 backfilled the old enum:
 --   open → todo, complete → complete. No row was lost.
+
+## task_attachments
+id, task_id FK tasks (CASCADE),
+filename VARCHAR(255)
+  -- Original upload name, display only — the stored name comes from
+  -- FileUploadService; files live on the private disk, never public/.
+path VARCHAR(500), mime_type VARCHAR(100),
+size_bytes UNSIGNED INT,
+uploaded_by FK users (RESTRICT)
+  -- Restrict so a user with attachments can't be hard-deleted out
+  -- from under the audit trail.
+created_at, updated_at
+INDEX (task_id)
+-- Metadata table only — the bytes themselves are on the private disk.
 
 ## projects (PM Sprint 1)
 id, customer_id FK nullable
@@ -862,6 +992,31 @@ INDEX (project_id, is_billable, invoice_id) -- unbilled lookups
 INDEX (task_id)
 INDEX (user_id, logged_at)
 
+## project_files
+id, project_id FK projects (CASCADE),
+task_id FK tasks nullable (SET NULL)
+  -- Null = project-level file; set when the file is attached to a
+  -- task. SET NULL so deleting a task demotes its files to
+  -- project-level instead of losing them.
+filename VARCHAR(255), stored_name VARCHAR(255)
+  -- filename is the original upload name (display only); stored_name
+  -- is the UUID name the file lives under on the private disk.
+path VARCHAR(500), mime_type VARCHAR(100),
+size_bytes UNSIGNED INT,
+scan_status ENUM(pending|clean|infected|error|skipped)
+  DEFAULT 'pending',
+scan_completed_at TIMESTAMP nullable, scan_result TEXT nullable
+  -- Async ClamAV lifecycle: rows start pending; the scan pass moves
+  -- them to clean/infected/error/skipped and stamps the verdict.
+uploaded_by FK users (RESTRICT)
+  -- Restrict so a user with files can't be hard-deleted out from
+  -- under the audit trail.
+description VARCHAR(255) nullable,
+created_at, updated_at
+INDEX (project_id, scan_status)
+INDEX (task_id)
+INDEX (uploaded_by)
+
 ## activity_log
 id, user_id BIGINT nullable, user_role VARCHAR(50) nullable,
 action VARCHAR(100), entity_type VARCHAR(100),
@@ -890,6 +1045,27 @@ id, source VARCHAR(50), event_id VARCHAR(255),
 event_type VARCHAR(100), payload JSON,
 processed_at nullable, created_at
 -- UNIQUE(source, event_id) — idempotency key. No updated_at.
+
+## webhook_deliveries (Webhooks + Auto-Suspension sprint)
+id, event_type VARCHAR(100)
+  -- e.g. customer_product.suspended
+product_slug VARCHAR(50)
+  -- maavelus, myorderpad, …
+payload JSON, target_url VARCHAR(500),
+signature VARCHAR(100)
+  -- HMAC-SHA256 of the payload; consumers verify with hash_equals().
+status ENUM(pending|delivered|failed|abandoned) DEFAULT 'pending',
+http_status UNSIGNED INT nullable, response_body TEXT nullable,
+attempts UNSIGNED TINYINT DEFAULT 0,
+max_attempts UNSIGNED TINYINT DEFAULT 3,
+delivered_at nullable, next_retry_at nullable,
+created_at, updated_at
+INDEX (product_slug, status)
+INDEX (event_type, created_at)
+INDEX (status, next_retry_at) -- retry-sweep lookup
+-- OUTBOUND ledger — sibling of the inbound webhook_events above.
+-- WebhookDispatcher writes the row before sending; the DeliverWebhook
+-- job (or the retry sweep) updates status/attempts/next_retry_at.
 
 ## forms (Forms sprint)
 id,
@@ -920,7 +1096,14 @@ id, form_id FK forms CASCADE,
 form_step_id FK form_steps CASCADE nullable
   -- Multi-step: which step this field belongs to. NULL = legacy
   -- single-step form (no form_steps rows). Multi-step sprint.
-label VARCHAR(255), field_key VARCHAR(100)
+label VARCHAR(255),
+content TEXT nullable
+  -- Display text for 'placeholder' fields only (sanitised HTML subset via
+  -- FormContentSanitizer); NULL for every other type. Added
+  -- 2026_06_19_110000 after label's VARCHAR(255) truncated rich
+  -- placeholder text; the migration backfilled content from label and
+  -- blanked label for existing placeholder rows.
+field_key VARCHAR(100)
   -- POST field name; ^[a-z][a-z0-9_]*$ enforced by builder.
 type ENUM(text|email|phone|textarea|select|radio
   |checkbox|number|date|hidden|placeholder|datetime) DEFAULT 'text',
@@ -929,9 +1112,10 @@ type ENUM(text|email|phone|textarea|select|radio
   -- 2026_06_20_100000_add_datetime_to_form_fields_type.
   -- 'placeholder' (Multi-step sprint) is a DISPLAY-ONLY text block: no
   -- respondent input, excluded from submit validation + answer collection.
-  -- The `label` column holds its display text; `field_key` is auto-synthesised
-  -- server-side as placeholder_{sort_order} when the builder omits it, and
-  -- is_required is forced false. Enum widened by
+  -- The `content` column holds its display text (`label` is emptied for
+  -- placeholders since 2026_06_19_110000 — see content above); `field_key`
+  -- is auto-synthesised server-side as placeholder_{sort_order} when the
+  -- builder omits it, and is_required is forced false. Enum widened by
   -- 2026_06_19_100000_add_placeholder_to_form_fields_type.
 placeholder VARCHAR(255) nullable,
 default_value VARCHAR(255) nullable,
@@ -1063,8 +1247,10 @@ created_at, updated_at
 ## workflow_actions (Forms sprint)
 id, workflow_id FK workflows CASCADE,
 action_type ENUM(create_lead|update_lead_status
-  |create_task|assign_to_user|add_note
-  |send_notification|add_to_group|webhook_outbound),
+  |create_task|create_ticket|assign_to_user|add_note
+  |send_notification|add_to_group|webhook_outbound|send_email),
+  -- Enum widened by 2026_06_03_120001 (create_ticket) and
+  -- 2026_06_17_120000 (send_email) — raw MODIFY COLUMN, native MySQL ENUM.
 config JSON
   -- Action-specific; see WorkflowEngine docblock.
 sort_order INT DEFAULT 0, created_at, updated_at
