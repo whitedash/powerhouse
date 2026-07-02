@@ -270,7 +270,8 @@ class LeadController extends Controller
             $uploads->delete($path);
         }
 
-        $problems = count($summary['skipped']) + count($summary['flagged']) + count($summary['failed']);
+        $problems = count($summary['skipped']) + count($summary['flagged'])
+            + count($summary['failed']) + $summary['example_ignored'];
         $headline = sprintf(
             '%d lead%s imported (%d row%s in file).',
             $summary['created'],
@@ -283,13 +284,21 @@ class LeadController extends Controller
             return back()->with('success', $headline);
         }
 
+        $detail = sprintf(
+            ' %d skipped as duplicates, %d flagged, %d failed',
+            count($summary['skipped']),
+            count($summary['flagged']),
+            count($summary['failed']),
+        );
+        if ($summary['example_ignored'] > 0) {
+            $detail .= sprintf(', %d template example row%s ignored',
+                $summary['example_ignored'],
+                $summary['example_ignored'] === 1 ? '' : 's',
+            );
+        }
+
         return back()
-            ->with('warning', $headline.sprintf(
-                ' %d skipped as duplicates, %d flagged, %d failed — see the import summary.',
-                count($summary['skipped']),
-                count($summary['flagged']),
-                count($summary['failed']),
-            ))
+            ->with('warning', $headline.$detail.' — see the import summary.')
             ->with('import_summary', $summary);
     }
 
@@ -306,7 +315,7 @@ class LeadController extends Controller
 
         $csv = implode("\n", [
             implode(',', LeadImportService::COLUMNS),
-            'Alex,Example,alex@example.com,07700 900000,Example Bakery Ltd,Owner,1500,"Example row — delete it before importing"',
+            'Alex,Example,'.LeadImportService::TEMPLATE_EXAMPLE_EMAIL.',07700 900000,Example Bakery Ltd,Owner,1500,"Example row — delete it before importing"',
             '',
         ]);
 

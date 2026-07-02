@@ -351,6 +351,12 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
                         <span class="muted">({{ importSummary.total_rows }} row{{ importSummary.total_rows === 1 ? '' : 's' }} in file)</span>
                     </p>
 
+                    <p v-if="importSummary.example_ignored" class="muted small">
+                        {{ importSummary.example_ignored }} template example
+                        row{{ importSummary.example_ignored === 1 ? '' : 's' }} ignored —
+                        delete it from your CSV to silence this.
+                    </p>
+
                     <details v-if="importSummary.skipped.length" class="lis-group">
                         <summary>{{ importSummary.skipped.length }} skipped as duplicates</summary>
                         <ul>
