@@ -467,6 +467,8 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
             ->whereNumber('id')->middleware('permission:proposals.manage')->name('destroy');
         Route::post('/{id}/send', [InternalProposalController::class, 'send'])
             ->whereNumber('id')->middleware('permission:proposals.manage')->name('send');
+        Route::post('/{id}/regenerate-link', [InternalProposalController::class, 'regenerateLink'])
+            ->whereNumber('id')->middleware('permission:proposals.manage')->name('regenerate-link');
         Route::get('/{id}/pdf', [InternalProposalController::class, 'downloadPdf'])
             ->whereNumber('id')->middleware('permission:proposals.access')->name('pdf');
         Route::get('/{id}/accepted-pdf', [InternalProposalController::class, 'downloadAcceptedPdf'])

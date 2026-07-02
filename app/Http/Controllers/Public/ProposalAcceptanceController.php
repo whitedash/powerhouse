@@ -194,7 +194,13 @@ class ProposalAcceptanceController extends Controller
      */
     private function loadByToken(string $token): Proposal
     {
-        $proposal = Proposal::where('acceptance_token', $token)
+        // Tokens are hashed at rest: the URL carries the RAW token, storage
+        // holds hash('sha256', raw). Hash the incoming value and match on the
+        // hash so a DB read never discloses a usable link. MySQL SHA2 and PHP
+        // hash('sha256') agree, so links minted either way resolve here.
+        $tokenHash = hash('sha256', $token);
+
+        $proposal = Proposal::where('acceptance_token', $tokenHash)
             ->with([
                 'customer',
                 'billingEntity',
@@ -204,14 +210,14 @@ class ProposalAcceptanceController extends Controller
             ])
             ->first();
 
-        // If the token has been nulled (already accepted), fall
-        // back to a customer-scoped lookup so an already-accepted
-        // bookmark still resolves to the success page. The token
-        // string is unguessable so this is safe.
-        if ($proposal === null) {
-            // We persist a hash of the token? No — the spec stores
-            // the raw token until accept clears it. After accept
-            // the link is dead by design.
+        // Constant-time re-verification of the full hash. The row was fetched
+        // by an indexed equality match (a parameterised WHERE, not a PHP ==),
+        // but hash_equals makes the constant-time guarantee explicit and
+        // survives any future query loosening. A nulled token (already
+        // accepted) never matches, so a dead bookmark 404s.
+        if ($proposal === null
+            || $proposal->acceptance_token === null
+            || ! hash_equals($proposal->acceptance_token, $tokenHash)) {
             abort(404, 'Proposal not found.');
         }
 

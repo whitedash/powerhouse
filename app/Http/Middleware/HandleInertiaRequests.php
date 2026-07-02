@@ -111,6 +111,13 @@ class HandleInertiaRequests extends Middleware
                  */
                 'import_summary' => fn () => $request->session()->get('import_summary'),
                 /*
+                 * One-shot reveal of a freshly regenerated proposal acceptance
+                 * link. Same show-once semantics as temp_password — the raw URL
+                 * is never persisted; Proposals/Show.vue offers it for the
+                 * clipboard exactly once after regenerateLink().
+                 */
+                'proposal_link' => fn () => $request->session()->get('proposal_link'),
+                /*
                  * Temp-password handoff for the Add-referrer + Reset-password
                  * flows. Same one-shot semantics as portal_invite — the
                  * Referrers page shows a credentials card once, then the
