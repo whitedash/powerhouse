@@ -23,6 +23,7 @@ import {
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import { useDirtyClose } from '@/Composables/useDirtyClose';
 
 const props = defineProps({
     suppliers: { type: Object, required: true },
@@ -180,6 +181,10 @@ function confirmDelete() {
 }
 
 function go(url) { if (url) router.visit(url, { preserveScroll: true, preserveState: true }); }
+
+/* ─── Unsaved-changes discard guard (Issue B). Route every close surface
+ *     (overlay dismiss, X, Escape, Cancel) through formGuard.attemptClose. ─── */
+const formGuard = useDirtyClose(() => form.isDirty, () => { showForm.value = false; });
 </script>
 
 <template>
@@ -331,11 +336,11 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true, preserveSt
 
         <!-- ─── Add/Edit slide-over ─── -->
         <Teleport to="body">
-            <div v-if="showForm" class="slide-over-overlay" @click.self="showForm = false">
+            <div v-if="showForm" class="slide-over-overlay" v-overlay-dismiss="formGuard.attemptClose">
                 <div class="slide-over suppliers-form" style="width: 520px;">
                     <div class="slide-over-head">
                         <h2>{{ editingId ? 'Edit supplier' : 'New supplier' }}</h2>
-                        <button type="button" class="icon-btn" @click="showForm = false">
+                        <button type="button" class="icon-btn" @click="formGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -439,7 +444,7 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true, preserveSt
                         </div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showForm = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="formGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="form.processing" @click="submit">
                             {{ form.processing ? 'Saving…' : (editingId ? 'Save' : 'Create supplier') }}
                         </button>
@@ -455,6 +460,18 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true, preserveSt
             :message="`${toDelete?.name ?? 'This supplier'} will be permanently removed. Suppliers with linked expenses can't be deleted — deactivate instead.`"
             confirm-label="Delete supplier"
             @confirm="confirmDelete"
+        />
+
+        <!-- Unsaved-changes discard confirmation (Issue B) -->
+        <ConfirmModal
+            :show="formGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="formGuard.confirmDiscard"
+            @cancel="formGuard.cancelDiscard"
         />
     </InternalLayout>
 </template>

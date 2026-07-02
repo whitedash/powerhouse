@@ -6,6 +6,7 @@ import '@tabler/icons-webfont/dist/tabler-icons.min.css';
 import { createApp, h } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy/dist/index.esm.js';
+import { overlayDismiss } from './directives/overlayDismiss';
 
 createInertiaApp({
     title: (title) => (title ? `${title} · Powerhouse` : 'Powerhouse'),
@@ -17,6 +18,7 @@ createInertiaApp({
         createApp({ render: () => h(App, props) })
             .use(plugin)
             .use(ZiggyVue)
+            .directive('overlay-dismiss', overlayDismiss)
             .mount(el);
     },
     progress: { color: '#F59E0B' },

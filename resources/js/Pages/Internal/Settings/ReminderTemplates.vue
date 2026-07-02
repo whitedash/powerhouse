@@ -212,7 +212,7 @@ async function openPreview(idx) {
 
         <!-- Preview modal -->
         <Teleport to="body">
-            <div v-if="previewing" class="rt-modal-backdrop" @click.self="previewing = null">
+            <div v-if="previewing" class="rt-modal-backdrop" v-overlay-dismiss="() => (previewing = null)">
                 <div class="rt-modal">
                     <header class="rt-modal-head">
                         <div>

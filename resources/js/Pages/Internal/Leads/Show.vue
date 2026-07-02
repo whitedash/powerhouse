@@ -17,6 +17,7 @@ import {
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
 import TaskLinkPicker from '@/Components/Internal/TaskLinkPicker.vue';
+import { useDirtyClose } from '@/Composables/useDirtyClose';
 
 const props = defineProps({
     lead: { type: Object, required: true },
@@ -175,6 +176,13 @@ function submitConvert() {
         preserveScroll: false,
     });
 }
+
+/* ─── Unsaved-changes discard guards (Issue B). Route every close surface
+ *     (overlay dismiss, X, Escape, Cancel) through <guard>.attemptClose. ─── */
+const editGuard = useDirtyClose(() => editForm.isDirty, () => { showEdit.value = false; });
+const activityGuard = useDirtyClose(() => activityForm.isDirty, () => { showActivity.value = false; });
+const lostGuard = useDirtyClose(() => lostReason.value.trim() !== '', () => { showLostModal.value = false; });
+const convertGuard = useDirtyClose(() => convertForm.isDirty, () => { showConvert.value = false; });
 </script>
 
 <template>
@@ -360,11 +368,11 @@ function submitConvert() {
 
         <!-- Edit slide-over -->
         <Teleport to="body">
-            <div v-if="showEdit" class="slide-over-overlay" @click.self="showEdit = false">
+            <div v-if="showEdit" class="slide-over-overlay" v-overlay-dismiss="editGuard.attemptClose">
                 <div class="slide-over" style="width: 480px;">
                     <div class="slide-over-head">
                         <h2>Edit lead</h2>
-                        <button type="button" class="icon-btn" @click="showEdit = false">
+                        <button type="button" class="icon-btn" @click="editGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -385,7 +393,7 @@ function submitConvert() {
                         <div class="form-section"><label class="form-label">Notes</label><textarea v-model="editForm.notes" class="form-input" rows="3" maxlength="5000" /></div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showEdit = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="editGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="editForm.processing" @click="submitEdit">Save</button>
                     </div>
                 </div>
@@ -394,11 +402,11 @@ function submitConvert() {
 
         <!-- New activity slide-over -->
         <Teleport to="body">
-            <div v-if="showActivity" class="slide-over-overlay" @click.self="showActivity = false">
+            <div v-if="showActivity" class="slide-over-overlay" v-overlay-dismiss="activityGuard.attemptClose">
                 <div class="slide-over" style="width: 460px;">
                     <div class="slide-over-head">
                         <h2>New activity</h2>
-                        <button type="button" class="icon-btn" @click="showActivity = false">
+                        <button type="button" class="icon-btn" @click="activityGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -443,7 +451,7 @@ function submitConvert() {
                         <div class="form-section"><label class="form-label">Description</label><textarea v-model="activityForm.description" class="form-input" rows="3" maxlength="5000" /></div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showActivity = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="activityGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="activityForm.processing" @click="submitActivity">Log activity</button>
                     </div>
                 </div>
@@ -452,11 +460,11 @@ function submitConvert() {
 
         <!-- Lost modal -->
         <Teleport to="body">
-            <div v-if="showLostModal" class="slide-over-overlay" @click.self="showLostModal = false">
+            <div v-if="showLostModal" class="slide-over-overlay" v-overlay-dismiss="lostGuard.attemptClose">
                 <div class="slide-over" style="width: 440px;">
                     <div class="slide-over-head">
                         <h2>Mark as lost</h2>
-                        <button type="button" class="icon-btn" @click="showLostModal = false">
+                        <button type="button" class="icon-btn" @click="lostGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -467,7 +475,7 @@ function submitConvert() {
                         </div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showLostModal = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="lostGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="!lostReason.trim()" @click="confirmLost">Mark as lost</button>
                     </div>
                 </div>
@@ -476,11 +484,11 @@ function submitConvert() {
 
         <!-- Convert modal -->
         <Teleport to="body">
-            <div v-if="showConvert" class="slide-over-overlay" @click.self="showConvert = false">
+            <div v-if="showConvert" class="slide-over-overlay" v-overlay-dismiss="convertGuard.attemptClose">
                 <div class="slide-over" style="width: 520px;">
                     <div class="slide-over-head">
                         <h2>Convert {{ lead.name }} to customer</h2>
-                        <button type="button" class="icon-btn" @click="showConvert = false">
+                        <button type="button" class="icon-btn" @click="convertGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -523,7 +531,7 @@ function submitConvert() {
                         </div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showConvert = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="convertGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="convertForm.processing" @click="submitConvert">
                             {{ convertForm.processing ? 'Converting…' : 'Convert' }}
                         </button>
@@ -531,6 +539,48 @@ function submitConvert() {
                 </div>
             </div>
         </Teleport>
+
+        <!-- Unsaved-changes discard confirmations (Issue B) -->
+        <ConfirmModal
+            :show="editGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="editGuard.confirmDiscard"
+            @cancel="editGuard.cancelDiscard"
+        />
+        <ConfirmModal
+            :show="activityGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="activityGuard.confirmDiscard"
+            @cancel="activityGuard.cancelDiscard"
+        />
+        <ConfirmModal
+            :show="lostGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="lostGuard.confirmDiscard"
+            @cancel="lostGuard.cancelDiscard"
+        />
+        <ConfirmModal
+            :show="convertGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="convertGuard.confirmDiscard"
+            @cancel="convertGuard.cancelDiscard"
+        />
     </InternalLayout>
 </template>
 

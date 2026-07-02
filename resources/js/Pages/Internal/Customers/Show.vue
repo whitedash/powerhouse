@@ -2912,7 +2912,7 @@ function submitProject() {
                 </div>
 
                 <!-- Website details modal — the full per-website detail (formerly the website card) -->
-                <div v-if="websiteModal" class="cust-websites ps-modal-overlay" @click.self="closeWebsiteModal">
+                <div v-if="websiteModal" class="cust-websites ps-modal-overlay" v-overlay-dismiss="closeWebsiteModal">
                     <div class="ps-modal cw-detail-modal" role="dialog" aria-modal="true">
                         <div class="ps-modal-head">
                             <div class="ps-modal-headings">
@@ -3053,7 +3053,7 @@ function submitProject() {
                 </div>
 
                 <!-- Domain details modal — read-only; editing lives on the Domains page -->
-                <div v-if="domainModal" class="ps-modal-overlay" @click.self="closeDomainModal">
+                <div v-if="domainModal" class="ps-modal-overlay" v-overlay-dismiss="closeDomainModal">
                     <div class="ps-modal cw-detail-modal" role="dialog" aria-modal="true">
                         <div class="ps-modal-head">
                             <div class="ps-modal-headings">
@@ -5174,7 +5174,7 @@ function submitProject() {
 
         <!-- ═══ PageSpeed report modal ═══ -->
         <Teleport to="body">
-            <div v-if="pageSpeedModal" class="ps-modal-overlay" @click.self="closePageSpeedModal">
+            <div v-if="pageSpeedModal" class="ps-modal-overlay" v-overlay-dismiss="closePageSpeedModal">
                 <div class="ps-modal" role="dialog" aria-modal="true">
                     <div class="ps-modal-head">
                         <div class="ps-modal-headings">

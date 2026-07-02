@@ -19,6 +19,8 @@ import {
     IconChevronLeft, IconChevronRight, IconLayoutKanban,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
+import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import { useDirtyClose } from '@/Composables/useDirtyClose';
 
 const props = defineProps({
     projects: { type: Object, required: true },
@@ -144,6 +146,10 @@ const selectedMembers = computed(() => form.member_ids.map(id => props.staff.fin
 const prevLink = computed(() => props.projects.prev_page_url);
 const nextLink = computed(() => props.projects.next_page_url);
 function go(url) { if (url) router.visit(url, { preserveScroll: true, preserveState: true }); }
+
+/* ─── Unsaved-changes discard guard (Issue B). Route every close surface
+ *     (overlay dismiss, X, Escape, Cancel) through createGuard.attemptClose. ─── */
+const createGuard = useDirtyClose(() => form.isDirty, closeCreate);
 </script>
 
 <template>
@@ -343,11 +349,11 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true, preserveSt
 
         <!-- ─── New project slide-over ─── -->
         <Teleport to="body">
-            <div v-if="showCreate" class="slide-over-overlay" @click.self="closeCreate">
+            <div v-if="showCreate" class="slide-over-overlay" v-overlay-dismiss="createGuard.attemptClose">
                 <div class="slide-over" style="width: 560px;">
                     <div class="slide-over-head">
                         <h2>New project</h2>
-                        <button type="button" class="icon-btn" @click="closeCreate">
+                        <button type="button" class="icon-btn" @click="createGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -482,7 +488,7 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true, preserveSt
                     </form>
 
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="closeCreate">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="createGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="form.processing" @click="submit">
                             {{ form.processing ? 'Creating…' : 'Create project' }}
                         </button>
@@ -490,5 +496,17 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true, preserveSt
                 </div>
             </div>
         </Teleport>
+
+        <!-- Unsaved-changes discard confirmation (Issue B) -->
+        <ConfirmModal
+            :show="createGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="createGuard.confirmDiscard"
+            @cancel="createGuard.cancelDiscard"
+        />
     </InternalLayout>
 </template>

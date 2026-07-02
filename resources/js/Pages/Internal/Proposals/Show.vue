@@ -15,6 +15,8 @@ import {
     IconReceipt, IconExternalLink, IconLink,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
+import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
+import { useDirtyClose } from '@/Composables/useDirtyClose';
 
 const props = defineProps({
     proposal: { type: Object, required: true },
@@ -122,6 +124,9 @@ function submitSchedule() {
 function triggerItem(itemId) {
     router.post(`/payment-schedules/items/${itemId}/trigger`, {}, { preserveScroll: false });
 }
+
+/* ─── Unsaved-changes discard guard (Issue B) ─── */
+const scheduleGuard = useDirtyClose(() => scheduleForm.isDirty, () => { showSchedule.value = false; });
 </script>
 
 <template>
@@ -325,11 +330,11 @@ function triggerItem(itemId) {
 
         <!-- Payment schedule slide-over -->
         <Teleport to="body">
-            <div v-if="showSchedule" class="slide-over-overlay" @click.self="showSchedule = false">
+            <div v-if="showSchedule" class="slide-over-overlay" v-overlay-dismiss="scheduleGuard.attemptClose">
                 <div class="slide-over" style="width: 600px;">
                     <div class="slide-over-head">
                         <h2>{{ proposal.payment_schedule ? 'Edit' : 'New' }} payment schedule</h2>
-                        <button type="button" class="icon-btn" @click="showSchedule = false">
+                        <button type="button" class="icon-btn" @click="scheduleGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -382,7 +387,7 @@ function triggerItem(itemId) {
                         </div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showSchedule = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="scheduleGuard.attemptClose">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="scheduleForm.processing" @click="submitSchedule">
                             Save schedule
                         </button>
@@ -390,6 +395,18 @@ function triggerItem(itemId) {
                 </div>
             </div>
         </Teleport>
+
+        <!-- Unsaved-changes discard confirmation (Issue B) -->
+        <ConfirmModal
+            :show="scheduleGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard changes?"
+            message="You have unsaved changes to this payment schedule. Discard them?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="scheduleGuard.confirmDiscard"
+            @cancel="scheduleGuard.cancelDiscard"
+        />
     </InternalLayout>
 </template>
 

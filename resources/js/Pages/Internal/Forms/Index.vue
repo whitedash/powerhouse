@@ -581,7 +581,7 @@ const totalSubmissions = computed(() =>
 
         <!-- Builder slide-over -->
         <Teleport to="body">
-            <div v-if="editorOpen" class="slide-over-overlay" @click.self="editorOpen = false">
+            <div v-if="editorOpen" class="slide-over-overlay" v-overlay-dismiss="() => (editorOpen = false)">
                 <aside class="slide-over slide-over-wide" role="dialog">
                     <header class="slide-over-head">
                         <h2>{{ editingId ? 'Edit form' : 'New form' }}</h2>
@@ -878,7 +878,7 @@ const totalSubmissions = computed(() =>
             <div
                 v-if="showPreview"
                 class="fp-preview-overlay"
-                @click.self="showPreview = false"
+                v-overlay-dismiss="() => (showPreview = false)"
             >
                 <div class="fp-preview-modal">
                     <div class="fp-preview-head">
