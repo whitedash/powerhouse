@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { IconAlertCircle, IconArrowLeft, IconLock } from '@tabler/icons-vue';
+import { IconAlertCircle, IconArrowLeft, IconInfoCircle, IconLock } from '@tabler/icons-vue';
 
 const form = useForm({
     email: '',
@@ -35,6 +35,14 @@ function submit() {
                 class="portal-login-flash success"
             >
                 {{ $page.props.flash.success }}
+            </div>
+
+            <div
+                v-if="$page.props.flash?.info"
+                class="portal-login-flash info"
+            >
+                <IconInfoCircle :size="16" stroke-width="2" />
+                {{ $page.props.flash.info }}
             </div>
 
             <div

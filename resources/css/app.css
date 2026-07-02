@@ -7531,6 +7531,11 @@ h3 .opt {
     color: var(--danger);
     border: 1px solid #FECACA;
 }
+.portal-login-flash.info {
+    background: var(--info-bg);
+    color: var(--info);
+    border: 1px solid #BFDBFE;
+}
 .portal-login-form { display: flex; flex-direction: column; gap: 14px; }
 .portal-login-form .form-field { display: flex; flex-direction: column; gap: 4px; }
 .portal-login-form .form-field label {
