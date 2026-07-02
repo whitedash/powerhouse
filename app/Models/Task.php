@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Observers\TaskObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -61,6 +63,7 @@ use Illuminate\Support\Carbon;
  * @property-read float $total_hours
  * @property-read bool $is_pm_task
  */
+#[ObservedBy([TaskObserver::class])]
 class Task extends Model
 {
     protected $fillable = [

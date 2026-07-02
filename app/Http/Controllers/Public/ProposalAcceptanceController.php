@@ -10,11 +10,13 @@ use App\Models\ActivityLog;
 use App\Models\BillingEntity;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
+use App\Models\Lead;
 use App\Models\PaymentSchedule;
 use App\Models\PaymentScheduleItem;
 use App\Models\Proposal;
 use App\Models\ProposalLine;
 use App\Models\User;
+use App\Services\ContactMatchService;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -153,6 +155,18 @@ class ProposalAcceptanceController extends Controller
                 'ip_address' => $request->ip(),
                 'user_agent' => substr((string) $request->userAgent(), 0, 500),
             ]);
+
+            // Best-effort: attribute the acceptance back to a pipeline lead
+            // (proposal -> won). Wrapped like activateImmediateItems so a
+            // matching hiccup can't undo the customer's binding acceptance.
+            try {
+                $this->maybeMarkMatchedLeadWon($proposal);
+            } catch (\Throwable $e) {
+                Log::error('Proposal lead-match transition failed', [
+                    'proposal_id' => $proposal->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         });
 
         // In-app notification to the proposal's author.
@@ -222,6 +236,82 @@ class ProposalAcceptanceController extends Controller
         }
 
         return $proposal;
+    }
+
+    /**
+     * Attribute an accepted proposal back to a pipeline lead: proposal -> won.
+     *
+     * Inference path (proposals carry no lead_id): the proposal's customer's
+     * primary-contact email is matched against unconverted leads. This is a
+     * fuzzy guess, so it is heavily guarded:
+     *  - only an UNCONVERTED (customer_id null) lead is a candidate;
+     *  - only a UNIQUE match transitions — leads.email is NOT unique, so more
+     *    than one hit is flagged (a proposal.lead_match_ambiguous activity_log
+     *    row, mirroring the proposal.schedule_activation_failed precedent) and
+     *    NOTHING is auto-picked;
+     *  - only a lead in exactly 'proposal' status transitions; any other
+     *    status is left untouched.
+     */
+    private function maybeMarkMatchedLeadWon(Proposal $proposal): void
+    {
+        $proposal->loadMissing('customer.primaryContact');
+
+        $email = app(ContactMatchService::class)->normalizeEmail(
+            $proposal->customer->primaryContact?->email
+        );
+        if ($email === null) {
+            return; // no email to infer from — silent no-op
+        }
+
+        // leads.email is NOT unique and ContactMatchService::matchLead returns
+        // a single unordered first() without an unconverted filter, so the
+        // "exactly one unconverted" guard needs a direct query (reusing the
+        // service's trim-only normalisation above).
+        $candidates = Lead::whereNull('customer_id')->where('email', $email)->get();
+
+        if ($candidates->isEmpty()) {
+            return; // no pipeline lead to attribute — silent no-op
+        }
+
+        if ($candidates->count() > 1) {
+            // Ambiguous — never auto-pick. Flag for staff to resolve.
+            ActivityLog::create([
+                'user_id' => null,
+                'user_role' => 'system',
+                'action' => 'proposal.lead_match_ambiguous',
+                'entity_type' => 'proposal',
+                'entity_id' => $proposal->id,
+                'after' => [
+                    'email' => $email,
+                    'candidate_lead_ids' => $candidates->pluck('id')->all(),
+                    'count' => $candidates->count(),
+                ],
+            ]);
+
+            return;
+        }
+
+        $lead = $candidates->first();
+        if ($lead->status !== 'proposal') {
+            return; // only proposal -> won; leave any other status alone
+        }
+
+        $lead->update(['status' => 'won']);
+
+        ActivityLog::create([
+            'user_id' => null,
+            'user_role' => 'system',
+            'action' => 'lead.status_changed',
+            'entity_type' => 'lead',
+            'entity_id' => $lead->id,
+            'before' => null,
+            'after' => [
+                'from' => 'proposal',
+                'to' => 'won',
+                'via' => 'proposal_accepted',
+                'proposal_id' => $proposal->id,
+            ],
+        ]);
     }
 
     /**
