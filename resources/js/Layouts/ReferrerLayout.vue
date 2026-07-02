@@ -47,7 +47,7 @@ const tabs = [
     { key: 'dashboard',    label: 'Dashboard',    href: '/referrer/dashboard' },
     { key: 'referrals',    label: 'Referrals',    href: '/referrer/referrals' },
     { key: 'commissions',  label: 'Commissions',  href: '/referrer/commissions' },
-    { key: 'my-customers', label: 'My Customers', href: '/referrer/customers' },
+    { key: 'my-customers', label: 'My Companies', href: '/referrer/companies' },
     { key: 'account',      label: 'Account',      href: '/referrer/account' },
 ];
 

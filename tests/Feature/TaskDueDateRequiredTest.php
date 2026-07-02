@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Project;
 use App\Models\SupportTicket;
 use App\Models\Task;
@@ -23,7 +23,7 @@ class TaskDueDateRequiredTest extends TestCase
 
     private function ticket(): SupportTicket
     {
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
 
         return SupportTicket::create([
             'customer_id' => $customer->id,
@@ -85,18 +85,18 @@ class TaskDueDateRequiredTest extends TestCase
 
     public function test_customer_store_task_requires_and_persists_due_at(): void
     {
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
         $staff = $this->staff();
 
         // Missing due → rejected.
         $this->actingAs($staff)
-            ->post("/customers/{$customer->id}/tasks", ['title' => 'Follow up'])
+            ->post("/companies/{$customer->id}/tasks", ['title' => 'Follow up'])
             ->assertSessionHasErrors('due_at');
         $this->assertDatabaseCount('tasks', 0);
 
         // With due → persisted on due_at (not the legacy due_date).
         $this->actingAs($staff)
-            ->post("/customers/{$customer->id}/tasks", ['title' => 'Follow up', 'due_at' => '2026-07-01'])
+            ->post("/companies/{$customer->id}/tasks", ['title' => 'Follow up', 'due_at' => '2026-07-01'])
             ->assertSessionHasNoErrors();
 
         $task = Task::sole();
@@ -179,7 +179,7 @@ class TaskDueDateRequiredTest extends TestCase
     public function test_shared_rule_is_the_single_definition_all_endpoints_reject_identically(): void
     {
         $staff = $this->staff();
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
         $ticket = $this->ticket();
 
         // The one canonical message — sourced from App\Support\TaskDueDate.
@@ -198,7 +198,7 @@ class TaskDueDateRequiredTest extends TestCase
             ->assertSessionHasErrors(['due_at' => $message]);
 
         $this->actingAs($staff)
-            ->post("/customers/{$customer->id}/tasks", ['title' => 'Follow up'])
+            ->post("/companies/{$customer->id}/tasks", ['title' => 'Follow up'])
             ->assertSessionHasErrors(['due_at' => $message]);
     }
 }

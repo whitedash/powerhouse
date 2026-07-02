@@ -17,7 +17,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Customer-facing support. The portal user can only see their own
+ * Company-facing support. The portal user can only see their own
  * customer's tickets — every query is scoped to customer_id and
  * findOrFail() is preferred over find() per the IDOR rule.
  *
@@ -62,7 +62,7 @@ class SupportController extends Controller
                 'status' => $t->status,
                 'priority' => $t->priority,
                 'messages_count' => $t->messages_count,
-                // Customer-visible snippet only — internal notes are excluded
+                // Company-visible snippet only — internal notes are excluded
                 // by the relationship. Trimmed to keep the card compact.
                 'last_message' => $t->latestPublicMessage
                     ? Str::limit((string) $t->latestPublicMessage->body, 120)
@@ -184,7 +184,7 @@ class SupportController extends Controller
                 'is_internal_note' => false,
             ]);
 
-            // Customer replying flips the ticket from 'awaiting_customer'
+            // Company replying flips the ticket from 'awaiting_customer'
             // back to 'open' so it lands in staff's queue.
             if (in_array($ticket->status, ['awaiting_customer', 'resolved'], true)) {
                 $ticket->status = 'open';

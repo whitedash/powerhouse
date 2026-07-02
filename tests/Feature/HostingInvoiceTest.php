@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BillingEntity;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Product;
@@ -69,7 +69,7 @@ class HostingInvoiceTest extends TestCase
 
     private function website(ProductPlanPrice $tier, array $overrides = []): Website
     {
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
 
         return Website::create(array_merge([
             'customer_id' => $customer->id,

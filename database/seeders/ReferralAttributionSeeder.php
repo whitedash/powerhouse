@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\AttributionSource;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerReferral;
 use App\Models\Referrer;
 use App\Services\ReferralCodeGenerator;
@@ -43,7 +43,7 @@ class ReferralAttributionSeeder extends Seeder
             'user_agent' => 'SeederAgent/1.0',
         ]);
 
-        $customer = Customer::whereDoesntHave('referral')->first();
+        $customer = Company::whereDoesntHave('referral')->first();
         if ($customer !== null) {
             CustomerReferral::create([
                 'customer_id' => $customer->id,

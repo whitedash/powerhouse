@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BillingEntity;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Invoice;
 use App\Models\Product;
@@ -34,7 +34,7 @@ class SubscriptionInvoiceTest extends TestCase
             'plan_id' => $plan->id, 'price' => 30.00, 'interval_count' => 1,
             'interval_unit' => 'month', 'is_default' => true, 'is_active' => true,
         ]);
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
 
         CustomerProduct::create([
             'customer_id' => $customer->id,

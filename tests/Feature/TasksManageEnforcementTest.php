@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Milestone;
 use App\Models\Project;
 use App\Models\RoleScope;
@@ -22,7 +22,7 @@ use Tests\TestCase;
  * tasks.manage (IN-METHOD — route middleware would over-gate the My Work reads,
  * which are siblings of the mutations), COMPOSING with — never replacing — the
  * Tasks scope + per-item ownership + the step-4 cross-section milestone guards.
- * Cross-section creators CustomerController@storeTask and SupportController@
+ * Cross-section creators CompanyController@storeTask and SupportController@
  * createTask also require tasks.manage. Reads stay scope-only. super_admin
  * bypasses via Gate::before.
  *
@@ -83,7 +83,7 @@ class TasksManageEnforcementTest extends TestCase
 
     private function makeProject(): Project
     {
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
 
         return Project::create([
             'title' => 'P '.uniqid(),
@@ -98,7 +98,7 @@ class TasksManageEnforcementTest extends TestCase
     {
         // Tasks scope All + OWNS the task — only tasks.manage is missing, so the
         // 403 is purely the new capability gate (scope + ownership would pass).
-        $user = $this->userWith(['customers.access'], ['tasks' => 'all']);
+        $user = $this->userWith(['companies.access'], ['tasks' => 'all']);
         $task = $this->makeTask($user->id);
 
         $routes = [
@@ -127,7 +127,7 @@ class TasksManageEnforcementTest extends TestCase
 
     public function test_mutation_succeeds_with_tasks_manage_scope_ownership(): void
     {
-        $user = $this->userWith(['customers.access', 'tasks.manage'], ['tasks' => 'all']);
+        $user = $this->userWith(['companies.access', 'tasks.manage'], ['tasks' => 'all']);
         $task = $this->makeTask($user->id);
 
         $this->actingAs($user)->post("/tasks/{$task->id}/pin")->assertRedirect();
@@ -146,7 +146,7 @@ class TasksManageEnforcementTest extends TestCase
     {
         // tasks.manage but NO Tasks scope row → None → authorizeScopeItem 403s
         // (before the capability gate). Both layers required.
-        $user = $this->userWith(['customers.access', 'tasks.manage']); // no tasks scope
+        $user = $this->userWith(['companies.access', 'tasks.manage']); // no tasks scope
         $task = $this->makeTask($user->id);
 
         $this->actingAs($user)->post("/tasks/{$task->id}/pin")->assertForbidden();
@@ -158,7 +158,7 @@ class TasksManageEnforcementTest extends TestCase
     {
         // tasks.manage + All scope, acting on ANOTHER user's task. Scope passes,
         // capability passes, but the per-item ownership check 403s.
-        $user = $this->userWith(['customers.access', 'tasks.manage'], ['tasks' => 'all']);
+        $user = $this->userWith(['companies.access', 'tasks.manage'], ['tasks' => 'all']);
         $foreign = $this->makeTask(User::factory()->create()->id);
 
         // complete() is assignee-only — a non-assignee with tasks.manage + All is denied.
@@ -171,7 +171,7 @@ class TasksManageEnforcementTest extends TestCase
 
     public function test_scope_and_ownership_without_tasks_manage_is_blocked(): void
     {
-        $user = $this->userWith(['customers.access'], ['tasks' => 'all']); // owns task, no manage
+        $user = $this->userWith(['companies.access'], ['tasks' => 'all']); // owns task, no manage
         $task = $this->makeTask($user->id);
 
         $this->actingAs($user)->put("/tasks/{$task->id}", ['title' => 'Edited'])->assertForbidden();
@@ -184,7 +184,7 @@ class TasksManageEnforcementTest extends TestCase
     {
         // HAS tasks.manage + Tasks All, but NOT projects.manage / Projects scope.
         // tasks.manage passes; the step-4 canManageMilestoneProject guard still 403s.
-        $user = $this->userWith(['customers.access', 'tasks.manage'], ['tasks' => 'all']);
+        $user = $this->userWith(['companies.access', 'tasks.manage'], ['tasks' => 'all']);
         $projectB = $this->makeProject();
         $milestoneB = Milestone::create(['project_id' => $projectB->id, 'title' => 'M', 'status' => 'pending']);
         $task = $this->makeTask($user->id);
@@ -197,7 +197,7 @@ class TasksManageEnforcementTest extends TestCase
 
     public function test_step4_idor_store_onto_foreign_milestone_still_blocked(): void
     {
-        $user = $this->userWith(['customers.access', 'tasks.manage'], ['tasks' => 'all']);
+        $user = $this->userWith(['companies.access', 'tasks.manage'], ['tasks' => 'all']);
         $projectB = $this->makeProject();
         $milestoneB = Milestone::create(['project_id' => $projectB->id, 'title' => 'M', 'status' => 'pending']);
 
@@ -212,12 +212,12 @@ class TasksManageEnforcementTest extends TestCase
 
     public function test_customer_store_task_requires_tasks_manage(): void
     {
-        // customers.manage (satisfies the customer update gate) + Tasks scope, but
-        // NOT tasks.manage → CustomerController@storeTask 403s.
-        $user = $this->userWith(['customers.access', 'customers.manage'], ['tasks' => 'all']);
-        $customer = Customer::create(['name' => 'Cust '.uniqid()]);
+        // companies.manage (satisfies the customer update gate) + Tasks scope, but
+        // NOT tasks.manage → CompanyController@storeTask 403s.
+        $user = $this->userWith(['companies.access', 'companies.manage'], ['tasks' => 'all']);
+        $customer = Company::create(['name' => 'Cust '.uniqid()]);
 
-        $this->actingAs($user)->post("/customers/{$customer->id}/tasks", [
+        $this->actingAs($user)->post("/companies/{$customer->id}/tasks", [
             'title' => 'CRM task', 'due_at' => now()->addDay()->toDateString(),
         ])->assertForbidden();
         $this->assertDatabaseMissing('tasks', ['title' => 'CRM task']);
@@ -227,9 +227,9 @@ class TasksManageEnforcementTest extends TestCase
     {
         // Holds support.manage (passes the step-7 route gate) + Support & Tasks
         // scope, but NOT tasks.manage → the support-originated task is blocked.
-        $user = $this->userWith(['customers.access', 'support.manage'], ['support' => 'all', 'tasks' => 'all']);
+        $user = $this->userWith(['companies.access', 'support.manage'], ['support' => 'all', 'tasks' => 'all']);
         $ticket = SupportTicket::create([
-            'customer_id' => Customer::create(['name' => 'T '.uniqid()])->id,
+            'customer_id' => Company::create(['name' => 'T '.uniqid()])->id,
             'subject' => 'S', 'status' => 'open', 'priority' => 'medium',
         ]);
 

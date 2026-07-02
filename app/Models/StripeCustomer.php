@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * The Customer ↔ Stripe-Customer mapping (Billing P1). One row per customer for
+ * The Company ↔ Stripe-Customer mapping (Billing P1). One row per customer for
  * the single GBP Stripe account; a future per-entity split adds a
  * billing_entity_id dimension.
  *
@@ -16,7 +16,7 @@ use Illuminate\Support\Carbon;
  * @property string $stripe_customer_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Customer|null $customer
+ * @property-read Company|null $customer
  */
 class StripeCustomer extends Model
 {
@@ -27,6 +27,6 @@ class StripeCustomer extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 }

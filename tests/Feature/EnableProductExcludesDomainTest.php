@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Product;
 use App\Models\ProductPlan;
@@ -54,10 +54,10 @@ class EnableProductExcludesDomainTest extends TestCase
 
     public function test_enable_product_rejects_an_is_domain_plan(): void
     {
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
         [$product, $plan, $price] = $this->domainPlanWithPrice();
 
-        $this->post("/customers/{$customer->id}/products", [
+        $this->post("/companies/{$customer->id}/products", [
             'product_id' => $product->id,
             'plan_id' => $plan->id,
             'plan_price_id' => $price->id,
@@ -69,10 +69,10 @@ class EnableProductExcludesDomainTest extends TestCase
 
     public function test_available_products_picker_excludes_is_domain_plans(): void
     {
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
         [, $plan] = $this->domainPlanWithPrice();
 
-        $this->get("/customers/{$customer->id}")
+        $this->get("/companies/{$customer->id}")
             ->assertInertia(fn ($page) => $page
                 ->component('Internal/Customers/Show')
                 ->where('available_products', fn ($products) => collect($products)

@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Project;
 use App\Models\User;
@@ -40,9 +40,9 @@ class RoleEnforcementTest extends TestCase
         $admin->syncRoles([]);
         $admin->syncPermissions([]);
 
-        $this->assertTrue(Gate::forUser($admin)->allows('delete', Customer::class));
+        $this->assertTrue(Gate::forUser($admin)->allows('delete', Company::class));
         $this->assertTrue(Gate::forUser($admin)->allows('void', Invoice::class));
-        $this->assertTrue(Gate::forUser($admin)->allows('viewAny', Customer::class));
+        $this->assertTrue(Gate::forUser($admin)->allows('viewAny', Company::class));
     }
 
     public function test_super_admin_reaches_a_super_admin_only_route(): void
@@ -56,9 +56,9 @@ class RoleEnforcementTest extends TestCase
     {
         $staff = User::factory()->create(); // enum staff → staff Spatie role
 
-        $this->actingAs($staff)->get('/customers')->assertOk();
+        $this->actingAs($staff)->get('/companies')->assertOk();
         $this->actingAs($staff)->get('/invoices')->assertOk();
-        $this->assertTrue(Gate::forUser($staff)->allows('viewAny', Customer::class));
+        $this->assertTrue(Gate::forUser($staff)->allows('viewAny', Company::class));
     }
 
     public function test_staff_is_denied_super_admin_only_routes_and_actions(): void
@@ -71,7 +71,7 @@ class RoleEnforcementTest extends TestCase
 
         // Policy-gated super-admin actions → denied.
         $this->assertFalse(Gate::forUser($staff)->allows('void', Invoice::class));
-        $this->assertFalse(Gate::forUser($staff)->allows('delete', Customer::class));
+        $this->assertFalse(Gate::forUser($staff)->allows('delete', Company::class));
     }
 
     public function test_custom_role_is_allowed_its_held_permission_route_and_denied_others(): void

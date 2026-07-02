@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Schema;
  *    seeing each other's mid-flight records.
  *
  *  - Conversion is explicit: LeadController::convert() creates
- *    the Customer + primary Contact, migrates tasks/notes, then
+ *    the Company + primary Contact, migrates tasks/notes, then
  *    stamps the lead with customer_id + converted_at. Once
  *    stamped the lead drops out of the kanban.
  *

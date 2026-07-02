@@ -37,7 +37,7 @@ class WebsitePluginsOutdated extends Notification
             'type' => 'website_plugins_outdated',
             'title' => 'Plugin updates available',
             'message' => $this->count.' plugin(s) need updating on '.$this->website->url,
-            'url' => '/customers/'.$this->website->customer_id,
+            'url' => '/companies/'.$this->website->customer_id,
             'icon' => 'ti-puzzle',
             'colour' => '#F59E0B',
             'entity_type' => 'website',

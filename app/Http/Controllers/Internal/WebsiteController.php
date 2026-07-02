@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Domain;
 use App\Models\ProductPlanPrice;
@@ -34,7 +34,7 @@ class WebsiteController extends Controller
     {
         $data = $this->validateRow($request);
 
-        $customer = Customer::findOrFail($data['customer_id']);
+        $customer = Company::findOrFail($data['customer_id']);
         Gate::authorize('update', $customer);
 
         $this->guardLinksBelongToCustomer($data);

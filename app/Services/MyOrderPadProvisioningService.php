@@ -33,7 +33,7 @@ class MyOrderPadProvisioningService
         abort_unless(
             (bool) $contact?->email,
             422,
-            'Customer has no email address. Add one before activating MyOrderPad.',
+            'Company has no email address. Add one before activating MyOrderPad.',
         );
 
         // product_plans has no slug column — derive a stable plan string

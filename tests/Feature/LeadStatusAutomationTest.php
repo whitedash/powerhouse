@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\ActivityLog;
+use App\Models\Company;
 use App\Models\Contact;
-use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\Proposal;
 use App\Models\Task;
@@ -112,7 +112,7 @@ class LeadStatusAutomationTest extends TestCase
 
     public function test_a_task_with_no_lead_id_does_nothing(): void
     {
-        $customer = Customer::create(['name' => 'Acme', 'pipeline_stage' => 'active']);
+        $customer = Company::create(['name' => 'Acme', 'pipeline_stage' => 'active']);
         $task = $this->task(['type' => 'call', 'customer_id' => $customer->id, 'lead_id' => null]);
 
         // No lead to touch; must not error or log.
@@ -146,7 +146,7 @@ class LeadStatusAutomationTest extends TestCase
     /** @return array{0: Proposal, 1: string} the proposal and its raw accept token */
     private function sentProposal(string $contactEmail): array
     {
-        $customer = Customer::create(['name' => 'Acme Co', 'pipeline_stage' => 'active']);
+        $customer = Company::create(['name' => 'Acme Co', 'pipeline_stage' => 'active']);
         Contact::create([
             'customer_id' => $customer->id, 'name' => 'Pat', 'email' => $contactEmail,
             'role' => 'owner', 'is_primary' => true,
@@ -222,7 +222,7 @@ class LeadStatusAutomationTest extends TestCase
     public function test_acceptance_does_not_transition_an_already_converted_lead(): void
     {
         [, $raw] = $this->sentProposal('converted@acme.test');
-        $existingCustomer = Customer::create(['name' => 'Existing', 'pipeline_stage' => 'active']);
+        $existingCustomer = Company::create(['name' => 'Existing', 'pipeline_stage' => 'active']);
         // A converted lead (customer_id set) with the matching email — excluded.
         $converted = $this->lead('proposal', [
             'email' => 'converted@acme.test', 'customer_id' => $existingCustomer->id,

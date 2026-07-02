@@ -22,7 +22,7 @@ use Laravel\Passport\HasApiTokens;
  * @property Carbon|null $last_login_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Customer|null $customer
+ * @property-read Company|null $customer
  * @property-read Contact|null $contact
  */
 class PortalUser extends Authenticatable implements OAuthenticatable
@@ -60,12 +60,12 @@ class PortalUser extends Authenticatable implements OAuthenticatable
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     /**
      * Optional link back to the specific Contact this portal account
-     * represents. Customer-wide invites (legacy / pre-contacts CRUD)
+     * represents. Company-wide invites (legacy / pre-contacts CRUD)
      * leave contact_id null; new invites always set it.
      */
     public function contact(): BelongsTo

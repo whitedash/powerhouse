@@ -121,14 +121,14 @@ function gotoPlans() {
     router.visit(`/settings/products/${props.product.id}/plans`);
 }
 function gotoCustomers() {
-    router.visit(`/customers?product=${props.product.slug}`);
+    router.visit(`/companies?product=${props.product.slug}`);
 }
 function gotoSubscriptions(status = null) {
     const q = status ? `?product=${props.product.slug}&status=${status}` : `?product=${props.product.slug}`;
     router.visit(`/subscriptions${q}`);
 }
 function gotoCustomer(id) {
-    router.visit(`/customers/${id}`);
+    router.visit(`/companies/${id}`);
 }
 </script>
 
@@ -143,7 +143,7 @@ function gotoCustomer(id) {
             </button>
             <button type="button" class="btn btn-ghost btn-sm" @click="gotoCustomers">
                 <IconUsers :size="14" stroke-width="1.75" />
-                View all customers
+                View all companies
             </button>
         </template>
 
@@ -396,7 +396,7 @@ function gotoCustomer(id) {
                                 <div style="flex: 1; min-width: 0;">
                                     <div style="font: 500 12.5px/1.3 'Inter', sans-serif;">
                                         {{ activityLabel(a.action) }}
-                                        <Link :href="`/customers/${a.customer_id}`" style="color: var(--accent); text-decoration: none;">customer #{{ a.customer_id }}</Link>
+                                        <Link :href="`/companies/${a.customer_id}`" style="color: var(--accent); text-decoration: none;">customer #{{ a.customer_id }}</Link>
                                     </div>
                                     <div style="font: 400 11px/1.3 'Inter', sans-serif; color: var(--text-tertiary); margin-top: 2px;">
                                         {{ a.time_ago }}

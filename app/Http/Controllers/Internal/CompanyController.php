@@ -6,16 +6,16 @@ use App\Enums\PersonRole;
 use App\Enums\ScopeArea;
 use App\Events\PaginatedListAccessed;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreCustomerRequest;
-use App\Http\Requests\UpdateCustomerRequest;
+use App\Http\Requests\StoreCompanyRequest;
+use App\Http\Requests\UpdateCompanyRequest;
 use App\Mail\PortalInvite;
 use App\Models\AccountGroup;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
 use App\Models\CommissionLedger;
+use App\Models\Company;
 use App\Models\Contact;
 use App\Models\Contract;
-use App\Models\Customer;
 use App\Models\CustomerPerson;
 use App\Models\CustomerProduct;
 use App\Models\CustomerReferral;
@@ -50,7 +50,7 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class CustomerController extends Controller
+class CompanyController extends Controller
 {
     private const PIPELINE_STAGES = ['lead', 'prospect', 'active', 'churned'];
 
@@ -71,7 +71,7 @@ class CustomerController extends Controller
 
     public function index(Request $request): Response
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         if ($request->user()) {
             PaginatedListAccessed::dispatch($request->user()->id, $request->path());
@@ -88,7 +88,7 @@ class CustomerController extends Controller
             'per_page' => min(100, max(1, (int) ($request->query('per_page') ?: 20))),
         ];
 
-        $query = Customer::query()
+        $query = Company::query()
             ->with([
                 'primaryContact:id,customer_id,name,email',
                 'customerProducts.product:id,slug,name,icon_colour',
@@ -139,7 +139,7 @@ class CustomerController extends Controller
         // passes via can(). Non-financial customer data stays.
         $canAnalytics = $request->user()->can('analytics.access');
 
-        $paginator->through(function (Customer $customer) use ($recurring, $canAnalytics): array {
+        $paginator->through(function (Company $customer) use ($recurring, $canAnalytics): array {
             $products = $customer->customerProducts
                 ->groupBy('product_id')
                 ->map(function ($group): array {
@@ -198,10 +198,10 @@ class CustomerController extends Controller
         // badges or MRR. Trial stays a service-CP concept (assets have no trial).
         $activeIds = $recurring->activeCustomerIds();
         $summary = [
-            'total' => Customer::whereNull('archived_at')->count(),
-            'active' => Customer::whereNull('archived_at')->whereIn('id', $activeIds)->count(),
+            'total' => Company::whereNull('archived_at')->count(),
+            'active' => Company::whereNull('archived_at')->whereIn('id', $activeIds)->count(),
             'trial' => CustomerProduct::where('status', 'trial')->distinct('customer_id')->count('customer_id'),
-            'inactive' => Customer::whereNull('archived_at')
+            'inactive' => Company::whereNull('archived_at')
                 ->whereNotIn('id', $activeIds)
                 ->whereDoesntHave('customerProducts', fn ($q) => $q->where('status', 'trial'))
                 ->count(),
@@ -230,7 +230,7 @@ class CustomerController extends Controller
 
     public function show(Request $request, int $id): Response
     {
-        $customer = Customer::with([
+        $customer = Company::with([
             'contacts' => fn ($q) => $q->orderByDesc('is_primary')
                 ->orderBy('name')
                 ->with('portalUser:id,contact_id,email,last_login_at'),
@@ -247,7 +247,7 @@ class CustomerController extends Controller
             // open + notes — and order them so pinned/incomplete rise
             // to the top, completed sink to the bottom. The sidebar
             // card filters down to open ones client-side.
-            // Customer activity timeline: under Assigned the user sees only
+            // Company activity timeline: under Assigned the user sees only
             // their own activities on this account; None sees none; All/
             // super_admin see everything (phase 3b-ii — the eager load isn't
             // covered by Gate::before, so constrainRelation handles the bypass).
@@ -700,7 +700,7 @@ class CustomerController extends Controller
                 // Projects tab data — slim payload (compute progress
                 // via the model accessor to share the same logic the
                 // /projects index uses). Larastan hasn't picked up
-                // Customer::projects() since the relation was added
+                // Company::projects() since the relation was added
                 // in this same change; the ignore lets the typed
                 // closure compile until the next cache regenerate.
                 /** @phpstan-ignore-next-line argument.type */
@@ -873,12 +873,12 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function store(StoreCustomerRequest $request): RedirectResponse
+    public function store(StoreCompanyRequest $request): RedirectResponse
     {
         $data = $request->validated();
 
         $customer = DB::transaction(function () use ($data, $request) {
-            $customer = Customer::create([
+            $customer = Company::create([
                 'name' => $data['name'],
                 'trading_name' => $data['trading_name'] ?? null,
                 'company_number' => $data['company_number'] ?? null,
@@ -946,13 +946,13 @@ class CustomerController extends Controller
         });
 
         return redirect()
-            ->route('internal.customers.show', $customer->id)
+            ->route('internal.companies.show', $customer->id)
             ->with('success', "Created {$customer->name}");
     }
 
-    public function update(int $id, UpdateCustomerRequest $request): RedirectResponse
+    public function update(int $id, UpdateCompanyRequest $request): RedirectResponse
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Company::findOrFail($id);
         Gate::authorize('update', $customer);
 
         $data = $request->validated();
@@ -966,13 +966,13 @@ class CustomerController extends Controller
         });
 
         return redirect()
-            ->route('internal.customers.show', $customer->id)
-            ->with('success', 'Customer updated.');
+            ->route('internal.companies.show', $customer->id)
+            ->with('success', 'Company updated.');
     }
 
     public function storeNote(int $id, Request $request): RedirectResponse
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Company::findOrFail($id);
         Gate::authorize('update', $customer);
 
         $data = $request->validate([
@@ -1003,7 +1003,7 @@ class CustomerController extends Controller
         // composing with the Tasks scope above + the customer update gate below.
         abort_unless($request->user()->can('tasks.manage'), 403, 'You do not have permission to manage tasks.');
 
-        $customer = Customer::findOrFail($id);
+        $customer = Company::findOrFail($id);
         Gate::authorize('update', $customer);
 
         $data = $request->validate([
@@ -1038,7 +1038,7 @@ class CustomerController extends Controller
 
     public function archive(int $id, Request $request): RedirectResponse
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Company::findOrFail($id);
         Gate::authorize('update', $customer);
 
         DB::transaction(function () use ($customer, $request) {
@@ -1048,13 +1048,13 @@ class CustomerController extends Controller
         });
 
         return redirect()
-            ->route('internal.customers.index')
+            ->route('internal.companies.index')
             ->with('success', "Archived {$customer->name}");
     }
 
     public function enableProduct(int $id, Request $request): RedirectResponse
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Company::findOrFail($id);
         Gate::authorize('update', $customer);
 
         $data = $request->validate([
@@ -1155,7 +1155,7 @@ class CustomerController extends Controller
 
     public function suspendProduct(int $id, int $productId, Request $request): RedirectResponse
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Company::findOrFail($id);
         Gate::authorize('update', $customer);
 
         $cp = CustomerProduct::where('customer_id', $id)
@@ -1192,7 +1192,7 @@ class CustomerController extends Controller
      */
     public function toggleExemption(int $id, Request $request): RedirectResponse
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Company::findOrFail($id);
         Gate::authorize('update', $customer);
 
         $data = $request->validate([
@@ -1216,7 +1216,7 @@ class CustomerController extends Controller
         });
 
         return back()->with('success', $data['exempt']
-            ? 'Customer exempted from auto-suspension.'
+            ? 'Company exempted from auto-suspension.'
             : 'Auto-suspension exemption removed.');
     }
 
@@ -1226,7 +1226,7 @@ class CustomerController extends Controller
      */
     public function updateAutoCollect(int $id, Request $request): RedirectResponse
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Company::findOrFail($id);
         Gate::authorize('update', $customer);
 
         $data = $request->validate([
@@ -1257,7 +1257,7 @@ class CustomerController extends Controller
      */
     public function inviteToPortal(int $id, Request $request): RedirectResponse
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Company::findOrFail($id);
         Gate::authorize('update', $customer);
 
         $data = $request->validate([
@@ -1306,7 +1306,7 @@ class CustomerController extends Controller
                 'user_id' => $request->user()?->id,
                 'user_role' => $request->user()?->role,
                 'action' => 'portal.invited',
-                'entity_type' => Customer::class,
+                'entity_type' => Company::class,
                 'entity_id' => $customer->id,
                 'after' => [
                     'portal_user_id' => $portalUser->id,
@@ -1348,7 +1348,7 @@ class CustomerController extends Controller
      */
     public function revokePortalAccess(int $id, int $portalUserId, Request $request): RedirectResponse
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Company::findOrFail($id);
         Gate::authorize('update', $customer);
 
         $portalUser = PortalUser::where('customer_id', $customer->id)
@@ -1363,7 +1363,7 @@ class CustomerController extends Controller
             'user_id' => $request->user()?->id,
             'user_role' => $request->user()?->role,
             'action' => 'portal.access_revoked',
-            'entity_type' => Customer::class,
+            'entity_type' => Company::class,
             'entity_id' => $customer->id,
             'after' => [
                 'portal_user_id' => $portalUser->id,
@@ -1398,13 +1398,13 @@ class CustomerController extends Controller
      */
     public function addReferral(int $id, Request $request): RedirectResponse
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Company::findOrFail($id);
         Gate::authorize('update', $customer);
 
         $user = $request->user();
-        // Phase 3a: gated by customers.referral.manage (route also carries
-        // permission:customers.referral.manage; this is defence-in-depth).
-        abort_unless($user?->hasPermissionTo('customers.referral.manage') ?? false, 403, 'You do not have permission to attach a referral.');
+        // Phase 3a: gated by companies.referral.manage (route also carries
+        // permission:companies.referral.manage; this is defence-in-depth).
+        abort_unless($user?->hasPermissionTo('companies.referral.manage') ?? false, 403, 'You do not have permission to attach a referral.');
 
         if (CustomerReferral::where('customer_id', $customer->id)->exists()) {
             return back()->with(
@@ -1445,7 +1445,7 @@ class CustomerController extends Controller
 
     public function removeReferral(int $id, Request $request): RedirectResponse
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Company::findOrFail($id);
         Gate::authorize('update', $customer);
 
         $referral = CustomerReferral::where('customer_id', $customer->id)->first();
@@ -1495,7 +1495,7 @@ class CustomerController extends Controller
     private function logActivity(
         Request $request,
         string $action,
-        Customer $customer,
+        Company $customer,
         ?array $before = null,
         ?array $after = null,
     ): void {

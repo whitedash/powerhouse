@@ -11,7 +11,7 @@ use App\Mail\InvoiceSent;
 use App\Mail\PaymentReceived;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Payment;
@@ -99,7 +99,7 @@ class InvoiceController extends Controller
             'due_date' => $query->orderByDesc('due_date'),
             'total' => $query->orderByDesc('total'),
             'customer' => $query->orderBy(
-                Customer::select('name')->whereColumn('customers.id', 'invoices.customer_id'),
+                Company::select('name')->whereColumn('customers.id', 'invoices.customer_id'),
                 'asc'
             ),
             default => $query->orderByDesc('created_at'),
@@ -172,11 +172,11 @@ class InvoiceController extends Controller
 
         $today = Carbon::today();
 
-        $customers = Customer::whereNull('archived_at')
+        $customers = Company::whereNull('archived_at')
             ->with('primaryContact:id,customer_id,email')
             ->orderBy('name')
             ->get(['id', 'name', 'city', 'country', 'created_at'])
-            ->map(fn (Customer $c) => [
+            ->map(fn (Company $c) => [
                 'id' => $c->id,
                 'name' => $c->name,
                 'city' => $c->city,
@@ -221,11 +221,11 @@ class InvoiceController extends Controller
 
         $today = Carbon::today();
 
-        $customers = Customer::whereNull('archived_at')
+        $customers = Company::whereNull('archived_at')
             ->with('primaryContact:id,customer_id,email')
             ->orderBy('name')
             ->get(['id', 'name', 'city', 'country', 'created_at'])
-            ->map(fn (Customer $c) => [
+            ->map(fn (Company $c) => [
                 'id' => $c->id,
                 'name' => $c->name,
                 'city' => $c->city,

@@ -3,8 +3,8 @@
 namespace App\Mail;
 
 use App\Mail\Concerns\UsesEntityBranding;
+use App\Models\Company;
 use App\Models\Contact;
-use App\Models\Customer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -21,7 +21,7 @@ class PortalInvite extends Mailable
     use UsesEntityBranding;
 
     public function __construct(
-        public Customer $customer,
+        public Company $customer,
         public Contact $contact,
         public string $tempPassword,
     ) {}

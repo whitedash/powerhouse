@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Enums\AttributionSource;
 use App\Enums\ReferralStatus;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerReferral;
 use App\Models\Lead;
 use App\Models\ReferralClick;
@@ -81,7 +81,7 @@ class AttributionService
      * referrer (captured at public-form submission). No-op (returns null)
      * when the lead has no referrer.
      */
-    public function attributeFromLead(Customer $customer, Lead $lead): ?CustomerReferral
+    public function attributeFromLead(Company $customer, Lead $lead): ?CustomerReferral
     {
         // Deal-registration guard: a rejected or expired registration must
         // never attribute. approved (and null — non-deal leads) attribute
@@ -116,7 +116,7 @@ class AttributionService
      * null when a guard blocks it. Wrapped in a transaction + logged.
      */
     public function attribute(
-        Customer $customer,
+        Company $customer,
         Referrer $referrer,
         AttributionSource $source,
         ?Lead $lead = null,
@@ -172,7 +172,7 @@ class AttributionService
      * True when the referrer's own user email matches the customer/lead
      * email — i.e. someone using their own link to sign up.
      */
-    private function isSelfReferral(Referrer $referrer, Customer $customer, ?string $subjectEmail): bool
+    private function isSelfReferral(Referrer $referrer, Company $customer, ?string $subjectEmail): bool
     {
         $referrerEmail = strtolower((string) $referrer->user?->email);
         if ($referrerEmail === '') {

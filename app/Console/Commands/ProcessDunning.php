@@ -56,7 +56,7 @@ class ProcessDunning extends Command
             $r['reason'],
         ], $results);
 
-        $this->table(['Invoice', 'Customer', 'Attempt', 'Outcome', 'Detail'], $rows);
+        $this->table(['Invoice', 'Company', 'Attempt', 'Outcome', 'Detail'], $rows);
 
         $tally = [];
         foreach ($results as $r) {

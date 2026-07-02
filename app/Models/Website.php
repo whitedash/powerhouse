@@ -66,7 +66,7 @@ use Illuminate\Support\Carbon;
  * @property-read int|null $disk_percent
  * @property-read string|null $pagespeed_grade
  * @property-read string $health_status
- * @property-read Customer|null $customer
+ * @property-read Company|null $customer
  * @property-read CustomerProduct|null $customerProduct
  * @property-read ProductPlan|null $plan
  * @property-read ProductPlanPrice|null $planPrice
@@ -161,7 +161,7 @@ class Website extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     public function customerProduct(): BelongsTo

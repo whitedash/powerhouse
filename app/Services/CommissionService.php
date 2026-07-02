@@ -6,7 +6,7 @@ use App\Enums\CommissionTrigger;
 use App\Models\ActivityLog;
 use App\Models\CommissionLedger;
 use App\Models\CommissionRule;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\Referrer;
@@ -65,7 +65,7 @@ class CommissionService
      */
     public function accrue(
         Referrer $referrer,
-        Customer $customer,
+        Company $customer,
         Product $product,
         float $gross,
         CommissionTrigger $trigger,

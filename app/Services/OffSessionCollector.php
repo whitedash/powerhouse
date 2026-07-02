@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Mail\InvoiceSent;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
@@ -52,7 +52,7 @@ class OffSessionCollector
      */
     public function run(bool $dryRun = false, ?int $onlyCustomerId = null, ?int $onlyInvoiceId = null): array
     {
-        $customers = Customer::query()
+        $customers = Company::query()
             ->where('auto_collect', true)
             ->when($onlyCustomerId !== null, fn ($q) => $q->where('id', $onlyCustomerId))
             ->orderBy('id')
@@ -82,7 +82,7 @@ class OffSessionCollector
      *
      * @return array<string, mixed>
      */
-    public function collectInvoice(Customer $customer, Invoice $invoice, bool $dryRun = false): array
+    public function collectInvoice(Company $customer, Invoice $invoice, bool $dryRun = false): array
     {
         $outstanding = round((float) $invoice->total - (float) $invoice->amount_paid, 2);
         $pence = (int) round($outstanding * 100);
@@ -187,7 +187,7 @@ class OffSessionCollector
     /**
      * @return array<string, mixed>
      */
-    private function onSucceeded(Customer $customer, Invoice $invoice, float $outstanding, string $paymentIntentId): array
+    private function onSucceeded(Company $customer, Invoice $invoice, float $outstanding, string $paymentIntentId): array
     {
         // markInvoicePaid upserts the ledger row (keyed by PI id) to succeeded
         // and is idempotent — so the inline path and the async webhook converge.
@@ -206,7 +206,7 @@ class OffSessionCollector
     /**
      * @return array<string, mixed>
      */
-    private function onRequiresAction(Customer $customer, Invoice $invoice, float $outstanding, Payment $payment, ?string $reason): array
+    private function onRequiresAction(Company $customer, Invoice $invoice, float $outstanding, Payment $payment, ?string $reason): array
     {
         $payment->update([
             'status' => 'requires_action',
@@ -243,7 +243,7 @@ class OffSessionCollector
     /**
      * @return array<string, mixed>
      */
-    private function onFailed(Customer $customer, Invoice $invoice, float $outstanding, Payment $payment, ?string $reason): array
+    private function onFailed(Company $customer, Invoice $invoice, float $outstanding, Payment $payment, ?string $reason): array
     {
         $payment->update([
             'status' => 'failed',
@@ -278,7 +278,7 @@ class OffSessionCollector
      * The customer's active default card, or null. Active is the master gate —
      * a removed card is never charged.
      */
-    private function defaultPaymentMethod(Customer $customer): ?PaymentMethod
+    private function defaultPaymentMethod(Company $customer): ?PaymentMethod
     {
         return PaymentMethod::where('customer_id', $customer->id)
             ->where('status', 'active')
@@ -392,7 +392,7 @@ class OffSessionCollector
     /**
      * @return array<string, mixed>
      */
-    private function result(Customer $customer, Invoice $invoice, float $outstanding, string $status, string $reason, ?string $paymentIntentId = null): array
+    private function result(Company $customer, Invoice $invoice, float $outstanding, string $status, string $reason, ?string $paymentIntentId = null): array
     {
         return [
             'customer_id' => $customer->id,

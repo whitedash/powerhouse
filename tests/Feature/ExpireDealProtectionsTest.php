@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\ReferralStatus;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -77,7 +77,7 @@ class ExpireDealProtectionsTest extends TestCase
     public function test_converted_deal_is_untouched(): void
     {
         // customer_id present = converted/closed → earned, never expire.
-        $customerId = Customer::create(['name' => 'Converted Co'])->id;
+        $customerId = Company::create(['name' => 'Converted Co'])->id;
         $lead = $this->lead([
             'referral_status' => ReferralStatus::Approved,
             'protected_until' => now()->subDay(),

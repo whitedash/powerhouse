@@ -17,7 +17,7 @@ use Tests\TestCase;
  * composing with the existing per-record checks. markPaid additionally requires
  * expenses.approve (decision: reaching status=paid is approval-tier on every
  * path, matching the Issue-A store/update guard). approve() keeps its
- * expenses.approve-only gate (separation of duties); reads stay on customers.access.
+ * expenses.approve-only gate (separation of duties); reads stay on companies.access.
  */
 class ExpensesManageEnforcementTest extends TestCase
 {
@@ -92,8 +92,8 @@ class ExpensesManageEnforcementTest extends TestCase
 
     public function test_all_mutations_403_without_expenses_manage(): void
     {
-        // Holds customers.access (the old, too-permissive gate) but NOT expenses.manage.
-        $user = $this->userWith(['customers.access']);
+        // Holds companies.access (the old, too-permissive gate) but NOT expenses.manage.
+        $user = $this->userWith(['companies.access']);
 
         foreach ($this->mutationRoutes() as [$verb, $url]) {
             $this->actingAs($user)->{$verb}($url)
@@ -103,7 +103,7 @@ class ExpensesManageEnforcementTest extends TestCase
 
     public function test_expense_create_succeeds_with_manage(): void
     {
-        $user = $this->userWith(['customers.access', 'expenses.manage']);
+        $user = $this->userWith(['companies.access', 'expenses.manage']);
 
         $this->actingAs($user)
             ->post('/expenses', $this->expensePayload(['description' => 'Created']))
@@ -113,7 +113,7 @@ class ExpensesManageEnforcementTest extends TestCase
 
     public function test_expense_update_and_destroy_succeed_with_manage(): void
     {
-        $user = $this->userWith(['customers.access', 'expenses.manage']);
+        $user = $this->userWith(['companies.access', 'expenses.manage']);
         $expense = $this->makeExpense();
 
         $this->actingAs($user)
@@ -127,7 +127,7 @@ class ExpensesManageEnforcementTest extends TestCase
 
     public function test_supplier_create_succeeds_with_manage(): void
     {
-        $user = $this->userWith(['customers.access', 'expenses.manage']);
+        $user = $this->userWith(['companies.access', 'expenses.manage']);
 
         $this->actingAs($user)->post('/suppliers', [
             'name' => 'Acme Supplies',
@@ -139,7 +139,7 @@ class ExpensesManageEnforcementTest extends TestCase
 
     public function test_markpaid_succeeds_with_manage_and_approve(): void
     {
-        $user = $this->userWith(['customers.access', 'expenses.manage', 'expenses.approve']);
+        $user = $this->userWith(['companies.access', 'expenses.manage', 'expenses.approve']);
         $expense = $this->makeExpense('approved');
 
         $this->actingAs($user)->post("/expenses/{$expense->id}/mark-paid")->assertRedirect();
@@ -159,7 +159,7 @@ class ExpensesManageEnforcementTest extends TestCase
     public function test_composition_manage_without_approve_can_create_pending_but_not_approve_or_pay(): void
     {
         // expenses.manage (touch records) but NOT expenses.approve (set approved/paid).
-        $user = $this->userWith(['customers.access', 'expenses.manage']);
+        $user = $this->userWith(['companies.access', 'expenses.manage']);
 
         // Can create a normal pending expense.
         $this->actingAs($user)
@@ -185,7 +185,7 @@ class ExpensesManageEnforcementTest extends TestCase
     {
         // Proves markPaid's distinct approve-tier: route expenses.manage passes,
         // the in-method expenses.approve check blocks.
-        $user = $this->userWith(['customers.access', 'expenses.manage']);
+        $user = $this->userWith(['companies.access', 'expenses.manage']);
         $expense = $this->makeExpense('approved');
 
         $this->actingAs($user)->post("/expenses/{$expense->id}/mark-paid")->assertForbidden();

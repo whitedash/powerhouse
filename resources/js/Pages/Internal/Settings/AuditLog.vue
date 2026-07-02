@@ -33,7 +33,7 @@ function formatDate(iso) {
 
 function roleLabel(role) {
     if (! role) return 'System';
-    const map = { super_admin: 'Super Admin', staff: 'Staff', customer: 'Customer', referrer: 'Referrer', system: 'System' };
+    const map = { super_admin: 'Super Admin', staff: 'Staff', customer: 'Company', referrer: 'Referrer', system: 'System' };
     return map[role] || role;
 }
 

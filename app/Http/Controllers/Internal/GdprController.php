@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\Company;
 use App\Models\Contact;
-use App\Models\Customer;
 use App\Models\CustomerProduct;
 use App\Models\Invoice;
 use App\Models\PortalUser;
@@ -35,7 +35,7 @@ class GdprController extends Controller
 
     public function requestErasure(int $id, Request $request): RedirectResponse
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Company::findOrFail($id);
         Gate::authorize('update', $customer);
 
         if ($customer->erasure_completed_at !== null) {
@@ -54,7 +54,7 @@ class GdprController extends Controller
 
     public function processErasure(int $id, Request $request): RedirectResponse
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Company::findOrFail($id);
         Gate::authorize('update', $customer);
 
         if ($customer->erasure_completed_at !== null) {
@@ -117,12 +117,12 @@ class GdprController extends Controller
             ]);
         });
 
-        return back()->with('success', 'Customer data erased.');
+        return back()->with('success', 'Company data erased.');
     }
 
     public function exportData(int $id, Request $request): JsonResponse
     {
-        $customer = Customer::with([
+        $customer = Company::with([
             'contacts',
             'invoices.lines',
             'customerProducts.product',
@@ -197,7 +197,7 @@ class GdprController extends Controller
      * @param  array<string, mixed>|null  $before
      * @param  array<string, mixed>|null  $after
      */
-    private function logActivity(Request $request, string $action, Customer $customer, ?array $before = null, ?array $after = null): void
+    private function logActivity(Request $request, string $action, Company $customer, ?array $before = null, ?array $after = null): void
     {
         ActivityLog::create([
             'user_id' => $request->user()?->id,

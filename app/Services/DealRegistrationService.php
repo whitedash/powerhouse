@@ -4,8 +4,8 @@ namespace App\Services;
 
 use App\Enums\ReferralStatus;
 use App\Models\ActivityLog;
+use App\Models\Company;
 use App\Models\Contact;
-use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\Product;
 use App\Models\Referrer;
@@ -152,7 +152,7 @@ class DealRegistrationService
             $blocked = $this->contactMatch(fn ($q) => $q->where('phone', $phone))
                 || $this->leadBlocks($referrer, fn ($q) => $q->where('phone', $phone));
         } elseif ($company !== null) {
-            $blocked = Customer::whereRaw('LOWER(name) = ?', [mb_strtolower($company)])->exists()
+            $blocked = Company::whereRaw('LOWER(name) = ?', [mb_strtolower($company)])->exists()
                 || $this->leadBlocks($referrer, fn ($q) => $q->whereRaw('LOWER(company) = ?', [mb_strtolower($company)]));
         }
 

@@ -284,7 +284,7 @@ function downloadPdf() {
 }
 
 function gotoCustomer() {
-    if (customer.value) router.visit(`/customers/${customer.value.id}`);
+    if (customer.value) router.visit(`/companies/${customer.value.id}`);
 }
 
 function gotoEdit() {
@@ -847,11 +847,11 @@ const icons = {
                         <header class="card-header">
                             <div class="h-icon"><IconUser :size="16" stroke-width="1.75" /></div>
                             <div>
-                                <h3>Customer</h3>
+                                <h3>Company</h3>
                                 <div class="sub">Billing party for this invoice</div>
                             </div>
                             <div class="right">
-                                <Link :href="`/customers/${customer.id}`" class="ghost-link">
+                                <Link :href="`/companies/${customer.id}`" class="ghost-link">
                                     View full record
                                     <IconArrowRight :size="14" stroke-width="1.75" />
                                 </Link>

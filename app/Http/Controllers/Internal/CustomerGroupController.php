@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Internal;
 use App\Http\Controllers\Controller;
 use App\Models\AccountGroup;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +14,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Customer groups (segments) — the user-facing vocabulary for the
+ * Company groups (segments) — the user-facing vocabulary for the
  * underlying account_groups table. Used to tag customers as "VIP",
  * "Beta testers", etc., for filtering on the customer list and for
  * future bulk-action targets.
@@ -27,7 +27,7 @@ class CustomerGroupController extends Controller
 {
     public function index(): Response
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $groups = AccountGroup::withCount('customers')
             ->with('createdBy:id,name')
@@ -50,7 +50,7 @@ class CustomerGroupController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        Gate::authorize('create', Customer::class);
+        Gate::authorize('create', Company::class);
 
         $data = $this->validateGroup($request);
 
@@ -70,7 +70,7 @@ class CustomerGroupController extends Controller
 
     public function update(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('create', Customer::class);
+        Gate::authorize('create', Company::class);
 
         $group = AccountGroup::findOrFail($id);
         $data = $this->validateGroup($request);
@@ -93,7 +93,7 @@ class CustomerGroupController extends Controller
 
     public function destroy(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('create', Customer::class);
+        Gate::authorize('create', Company::class);
 
         $group = AccountGroup::findOrFail($id);
 
@@ -117,7 +117,7 @@ class CustomerGroupController extends Controller
         ]);
 
         $group = AccountGroup::findOrFail($groupId);
-        $customer = Customer::findOrFail($data['customer_id']);
+        $customer = Company::findOrFail($data['customer_id']);
         Gate::authorize('update', $customer);
 
         // syncWithoutDetaching is idempotent — re-adding an existing
@@ -137,7 +137,7 @@ class CustomerGroupController extends Controller
     public function removeMember(int $groupId, int $customerId, Request $request): RedirectResponse
     {
         $group = AccountGroup::findOrFail($groupId);
-        $customer = Customer::findOrFail($customerId);
+        $customer = Company::findOrFail($customerId);
         Gate::authorize('update', $customer);
 
         $group->customers()->detach($customerId);

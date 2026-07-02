@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\PortalUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -50,7 +50,7 @@ class AuthController extends Controller
         // Aggregate customer-level counter. Used by the SSO
         // userinfo endpoint + the dashboard "your products" surface
         // to flag dormant accounts.
-        Customer::where('id', $user->customer_id)->update([
+        Company::where('id', $user->customer_id)->update([
             'portal_last_login_at' => now(),
             'portal_login_count' => \DB::raw('portal_login_count + 1'),
         ]);

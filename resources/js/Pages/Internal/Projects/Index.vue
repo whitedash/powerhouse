@@ -366,7 +366,7 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true, preserveSt
                         </div>
 
                         <div class="form-section">
-                            <label class="form-label">Customer</label>
+                            <label class="form-label">Company</label>
                             <div v-if="selectedCustomer" class="picked-chip">
                                 <span>{{ selectedCustomer.name }}</span>
                                 <button type="button" class="icon-btn xs" @click="clearCustomer">

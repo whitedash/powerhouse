@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Milestone;
 use App\Models\Project;
 use App\Models\RoleScope;
@@ -65,7 +65,7 @@ class ProjectsManageEnforcementTest extends TestCase
 
     private function makeProject(): Project
     {
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
 
         return Project::create([
             'title' => 'Project '.uniqid(),
@@ -107,8 +107,8 @@ class ProjectsManageEnforcementTest extends TestCase
 
     public function test_all_project_mutations_403_without_projects_manage(): void
     {
-        // customers.access + full Projects/Tasks scope, but NOT projects.manage.
-        $user = $this->userWith(['customers.access'], ['projects' => 'all', 'tasks' => 'all']);
+        // companies.access + full Projects/Tasks scope, but NOT projects.manage.
+        $user = $this->userWith(['companies.access'], ['projects' => 'all', 'tasks' => 'all']);
         foreach ($this->mutationRoutes() as [$verb, $url]) {
             $this->actingAs($user)->{$verb}($url)->assertForbidden();
         }
@@ -116,7 +116,7 @@ class ProjectsManageEnforcementTest extends TestCase
 
     public function test_project_destroy_succeeds_with_manage_and_scope(): void
     {
-        $user = $this->userWith(['customers.access', 'projects.manage'], ['projects' => 'all']);
+        $user = $this->userWith(['companies.access', 'projects.manage'], ['projects' => 'all']);
         $project = $this->makeProject();
 
         $this->actingAs($user)->delete("/projects/{$project->id}")->assertRedirect();
@@ -127,7 +127,7 @@ class ProjectsManageEnforcementTest extends TestCase
     {
         // projects.manage (passes the route middleware) but Projects scope None
         // → the in-method authorizeScopeItem still 403s. Both required.
-        $user = $this->userWith(['customers.access', 'projects.manage']); // no projects scope row → None
+        $user = $this->userWith(['companies.access', 'projects.manage']); // no projects scope row → None
         $project = $this->makeProject();
 
         $this->actingAs($user)->delete("/projects/{$project->id}")->assertForbidden();
@@ -147,7 +147,7 @@ class ProjectsManageEnforcementTest extends TestCase
     {
         // X: full Tasks scope (so the reorder's tasks-scope check passes) but NO
         // projects.manage and NO Projects scope. Project B is foreign to X.
-        $x = $this->userWith(['customers.access'], ['tasks' => 'all']);
+        $x = $this->userWith(['companies.access'], ['tasks' => 'all']);
         $projectB = $this->makeProject();
         $milestoneB = $this->makeMilestone($projectB);
         // A task X owns, currently on NO milestone.
@@ -163,7 +163,7 @@ class ProjectsManageEnforcementTest extends TestCase
     public function test_idor_cascade_complete_foreign_milestone_is_blocked(): void
     {
         // X owns the only task on project B's milestone but is not a B manager.
-        $x = $this->userWith(['customers.access'], ['tasks' => 'all']);
+        $x = $this->userWith(['companies.access'], ['tasks' => 'all']);
         $projectB = $this->makeProject();
         $milestoneB = $this->makeMilestone($projectB);
         $task = $this->makeTask($projectB, $milestoneB, $x->id, 'todo');
@@ -180,7 +180,7 @@ class ProjectsManageEnforcementTest extends TestCase
     {
         // Y manages projects (projects.manage + Projects scope All + Tasks scope)
         // → the legitimate kanban move onto a milestone still works.
-        $y = $this->userWith(['customers.access', 'projects.manage'], ['projects' => 'all', 'tasks' => 'all']);
+        $y = $this->userWith(['companies.access', 'projects.manage'], ['projects' => 'all', 'tasks' => 'all']);
         $project = $this->makeProject();
         $milestone = $this->makeMilestone($project);
         $task = $this->makeTask($project, null, $y->id);
@@ -197,7 +197,7 @@ class ProjectsManageEnforcementTest extends TestCase
         // Create path (store) must close the same re-bucket IDOR as reorder:
         // a Tasks-scoped non-member cannot inject a NEW task onto a foreign
         // project's milestone.
-        $x = $this->userWith(['customers.access'], ['tasks' => 'all']);
+        $x = $this->userWith(['companies.access'], ['tasks' => 'all']);
         $projectB = $this->makeProject();
         $milestoneB = $this->makeMilestone($projectB);
 
@@ -209,7 +209,7 @@ class ProjectsManageEnforcementTest extends TestCase
 
     public function test_idor_store_task_onto_foreign_project_is_blocked(): void
     {
-        $x = $this->userWith(['customers.access'], ['tasks' => 'all']);
+        $x = $this->userWith(['companies.access'], ['tasks' => 'all']);
         $projectB = $this->makeProject();
 
         $this->actingAs($x)->post('/tasks', [
@@ -220,7 +220,7 @@ class ProjectsManageEnforcementTest extends TestCase
 
     public function test_manager_can_store_task_onto_their_milestone(): void
     {
-        $y = $this->userWith(['customers.access', 'projects.manage'], ['projects' => 'all', 'tasks' => 'all']);
+        $y = $this->userWith(['companies.access', 'projects.manage'], ['projects' => 'all', 'tasks' => 'all']);
         $project = $this->makeProject();
         $milestone = $this->makeMilestone($project);
 
@@ -234,8 +234,8 @@ class ProjectsManageEnforcementTest extends TestCase
     {
         // No project_id/milestone_id → the projects guard is skipped; a Tasks-
         // scoped user creates a CRM task as before (no over-restriction).
-        $user = $this->userWith(['customers.access'], ['tasks' => 'all']);
-        $customer = Customer::create(['name' => 'CRM '.uniqid()]);
+        $user = $this->userWith(['companies.access'], ['tasks' => 'all']);
+        $customer = Company::create(['name' => 'CRM '.uniqid()]);
 
         $this->actingAs($user)->post('/tasks', [
             'type' => 'task', 'title' => 'CRM task', 'due_at' => now()->addDay()->toDateString(), 'customer_id' => $customer->id,

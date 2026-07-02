@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Internal;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Product;
 use App\Models\ProductPlan;
@@ -27,7 +27,7 @@ class ProvisioningController extends Controller
         $productSlug = $request->string('product_slug')->toString() ?: null;
         $status = $request->string('status')->toString() ?: null;
 
-        $customers = Customer::query()
+        $customers = Company::query()
             ->whereNull('archived_at')
             ->with([
                 'customerProducts.product:id,name,slug,icon_colour,is_active,is_coming_soon',
@@ -44,7 +44,7 @@ class ProvisioningController extends Controller
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString()
-            ->through(function (Customer $c): array {
+            ->through(function (Company $c): array {
                 $products = $c->customerProducts
                     ->map(fn (CustomerProduct $cp): array => [
                         'id' => $cp->id,
@@ -158,7 +158,7 @@ class ProvisioningController extends Controller
             ->all();
 
         $summary = [
-            'total_customers' => Customer::whereNull('archived_at')->count(),
+            'total_customers' => Company::whereNull('archived_at')->count(),
             'products' => array_map(fn (array $p): array => [
                 'slug' => $p['slug'],
                 'name' => $p['name'],
@@ -175,10 +175,10 @@ class ProvisioningController extends Controller
             'products' => $products,
             'summary' => $summary,
             'billing_entities' => BillingEntity::where('is_active', true)->get(['id', 'name']),
-            'all_customers' => Customer::whereNull('archived_at')
+            'all_customers' => Company::whereNull('archived_at')
                 ->orderBy('name')
                 ->get(['id', 'name', 'city'])
-                ->map(fn (Customer $c): array => [
+                ->map(fn (Company $c): array => [
                     'id' => $c->id,
                     'name' => $c->name,
                     'city' => $c->city,
@@ -209,7 +209,7 @@ class ProvisioningController extends Controller
             'trial_ends_at' => ['nullable', 'date', 'required_if:status,trial'],
         ]);
 
-        $customer = Customer::findOrFail($data['customer_id']);
+        $customer = Company::findOrFail($data['customer_id']);
         Gate::authorize('update', $customer);
 
         $existing = CustomerProduct::where('customer_id', $data['customer_id'])

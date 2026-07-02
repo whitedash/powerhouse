@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Product;
 use App\Models\ProductPlan;
 use App\Models\User;
@@ -68,8 +68,8 @@ class AnalyticsFigureRedactionTest extends TestCase
 
     public function test_dashboard_loads_but_redacts_financials_without_analytics_access(): void
     {
-        // customers.access reaches the dashboard; NO analytics.access → money gone.
-        $user = $this->userWith(['customers.access']);
+        // companies.access reaches the dashboard; NO analytics.access → money gone.
+        $user = $this->userWith(['companies.access']);
 
         $this->actingAs($user)->get('/dashboard')
             ->assertOk() // page STILL renders
@@ -83,7 +83,7 @@ class AnalyticsFigureRedactionTest extends TestCase
 
     public function test_dashboard_shows_financials_with_analytics_access(): void
     {
-        $user = $this->userWith(['customers.access', 'analytics.access']);
+        $user = $this->userWith(['companies.access', 'analytics.access']);
 
         $this->actingAs($user)->get('/dashboard')
             ->assertOk()
@@ -103,7 +103,7 @@ class AnalyticsFigureRedactionTest extends TestCase
 
     public function test_export_csv_redacts_money_columns_without_analytics_access(): void
     {
-        $user = $this->userWith(['customers.access']);
+        $user = $this->userWith(['companies.access']);
         $res = $this->actingAs($user)->get('/export/dashboard');
         $res->assertOk();
         $csv = $res->streamedContent();
@@ -120,7 +120,7 @@ class AnalyticsFigureRedactionTest extends TestCase
 
     public function test_export_csv_includes_money_columns_with_analytics_access(): void
     {
-        $user = $this->userWith(['customers.access', 'analytics.access']);
+        $user = $this->userWith(['companies.access', 'analytics.access']);
         $csv = $this->actingAs($user)->get('/export/dashboard')->streamedContent();
 
         $this->assertStringContainsString('MRR (£)', $csv);
@@ -192,44 +192,44 @@ class AnalyticsFigureRedactionTest extends TestCase
             ->assertInertia(fn (Assert $p) => $p->whereNot('analytics.mrr', null));
     }
 
-    // ─── /customers list + show — per-customer MRR redacted (folded in) ───
+    // ─── /companies list + show — per-customer MRR redacted (folded in) ───
 
     public function test_customers_list_redacts_per_customer_mrr_without_analytics_access(): void
     {
-        Customer::create(['name' => 'Acme '.uniqid()]);
-        $user = $this->userWith(['customers.access']);
+        Company::create(['name' => 'Acme '.uniqid()]);
+        $user = $this->userWith(['companies.access']);
 
-        $this->actingAs($user)->get('/customers')
+        $this->actingAs($user)->get('/companies')
             ->assertOk()
             ->assertInertia(fn (Assert $p) => $p->where('customers.data.0.mrr', null));
     }
 
     public function test_customers_list_shows_per_customer_mrr_with_analytics_access(): void
     {
-        Customer::create(['name' => 'Acme '.uniqid()]);
-        $user = $this->userWith(['customers.access', 'analytics.access']);
+        Company::create(['name' => 'Acme '.uniqid()]);
+        $user = $this->userWith(['companies.access', 'analytics.access']);
 
-        $this->actingAs($user)->get('/customers')
+        $this->actingAs($user)->get('/companies')
             ->assertOk()
             ->assertInertia(fn (Assert $p) => $p->whereNot('customers.data.0.mrr', null));
     }
 
     public function test_customer_show_redacts_mrr_without_analytics_access(): void
     {
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
-        $user = $this->userWith(['customers.access']);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
+        $user = $this->userWith(['companies.access']);
 
-        $this->actingAs($user)->get("/customers/{$customer->id}")
+        $this->actingAs($user)->get("/companies/{$customer->id}")
             ->assertOk()
             ->assertInertia(fn (Assert $p) => $p->where('customer.mrr', null));
     }
 
     public function test_customer_show_shows_mrr_with_analytics_access(): void
     {
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
-        $user = $this->userWith(['customers.access', 'analytics.access']);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
+        $user = $this->userWith(['companies.access', 'analytics.access']);
 
-        $this->actingAs($user)->get("/customers/{$customer->id}")
+        $this->actingAs($user)->get("/companies/{$customer->id}")
             ->assertOk()
             ->assertInertia(fn (Assert $p) => $p->whereNot('customer.mrr', null));
     }

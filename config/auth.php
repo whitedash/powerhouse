@@ -44,7 +44,7 @@ return [
             'provider' => 'users',
         ],
 
-        // Customer portal. Separate from 'web' so a customer signing in
+        // Company portal. Separate from 'web' so a customer signing in
         // at /portal/login never collides with a staff session on the
         // same browser. The provider points at portal_users, not users.
         'portal' => [

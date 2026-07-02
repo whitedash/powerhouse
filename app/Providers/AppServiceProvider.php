@@ -8,7 +8,7 @@ use App\Listeners\DetectMassExport;
 use App\Listeners\LogSecurityEvent;
 use App\Models\BillingEntity;
 use App\Models\CommissionLedger;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\FormTheme;
 use App\Models\Invoice;
 use App\Models\Person;
@@ -16,7 +16,7 @@ use App\Models\Product;
 use App\Models\User;
 use App\Policies\BillingEntityPolicy;
 use App\Policies\CommissionLedgerPolicy;
-use App\Policies\CustomerPolicy;
+use App\Policies\CompanyPolicy;
 use App\Policies\FormThemePolicy;
 use App\Policies\InvoicePolicy;
 use App\Policies\PersonPolicy;
@@ -195,7 +195,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::before(fn ($user, string $ability) => $user instanceof User && $user->isSuperAdmin() ? true : null);
 
         Gate::policy(BillingEntity::class, BillingEntityPolicy::class);
-        Gate::policy(Customer::class, CustomerPolicy::class);
+        Gate::policy(Company::class, CompanyPolicy::class);
         Gate::policy(Invoice::class, InvoicePolicy::class);
         Gate::policy(Product::class, ProductPolicy::class);
         Gate::policy(CommissionLedger::class, CommissionLedgerPolicy::class);

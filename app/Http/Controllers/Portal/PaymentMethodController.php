@@ -15,7 +15,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Customer-facing saved-card management (Billing P1). Add a card (SetupIntent +
+ * Company-facing saved-card management (Billing P1). Add a card (SetupIntent +
  * Stripe Elements), list, set-default, remove. READ-ONLY of card data in the
  * sense that NO charge ever happens here (P2). Every query is scoped to the
  * portal user's OWN customer; only safe card metadata is exposed.

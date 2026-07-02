@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Internal;
 
 use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
+use App\Models\Company;
 use App\Models\Contact;
-use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Person;
 use App\Models\Product;
@@ -42,7 +42,7 @@ class SearchController extends Controller
 
         // ── Customers — matches the customer's own name or the
         //    name/email of any contact attached to them.
-        $customers = Customer::whereNull('archived_at')
+        $customers = Company::whereNull('archived_at')
             ->where(function ($query) use ($q) {
                 $query->where('name', 'like', "%{$q}%")
                     ->orWhereHas('contacts', function ($q2) use ($q) {
@@ -52,13 +52,13 @@ class SearchController extends Controller
             })
             ->take(5)
             ->get(['id', 'name', 'city'])
-            ->map(fn (Customer $c): array => [
+            ->map(fn (Company $c): array => [
                 'type' => 'customer',
                 'icon' => 'building-store',
                 'colour' => '#6366F1',
                 'title' => $c->name,
                 'sub' => $c->city ?? '—',
-                'url' => '/customers/'.$c->id,
+                'url' => '/companies/'.$c->id,
             ])
             ->all();
         $results = array_merge($results, $customers);
@@ -100,7 +100,7 @@ class SearchController extends Controller
                 'colour' => '#10B981',
                 'title' => $c->name,
                 'sub' => ($c->email ?? '—').($c->customer ? ' · '.$c->customer->name : ''),
-                'url' => '/customers/'.$c->customer_id,
+                'url' => '/companies/'.$c->customer_id,
             ])
             ->all();
         $results = array_merge($results, $contacts);

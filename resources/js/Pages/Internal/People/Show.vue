@@ -99,7 +99,7 @@ watch(custQuery, (v) => {
             });
             const data = await res.json();
             // The global search returns mixed rows; keep only customers
-            // and pull the id out of the /customers/{id} url.
+            // and pull the id out of the /companies/{id} url.
             custResults.value = (data.results ?? [])
                 .filter((r) => r.type === 'customer')
                 .map((r) => ({ id: Number(r.url.split('/').pop()), name: r.title, sub: r.sub }));
@@ -200,7 +200,7 @@ function roleChipStyle(role) {
                     <ul v-else class="company-list">
                         <li v-for="c in person.companies" :key="c.id" class="company-row">
                             <div class="company-main">
-                                <Link :href="`/customers/${c.id}`" class="company-name">{{ c.name }}</Link>
+                                <Link :href="`/companies/${c.id}`" class="company-name">{{ c.name }}</Link>
                                 <span v-if="c.job_title" class="company-title">{{ c.job_title }}</span>
                             </div>
                             <span class="badge badge-sm role-chip" :style="roleChipStyle(c.role)">{{ c.role_label }}</span>

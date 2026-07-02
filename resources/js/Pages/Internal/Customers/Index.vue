@@ -103,7 +103,7 @@ function navigate(patch) {
             delete query[k];
         }
     });
-    router.get('/customers', query, {
+    router.get('/companies', query, {
         preserveState: true,
         preserveScroll: true,
         replace: true,
@@ -210,7 +210,7 @@ function navigateToLink(url) {
 
 /* ─── Row click ─── */
 function openCustomer(id) {
-    router.visit(`/customers/${id}`);
+    router.visit(`/companies/${id}`);
 }
 
 /* ─── Create slide-over ─── */
@@ -328,7 +328,7 @@ function openCreate() {
 }
 
 function submit() {
-    form.post('/customers', {
+    form.post('/companies', {
         preserveScroll: true,
         onSuccess: () => {
             showCreate.value = false;
@@ -345,7 +345,7 @@ onMounted(() => {
         openCreate();
         params.delete('create');
         const qs = params.toString();
-        window.history.replaceState({}, '', '/customers' + (qs ? '?' + qs : ''));
+        window.history.replaceState({}, '', '/companies' + (qs ? '?' + qs : ''));
     }
 });
 </script>
@@ -553,13 +553,13 @@ onMounted(() => {
                                 </MenuButton>
                                 <MenuItems class="dd-popover right-align">
                                     <MenuItem v-slot="{ active }">
-                                        <Link :href="`/customers/${c.id}`" :class="['dd-option', { active }]">View company</Link>
+                                        <Link :href="`/companies/${c.id}`" :class="['dd-option', { active }]">View company</Link>
                                     </MenuItem>
                                     <MenuItem v-slot="{ active }">
                                         <Link :href="`/invoices/new?customer_id=${c.id}`" :class="['dd-option', { active }]">New invoice</Link>
                                     </MenuItem>
                                     <MenuItem v-slot="{ active }">
-                                        <Link :href="`/customers/${c.id}`" :class="['dd-option', { active }]">Edit</Link>
+                                        <Link :href="`/companies/${c.id}`" :class="['dd-option', { active }]">Edit</Link>
                                     </MenuItem>
                                     <MenuItem v-slot="{ active }">
                                         <button type="button" :class="['dd-option', { active }]">Archive</button>

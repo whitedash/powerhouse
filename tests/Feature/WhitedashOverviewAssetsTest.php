@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Domain;
 use App\Models\Product;
@@ -54,7 +54,7 @@ class WhitedashOverviewAssetsTest extends TestCase
         ]);
     }
 
-    private function hostingSite(Customer $c, ProductPlanPrice $tier): Website
+    private function hostingSite(Company $c, ProductPlanPrice $tier): Website
     {
         return Website::create([
             'customer_id' => $c->id,
@@ -69,7 +69,7 @@ class WhitedashOverviewAssetsTest extends TestCase
         ]);
     }
 
-    private function domain(Customer $c, ProductPlan $plan): Domain
+    private function domain(Company $c, ProductPlan $plan): Domain
     {
         return Domain::create([
             'customer_id' => $c->id,
@@ -92,7 +92,7 @@ class WhitedashOverviewAssetsTest extends TestCase
         $domainTier = $this->plan($domainsProduct, 'domain', 12.0);  // domain plan under the Domains catalog product
 
         // C1: Whitedash service CP only.
-        $c1 = Customer::create(['name' => 'C1']);
+        $c1 = Company::create(['name' => 'C1']);
         CustomerProduct::create([
             'customer_id' => $c1->id, 'product_id' => $wd->id,
             'plan_id' => $serviceTier->plan_id, 'plan_price_id' => $serviceTier->id,
@@ -100,15 +100,15 @@ class WhitedashOverviewAssetsTest extends TestCase
         ]);
 
         // C2: hosting only.
-        $c2 = Customer::create(['name' => 'C2']);
+        $c2 = Company::create(['name' => 'C2']);
         $this->hostingSite($c2, $hostingTier);
 
         // C3: domain only.
-        $c3 = Customer::create(['name' => 'C3']);
+        $c3 = Company::create(['name' => 'C3']);
         $this->domain($c3, $domainTier->plan);
 
         // C4: hosting AND a service CP — must count once (distinct).
-        $c4 = Customer::create(['name' => 'C4']);
+        $c4 = Company::create(['name' => 'C4']);
         CustomerProduct::create([
             'customer_id' => $c4->id, 'product_id' => $wd->id,
             'plan_id' => $serviceTier->plan_id, 'plan_price_id' => $serviceTier->id,
@@ -136,14 +136,14 @@ class WhitedashOverviewAssetsTest extends TestCase
         $hostingTier = $this->plan($wd, 'hosting', 10.0);
         $domainTier = $this->plan($domainsProduct, 'domain', 12.0);
 
-        $c1 = Customer::create(['name' => 'C1']);
+        $c1 = Company::create(['name' => 'C1']);
         CustomerProduct::create([
             'customer_id' => $c1->id, 'product_id' => $wd->id,
             'plan_id' => $serviceTier->plan_id, 'plan_price_id' => $serviceTier->id,
             'status' => 'active', 'started_at' => now(),
         ]);
-        $this->hostingSite(Customer::create(['name' => 'C2']), $hostingTier);
-        $this->domain(Customer::create(['name' => 'C3']), $domainTier->plan);
+        $this->hostingSite(Company::create(['name' => 'C2']), $hostingTier);
+        $this->domain(Company::create(['name' => 'C3']), $domainTier->plan);
 
         $rr = RecurringRevenue::compute();
         $expected = round($rr->serviceMonthly($wd->id) + $rr->bySource['hosting'] + $rr->bySource['domains'], 2);
@@ -166,7 +166,7 @@ class WhitedashOverviewAssetsTest extends TestCase
         $other = Product::create(['slug' => 'reporting', 'name' => 'Reporting', 'is_active' => true]);
         $serviceTier = $this->plan($other, 'service', 25.0);
 
-        $c1 = Customer::create(['name' => 'C1']);
+        $c1 = Company::create(['name' => 'C1']);
         CustomerProduct::create([
             'customer_id' => $c1->id, 'product_id' => $other->id,
             'plan_id' => $serviceTier->plan_id, 'plan_price_id' => $serviceTier->id,
@@ -176,7 +176,7 @@ class WhitedashOverviewAssetsTest extends TestCase
         // Hosting + domain exist in the system but belong to Whitedash's book,
         // not this product — they must not leak into its overview.
         $wd = Product::create(['slug' => 'whitedash', 'name' => 'Whitedash', 'is_active' => true]);
-        $this->hostingSite(Customer::create(['name' => 'H']), $this->plan($wd, 'hosting', 10.0));
+        $this->hostingSite(Company::create(['name' => 'H']), $this->plan($wd, 'hosting', 10.0));
 
         $this->actingAs($this->user)
             ->get('/products/reporting')

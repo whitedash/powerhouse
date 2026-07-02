@@ -23,7 +23,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Proposal|null $proposal
  * @property-read Project|null $project
- * @property-read Customer $customer
+ * @property-read Company $customer
  * @property-read BillingEntity|null $billingEntity
  * @property-read Collection<int, PaymentScheduleItem> $items
  * @property-read int $completion_percentage
@@ -60,7 +60,7 @@ class PaymentSchedule extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     public function billingEntity(): BelongsTo

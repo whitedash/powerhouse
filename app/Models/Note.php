@@ -17,7 +17,7 @@ use Illuminate\Support\Carbon;
  * @property bool $is_pinned
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Customer|null $customer
+ * @property-read Company|null $customer
  * @property-read Task|null $task
  * @property-read Lead|null $lead
  * @property-read User|null $createdBy
@@ -44,7 +44,7 @@ class Note extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     public function task(): BelongsTo

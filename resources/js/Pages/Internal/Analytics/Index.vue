@@ -305,7 +305,7 @@ function planBarWidth(p) {
                         <header class="card-header">
                             <div class="h-icon"><IconUsers :size="16" stroke-width="1.75" /></div>
                             <div>
-                                <h3>Customer growth</h3>
+                                <h3>Company growth</h3>
                                 <div class="sub">New vs. archived per month</div>
                             </div>
                             <div class="right">

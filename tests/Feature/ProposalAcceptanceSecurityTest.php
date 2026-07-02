@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Proposal;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,7 +32,7 @@ class ProposalAcceptanceSecurityTest extends TestCase
     private function sentProposal(string $token): Proposal
     {
         $admin = User::factory()->create(['role' => 'super_admin']);
-        $customer = Customer::create(['name' => 'Acme Co', 'pipeline_stage' => 'active']);
+        $customer = Company::create(['name' => 'Acme Co', 'pipeline_stage' => 'active']);
 
         return Proposal::create([
             'customer_id' => $customer->id,

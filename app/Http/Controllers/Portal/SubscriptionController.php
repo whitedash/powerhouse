@@ -17,7 +17,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Customer-facing subscriptions view. Shows their active/trial subs
+ * Company-facing subscriptions view. Shows their active/trial subs
  * with cancel + upgrade hooks, plus the catalogue of products they
  * could subscribe to. Self-service signups create a *pending*
  * CustomerProduct that staff approve from the internal app — keeps
@@ -129,7 +129,7 @@ class SubscriptionController extends Controller
     }
 
     /**
-     * Customer-initiated signup. We don't auto-activate — staff must
+     * Company-initiated signup. We don't auto-activate — staff must
      * approve. The CustomerProduct is created with status=pending so
      * the staff Provisioning page surfaces it for review.
      */
@@ -187,7 +187,7 @@ class SubscriptionController extends Controller
     }
 
     /**
-     * Customer-requested cancellation. We schedule cancel rather
+     * Company-requested cancellation. We schedule cancel rather
      * than immediately removing access — they keep what they paid for.
      */
     public function cancel(int $id, Request $request): RedirectResponse

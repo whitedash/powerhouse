@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\Webhooks\StripeWebhookController;
 use App\Models\BillingEntity;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\User;
@@ -31,7 +31,7 @@ class BillingLedgerTest extends TestCase
             'name' => 'WD', 'legal_name' => 'Whitedash Ltd',
             'postmark_sender_email' => 'b@wd.test', 'postmark_sender_name' => 'WD',
         ]);
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
         $user = User::factory()->create(['role' => 'super_admin']);
 
         return Invoice::create([
@@ -129,7 +129,7 @@ class BillingLedgerTest extends TestCase
         $staff = User::factory()->create(['role' => 'super_admin']);
 
         $this->actingAs($staff)
-            ->post("/customers/{$customer->id}/auto-collect", ['auto_collect' => true])
+            ->post("/companies/{$customer->id}/auto-collect", ['auto_collect' => true])
             ->assertSessionHasNoErrors();
 
         $this->assertTrue($customer->fresh()->auto_collect);

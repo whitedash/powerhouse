@@ -10,7 +10,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Customer-facing acceptance confirmation, with the stamped (accepted) PDF
+ * Company-facing acceptance confirmation, with the stamped (accepted) PDF
  * attached when it's been generated.
  */
 class ProposalAcceptedCustomer extends Mailable

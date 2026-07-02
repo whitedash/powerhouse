@@ -8,8 +8,8 @@ use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ImportLeadsRequest;
 use App\Models\ActivityLog;
+use App\Models\Company;
 use App\Models\Contact;
-use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\Note;
 use App\Models\Task;
@@ -41,8 +41,8 @@ use Inertia\Response;
  *     truth for "this row is still in the pipeline".
  *
  *  2) convert() is the only way to mint a customer from a lead.
- *     It mirrors CustomerController::store as closely as
- *     possible: Customer::create + primary Contact + carry
+ *     It mirrors CompanyController::store as closely as
+ *     possible: Company::create + primary Contact + carry
  *     across acquisition_channel + channel_detail. The
  *     existing customers schema doesn't carry email/phone
  *     directly — those live on contacts — so the conversion
@@ -71,7 +71,7 @@ class LeadController extends Controller
 
     public function index(Request $request): Response
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
         // None scope (phase 3b-iii) is walled off Leads entirely.
         $this->authorizeScopeSection(ScopeArea::Leads);
 
@@ -184,7 +184,7 @@ class LeadController extends Controller
 
     public function show(int $id): Response
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $lead = Lead::with([
             'assignedTo:id,name,avatar_colour',
@@ -204,7 +204,7 @@ class LeadController extends Controller
 
         // Scope (phase 3b-iii): a non-assigned lead is invisible by direct ID
         // under Assigned (and NULL-assigned counts as non-assigned). None →
-        // 403; All/super_admin → allowed. The viewAny(Customer) gate above does
+        // 403; All/super_admin → allowed. The viewAny(Company) gate above does
         // NOT check assignment, so without this any staffer could open any lead.
         $this->authorizeScopeItem(ScopeArea::Leads, $lead);
 
@@ -221,7 +221,7 @@ class LeadController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
         // None scope (phase 3b-iii): no creating a lead it could never see.
         $this->authorizeScopeSection(ScopeArea::Leads);
 
@@ -255,7 +255,7 @@ class LeadController extends Controller
      */
     public function import(ImportLeadsRequest $request, FileUploadService $uploads, LeadImportService $importer): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
         // None scope (phase 3b-iii): no importing leads it could never see.
         $this->authorizeScopeSection(ScopeArea::Leads);
 
@@ -312,7 +312,7 @@ class LeadController extends Controller
      */
     public function importTemplate(): \Illuminate\Http\Response
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
         $this->authorizeScopeSection(ScopeArea::Leads);
 
         $csv = implode("\n", [
@@ -329,7 +329,7 @@ class LeadController extends Controller
 
     public function update(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $lead = Lead::findOrFail($id);
         // Scope (phase 3b-iii): blocks a lead outside the user's scope by
@@ -362,7 +362,7 @@ class LeadController extends Controller
      */
     public function updateStatus(int $id, Request $request): JsonResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $data = $request->validate([
             'status' => ['required', Rule::in(self::STATUSES)],
@@ -398,7 +398,7 @@ class LeadController extends Controller
     }
 
     /**
-     * Mint a Customer + primary Contact from a lead, migrate the
+     * Mint a Company + primary Contact from a lead, migrate the
      * lead's tasks + notes to the new customer, and stamp the
      * lead with customer_id + converted_at so it drops out of
      * the pipeline.
@@ -409,7 +409,7 @@ class LeadController extends Controller
      */
     public function convert(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $lead = Lead::findOrFail($id);
         // Scope (phase 3b-iii): blocks a lead outside the user's scope by
@@ -418,11 +418,11 @@ class LeadController extends Controller
         // per-method permission/state checks below.
         $this->authorizeScopeItem(ScopeArea::Leads, $lead);
 
-        // convert MINTS a Customer + Contact — a customers.manage action. The
-        // route already requires leads.manage; require customers.manage too so
+        // convert MINTS a Company + Contact — a companies.manage action. The
+        // route already requires leads.manage; require companies.manage too so
         // convert isn't a back-door to customer creation for a leads-only role
-        // (direct customer creation requires customers.manage). super_admin bypasses.
-        Gate::authorize('create', Customer::class);
+        // (direct customer creation requires companies.manage). super_admin bypasses.
+        Gate::authorize('create', Company::class);
 
         if ($lead->customer_id !== null) {
             return back()->with('error', 'This lead has already been converted.');
@@ -454,7 +454,7 @@ class LeadController extends Controller
             ];
             $channel = $channelMap[$lead->source] ?? $lead->source;
 
-            $customer = Customer::create([
+            $customer = Company::create([
                 'name' => $data['name'],
                 'trading_name' => $data['trading_name'] ?? null,
                 'company_number' => $data['company_number'] ?? null,
@@ -486,11 +486,11 @@ class LeadController extends Controller
                     'is_primary' => true,
                 ]);
 
-                // Same people-layer funnel as CustomerController::store: dedupe
+                // Same people-layer funnel as CompanyController::store: dedupe
                 // the human by email and link the Person + customer_person
                 // pivot. Previously convert() created this Contact with
                 // person_id null — orphaned from the cross-company identity,
-                // so a converted lead's owner was invisible to Customer::people.
+                // so a converted lead's owner was invisible to Company::people.
                 $people = app(PersonService::class);
                 $person = $people->createOrLinkFromContact(
                     null, // no operator-picked person on the convert form
@@ -541,7 +541,7 @@ class LeadController extends Controller
             return $customer;
         });
 
-        return redirect('/customers/'.$customer->id)
+        return redirect('/companies/'.$customer->id)
             ->with('success', $lead->name.' converted to customer '.$customer->name.'.');
     }
 
@@ -596,7 +596,7 @@ class LeadController extends Controller
 
     public function destroy(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $lead = Lead::findOrFail($id);
         // Scope (phase 3b-iii): blocks a lead outside the user's scope by

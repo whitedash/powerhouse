@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Internal;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\CommissionLedger;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Expense;
 use App\Models\Project;
 use App\Models\Supplier;
@@ -37,7 +37,7 @@ class ExpenseController extends Controller
 
     public function index(Request $request): Response
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $expenses = Expense::query()
             ->with([
@@ -76,7 +76,7 @@ class ExpenseController extends Controller
             ->orderBy('title')
             ->get(['id', 'title']);
 
-        $customers = Customer::whereNull('archived_at')
+        $customers = Company::whereNull('archived_at')
             ->orderBy('name')
             ->get(['id', 'name']);
 
@@ -106,7 +106,7 @@ class ExpenseController extends Controller
 
     public function store(Request $request, FileUploadService $uploads): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         // When a supplier is chosen but no category was supplied, fall
         // back to the supplier's default before validation runs so the
@@ -124,7 +124,7 @@ class ExpenseController extends Controller
 
         // Same money-control as approve()/update(): creating an expense directly
         // in an approved or paid state requires expenses.approve, not just
-        // customers.access — otherwise store() is a side-door around the approval
+        // companies.access — otherwise store() is a side-door around the approval
         // gate (super_admin bypasses via Gate::before through can()).
         $newStatus = $data['status'] ?? 'pending';
         if (in_array($newStatus, ['approved', 'paid'], true) && ! $request->user()->can('expenses.approve')) {
@@ -171,17 +171,17 @@ class ExpenseController extends Controller
 
     public function update(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $expense = Expense::findOrFail($id);
         $data = $this->validateRow($request, allowReceipt: false);
 
-        // Privileged status transitions are NOT a free rider on customers.access:
+        // Privileged status transitions are NOT a free rider on companies.access:
         // moving an expense to approved/paid through this generic update is the
         // same money-control action as ExpenseController::approve(), so it
         // requires expenses.approve (super_admin bypasses via Gate::before).
         // Editing other fields, or leaving the status unchanged, stays under the
-        // customers.access gate above — nothing is weakened.
+        // companies.access gate above — nothing is weakened.
         $newStatus = $data['status'] ?? $expense->status;
         // can() (not hasPermissionTo) so super_admin bypasses via Gate::before
         // even without the explicit permission, consistent with the policy gates.
@@ -206,7 +206,7 @@ class ExpenseController extends Controller
 
     public function destroy(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $expense = Expense::findOrFail($id);
 
@@ -245,7 +245,7 @@ class ExpenseController extends Controller
 
     public function markPaid(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
         // Marking an expense paid is the same money-control as approve(): it
         // requires expenses.approve, composing with the expenses.manage route
         // gate (so reaching status=paid needs approve on every path, matching
@@ -279,7 +279,7 @@ class ExpenseController extends Controller
      */
     public function receipt(int $id): StreamedResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $expense = Expense::findOrFail($id);
 

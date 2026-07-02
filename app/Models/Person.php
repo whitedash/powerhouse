@@ -26,7 +26,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $created_by
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Collection<int, Customer> $companies
+ * @property-read Collection<int, Company> $companies
  * @property-read Collection<int, Contact> $contacts
  * @property-read User|null $createdBy
  * @property-read string $display_name
@@ -50,7 +50,7 @@ class Person extends Model
      */
     public function companies(): BelongsToMany
     {
-        return $this->belongsToMany(Customer::class, 'customer_person')
+        return $this->belongsToMany(Company::class, 'customer_person')
             ->withPivot('role', 'job_title')
             ->withTimestamps()
             ->using(CustomerPerson::class);

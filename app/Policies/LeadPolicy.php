@@ -13,7 +13,7 @@ use App\Models\User;
  *  - review:   an operator approving/rejecting a registered deal — phase 3a
  *    gates this on leads.manage (super_admin via Gate::before).
  *
- * The pipeline CRUD on LeadController still rides CustomerPolicy (viewAny).
+ * The pipeline CRUD on LeadController still rides CompanyPolicy (viewAny).
  */
 class LeadPolicy
 {

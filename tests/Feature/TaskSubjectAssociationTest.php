@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Lead;
 use App\Models\Task;
 use App\Models\User;
@@ -77,7 +77,7 @@ class TaskSubjectAssociationTest extends TestCase
     {
         $staff = $this->staff();
         $lead = $this->lead($staff);
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
 
         $this->actingAs($staff)
             ->post('/tasks', [
@@ -96,10 +96,10 @@ class TaskSubjectAssociationTest extends TestCase
     {
         $staff = $this->staff();
         $lead = $this->lead($staff);
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
 
         $this->actingAs($staff)
-            ->post('/tasks', ['type' => 'task', 'title' => 'Customer task', 'due_at' => '2026-07-01', 'customer_id' => $customer->id])
+            ->post('/tasks', ['type' => 'task', 'title' => 'Company task', 'due_at' => '2026-07-01', 'customer_id' => $customer->id])
             ->assertSessionHasNoErrors();
         $task = Task::sole();
 
@@ -108,7 +108,7 @@ class TaskSubjectAssociationTest extends TestCase
         $this->actingAs($staff)
             ->put("/tasks/{$task->id}", [
                 'type' => 'task',
-                'title' => 'Customer task',
+                'title' => 'Company task',
                 'due_at' => '2026-07-01',
                 'lead_id' => $lead->id,
             ])
@@ -122,7 +122,7 @@ class TaskSubjectAssociationTest extends TestCase
     {
         $staff = $this->staff();
         $lead = $this->lead($staff);
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
 
         $this->actingAs($staff)
             ->post('/tasks', ['type' => 'task', 'title' => 'Movable', 'due_at' => '2026-07-01', 'lead_id' => $lead->id])
@@ -162,7 +162,7 @@ class TaskSubjectAssociationTest extends TestCase
     {
         $staff = $this->staff();
         $this->lead($staff);
-        Customer::create(['name' => 'Beta Corp']);
+        Company::create(['name' => 'Beta Corp']);
 
         $this->actingAs($staff)
             ->getJson('/tasks/link-options?type=lead&q=acme')

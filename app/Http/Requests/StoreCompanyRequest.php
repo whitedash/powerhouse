@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests;
 
-use App\Models\Customer;
+use App\Models\Company;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class StoreCustomerRequest extends FormRequest
+class StoreCompanyRequest extends FormRequest
 {
     private const PIPELINE_STAGES = ['lead', 'prospect', 'active', 'churned'];
 
@@ -16,7 +16,7 @@ class StoreCustomerRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return $this->user()?->can('create', Customer::class) ?? false;
+        return $this->user()?->can('create', Company::class) ?? false;
     }
 
     public function rules(): array

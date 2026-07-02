@@ -6,7 +6,7 @@ use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\CommissionLedger;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Domain;
 use App\Models\Invoice;
@@ -35,8 +35,8 @@ class DashboardController extends Controller
 {
     private const ACTIVITY_LABELS = [
         'customer.created' => 'New customer',
-        'customer.updated' => 'Customer updated',
-        'customer.archived' => 'Customer archived',
+        'customer.updated' => 'Company updated',
+        'customer.archived' => 'Company archived',
         'customer.note_added' => 'Note added',
         'customer.task_added' => 'Task added',
         'task.created' => 'Task created',
@@ -63,7 +63,7 @@ class DashboardController extends Controller
 
     public function index(Request $request): Response
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         // The "Refresh" button on the Platform health card triggers a
         // partial Inertia reload with this query param so the operator
@@ -110,7 +110,7 @@ class DashboardController extends Controller
             // Referrer commission £ is redacted too (consistent with the
             // commission totals above); the leaderboard keeps names + counts.
             // (Specific invoice amounts in attention/activity stay — operational,
-            // gated on customers.access — per the step-11 scope decision.)
+            // gated on companies.access — per the step-11 scope decision.)
             $referrers = array_map(function (array $r): array {
                 $r['commission_this_month'] = null;
                 $r['pending_payout'] = null;
@@ -135,7 +135,7 @@ class DashboardController extends Controller
             // Slim payloads for the New-task slide-over (linkable customer
             // + assignable user select). Active customers only; archived
             // wouldn't be sensible to attach a new task to.
-            'customers' => Customer::whereNull('archived_at')
+            'customers' => Company::whereNull('archived_at')
                 ->orderBy('name')
                 ->get(['id', 'name'])
                 ->all(),
@@ -160,7 +160,7 @@ class DashboardController extends Controller
      */
     public function export(Request $request): StreamedResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         // Financial-figure redaction (sprint step 11): the £ rows/columns (MRR,
         // ARR, pending-£, revenue-£, per-product MRR) require analytics.access.
@@ -234,7 +234,7 @@ class DashboardController extends Controller
             'total_customers' => Cache::remember(
                 'dash.total_customers',
                 120,
-                fn () => Customer::whereNull('archived_at')->count(),
+                fn () => Company::whereNull('archived_at')->count(),
             ),
             // Whole recurring revenue across all three sources (services +
             // hosting + domains), amortised to a monthly figure. Sourced from
@@ -360,7 +360,7 @@ class DashboardController extends Controller
                     'title' => $cp->product->name.' trial ending',
                     'sub' => $cp->customer->name.' · '.($cp->trial_ends_at?->format('d M') ?? '—'),
                     'action' => 'Upgrade →',
-                    'href' => '/customers/'.$cp->customer_id,
+                    'href' => '/companies/'.$cp->customer_id,
                 ]);
             });
 
@@ -467,11 +467,11 @@ class DashboardController extends Controller
                         'priority' => 'amber',
                         'title' => $t->title,
                         // Tasks may or may not have a customer; without one
-                        // we fall back to a dash. Customer relation only
+                        // we fall back to a dash. Company relation only
                         // resolves when customer_id is set.
                         'sub' => $t->customer_id !== null ? $t->customer->name : '—',
                         'action' => 'View →',
-                        'href' => $t->customer_id !== null ? '/customers/'.$t->customer_id : '/dashboard',
+                        'href' => $t->customer_id !== null ? '/companies/'.$t->customer_id : '/dashboard',
                     ]);
                 });
         }
@@ -491,7 +491,7 @@ class DashboardController extends Controller
                     'title' => 'Disk '.$w->disk_percent.'%: '.$w->url,
                     'sub' => $w->customer->name ?? '—',
                     'action' => 'View →',
-                    'href' => '/customers/'.$w->customer_id,
+                    'href' => '/companies/'.$w->customer_id,
                 ]);
             });
 
@@ -509,7 +509,7 @@ class DashboardController extends Controller
                     'title' => 'Poor performance: '.$w->url,
                     'sub' => ($w->customer->name ?? '—').' · Score: '.$w->pagespeed_mobile,
                     'action' => 'View →',
-                    'href' => '/customers/'.$w->customer_id,
+                    'href' => '/companies/'.$w->customer_id,
                 ]);
             });
 
@@ -597,11 +597,11 @@ class DashboardController extends Controller
         // Single grouped query rather than N+1 per customer. Trimmed to
         // active customers because we only let the slide-over attach
         // activities to live accounts.
-        return Customer::whereNull('archived_at')
+        return Company::whereNull('archived_at')
             ->with('contacts:id,customer_id,name')
             ->whereHas('contacts')
             ->get(['id'])
-            ->mapWithKeys(fn (Customer $c): array => [
+            ->mapWithKeys(fn (Company $c): array => [
                 $c->id => $c->contacts->map(fn ($ct): array => [
                     'id' => $ct->id,
                     'name' => $ct->name,
@@ -615,8 +615,8 @@ class DashboardController extends Controller
      */
     private function buildThisMonth(Carbon $monthStart, Carbon $prevMonthStart, Carbon $prevMonthEnd): array
     {
-        $newCustomers = Customer::where('created_at', '>=', $monthStart)->count();
-        $newCustomersPrev = Customer::whereBetween('created_at', [$prevMonthStart, $prevMonthEnd])->count();
+        $newCustomers = Company::where('created_at', '>=', $monthStart)->count();
+        $newCustomersPrev = Company::whereBetween('created_at', [$prevMonthStart, $prevMonthEnd])->count();
 
         $churned = CustomerProduct::where('status', 'cancelled')
             ->where('cancelled_at', '>=', $monthStart)

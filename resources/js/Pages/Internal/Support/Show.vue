@@ -197,7 +197,7 @@ function viewAllTicketsForCustomer() {
                                 <div style="font: 600 13px/1.3 'Inter', sans-serif;">{{ ticket.customer.name }}</div>
                                 <div v-if="ticket.customer.city" style="font: 400 11.5px/1.3 'Inter', sans-serif; color: var(--text-secondary);">{{ ticket.customer.city }}</div>
                             </div>
-                            <Link :href="`/customers/${ticket.customer.id}`" style="margin-left: auto; font: 500 12px/1 'Inter', sans-serif; color: var(--accent); text-decoration: none;">
+                            <Link :href="`/companies/${ticket.customer.id}`" style="margin-left: auto; font: 500 12px/1 'Inter', sans-serif; color: var(--accent); text-decoration: none;">
                                 View customer →
                             </Link>
                         </div>
@@ -333,7 +333,7 @@ function viewAllTicketsForCustomer() {
                             </button>
                             <Link
                                 v-if="ticket.customer"
-                                :href="`/customers/${ticket.customer.id}`"
+                                :href="`/companies/${ticket.customer.id}`"
                                 class="support-quick-link"
                             >
                                 <IconUser :size="13" stroke-width="1.75" />
@@ -356,7 +356,7 @@ function viewAllTicketsForCustomer() {
                     <!-- Customer card -->
                     <section v-if="ticket.customer" class="card" style="margin-top: 16px;">
                         <header class="card-header">
-                            <h3>Customer</h3>
+                            <h3>Company</h3>
                         </header>
                         <div style="padding: 14px 16px;">
                             <div style="display: flex; align-items: center; gap: 10px;">
@@ -383,7 +383,7 @@ function viewAllTicketsForCustomer() {
                                 </div>
                             </div>
 
-                            <Link :href="`/customers/${ticket.customer.id}`" style="display: inline-flex; align-items: center; gap: 4px; margin-top: 12px; font: 500 12px/1 'Inter', sans-serif; color: var(--accent); text-decoration: none;">
+                            <Link :href="`/companies/${ticket.customer.id}`" style="display: inline-flex; align-items: center; gap: 4px; margin-top: 12px; font: 500 12px/1 'Inter', sans-serif; color: var(--accent); text-decoration: none;">
                                 View customer
                                 <IconExternalLink :size="12" stroke-width="1.75" />
                             </Link>

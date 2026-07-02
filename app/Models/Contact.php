@@ -21,7 +21,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $notes
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Customer|null $customer
+ * @property-read Company|null $customer
  * @property-read Person|null $person
  * @property-read PortalUser|null $portalUser
  * @property-read string $display_name
@@ -49,7 +49,7 @@ class Contact extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     /**
@@ -67,7 +67,7 @@ class Contact extends Model
      * 2026_05_29_210001_add_contact_id_to_portal_users), so any
      * PortalUser row linked to this contact resolves here. Legacy
      * customer-wide portal users (contact_id IS NULL) intentionally
-     * don't show up — they're surfaced separately on the Customer.
+     * don't show up — they're surfaced separately on the Company.
      */
     public function portalUser(): HasOne
     {

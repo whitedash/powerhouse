@@ -32,7 +32,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Project|null $project
- * @property-read Customer|null $customer
+ * @property-read Company|null $customer
  * @property-read Supplier|null $supplier
  * @property-read CommissionLedger|null $commissionLedger
  * @property-read User $createdBy
@@ -100,7 +100,7 @@ class Expense extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     public function supplier(): BelongsTo

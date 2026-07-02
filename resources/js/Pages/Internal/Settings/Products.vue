@@ -484,7 +484,7 @@ function confirmRemoveSupplier() {
                             <span class="v">{{ selectedProduct.total_customers }}</span>
                         </div>
                         <a
-                            :href="`/customers?product=${selectedProduct.slug}`"
+                            :href="`/companies?product=${selectedProduct.slug}`"
                             class="stats-link"
                         >
                             <IconUsers :size="14" stroke-width="1.75" />

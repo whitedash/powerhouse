@@ -923,7 +923,7 @@ function handleDiscard() {
                             <div class="set-row">
                                 <div>
                                     <div class="nm">PDF attached to email</div>
-                                    <div class="sb">Customer can download invoice PDF</div>
+                                    <div class="sb">Company can download invoice PDF</div>
                                 </div>
                                 <button type="button" class="toggle" :class="{ on: settings.pdf_attached }" aria-label="Toggle PDF attached" @click="settings.pdf_attached = !settings.pdf_attached" />
                             </div>

@@ -26,7 +26,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $notes
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Customer|null $customer
+ * @property-read Company|null $customer
  * @property-read User|null $createdBy
  * @property-read User|null $uploader
  * @property-read bool $is_expired
@@ -67,7 +67,7 @@ class Contract extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     public function createdBy(): BelongsTo

@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Domain;
 use App\Models\Product;
@@ -33,7 +33,7 @@ class DomainCustomerProductConverterTest extends TestCase
         ]);
     }
 
-    private function domainCp(Customer $customer, ProductPlan $plan, ?string $label = null): CustomerProduct
+    private function domainCp(Company $customer, ProductPlan $plan, ?string $label = null): CustomerProduct
     {
         return CustomerProduct::create([
             'customer_id' => $customer->id,
@@ -47,7 +47,7 @@ class DomainCustomerProductConverterTest extends TestCase
 
     public function test_creates_a_domain_then_deletes_the_cp_when_none_exists(): void
     {
-        $customer = Customer::create(['name' => 'WhiteDash']);
+        $customer = Company::create(['name' => 'WhiteDash']);
         $plan = $this->domainPlan('.co.uk');
         $this->domainCp($customer, $plan, 'whitedash.co.uk');
 
@@ -67,7 +67,7 @@ class DomainCustomerProductConverterTest extends TestCase
 
     public function test_backfills_an_existing_domain_then_deletes_the_cp(): void
     {
-        $customer = Customer::create(['name' => 'WhiteDash']);
+        $customer = Company::create(['name' => 'WhiteDash']);
         $plan = $this->domainPlan('.co.uk');
         $this->domainCp($customer, $plan);
 
@@ -94,7 +94,7 @@ class DomainCustomerProductConverterTest extends TestCase
 
     public function test_is_idempotent_and_a_no_op_without_domain_cps(): void
     {
-        Customer::create(['name' => 'NoDomains']);
+        Company::create(['name' => 'NoDomains']);
 
         $result = DomainCustomerProductConverter::run();
 

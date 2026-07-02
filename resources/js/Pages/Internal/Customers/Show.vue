@@ -118,11 +118,11 @@ const NOTE_TYPE_LABELS = {
 };
 
 const ACTION_LABELS = {
-    'customer.created': 'Customer created',
-    'customer.updated': 'Customer updated',
+    'customer.created': 'Company created',
+    'customer.updated': 'Company updated',
     'customer.note_added': 'Note added',
     'customer.task_added': 'Task added',
-    'customer.archived': 'Customer archived',
+    'customer.archived': 'Company archived',
 };
 
 const ROLE_LABELS = {
@@ -211,7 +211,7 @@ onMounted(() => {
 /* ─── Breadcrumbs / header data ─── */
 const breadcrumbs = computed(() => [
     { label: 'Powerhouse', href: '/' },
-    { label: 'Companies', href: '/customers' },
+    { label: 'Companies', href: '/companies' },
     { label: props.customer.name },
 ]);
 
@@ -355,7 +355,7 @@ function openEdit() {
 }
 
 function submitEdit() {
-    editForm.put(`/customers/${props.customer.id}`, {
+    editForm.put(`/companies/${props.customer.id}`, {
         preserveScroll: true,
         onSuccess: () => { showEdit.value = false; },
     });
@@ -366,7 +366,7 @@ const showAddNote = ref(false);
 const noteForm = useForm({ type: 'internal', body: '' });
 
 function submitNote() {
-    noteForm.post(`/customers/${props.customer.id}/notes`, {
+    noteForm.post(`/companies/${props.customer.id}/notes`, {
         preserveScroll: true,
         onSuccess: () => {
             noteForm.reset();
@@ -843,7 +843,7 @@ const invitingPortalForContactId = ref(null);
 function inviteContact(contact) {
     invitingPortalForContactId.value = contact.id;
     router.post(
-        `/customers/${props.customer.id}/invite-portal`,
+        `/companies/${props.customer.id}/invite-portal`,
         { contact_id: contact.id },
         {
             preserveScroll: true,
@@ -867,7 +867,7 @@ function performRevokePortal() {
     if (! revokePortalTarget.value) return;
     revokePortalProcessing.value = true;
     router.post(
-        `/customers/${props.customer.id}/portal-users/${revokePortalTarget.value.id}/revoke`,
+        `/companies/${props.customer.id}/portal-users/${revokePortalTarget.value.id}/revoke`,
         {},
         {
             preserveScroll: true,
@@ -959,7 +959,7 @@ function openAddReferral() {
     showAddReferral.value = true;
 }
 function submitAddReferral() {
-    addReferralForm.post(`/customers/${props.customer.id}/referral`, {
+    addReferralForm.post(`/companies/${props.customer.id}/referral`, {
         preserveScroll: true,
         onSuccess: () => {
             showAddReferral.value = false;
@@ -1039,7 +1039,7 @@ async function openPortalPreview() {
 
 function performRemoveReferral() {
     removeReferralProcessing.value = true;
-    router.delete(`/customers/${props.customer.id}/referral`, {
+    router.delete(`/companies/${props.customer.id}/referral`, {
         preserveScroll: true,
         onFinish: () => {
             removeReferralProcessing.value = false;
@@ -1058,7 +1058,7 @@ function archive() {
 
 function handleArchive() {
     archiveProcessing.value = true;
-    router.delete(`/customers/${props.customer.id}/archive`, {
+    router.delete(`/companies/${props.customer.id}/archive`, {
         preserveScroll: true,
         onFinish: () => {
             archiveProcessing.value = false;
@@ -1140,7 +1140,7 @@ function selectPrice(price) {
 }
 
 function submitEnableProduct() {
-    enableForm.post(`/customers/${props.customer.id}/products`, {
+    enableForm.post(`/companies/${props.customer.id}/products`, {
         preserveScroll: true,
         onSuccess: () => {
             showEnableProduct.value = false;
@@ -1269,7 +1269,7 @@ const exemptForm = useForm({ exempt: true, reason: '' });
 function toggleExemption() {
     if (props.customer.exempt_from_auto_suspend) {
         // Removing exemption — no reason needed, fire immediately.
-        router.post(`/customers/${props.customer.id}/exemption`, { exempt: false, reason: '' }, { preserveScroll: true });
+        router.post(`/companies/${props.customer.id}/exemption`, { exempt: false, reason: '' }, { preserveScroll: true });
 
         return;
     }
@@ -1283,14 +1283,14 @@ function toggleExemption() {
 /* ─── Auto-collect intent (Billing P1) ─── */
 function toggleAutoCollect() {
     router.post(
-        `/customers/${props.customer.id}/auto-collect`,
+        `/companies/${props.customer.id}/auto-collect`,
         { auto_collect: ! props.customer.auto_collect },
         { preserveScroll: true },
     );
 }
 
 function submitExemption() {
-    exemptForm.post(`/customers/${props.customer.id}/exemption`, {
+    exemptForm.post(`/companies/${props.customer.id}/exemption`, {
         preserveScroll: true,
         onSuccess: () => { showExemptModal.value = false; },
     });
@@ -1303,7 +1303,7 @@ const showProcessErasure = ref(false);
 const gdprProcessing = ref(false);
 function confirmRequestErasure() {
     gdprProcessing.value = true;
-    router.post(`/gdpr/customers/${props.customer.id}/request-erasure`, {}, {
+    router.post(`/gdpr/companies/${props.customer.id}/request-erasure`, {}, {
         preserveScroll: true,
         onFinish: () => {
             gdprProcessing.value = false;
@@ -1313,7 +1313,7 @@ function confirmRequestErasure() {
 }
 function confirmProcessErasure() {
     gdprProcessing.value = true;
-    router.post(`/gdpr/customers/${props.customer.id}/process-erasure`, {}, {
+    router.post(`/gdpr/companies/${props.customer.id}/process-erasure`, {}, {
         preserveScroll: true,
         onFinish: () => {
             gdprProcessing.value = false;
@@ -2553,7 +2553,7 @@ function submitProject() {
                             <div class="gdpr-actions">
                                 <a
                                     v-if="! customer.erasure_completed_at"
-                                    :href="`/gdpr/customers/${customer.id}/export`"
+                                    :href="`/gdpr/companies/${customer.id}/export`"
                                     class="ghost-link"
                                 >
                                     <IconDownload :size="14" stroke-width="1.75" /> Export data
@@ -3928,7 +3928,7 @@ function submitProject() {
                                             :min="new Date().toISOString().split('T')[0]"
                                             required
                                         >
-                                        <div class="field-help">Customer will be prompted to subscribe when the trial expires.</div>
+                                        <div class="field-help">Company will be prompted to subscribe when the trial expires.</div>
                                         <div v-if="enableForm.errors.trial_ends_at" class="err">{{ enableForm.errors.trial_ends_at }}</div>
                                     </div>
                                 </div>

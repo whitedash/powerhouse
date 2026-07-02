@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\BillingEntity;
 use App\Models\CommissionLedger;
 use App\Models\CommissionRule;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerReferral;
 use App\Models\Invoice;
 use App\Models\MaavelusStatement;
@@ -43,9 +43,9 @@ class CommissionEngineTest extends TestCase
         return Referrer::factory()->create(['is_active' => $active]);
     }
 
-    private function customerWithReferrer(Referrer $referrer): Customer
+    private function customerWithReferrer(Referrer $referrer): Company
     {
-        $customer = Customer::create(['name' => 'Cust '.uniqid()]);
+        $customer = Company::create(['name' => 'Cust '.uniqid()]);
         CustomerReferral::create([
             'customer_id' => $customer->id,
             'referrer_id' => $referrer->id,

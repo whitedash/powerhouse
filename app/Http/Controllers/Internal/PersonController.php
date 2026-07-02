@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\AttachPersonRequest;
 use App\Http\Requests\StorePersonRequest;
 use App\Http\Requests\UpdatePersonRequest;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerPerson;
 use App\Models\Person;
 use App\Services\PersonService;
@@ -77,7 +77,7 @@ class PersonController extends Controller
                 'notes' => $person->notes,
                 'created_by' => $person->createdBy?->name,
                 'created_at' => $person->created_at?->toIso8601String(),
-                'companies' => $person->companies->map(function (Customer $c): array {
+                'companies' => $person->companies->map(function (Company $c): array {
                     // Larastan can't type the belongsToMany ->using() pivot, so
                     // narrow it once here; the runtime access is correct.
                     /** @var CustomerPerson $pivot */
@@ -113,7 +113,7 @@ class PersonController extends Controller
         // to, do it in the same request and return to the referring page
         // instead of the (otherwise) person detail page.
         if (! empty($data['attach_customer_id'])) {
-            $customer = Customer::findOrFail($data['attach_customer_id']);
+            $customer = Company::findOrFail($data['attach_customer_id']);
             Gate::authorize('update', $customer);
 
             $this->people->attachCompany(
@@ -159,7 +159,7 @@ class PersonController extends Controller
         $person = Person::findOrFail($id);
         Gate::authorize('update', $person);
 
-        $customer = Customer::findOrFail($request->validated()['customer_id']);
+        $customer = Company::findOrFail($request->validated()['customer_id']);
         // Confirm the operator may touch this company too, not just the person.
         Gate::authorize('update', $customer);
 
@@ -179,7 +179,7 @@ class PersonController extends Controller
         $person = Person::findOrFail($id);
         Gate::authorize('update', $person);
 
-        $customer = Customer::findOrFail($customerId);
+        $customer = Company::findOrFail($customerId);
         Gate::authorize('update', $customer);
 
         $this->people->setRole(
@@ -198,7 +198,7 @@ class PersonController extends Controller
         $person = Person::findOrFail($id);
         Gate::authorize('update', $person);
 
-        $customer = Customer::findOrFail($customerId);
+        $customer = Company::findOrFail($customerId);
         Gate::authorize('update', $customer);
 
         $this->people->detachCompany($person, $customer, $request->user());

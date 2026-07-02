@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Internal;
 use App\Enums\AttributionSource;
 use App\Enums\ProductKey;
 use App\Http\Controllers\Controller;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerReferral;
 use App\Models\Referrer;
 use Illuminate\Http\Request;
@@ -17,14 +17,14 @@ use Inertia\Response;
  * Staff-facing referral attribution ledger — one row per
  * customer_referrals record, filterable by referrer / source / product.
  * Read-only (no id-accepting methods); gated by the internal group's
- * role middleware plus the Customer viewAny policy, matching the existing
+ * role middleware plus the Company viewAny policy, matching the existing
  * referrer admin surface.
  */
 class ReferralLedgerController extends Controller
 {
     public function index(Request $request): Response
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $filters = [
             'referrer_id' => $request->integer('referrer_id') ?: null,

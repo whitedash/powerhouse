@@ -516,7 +516,7 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                     </colgroup>
                     <thead>
                         <tr>
-                            <th>Customer</th>
+                            <th>Company</th>
                             <th>Product</th>
                             <th>Plan</th>
                             <th>Label</th>
@@ -541,7 +541,7 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
 
                         <tr v-for="sub in subscriptions.data" :key="sub.id">
                             <td>
-                                <Link :href="`/customers/${sub.customer.id}`" class="cell-cust" style="color: inherit; text-decoration: none;">
+                                <Link :href="`/companies/${sub.customer.id}`" class="cell-cust" style="color: inherit; text-decoration: none;">
                                     <div class="avatar" :style="{ background: avatarColour(sub.customer.id), color: '#fff' }">
                                         {{ initials(sub.customer.name) }}
                                     </div>
@@ -626,7 +626,7 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                                     </MenuButton>
                                     <MenuItems class="dd-popover right-align">
                                         <MenuItem v-slot="{ active }">
-                                            <Link :class="['dd-option', { active }]" :href="`/customers/${sub.customer.id}`">
+                                            <Link :class="['dd-option', { active }]" :href="`/companies/${sub.customer.id}`">
                                                 View customer
                                             </Link>
                                         </MenuItem>
@@ -945,7 +945,7 @@ const nextUrl = computed(() => props.subscriptions.next_page_url);
                     <input v-model="cancelMode" type="radio" value="scheduled">
                     <div class="opt-meta">
                         <span class="nm">Schedule cancellation</span>
-                        <span class="sb">Customer keeps access until the date you pick.</span>
+                        <span class="sb">Company keeps access until the date you pick.</span>
                         <input
                             v-if="cancelMode === 'scheduled'"
                             v-model="cancelDate"

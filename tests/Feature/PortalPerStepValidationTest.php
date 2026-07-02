@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Form;
 use App\Models\FormSubmissionDraft;
 use App\Models\PortalUser;
@@ -59,7 +59,7 @@ class PortalPerStepValidationTest extends TestCase
     private function portalUser(): PortalUser
     {
         return PortalUser::create([
-            'customer_id' => Customer::create(['name' => 'Acme '.uniqid()])->id,
+            'customer_id' => Company::create(['name' => 'Acme '.uniqid()])->id,
             'name' => 'Portal '.uniqid(),
             'email' => 'p'.uniqid().'@test.test',
             'password' => bcrypt('secret-pass-123'),

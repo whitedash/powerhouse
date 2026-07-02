@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\CommissionLedger;
 use App\Models\CommissionRule;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerReferral;
 use App\Models\Product;
 use App\Models\Referrer;
@@ -92,7 +92,7 @@ class ReferrerAuditSeeder extends Seeder
         CommissionLedger::where('referrer_id', $referrer->id)->delete();
 
         foreach ($customerSpecs as $idx => $spec) {
-            $customer = Customer::updateOrCreate(
+            $customer = Company::updateOrCreate(
                 ['name' => $spec['name']],
                 [
                     'type' => $spec['type'],

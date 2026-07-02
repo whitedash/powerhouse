@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Mail\ProposalSent;
+use App\Models\Company;
 use App\Models\Contact;
-use App\Models\Customer;
 use App\Models\Proposal;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -37,7 +37,7 @@ class ProposalTokenHashedAtRestTest extends TestCase
 
     private function proposal(string $status, array $overrides = []): Proposal
     {
-        $customer = Customer::create(['name' => 'Acme Co', 'pipeline_stage' => 'active']);
+        $customer = Company::create(['name' => 'Acme Co', 'pipeline_stage' => 'active']);
 
         return Proposal::create(array_merge([
             'customer_id' => $customer->id,
@@ -52,7 +52,7 @@ class ProposalTokenHashedAtRestTest extends TestCase
     public function test_send_stores_a_hash_and_emails_the_raw_link_which_resolves(): void
     {
         Mail::fake();
-        $customer = Customer::create(['name' => 'Acme Co', 'pipeline_stage' => 'active']);
+        $customer = Company::create(['name' => 'Acme Co', 'pipeline_stage' => 'active']);
         Contact::create([
             'customer_id' => $customer->id, 'name' => 'Pat', 'email' => 'pat@acme.test',
             'role' => 'owner', 'is_primary' => true,

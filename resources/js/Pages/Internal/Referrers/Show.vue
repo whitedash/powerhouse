@@ -365,7 +365,7 @@ const hasMoreCustomers = computed(() => props.customers.length > 8);
                             <thead>
                                 <tr>
                                     <th>Description</th>
-                                    <th>Customer</th>
+                                    <th>Company</th>
                                     <th class="num">Amount</th>
                                     <th>Status</th>
                                     <th>Date</th>
@@ -394,7 +394,7 @@ const hasMoreCustomers = computed(() => props.customers.length > 8);
                                     <td class="ref-show-cust-cell">
                                         <Link
                                             v-if="entry.customer_name"
-                                            :href="`/customers?search=${encodeURIComponent(entry.customer_name)}`"
+                                            :href="`/companies?search=${encodeURIComponent(entry.customer_name)}`"
                                             class="ref-show-ledger-cust"
                                         >{{ entry.customer_name }}</Link>
                                         <span v-else class="muted">—</span>
@@ -536,7 +536,7 @@ const hasMoreCustomers = computed(() => props.customers.length > 8);
                                 <div class="sub">{{ customers.length }} {{ customers.length === 1 ? 'total' : 'total' }}</div>
                             </div>
                             <div v-if="hasMoreCustomers" class="right">
-                                <Link :href="`/customers?referrer=${referrer.id}`" class="foot-link">
+                                <Link :href="`/companies?referrer=${referrer.id}`" class="foot-link">
                                     View all<IconArrowRight :size="14" stroke-width="1.75" />
                                 </Link>
                             </div>
@@ -549,7 +549,7 @@ const hasMoreCustomers = computed(() => props.customers.length > 8);
                             <Link
                                 v-for="c in visibleCustomers"
                                 :key="c.customer_id"
-                                :href="`/customers/${c.customer_id}`"
+                                :href="`/companies/${c.customer_id}`"
                                 class="ref-show-cust-row"
                             >
                                 <div class="avatar sm" :style="avatarStyle('#94A3B8')">{{ initials(c.customer_name) }}</div>

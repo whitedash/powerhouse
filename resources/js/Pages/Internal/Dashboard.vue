@@ -309,7 +309,7 @@ function goNewCustomer() {
     // The customers list reads ?create=1 and opens the slide-over on
     // mount; this avoids duplicating the slide-over markup on the
     // dashboard while still letting the user create from here.
-    router.visit('/customers?create=1');
+    router.visit('/companies?create=1');
 }
 
 /* ─── New-task slide-over ─── */
@@ -825,7 +825,7 @@ function performComplete() {
                         <div class="ref-head">
                             <div />
                             <div>Referrer</div>
-                            <div class="num">Customers</div>
+                            <div class="num">Companies</div>
                             <div class="num">Commission</div>
                             <div class="num">Pending</div>
                         </div>

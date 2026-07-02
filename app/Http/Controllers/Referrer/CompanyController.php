@@ -16,7 +16,7 @@ use Inertia\Response;
  * never get write access to customer records, only visibility into
  * who they've referred and what those customers are worth.
  */
-class CustomerController extends Controller
+class CompanyController extends Controller
 {
     public function index(): Response
     {

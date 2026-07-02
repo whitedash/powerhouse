@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Billing P1: the Customer ↔ Stripe-Customer mapping.
+ * Billing P1: the Company ↔ Stripe-Customer mapping.
  *
  * Kept as its own table (not a bare column on customers) so a future
  * per-billing-entity / per-Stripe-account split is ADDITIVE: add a

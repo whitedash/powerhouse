@@ -40,7 +40,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $created_by
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Customer|null $customer
+ * @property-read Company|null $customer
  * @property bool $is_recurring
  * @property int|null $recurring_interval_count
  * @property string|null $recurring_interval_unit
@@ -121,7 +121,7 @@ class Invoice extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     public function billingEntity(): BelongsTo

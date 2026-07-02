@@ -55,7 +55,7 @@ class CollectDueInvoices extends Command
             $r['reason'],
         ], $results);
 
-        $this->table(['Invoice', 'Customer', 'Amount', 'Outcome', 'Detail'], $rows);
+        $this->table(['Invoice', 'Company', 'Amount', 'Outcome', 'Detail'], $rows);
 
         // Per-outcome tally for the run log.
         $tally = [];

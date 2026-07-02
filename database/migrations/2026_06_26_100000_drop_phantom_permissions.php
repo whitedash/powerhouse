@@ -7,7 +7,7 @@ use Spatie\Permission\PermissionRegistrar;
 /**
  * Sprint step 12 — drop the two PHANTOM permissions that gated nothing:
  *   - customers.delete : a hard-delete that never existed (only soft-archive,
- *     via customers.manage). CustomerPolicy::delete was dead code, now removed.
+ *     via customers.manage). CompanyPolicy::delete was dead code, now removed.
  *   - analytics.manage : unreferenced by any Gate / middleware / policy / can().
  *
  * Removing them from PermissionMatrix + the seeder stops a FRESH seed recreating

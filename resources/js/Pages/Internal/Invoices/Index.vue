@@ -69,7 +69,7 @@ const SORT_LABELS = {
     created_at: 'Issue date',
     due_date: 'Due date',
     total: 'Amount',
-    customer: 'Customer',
+    customer: 'Company',
 };
 
 /* ─── Live search (debounced) ─── */
@@ -188,7 +188,7 @@ function toggleAll() {
 
 /* ─── Row click → customer detail ─── */
 function openCustomer(customerId) {
-    if (customerId) router.visit(`/customers/${customerId}`);
+    if (customerId) router.visit(`/companies/${customerId}`);
 }
 
 /* ─── Pagination ─── */
@@ -442,7 +442,7 @@ function handleVoid() {
                                 />
                             </th>
                             <th>Invoice</th>
-                            <th>Customer</th>
+                            <th>Company</th>
                             <th>Entity</th>
                             <th class="num">Amount</th>
                             <th>Status</th>

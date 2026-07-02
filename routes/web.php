@@ -4,9 +4,9 @@ use App\Http\Controllers\Auth\StaffLoginController;
 use App\Http\Controllers\Internal\AnalyticsController as InternalAnalyticsController;
 use App\Http\Controllers\Internal\BillingEntityController as InternalBillingEntityController;
 use App\Http\Controllers\Internal\CommissionRuleController as InternalCommissionRuleController;
+use App\Http\Controllers\Internal\CompanyController as InternalCustomerController;
 use App\Http\Controllers\Internal\ContactController as InternalContactController;
 use App\Http\Controllers\Internal\ContractController as InternalContractController;
-use App\Http\Controllers\Internal\CustomerController as InternalCustomerController;
 use App\Http\Controllers\Internal\CustomerGroupController as InternalCustomerGroupController;
 use App\Http\Controllers\Internal\CustomerProductController as InternalCustomerProductController;
 use App\Http\Controllers\Internal\DashboardController as InternalDashboardController;
@@ -81,7 +81,7 @@ use App\Http\Controllers\Public\WebhookController as PublicWebhookController;
 use App\Http\Controllers\Referrer\AccountController as ReferrerAccountController;
 use App\Http\Controllers\Referrer\AuthController as ReferrerAuthController;
 use App\Http\Controllers\Referrer\CommissionController as ReferrerCommissionController;
-use App\Http\Controllers\Referrer\CustomerController as ReferrerCustomerController;
+use App\Http\Controllers\Referrer\CompanyController as ReferrerCustomerController;
 use App\Http\Controllers\Referrer\DashboardController as ReferrerDashboardController;
 use App\Http\Controllers\Referrer\ReferralDealController;
 use App\Http\Controllers\Webhooks\StripeWebhookController;
@@ -131,7 +131,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
 
     // List/search endpoints — 60/min/user to slow bulk scraping
     Route::middleware('throttle:60,1')->group(function () {
-        Route::get('/customers', [InternalCustomerController::class, 'index'])->name('internal.customers.index');
+        Route::get('/companies', [InternalCustomerController::class, 'index'])->name('internal.companies.index');
         Route::get('/invoices', [InternalInvoiceController::class, 'index'])->name('internal.invoices.index');
         // Referrer ledger reads gate referrers.access (sprint step 10); the
         // /referrals attribution ledger uses the same permission (no separate
@@ -181,10 +181,10 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         Route::post('/impersonate/referrer/{referrerId}', [InternalImpersonationController::class, 'referrerPreview'])->name('internal.impersonate.referrer');
     });
 
-    Route::post('/customers', [InternalCustomerController::class, 'store'])->name('internal.customers.store');
-    Route::get('/customers/{id}', [InternalCustomerController::class, 'show'])->name('internal.customers.show');
-    Route::put('/customers/{id}', [InternalCustomerController::class, 'update'])->name('internal.customers.update');
-    Route::post('/customers/{id}/notes', [InternalCustomerController::class, 'storeNote'])->name('internal.customers.notes.store');
+    Route::post('/companies', [InternalCustomerController::class, 'store'])->name('internal.companies.store');
+    Route::get('/companies/{id}', [InternalCustomerController::class, 'show'])->name('internal.companies.show');
+    Route::put('/companies/{id}', [InternalCustomerController::class, 'update'])->name('internal.companies.update');
+    Route::post('/companies/{id}/notes', [InternalCustomerController::class, 'storeNote'])->name('internal.companies.notes.store');
 
     // Contacts — full CRUD per customer, plus a "set primary" toggle.
     // Endpoint receives customer_id in the body so the controller can
@@ -197,7 +197,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // Contracts — staff CRUD with PDF upload via FileUploadService.
     // The download endpoint streams through Storage::disk('private')
     // so the file path is never exposed and the request is gated
-    // through the parent Customer policy.
+    // through the parent Company policy.
     Route::post('/contracts', [InternalContractController::class, 'store'])->name('internal.contracts.store');
     Route::post('/contracts/{id}', [InternalContractController::class, 'update'])
         ->whereNumber('id')
@@ -209,7 +209,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         ->whereNumber('id')
         ->name('internal.contracts.download');
 
-    // Customer groups (segments) — CRUD + membership endpoints. The
+    // Company groups (segments) — CRUD + membership endpoints. The
     // model is AccountGroup (legacy) but the URL + UI use the
     // "customer groups" vocabulary throughout.
     Route::get('/customer-groups', [InternalCustomerGroupController::class, 'index'])->name('internal.customer-groups.index');
@@ -249,7 +249,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         ->where(['id' => '[0-9]+', 'customerId' => '[0-9]+'])
         ->name('internal.people.companies.detach');
 
-    Route::post('/customers/{id}/tasks', [InternalCustomerController::class, 'storeTask'])->name('internal.customers.tasks.store');
+    Route::post('/companies/{id}/tasks', [InternalCustomerController::class, 'storeTask'])->name('internal.companies.tasks.store');
 
     // Global task endpoints — for the dashboard New-task slide-over and
     // checkbox-completion on every list that surfaces tasks.
@@ -283,7 +283,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         ->name('internal.activities.show');
 
     // Notes — standalone CRUD used by the activity detail page's
-    // notes thread. The legacy /customers/{id}/notes endpoint stays
+    // notes thread. The legacy /companies/{id}/notes endpoint stays
     // for the customer-page note panel.
     Route::post('/notes', [InternalNoteController::class, 'store'])->name('internal.notes.store');
     Route::put('/notes/{id}', [InternalNoteController::class, 'update'])->name('internal.notes.update');
@@ -379,7 +379,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         // require leads.manage (composing with the in-method Leads scope).
         // approve/reject already gate leads.manage in-method via LeadPolicy::review
         // — left alone (no double-gate). convert ALSO requires customers.manage
-        // in-method (it mints a Customer — see LeadController::convert).
+        // in-method (it mints a Company — see LeadController::convert).
         Route::get('/', [InternalLeadController::class, 'index'])->name('index');
         Route::post('/', [InternalLeadController::class, 'store'])
             ->middleware('permission:leads.manage')->name('store');
@@ -456,7 +456,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // acceptance flow lives outside this auth group (see below).
     Route::prefix('proposals')->name('internal.proposals.')->group(function () {
         // Reads require proposals.access; mutations require proposals.manage.
-        // Both compose with the in-method viewAny(Customer) = customers.access.
+        // Both compose with the in-method viewAny(Company) = customers.access.
         Route::get('/', [InternalProposalController::class, 'index'])
             ->middleware('permission:proposals.access')->name('index');
         Route::post('/', [InternalProposalController::class, 'store'])
@@ -549,25 +549,25 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::delete('/notifications/{id}', [InternalNotificationController::class, 'destroy'])
         ->where('id', '[a-zA-Z0-9-]+')
         ->name('internal.notifications.destroy');
-    Route::delete('/customers/{id}/archive', [InternalCustomerController::class, 'archive'])->name('internal.customers.archive');
+    Route::delete('/companies/{id}/archive', [InternalCustomerController::class, 'archive'])->name('internal.companies.archive');
 
     // Portal access — issue or rotate portal credentials for a customer.
     // Temp password flashes back once; staff must relay it manually.
-    Route::post('/customers/{id}/invite-portal', [InternalCustomerController::class, 'inviteToPortal'])->name('internal.customers.invite-portal');
-    Route::post('/customers/{id}/portal-users/{portalUserId}/revoke', [InternalCustomerController::class, 'revokePortalAccess'])->name('internal.customers.revoke-portal');
+    Route::post('/companies/{id}/invite-portal', [InternalCustomerController::class, 'inviteToPortal'])->name('internal.companies.invite-portal');
+    Route::post('/companies/{id}/portal-users/{portalUserId}/revoke', [InternalCustomerController::class, 'revokePortalAccess'])->name('internal.companies.revoke-portal');
 
     // Referral tear-down is super_admin-only. The action voids
     // pending commissions and detaches the referrer permanently —
     // nothing a regular staff member should be able to trigger on
     // their own.
-    Route::middleware('permission:customers.referral.manage')->group(function () {
-        Route::post('/customers/{id}/referral', [InternalCustomerController::class, 'addReferral'])->name('internal.customers.referral.add');
-        Route::delete('/customers/{id}/referral', [InternalCustomerController::class, 'removeReferral'])->name('internal.customers.referral.remove');
+    Route::middleware('permission:companies.referral.manage')->group(function () {
+        Route::post('/companies/{id}/referral', [InternalCustomerController::class, 'addReferral'])->name('internal.companies.referral.add');
+        Route::delete('/companies/{id}/referral', [InternalCustomerController::class, 'removeReferral'])->name('internal.companies.referral.remove');
     });
 
     // GDPR tooling — right to erasure (Art. 17) + data portability (Art. 20).
     // super_admin only: erasure is irreversible and the export is full PII.
-    Route::prefix('gdpr/customers')->name('internal.gdpr.')->group(function () {
+    Route::prefix('gdpr/companies')->name('internal.gdpr.')->group(function () {
         Route::middleware('permission:gdpr.erase')->group(function () {
             Route::post('/{id}/request-erasure', [InternalGdprController::class, 'requestErasure'])
                 ->whereNumber('id')->name('request-erasure');
@@ -582,10 +582,10 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // a CustomerProduct, suspending removes their access. These are
     // provisioning mutations: they require provisioning.manage (section gate)
     // and compose with the per-customer customers.manage check in-method.
-    Route::post('/customers/{id}/products', [InternalCustomerController::class, 'enableProduct'])
-        ->middleware('permission:provisioning.manage')->name('internal.customers.products.enable');
-    Route::post('/customers/{id}/products/{productId}/suspend', [InternalCustomerController::class, 'suspendProduct'])
-        ->middleware('permission:provisioning.manage')->name('internal.customers.products.suspend');
+    Route::post('/companies/{id}/products', [InternalCustomerController::class, 'enableProduct'])
+        ->middleware('permission:provisioning.manage')->name('internal.companies.products.enable');
+    Route::post('/companies/{id}/products/{productId}/suspend', [InternalCustomerController::class, 'suspendProduct'])
+        ->middleware('permission:provisioning.manage')->name('internal.companies.products.suspend');
 
     // Reasoned suspend / reinstate of a single subscription (fires the
     // product webhook + records who acted). Operates on the CustomerProduct id.
@@ -597,11 +597,11 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
         ->whereNumber('id')->middleware('permission:provisioning.manage')->name('internal.customer-products.update');
 
     // Toggle a customer's auto-suspension exemption (super_admin only).
-    Route::post('/customers/{id}/exemption', [InternalCustomerController::class, 'toggleExemption'])
-        ->whereNumber('id')->middleware('permission:customers.exemption')->name('internal.customers.exemption');
+    Route::post('/companies/{id}/exemption', [InternalCustomerController::class, 'toggleExemption'])
+        ->whereNumber('id')->middleware('permission:companies.exemption')->name('internal.companies.exemption');
     // Billing P1: staff toggle of the per-customer auto-collect intent.
-    Route::post('/customers/{id}/auto-collect', [InternalCustomerController::class, 'updateAutoCollect'])
-        ->whereNumber('id')->name('internal.customers.auto-collect');
+    Route::post('/companies/{id}/auto-collect', [InternalCustomerController::class, 'updateAutoCollect'])
+        ->whereNumber('id')->name('internal.companies.auto-collect');
 
     // Manual re-queue of a failed/abandoned webhook delivery.
     Route::post('/webhooks/deliveries/{id}/retry', [InternalSettingsController::class, 'retryWebhookDelivery'])
@@ -611,7 +611,7 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     // Managed from the customer detail Websites tab. All 8 are WRITES → require
     // permission:hosting.manage (the section capability). Each method also gates
     // the per-customer Gate::authorize('update', $website->customer) IDOR guard
-    // (CustomerPolicy::update = customers.manage) — composed, both must pass.
+    // (CompanyPolicy::update = customers.manage) — composed, both must pass.
     Route::post('/websites', [InternalWebsiteController::class, 'store'])
         ->middleware('permission:hosting.manage')->name('internal.websites.store');
     Route::put('/websites/{id}', [InternalWebsiteController::class, 'update'])
@@ -917,6 +917,18 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
 });
 
 /*
+| Customer -> Company rename (2026-07): the internal customer routes moved
+| from /customers* to /companies*. Old links already in the wild — emailed
+| "view company" links, bookmarks — are GET requests, so 301 those to the
+| new paths. The catch-all only matches /customers/<something>; it can never
+| shadow /customer-groups or /customer-products (no "/customers/" prefix) or
+| the live /companies routes (different segment).
+*/
+Route::redirect('/customers', '/companies', 301);
+Route::get('/customers/{path}', fn (string $path) => redirect('/companies/'.$path, 301))
+    ->where('path', '.*');
+
+/*
 |--------------------------------------------------------------------------
 | Public proposal acceptance — NO auth
 |--------------------------------------------------------------------------
@@ -1175,7 +1187,7 @@ Route::middleware(['auth', 'role:referrer'])
     ->group(function () {
         Route::get('/dashboard', ReferrerDashboardController::class)->name('dashboard');
         Route::get('/commissions', [ReferrerCommissionController::class, 'index'])->name('commissions');
-        Route::get('/customers', [ReferrerCustomerController::class, 'index'])->name('customers');
+        Route::get('/companies', [ReferrerCustomerController::class, 'index'])->name('customers');
 
         // Deal registration — register → (staff review) → 90-day protection.
         Route::get('/referrals', [ReferralDealController::class, 'index'])->name('referrals');

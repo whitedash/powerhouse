@@ -3,7 +3,7 @@
 namespace App\Mail;
 
 use App\Mail\Concerns\UsesEntityBranding;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -20,7 +20,7 @@ class SuspensionNotice extends Mailable
 
     public function __construct(
         public CustomerProduct $customerProduct,
-        public Customer $customer,
+        public Company $customer,
     ) {}
 
     public function build(): self

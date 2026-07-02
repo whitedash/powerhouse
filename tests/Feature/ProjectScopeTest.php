@@ -36,9 +36,9 @@ class ProjectScopeTest extends TestCase
     private function projectRole(string $name, AccessScope $scope): Role
     {
         $role = Role::create(['name' => $name, 'guard_name' => 'web']);
-        // customers.access lets them past the index/show viewAny(Customer)
+        // companies.access lets them past the index/show viewAny(Company)
         // gate, so the test isolates the SCOPE behaviour (not that gate).
-        $role->givePermissionTo('customers.access');
+        $role->givePermissionTo('companies.access');
         RoleScope::create(['role_id' => $role->id, 'area' => ScopeArea::Projects->value, 'scope' => $scope->value]);
 
         return $role;
@@ -147,7 +147,7 @@ class ProjectScopeTest extends TestCase
         $user = User::factory()->create();
         // Role with a permission but NO projects scope row → defaults None.
         $role = Role::create(['name' => 'Scopeless', 'guard_name' => 'web']);
-        $role->givePermissionTo('customers.access');
+        $role->givePermissionTo('companies.access');
         $user->syncRoles(['Scopeless']);
 
         $this->assertSame(AccessScope::None, ScopeEnforcer::effectiveScope($user->fresh(), ScopeArea::Projects));

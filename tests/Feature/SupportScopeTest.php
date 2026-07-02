@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\AccessScope;
 use App\Enums\ScopeArea;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\RoleScope;
 use App\Models\SupportTicket;
 use App\Models\Task;
@@ -74,9 +74,9 @@ class SupportScopeTest extends TestCase
         return $user->fresh();
     }
 
-    private function customer(): Customer
+    private function customer(): Company
     {
-        return Customer::create(['name' => 'C '.uniqid()]);
+        return Company::create(['name' => 'C '.uniqid()]);
     }
 
     /**

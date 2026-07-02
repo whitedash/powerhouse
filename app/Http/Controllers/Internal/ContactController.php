@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\Company;
 use App\Models\Contact;
-use App\Models\Customer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,13 +13,13 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 /**
- * Per-customer contacts CRUD. Lives outside CustomerController so
+ * Per-customer contacts CRUD. Lives outside CompanyController so
  * the customer detail page can target tight, focused endpoints
  * (store/update/destroy/setPrimary) rather than wrestling with the
  * sprawling customer-wide controller.
  *
  * Authorisation is delegated to the existing 'update' policy on
- * Customer — anyone who can edit the customer can edit its contacts.
+ * Company — anyone who can edit the customer can edit its contacts.
  */
 class ContactController extends Controller
 {
@@ -45,7 +45,7 @@ class ContactController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $customer = Customer::findOrFail($data['customer_id']);
+        $customer = Company::findOrFail($data['customer_id']);
         Gate::authorize('update', $customer);
 
         $contact = DB::transaction(function () use ($data, $request): Contact {
