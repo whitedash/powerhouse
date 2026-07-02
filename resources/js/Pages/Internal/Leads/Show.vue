@@ -344,7 +344,7 @@ const convertGuard = useDirtyClose(() => convertForm.isDirty, () => { showConver
                     <section v-if="canConvert" class="card convert-card">
                         <div class="convert-card-body">
                             <h3>Ready to convert?</h3>
-                            <p class="muted small">This will create a customer record + primary contact, transfer activities, and mark this lead as Won.</p>
+                            <p class="muted small">This will create a company record + primary contact, transfer activities, and mark this lead as Won.</p>
                             <button type="button" class="btn btn-primary" @click="openConvert">
                                 <IconUserPlus :size="14" stroke-width="2" /> Convert to customer
                             </button>
@@ -495,7 +495,7 @@ const convertGuard = useDirtyClose(() => convertForm.isDirty, () => { showConver
                     <form @submit.prevent="submitConvert" class="slide-over-body">
                         <p class="muted small">This will:</p>
                         <ul class="convert-checklist">
-                            <li><IconCircleCheck :size="14" stroke-width="2" /> Create a new customer record</li>
+                            <li><IconCircleCheck :size="14" stroke-width="2" /> Create a new company record</li>
                             <li v-if="lead.email || lead.phone"><IconCircleCheck :size="14" stroke-width="2" /> Create a contact from this lead's details</li>
                             <li><IconCircleCheck :size="14" stroke-width="2" /> Transfer activities and notes</li>
                             <li><IconCircleCheck :size="14" stroke-width="2" /> Mark this lead as Won</li>

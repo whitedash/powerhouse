@@ -3188,7 +3188,7 @@ function submitProject() {
                         <div class="h-icon"><IconUsersGroup :size="16" stroke-width="1.75" /></div>
                         <div>
                             <h3>Proposals</h3>
-                            <p class="card-sub">Quotes sent to this customer.</p>
+                            <p class="card-sub">Quotes sent to this company.</p>
                         </div>
                         <a href="/proposals" class="ghost-link" style="margin-left: auto;">
                             <IconArrowRight :size="14" stroke-width="1.75" />
@@ -3943,7 +3943,7 @@ function submitProject() {
                                                 maxlength="100"
                                                 placeholder="e.g. Main website, Blog, Client A site"
                                             >
-                                            <p class="field-help">Helps identify this subscription when a customer has multiple instances of the same product.</p>
+                                            <p class="field-help">Helps identify this subscription when a company has multiple instances of the same product.</p>
                                             <div v-if="enableForm.errors.label" class="err">{{ enableForm.errors.label }}</div>
                                         </div>
                                     </div>

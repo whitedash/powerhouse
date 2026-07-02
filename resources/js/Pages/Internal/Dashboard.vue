@@ -436,7 +436,7 @@ function performComplete() {
             </button>
             <button type="button" class="btn btn-primary" @click="goNewCustomer">
                 <IconPlus :size="15" stroke-width="1.75" />
-                New customer
+                New company
             </button>
         </template>
 
@@ -585,7 +585,7 @@ function performComplete() {
                                     <div v-if="p.description" class="pdesc">{{ p.description }}</div>
                                 </div>
                                 <div class="prod-stat" :class="{ muted: p.is_coming_soon }">
-                                    <template v-if="p.is_coming_soon">—<span class="sub">no customers yet</span></template>
+                                    <template v-if="p.is_coming_soon">—<span class="sub">no companies yet</span></template>
                                     <template v-else>{{ n(p.customer_count) }}<span class="sub">active</span></template>
                                 </div>
                                 <div class="prod-stat" :class="{ muted: p.is_coming_soon }">
@@ -762,7 +762,7 @@ function performComplete() {
                         </div>
                         <div class="qstats">
                             <div class="qstat">
-                                <div class="qstat-label">New customers</div>
+                                <div class="qstat-label">New companies</div>
                                 <div class="qstat-value">
                                     {{ n(this_month.new_customers) }}
                                     <span

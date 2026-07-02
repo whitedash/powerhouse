@@ -700,7 +700,7 @@ function fmtRelative(iso) {
                                             <label class="small">Note template</label>
                                             <textarea v-model="action.config.content_template" rows="3"
                                                 :placeholder="noteContentPlaceholder"></textarea>
-                                            <small class="muted">Only fires if a customer is in context — lead-only notes aren't supported.</small>
+                                            <small class="muted">Only fires if a company is in context — lead-only notes aren't supported.</small>
                                         </div>
                                     </template>
 

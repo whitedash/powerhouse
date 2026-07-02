@@ -403,7 +403,7 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true }); }
                 <div v-else class="dm-empty">
                     <IconWorld :size="40" stroke-width="1.5" />
                     <h3>No domains tracked yet</h3>
-                    <p>Add your customer domains to surface expiry alerts on the dashboard.</p>
+                    <p>Add your company domains to surface expiry alerts on the dashboard.</p>
                     <button type="button" class="btn btn-primary" @click="openCreate">
                         <IconPlus :size="14" stroke-width="1.75" /> Add first domain
                     </button>
