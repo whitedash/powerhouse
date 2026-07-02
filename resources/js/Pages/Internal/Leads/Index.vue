@@ -13,11 +13,12 @@
  * immediately, then we router.reload() to reconcile.
  */
 import { computed, reactive, ref, watch } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     IconPlus, IconSearch, IconX, IconUserPlus, IconLayoutKanban,
     IconList, IconTrophy, IconBan, IconChevronLeft, IconChevronRight,
     IconDots, IconTrash, IconArrowRight, IconShieldCheck, IconCircleCheck,
+    IconUpload, IconFileSpreadsheet,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 import ConfirmModal from '@/Components/UI/ConfirmModal.vue';
@@ -30,6 +31,7 @@ const props = defineProps({
     statuses: { type: Array, default: () => [] },
     sources: { type: Array, default: () => [] },
     filters: { type: Object, required: true },
+    import_max_rows: { type: Number, default: 250 },
 });
 
 /* ─── Status helpers ─── */
@@ -43,6 +45,7 @@ const SOURCE_LABEL = {
     facebook: 'Facebook', google: 'Google',
     referral: 'Referral', email: 'Email', phone: 'Phone',
     event: 'Event', word_of_mouth: 'Word of mouth', other: 'Other',
+    import: 'Import',
 };
 // Kanban column order; won + lost shown collapsed at the right.
 const COLUMN_ORDER = ['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost'];
@@ -204,6 +207,44 @@ function submitCreate() {
 const sourceDetailLabel = computed(() => CHANNEL_DETAIL_LABEL[form.source] ?? 'Details');
 const showSourceDetail = computed(() => form.source in CHANNEL_DETAIL_LABEL);
 
+// 'import' is machine-set by the CSV importer — filterable above, but not
+// a pill an operator hand-picks on the create form.
+const manualSources = computed(() => props.sources.filter(s => s !== 'import'));
+
+/* ─── CSV import slide-over + result summary ─── */
+const page = usePage();
+
+const showImport = ref(false);
+const isDraggingImport = ref(false);
+const importForm = useForm({ file: null });
+
+function openImport() {
+    importForm.reset();
+    importForm.clearErrors();
+    showImport.value = true;
+}
+function onImportFile(event) {
+    const file = event.target?.files?.[0] ?? event.dataTransfer?.files?.[0] ?? null;
+    if (file) importForm.file = file;
+    isDraggingImport.value = false;
+    if (event.target) event.target.value = '';
+}
+function submitImport() {
+    if (! importForm.file) return;
+    // Multipart so the CSV rides along on the same request.
+    importForm.post('/leads/import', {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => { showImport.value = false; importForm.reset(); },
+    });
+}
+
+// One-shot structured summary flashed by LeadController::import. Dismissable;
+// a fresh import replaces a dismissed one.
+const importSummary = computed(() => page.props.flash?.import_summary ?? null);
+const summaryDismissed = ref(false);
+watch(importSummary, (val) => { if (val) summaryDismissed.value = false; });
+
 /* ─── Delete confirm ─── */
 const showDelete = ref(false);
 const toDelete = ref(null);
@@ -272,6 +313,11 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
                     </button>
                 </div>
 
+                <button type="button" class="btn btn-secondary" @click="openImport">
+                    <IconUpload :size="16" stroke-width="2" />
+                    Import CSV
+                </button>
+
                 <button type="button" class="btn btn-primary" @click="openCreate">
                     <IconPlus :size="16" stroke-width="2" />
                     New lead
@@ -286,6 +332,53 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
                 <div class="stat-pill"><span class="d"></span><span class="n">{{ money(summary.total_pipeline_value) }}</span><span class="l">Pipeline value</span></div>
                 <div v-if="summary.converted_this_month > 0" class="stat-pill"><span class="d green"></span><span class="n">{{ summary.converted_this_month }}</span><span class="l">Converted this month</span></div>
             </div>
+
+            <!-- ─── CSV import result summary (one-shot flash) ─── -->
+            <section v-if="importSummary && ! summaryDismissed" class="card leads-import-summary">
+                <div class="card-head">
+                    <h3>
+                        <IconFileSpreadsheet :size="16" stroke-width="2" />
+                        Import summary
+                    </h3>
+                    <button type="button" class="icon-btn xs" title="Dismiss" @click="summaryDismissed = true">
+                        <IconX :size="15" stroke-width="2" />
+                    </button>
+                </div>
+                <div class="card-body">
+                    <p class="lis-headline">
+                        <strong>{{ importSummary.created }}</strong>
+                        lead{{ importSummary.created === 1 ? '' : 's' }} imported
+                        <span class="muted">({{ importSummary.total_rows }} row{{ importSummary.total_rows === 1 ? '' : 's' }} in file)</span>
+                    </p>
+
+                    <details v-if="importSummary.skipped.length" class="lis-group">
+                        <summary>{{ importSummary.skipped.length }} skipped as duplicates</summary>
+                        <ul>
+                            <li v-for="s in importSummary.skipped" :key="`s${s.row}`">
+                                Row {{ s.row }} — {{ s.name || 'unnamed' }} · matched on {{ s.matched_on }}
+                            </li>
+                        </ul>
+                    </details>
+
+                    <details v-if="importSummary.flagged.length" class="lis-group">
+                        <summary>{{ importSummary.flagged.length }} imported but matching an existing contact</summary>
+                        <ul>
+                            <li v-for="f in importSummary.flagged" :key="`f${f.row}`">
+                                Row {{ f.row }} — {{ f.name || 'unnamed' }} · {{ f.matched_on }} matches a contact{{ f.customer ? ` of ${f.customer}` : '' }}
+                            </li>
+                        </ul>
+                    </details>
+
+                    <details v-if="importSummary.failed.length" class="lis-group">
+                        <summary>{{ importSummary.failed.length }} failed validation</summary>
+                        <ul>
+                            <li v-for="x in importSummary.failed" :key="`x${x.row}`">
+                                Row {{ x.row }} — {{ x.reason }}
+                            </li>
+                        </ul>
+                    </details>
+                </div>
+            </section>
 
             <!-- ─── Referral review queue (deal registration) ─── -->
             <div v-if="referral_review.length" class="referral-review">
@@ -547,7 +640,7 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
                             <label class="form-label">Source</label>
                             <div class="channel-grid">
                                 <button
-                                    v-for="s in sources"
+                                    v-for="s in manualSources"
                                     :key="s"
                                     type="button"
                                     class="channel-pill"
@@ -570,6 +663,60 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
                         <button type="button" class="btn btn-ghost" @click="showCreate = false">Cancel</button>
                         <button type="button" class="btn btn-primary" :disabled="form.processing" @click="submitCreate">
                             {{ form.processing ? 'Adding…' : 'Add lead' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
+
+        <!-- Import CSV slide-over -->
+        <Teleport to="body">
+            <div v-if="showImport" class="slide-over-overlay" @click.self="showImport = false">
+                <div class="slide-over" style="width: 480px;">
+                    <div class="slide-over-head">
+                        <h2>Import leads from CSV</h2>
+                        <button type="button" class="icon-btn" @click="showImport = false">
+                            <IconX :size="18" stroke-width="2" />
+                        </button>
+                    </div>
+                    <form class="slide-over-body" @submit.prevent="submitImport">
+                        <div class="form-section">
+                            <label
+                                class="file-upload-zone"
+                                :class="{ dragging: isDraggingImport }"
+                                @dragover.prevent="isDraggingImport = true"
+                                @dragleave.prevent="isDraggingImport = false"
+                                @drop.prevent="onImportFile"
+                            >
+                                <input type="file" hidden accept=".csv,text/csv" @change="onImportFile" />
+                                <IconUpload :size="20" stroke-width="1.75" />
+                                <span v-if="importForm.file" class="lis-file">{{ importForm.file.name }}</span>
+                                <span v-else>Drop a CSV here or click to choose</span>
+                                <span class="file-upload-hint">Max {{ import_max_rows }} data rows · 10 MB</span>
+                            </label>
+                            <p v-if="importForm.errors.file" class="form-error">{{ importForm.errors.file }}</p>
+                        </div>
+
+                        <div class="form-section">
+                            <p class="muted small">
+                                The header row must include <strong>first_name</strong>; recognised
+                                columns are first_name, last_name, email, phone, company, job_title,
+                                estimated_value and notes. Every row needs an email or a phone —
+                                that's what duplicate detection matches on. Rows matching an existing
+                                lead are skipped; rows matching a customer contact are imported and
+                                flagged.
+                            </p>
+                        </div>
+                    </form>
+                    <div class="slide-over-foot">
+                        <button type="button" class="btn btn-ghost" @click="showImport = false">Cancel</button>
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            :disabled="! importForm.file || importForm.processing"
+                            @click="submitImport"
+                        >
+                            {{ importForm.processing ? 'Importing…' : 'Import leads' }}
                         </button>
                     </div>
                 </div>
@@ -652,6 +799,26 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
 </template>
 
 <style scoped>
+/* CSV import: result summary panel + slide-over bits (leads-import-*
+   namespace — the card shell itself is the global .card primitive). */
+.leads-import-summary { margin-bottom: 16px; }
+.leads-import-summary .card-head h3 { display: inline-flex; align-items: center; gap: 7px; }
+.lis-headline { font: 400 13.5px/1.5 'Inter', sans-serif; color: var(--text-primary); margin: 0 0 6px; }
+.lis-headline strong { font-weight: 700; }
+.lis-group { margin-top: 8px; }
+.lis-group summary {
+    cursor: pointer;
+    font: 600 12.5px/1.4 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.lis-group ul {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    font: 400 12.5px/1.7 'Inter', sans-serif;
+    color: var(--text-secondary);
+}
+.lis-file { font-weight: 600; color: var(--text-primary); }
+
 /* Deal-registration: review queue + protection badge. */
 .referral-review {
     background: #fff;

@@ -103,6 +103,14 @@ class HandleInertiaRequests extends Middleware
                  */
                 'portal_invite' => fn () => $request->session()->get('portal_invite'),
                 /*
+                 * Leads CSV import result — the structured summary
+                 * (created/skipped/flagged/failed with row numbers) the
+                 * Leads index renders as an expandable panel. Same one-shot
+                 * flash semantics as portal_invite; the toast-level outcome
+                 * rides the plain success/warning keys above.
+                 */
+                'import_summary' => fn () => $request->session()->get('import_summary'),
+                /*
                  * Temp-password handoff for the Add-referrer + Reset-password
                  * flows. Same one-shot semantics as portal_invite — the
                  * Referrers page shows a credentials card once, then the

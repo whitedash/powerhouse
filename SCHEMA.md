@@ -702,7 +702,9 @@ company VARCHAR(255) nullable, job_title VARCHAR(255) nullable,
 status ENUM(new|contacted|qualified|proposal|negotiation
   |won|lost|unresponsive) DEFAULT 'new',
 source ENUM(manual|landing_page|facebook|google|referral
-  |email|phone|event|word_of_mouth|other) DEFAULT 'manual',
+  |email|phone|event|word_of_mouth|other|import) DEFAULT 'manual',
+  -- 'import' = CSV lead import (2026_07_01 widen); convert() coerces it
+  -- to acquisition_channel 'other' via the channelMap.
 source_detail VARCHAR(255) nullable,
 referrer_id FK referrers nullable SET NULL
   -- Captured at public-form submission (?ref / wd_ref cookie); fed to
