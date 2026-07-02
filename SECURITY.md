@@ -41,7 +41,8 @@
 - [ ] Run `npm audit` weekly
 - [ ] Review `activity_log` for `auth.failed` anomalies weekly
 - [ ] Rotate Passport encryption keys every 6 months (`php artisan passport:keys --force` + redeploy + invalidate tokens)
-- [ ] Rotate third-party API keys (Cloudflare, Postmark, Stripe, QBO) every 12 months
+- [ ] Rotate third-party API keys (Cloudflare, Postmark, Stripe, QBO, MainWP, WHM, PageSpeed) every 12 months
+      — MainWP additionally rotated 2026-07 after the .env.example prefix leak (see DECISION-LOG)
 - [ ] Quarterly review of `Policies/` and middleware aliases — confirm no route can skip role/auth checks
 
 ## Future monitoring rules (Phase 10 / admin panel)
