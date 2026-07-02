@@ -204,14 +204,16 @@ class ProposalAcceptanceController extends Controller
             ])
             ->first();
 
-        // If the token has been nulled (already accepted), fall
-        // back to a customer-scoped lookup so an already-accepted
-        // bookmark still resolves to the success page. The token
-        // string is unguessable so this is safe.
-        if ($proposal === null) {
-            // We persist a hash of the token? No — the spec stores
-            // the raw token until accept clears it. After accept
-            // the link is dead by design.
+        // Constant-time re-verification of the full token. The row was
+        // fetched by an indexed equality match on the UNIQUE token column
+        // (a parameterised WHERE, not a PHP == — so no byte-by-byte timing
+        // oracle today), but we hash_equals the fetched token so the
+        // constant-time guarantee is explicit and survives any future change
+        // that loosens the query (e.g. a prefix/LIKE lookup). A nulled token
+        // (already accepted) is never a match, so a dead bookmark 404s.
+        if ($proposal === null
+            || $proposal->acceptance_token === null
+            || ! hash_equals($proposal->acceptance_token, $token)) {
             abort(404, 'Proposal not found.');
         }
 

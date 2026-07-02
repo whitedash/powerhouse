@@ -921,11 +921,18 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
 | Token-only authorisation. The token is single-use: accept() nulls it
 | out, so a re-visit shows the success page rather than the form again.
 */
+// Throttled like the other public token surfaces: the GET (view + the
+// only brute-probe surface) at the public-GET tier used by /r/{code} and
+// form embeds; the POST (the acceptance write) at the tighter token-submit
+// tier the portal password-reset flow uses. The token is 256-bit so this is
+// hygiene/DoS bounding, not the token's primary defence.
 Route::get('/proposals/accept/{token}', [PublicProposalAcceptanceController::class, 'show'])
     ->where('token', '[a-f0-9]{64}')
+    ->middleware('throttle:30,1')
     ->name('proposal.accept.show');
 Route::post('/proposals/accept/{token}', [PublicProposalAcceptanceController::class, 'accept'])
     ->where('token', '[a-f0-9]{64}')
+    ->middleware('throttle:6,1')
     ->name('proposal.accept.submit');
 
 /*
