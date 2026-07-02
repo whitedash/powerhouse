@@ -286,6 +286,9 @@ function initials(name) { return (name || '').split(/\s+/).map(s => s[0]).slice(
 const createGuard = useDirtyClose(() => form.isDirty, () => { showCreate.value = false; });
 const lostGuard = useDirtyClose(() => lostReason.value.trim() !== '', () => { showLostModal.value = false; });
 const rejectGuard = useDirtyClose(() => rejectReason.value.trim() !== '', () => { showReject.value = false; rejectId.value = null; });
+// A staged CSV file is the import panel's unsaved state — guard so an accidental
+// overlay click / Escape doesn't silently drop it.
+const importGuard = useDirtyClose(() => importForm.file !== null, () => { showImport.value = false; });
 </script>
 
 <template>
@@ -684,11 +687,11 @@ const rejectGuard = useDirtyClose(() => rejectReason.value.trim() !== '', () => 
 
         <!-- Import CSV slide-over -->
         <Teleport to="body">
-            <div v-if="showImport" class="slide-over-overlay" @click.self="showImport = false">
+            <div v-if="showImport" class="slide-over-overlay" v-overlay-dismiss="importGuard.attemptClose">
                 <div class="slide-over" style="width: 480px;">
                     <div class="slide-over-head">
                         <h2>Import leads from CSV</h2>
-                        <button type="button" class="icon-btn" @click="showImport = false">
+                        <button type="button" class="icon-btn" @click="importGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
                     </div>
@@ -731,7 +734,7 @@ const rejectGuard = useDirtyClose(() => rejectReason.value.trim() !== '', () => 
                         </div>
                     </form>
                     <div class="slide-over-foot">
-                        <button type="button" class="btn btn-ghost" @click="showImport = false">Cancel</button>
+                        <button type="button" class="btn btn-ghost" @click="importGuard.attemptClose">Cancel</button>
                         <button
                             type="button"
                             class="btn btn-primary"
@@ -848,6 +851,16 @@ const rejectGuard = useDirtyClose(() => rejectReason.value.trim() !== '', () => 
             cancel-label="Keep editing"
             @confirm="rejectGuard.confirmDiscard"
             @cancel="rejectGuard.cancelDiscard"
+        />
+        <ConfirmModal
+            :show="importGuard.confirmingDiscard"
+            variant="warning"
+            title="Discard import?"
+            message="You have a CSV file staged for import. Discard it?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="importGuard.confirmDiscard"
+            @cancel="importGuard.cancelDiscard"
         />
     </InternalLayout>
 </template>
