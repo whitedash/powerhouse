@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Proposal;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -15,8 +15,8 @@ use Tests\TestCase;
  *
  * Reads (index/show/pdf/accepted-pdf) now require proposals.access; mutations
  * (store/destroy/send/convert + the payment-schedule store) require
- * proposals.manage. Both compose with the in-method viewAny(Customer) =
- * customers.access. super_admin bypasses via Gate::before.
+ * proposals.manage. Both compose with the in-method viewAny(Company) =
+ * companies.access. super_admin bypasses via Gate::before.
  */
 class ProposalsEnforcementTest extends TestCase
 {
@@ -51,7 +51,7 @@ class ProposalsEnforcementTest extends TestCase
 
     private function makeProposal(string $status = 'draft'): Proposal
     {
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
 
         return Proposal::create([
             'customer_id' => $customer->id,
@@ -82,8 +82,8 @@ class ProposalsEnforcementTest extends TestCase
 
     public function test_reads_403_without_proposals_access(): void
     {
-        // customers.access alone (the old gate) no longer admits the reads.
-        $user = $this->userWith(['customers.access']);
+        // companies.access alone (the old gate) no longer admits the reads.
+        $user = $this->userWith(['companies.access']);
         foreach ($this->readRoutes() as [$verb, $url]) {
             $this->actingAs($user)->{$verb}($url)->assertForbidden();
         }
@@ -91,13 +91,13 @@ class ProposalsEnforcementTest extends TestCase
 
     public function test_index_read_ok_with_proposals_access(): void
     {
-        $user = $this->userWith(['customers.access', 'proposals.access']);
+        $user = $this->userWith(['companies.access', 'proposals.access']);
         $this->actingAs($user)->get('/proposals')->assertOk();
     }
 
     public function test_show_read_ok_with_proposals_access(): void
     {
-        $user = $this->userWith(['customers.access', 'proposals.access']);
+        $user = $this->userWith(['companies.access', 'proposals.access']);
         $proposal = $this->makeProposal();
         $this->actingAs($user)->get("/proposals/{$proposal->id}")->assertOk();
     }
@@ -106,8 +106,8 @@ class ProposalsEnforcementTest extends TestCase
 
     public function test_all_mutations_403_without_proposals_manage(): void
     {
-        // Holds customers.access AND proposals.access (reads) but NOT proposals.manage.
-        $user = $this->userWith(['customers.access', 'proposals.access']);
+        // Holds companies.access AND proposals.access (reads) but NOT proposals.manage.
+        $user = $this->userWith(['companies.access', 'proposals.access']);
         foreach ($this->mutationRoutes() as [$verb, $url]) {
             $this->actingAs($user)->{$verb}($url)->assertForbidden();
         }
@@ -115,7 +115,7 @@ class ProposalsEnforcementTest extends TestCase
 
     public function test_destroy_draft_succeeds_with_proposals_manage(): void
     {
-        $user = $this->userWith(['customers.access', 'proposals.manage']);
+        $user = $this->userWith(['companies.access', 'proposals.manage']);
         $proposal = $this->makeProposal('draft');
 
         $this->actingAs($user)->delete("/proposals/{$proposal->id}")->assertRedirect();
@@ -125,7 +125,7 @@ class ProposalsEnforcementTest extends TestCase
     public function test_mutations_authorized_with_proposals_manage(): void
     {
         // Past the proposals.manage gate the requests reach the controller (not 403).
-        $user = $this->userWith(['customers.access', 'proposals.manage']);
+        $user = $this->userWith(['companies.access', 'proposals.manage']);
         $proposal = $this->makeProposal('draft');
 
         $this->assertNotSame(403, $this->actingAs($user)->post('/proposals', [])->getStatusCode());           // 422 validation
@@ -149,7 +149,7 @@ class ProposalsEnforcementTest extends TestCase
     {
         // A reader (proposals.access, no manage) is blocked from every mutation —
         // proves the two permissions are independent (access ≠ manage).
-        $user = $this->userWith(['customers.access', 'proposals.access']);
+        $user = $this->userWith(['companies.access', 'proposals.access']);
         foreach ($this->mutationRoutes() as [$verb, $url]) {
             $this->actingAs($user)->{$verb}($url)->assertForbidden();
         }

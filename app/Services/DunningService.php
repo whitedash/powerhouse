@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Mail\FailedPaymentNotice;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
@@ -86,7 +86,7 @@ class DunningService
     /**
      * @return array<string, mixed>
      */
-    public function processInvoice(Invoice $invoice, Customer $customer, bool $dryRun = false): array
+    public function processInvoice(Invoice $invoice, Company $customer, bool $dryRun = false): array
     {
         $outstanding = round((float) $invoice->total - (float) $invoice->amount_paid, 2);
 
@@ -144,7 +144,7 @@ class DunningService
      *
      * @return array<string, mixed>
      */
-    private function retryCharge(Invoice $invoice, Customer $customer, float $outstanding, int $attemptNo, bool $isFinal): array
+    private function retryCharge(Invoice $invoice, Company $customer, float $outstanding, int $attemptNo, bool $isFinal): array
     {
         $pence = (int) round($outstanding * 100);
         if ($pence < self::MIN_PENCE) {
@@ -246,7 +246,7 @@ class DunningService
      *
      * @return array<string, mixed>
      */
-    private function relinkSca(Invoice $invoice, Customer $customer, int $attemptNo, bool $isFinal): array
+    private function relinkSca(Invoice $invoice, Company $customer, int $attemptNo, bool $isFinal): array
     {
         $this->relinkOnly($invoice);
 
@@ -275,7 +275,7 @@ class DunningService
      * Shared post-failure handling: log, email (final-toned if exhausting), and
      * escalate to the suspend backbone on the final attempt. Sentry alert too.
      */
-    private function afterFailedAttempt(Invoice $invoice, Customer $customer, int $attemptNo, bool $isFinal, ?string $reason): void
+    private function afterFailedAttempt(Invoice $invoice, Company $customer, int $attemptNo, bool $isFinal, ?string $reason): void
     {
         $this->logActivity($invoice, 'invoice.dunning_failed', [
             'number' => $invoice->number, 'attempt' => $attemptNo, 'final' => $isFinal, 'reason' => $reason,
@@ -363,7 +363,7 @@ class DunningService
         }
     }
 
-    private function recordFailedMarker(Invoice $invoice, Customer $customer, float $outstanding, string $reason): void
+    private function recordFailedMarker(Invoice $invoice, Company $customer, float $outstanding, string $reason): void
     {
         Payment::create([
             'invoice_id' => $invoice->id,
@@ -406,7 +406,7 @@ class DunningService
         return $anchor?->copy()->addDays(self::RETRY_DAYS_AFTER_FIRST[$count]);
     }
 
-    private function defaultPaymentMethod(Customer $customer): ?PaymentMethod
+    private function defaultPaymentMethod(Company $customer): ?PaymentMethod
     {
         return PaymentMethod::where('customer_id', $customer->id)
             ->where('status', 'active')
@@ -445,7 +445,7 @@ class DunningService
     /**
      * @return array<string, mixed>
      */
-    private function result(Invoice $invoice, Customer $customer, int $attempt, string $status, string $reason, ?string $paymentIntentId = null): array
+    private function result(Invoice $invoice, Company $customer, int $attempt, string $status, string $reason, ?string $paymentIntentId = null): array
     {
         return [
             'invoice_id' => $invoice->id,

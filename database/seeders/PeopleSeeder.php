@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\PersonRole;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Person;
 use Illuminate\Database\Seeder;
 
@@ -21,7 +21,7 @@ class PeopleSeeder extends Seeder
 {
     public function run(): void
     {
-        $customers = Customer::orderBy('id')->take(3)->get();
+        $customers = Company::orderBy('id')->take(3)->get();
 
         if ($customers->count() < 2) {
             $this->command?->warn('PeopleSeeder: need at least 2 customers to demo multi-company ownership — skipping.');

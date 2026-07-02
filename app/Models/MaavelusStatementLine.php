@@ -15,7 +15,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read MaavelusStatement|null $statement
- * @property-read Customer|null $customer
+ * @property-read Company|null $customer
  */
 class MaavelusStatementLine extends Model
 {
@@ -40,6 +40,6 @@ class MaavelusStatementLine extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 }

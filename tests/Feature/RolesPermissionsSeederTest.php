@@ -24,7 +24,7 @@ class RolesPermissionsSeederTest extends TestCase
      * @var list<string>
      */
     private const EXPECTED_STAFF = [
-        'customers.access', 'customers.manage',
+        'companies.access', 'companies.manage',
         'people.access', 'people.manage',
         'invoices.access', 'invoices.manage',
         'leads.manage',
@@ -67,7 +67,7 @@ class RolesPermissionsSeederTest extends TestCase
         // Sanity: the permission exists (it's created, just withheld) and a
         // routine staff capability is still granted.
         $this->assertTrue(Permission::where('name', 'settings.integrations')->where('guard_name', 'web')->exists());
-        $this->assertTrue($staff->hasPermissionTo('customers.manage'));
+        $this->assertTrue($staff->hasPermissionTo('companies.manage'));
         $this->assertTrue($staff->hasPermissionTo('support.view_unassigned'));
     }
 

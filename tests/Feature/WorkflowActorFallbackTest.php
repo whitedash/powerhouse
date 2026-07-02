@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Lead;
 use App\Models\Note;
 use App\Models\User;
@@ -89,7 +89,7 @@ class WorkflowActorFallbackTest extends TestCase
     public function test_add_note_with_no_creator_falls_back_to_the_super_admin(): void
     {
         $admin = User::factory()->create(['role' => 'super_admin']);
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
         $this->makeWorkflow($admin->id, 'add_note', [
             'content_template' => 'Note about {{first_name}}',
             // No created_by.
@@ -110,7 +110,7 @@ class WorkflowActorFallbackTest extends TestCase
     {
         Log::spy();
         $staff = User::factory()->create(['role' => 'staff']);
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
         $this->makeWorkflow($staff->id, 'add_note', ['content_template' => 'Note about {{first_name}}']);
 
         app(WorkflowEngine::class)->trigger('form_submitted', [

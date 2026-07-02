@@ -65,7 +65,7 @@ const SOURCE_CLASS = {
                     </colgroup>
                     <thead>
                         <tr>
-                            <th>Customer</th>
+                            <th>Company</th>
                             <th>Referrer</th>
                             <th>Source</th>
                             <th>Product</th>
@@ -75,7 +75,7 @@ const SOURCE_CLASS = {
                     </thead>
                     <tbody>
                         <tr v-for="r in referrals.data" :key="r.id">
-                            <td><Link :href="`/customers/${r.customer_id}`" class="rl-link">{{ r.customer_name }}</Link></td>
+                            <td><Link :href="`/companies/${r.customer_id}`" class="rl-link">{{ r.customer_name }}</Link></td>
                             <td><Link :href="`/referrers/${r.referrer_id}`" class="rl-link">{{ r.referrer_name }}</Link></td>
                             <td><span class="badge badge-sm" :class="SOURCE_CLASS[r.source] || 'badge-inactive'">{{ r.source_label }}</span></td>
                             <td><span :class="{ muted: ! r.product }">{{ r.product ?? '—' }}</span></td>

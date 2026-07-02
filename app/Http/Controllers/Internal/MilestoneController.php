@@ -6,7 +6,7 @@ use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Public\ProposalAcceptanceController;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Milestone;
 use App\Models\PaymentScheduleItem;
@@ -30,7 +30,7 @@ class MilestoneController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $data = $request->validate([
             'project_id' => 'required|integer|exists:projects,id',
@@ -69,7 +69,7 @@ class MilestoneController extends Controller
 
     public function update(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $milestone = Milestone::findOrFail($id);
         $this->authorizeScopeItem(ScopeArea::Projects, Project::findOrFail($milestone->project_id));
@@ -141,7 +141,7 @@ class MilestoneController extends Controller
 
     public function destroy(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $milestone = Milestone::findOrFail($id);
         $this->authorizeScopeItem(ScopeArea::Projects, Project::findOrFail($milestone->project_id));
@@ -173,7 +173,7 @@ class MilestoneController extends Controller
      */
     public function reorder(Request $request): JsonResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $data = $request->validate([
             'items' => 'required|array|min:1',

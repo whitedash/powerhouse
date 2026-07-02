@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BillingEntity;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Domain;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
@@ -67,7 +67,7 @@ class DomainRenewalInvoiceTest extends TestCase
 
     private function domain(string $tld, array $overrides = []): Domain
     {
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
 
         return Domain::create(array_merge([
             'customer_id' => $customer->id,

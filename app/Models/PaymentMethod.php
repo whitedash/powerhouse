@@ -25,7 +25,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read string $label
- * @property-read Customer|null $customer
+ * @property-read Company|null $customer
  */
 class PaymentMethod extends Model
 {
@@ -52,11 +52,11 @@ class PaymentMethod extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     /**
-     * Customer-safe one-liner, e.g. "Visa ending 4242 · exp 04/27".
+     * Company-safe one-liner, e.g. "Visa ending 4242 · exp 04/27".
      */
     protected function label(): Attribute
     {

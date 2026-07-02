@@ -76,7 +76,7 @@ function formatPeriod(c) {
             <table class="referrer-table">
                 <thead>
                     <tr>
-                        <th>Customer</th>
+                        <th>Company</th>
                         <th>Product</th>
                         <th>Type</th>
                         <th class="num">Gross</th>

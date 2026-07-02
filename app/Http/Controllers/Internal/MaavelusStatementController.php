@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Internal;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\CommissionLedger;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\MaavelusStatement;
 use App\Models\MaavelusStatementLine;
 use App\Services\MaavelusStatementService;
@@ -42,7 +42,7 @@ class MaavelusStatementController extends Controller
             ])
             ->all();
 
-        $maavelusCustomers = Customer::whereNull('archived_at')
+        $maavelusCustomers = Company::whereNull('archived_at')
             ->whereHas('customerProducts', function ($q) {
                 $q->where('status', 'active')
                     ->whereHas('product', fn ($p) => $p->where('slug', 'maavelus'));

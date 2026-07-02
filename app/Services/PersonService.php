@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Enums\PersonRole;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Person;
 use App\Models\User;
 use Illuminate\Database\QueryException;
@@ -111,7 +111,7 @@ class PersonService
         // same new email can insert the Person between this check and ours.
         // The people.email UNIQUE index then rejects our insert; recover by
         // re-reading and reusing the winner rather than letting the exception
-        // propagate (previously swallowed by CustomerController's after-commit
+        // propagate (previously swallowed by CompanyController's after-commit
         // catch, which silently left contacts.person_id null).
         try {
             return $this->create(['name' => $name, 'email' => $email], $actor);
@@ -133,7 +133,7 @@ class PersonService
      */
     public function attachCompany(
         Person $person,
-        Customer $customer,
+        Company $customer,
         PersonRole $role,
         ?string $jobTitle,
         User $actor,
@@ -157,7 +157,7 @@ class PersonService
         });
     }
 
-    public function detachCompany(Person $person, Customer $customer, User $actor): void
+    public function detachCompany(Person $person, Company $customer, User $actor): void
     {
         DB::transaction(function () use ($person, $customer, $actor): void {
             $person->companies()->detach($customer->id);
@@ -175,7 +175,7 @@ class PersonService
      */
     public function setRole(
         Person $person,
-        Customer $customer,
+        Company $customer,
         PersonRole $role,
         ?string $jobTitle,
         User $actor,

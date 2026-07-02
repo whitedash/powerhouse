@@ -5,8 +5,8 @@ namespace Tests\Feature;
 use App\Mail\FailedPaymentNotice;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
+use App\Models\Company;
 use App\Models\Contact;
-use App\Models\Customer;
 use App\Models\CustomerProduct;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -46,7 +46,7 @@ class DunningTest extends TestCase
      * card, Stripe mapping, and $failed prior stripe attempts (the first
      * anchored $firstDaysAgo ago).
      *
-     * @return array{0: Customer, 1: Invoice}
+     * @return array{0: Company, 1: Invoice}
      */
     private function dunningInvoice(int $failed = 1, int $firstDaysAgo = 4, string $status = 'overdue', string $attemptStatus = 'failed', float $total = 100.0): array
     {
@@ -54,7 +54,7 @@ class DunningTest extends TestCase
             'name' => 'WD', 'legal_name' => 'Whitedash Ltd',
             'postmark_sender_email' => 'b@wd.test', 'postmark_sender_name' => 'WD',
         ]);
-        $customer = Customer::create(['name' => 'Acme '.uniqid(), 'auto_collect' => true]);
+        $customer = Company::create(['name' => 'Acme '.uniqid(), 'auto_collect' => true]);
         Contact::create(['customer_id' => $customer->id, 'name' => 'Pat', 'email' => 'pat@acme.test', 'is_primary' => true]);
         StripeCustomer::create(['customer_id' => $customer->id, 'stripe_customer_id' => 'cus_'.$customer->id]);
         PaymentMethod::create([

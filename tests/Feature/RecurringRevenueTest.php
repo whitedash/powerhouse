@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Domain;
 use App\Models\Product;
@@ -55,7 +55,7 @@ class RecurringRevenueTest extends TestCase
         ]);
     }
 
-    private function serviceCp(Customer $c, ProductPlanPrice $tier, string $status = 'active'): CustomerProduct
+    private function serviceCp(Company $c, ProductPlanPrice $tier, string $status = 'active'): CustomerProduct
     {
         return CustomerProduct::create([
             'customer_id' => $c->id,
@@ -67,7 +67,7 @@ class RecurringRevenueTest extends TestCase
         ]);
     }
 
-    private function hostingSite(Customer $c, ProductPlanPrice $tier, string $hostingStatus = 'active'): Website
+    private function hostingSite(Company $c, ProductPlanPrice $tier, string $hostingStatus = 'active'): Website
     {
         return Website::create([
             'customer_id' => $c->id,
@@ -82,7 +82,7 @@ class RecurringRevenueTest extends TestCase
         ]);
     }
 
-    private function domain(Customer $c, ProductPlan $plan, bool $autoRenew = true): Domain
+    private function domain(Company $c, ProductPlan $plan, bool $autoRenew = true): Domain
     {
         return Domain::create([
             'customer_id' => $c->id,
@@ -97,7 +97,7 @@ class RecurringRevenueTest extends TestCase
 
     public function test_total_is_the_sum_of_services_hosting_and_domains(): void
     {
-        $c = Customer::create(['name' => 'Acme']);
+        $c = Company::create(['name' => 'Acme']);
         $this->serviceCp($c, $this->planPrice(30.00, 'month', 'service'));   // £30
         $this->hostingSite($c, $this->planPrice(20.00, 'month', 'hosting')); // £20
         $domTier = $this->planPrice(120.00, 'year', 'domain');              // £120/yr → £10/mo
@@ -114,7 +114,7 @@ class RecurringRevenueTest extends TestCase
 
     public function test_per_customer_sums_all_three_sources_for_one_customer(): void
     {
-        $c = Customer::create(['name' => 'Acme']);
+        $c = Company::create(['name' => 'Acme']);
         $this->serviceCp($c, $this->planPrice(30.00, 'month', 'service'));
         $this->hostingSite($c, $this->planPrice(20.00, 'month', 'hosting'));
         $this->domain($c, $this->planPrice(120.00, 'year', 'domain')->plan);
@@ -126,7 +126,7 @@ class RecurringRevenueTest extends TestCase
 
     public function test_suspended_hosting_and_auto_renew_off_domain_are_excluded(): void
     {
-        $c = Customer::create(['name' => 'Acme']);
+        $c = Company::create(['name' => 'Acme']);
         $this->hostingSite($c, $this->planPrice(20.00, 'month', 'hosting'), hostingStatus: 'suspended');
         $this->domain($c, $this->planPrice(120.00, 'year', 'domain')->plan, autoRenew: false);
 
@@ -137,7 +137,7 @@ class RecurringRevenueTest extends TestCase
 
     public function test_cancelled_and_suspended_customer_products_are_excluded(): void
     {
-        $c = Customer::create(['name' => 'Acme']);
+        $c = Company::create(['name' => 'Acme']);
         $tier = $this->planPrice(30.00, 'month', 'service');
         $this->serviceCp($c, $tier, status: 'cancelled');
         $this->serviceCp($c, $tier, status: 'suspended');
@@ -147,7 +147,7 @@ class RecurringRevenueTest extends TestCase
 
     public function test_a_stray_hosting_or_domain_customer_product_is_not_double_counted(): void
     {
-        $c = Customer::create(['name' => 'Acme']);
+        $c = Company::create(['name' => 'Acme']);
         // A real hosting website (£20) + a STRAY active CP whose plan is
         // is_hosting — the stray must NOT add to MRR.
         $hostTier = $this->planPrice(20.00, 'month', 'hosting');
@@ -166,7 +166,7 @@ class RecurringRevenueTest extends TestCase
 
     public function test_per_plan_and_per_product_breakdowns_are_correct(): void
     {
-        $c = Customer::create(['name' => 'Acme']);
+        $c = Company::create(['name' => 'Acme']);
         $svc = $this->planPrice(30.00, 'month', 'service');
         $host = $this->planPrice(20.00, 'month', 'hosting');
         $this->serviceCp($c, $svc);
@@ -192,7 +192,7 @@ class RecurringRevenueTest extends TestCase
 
     public function test_hosting_only_customer_is_active(): void
     {
-        $c = Customer::create(['name' => 'Hosting Only']);
+        $c = Company::create(['name' => 'Hosting Only']);
         $this->hostingSite($c, $this->planPrice(10.00, 'month', 'hosting'));
 
         $this->assertTrue(RecurringRevenue::compute()->isActiveCustomer($c->id));
@@ -200,7 +200,7 @@ class RecurringRevenueTest extends TestCase
 
     public function test_domain_only_customer_is_active(): void
     {
-        $c = Customer::create(['name' => 'Domain Only']);
+        $c = Company::create(['name' => 'Domain Only']);
         $this->domain($c, $this->planPrice(120.00, 'year', 'domain')->plan);
 
         $this->assertTrue(RecurringRevenue::compute()->isActiveCustomer($c->id));
@@ -208,7 +208,7 @@ class RecurringRevenueTest extends TestCase
 
     public function test_service_only_customer_is_active(): void
     {
-        $c = Customer::create(['name' => 'Service Only']);
+        $c = Company::create(['name' => 'Service Only']);
         $this->serviceCp($c, $this->planPrice(30.00, 'month', 'service'));
 
         $this->assertTrue(RecurringRevenue::compute()->isActiveCustomer($c->id));
@@ -217,7 +217,7 @@ class RecurringRevenueTest extends TestCase
     public function test_zero_priced_active_service_still_reads_active(): void
     {
         // "Has an active arrangement", NOT strictly MRR > 0.
-        $c = Customer::create(['name' => 'Free Service']);
+        $c = Company::create(['name' => 'Free Service']);
         $this->serviceCp($c, $this->planPrice(0.00, 'month', 'service'));
 
         $rr = RecurringRevenue::compute();
@@ -227,7 +227,7 @@ class RecurringRevenueTest extends TestCase
 
     public function test_customer_with_nothing_active_is_inactive(): void
     {
-        $c = Customer::create(['name' => 'Nothing']);
+        $c = Company::create(['name' => 'Nothing']);
         // Suspended hosting + auto_renew-off domain + cancelled CP → none active.
         $this->hostingSite($c, $this->planPrice(20.00, 'month', 'hosting'), hostingStatus: 'suspended');
         $this->domain($c, $this->planPrice(120.00, 'year', 'domain')->plan, autoRenew: false);
@@ -241,11 +241,11 @@ class RecurringRevenueTest extends TestCase
     {
         // End-to-end: the customers index exposes is_active=true for a
         // hosting-only customer (the badge then reads Active).
-        $c = Customer::create(['name' => 'Acme Hosting', 'pipeline_stage' => 'active']);
+        $c = Company::create(['name' => 'Acme Hosting', 'pipeline_stage' => 'active']);
         $this->hostingSite($c, $this->planPrice(10.00, 'month', 'hosting'));
 
         $this->actingAs($this->user)
-            ->get('/customers')
+            ->get('/companies')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('Internal/Customers/Index')

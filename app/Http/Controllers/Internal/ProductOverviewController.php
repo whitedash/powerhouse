@@ -312,7 +312,7 @@ class ProductOverviewController extends Controller
     /**
      * product.enabled + product.suspended audit-log entries that
      * mention this product. The product_id is stashed in the JSON
-     * after-payload by CustomerController + ProvisioningController,
+     * after-payload by CompanyController + ProvisioningController,
      * so a JSON-path where() finds them with one round-trip.
      *
      * @return array<int, array<string, mixed>>

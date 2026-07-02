@@ -244,7 +244,7 @@ function money(n) { return `£${Number(n || 0).toLocaleString('en-GB', { minimum
                         <tr>
                             <th style="width: 140px;">Reference</th>
                             <th>Title</th>
-                            <th style="width: 160px;">Customer</th>
+                            <th style="width: 160px;">Company</th>
                             <th style="width: 100px;" class="num">Total</th>
                             <th style="width: 130px;">Status</th>
                             <th style="width: 110px;">Valid until</th>
@@ -328,7 +328,7 @@ function money(n) { return `£${Number(n || 0).toLocaleString('en-GB', { minimum
 
                         <div class="form-row-2">
                             <div class="form-section">
-                                <label class="form-label">Customer <span class="req">*</span></label>
+                                <label class="form-label">Company <span class="req">*</span></label>
                                 <select v-model="form.customer_id" class="form-input" required>
                                     <option :value="null">Pick a customer…</option>
                                     <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</option>

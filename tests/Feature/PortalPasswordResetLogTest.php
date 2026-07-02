@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\PortalUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
@@ -25,7 +25,7 @@ class PortalPasswordResetLogTest extends TestCase
         Mail::fake();
         Log::spy();
 
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
         PortalUser::create([
             'customer_id' => $customer->id,
             'name' => 'Lead',

@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Mail\ProposalSent;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
+use App\Models\Company;
 use App\Models\Contract;
-use App\Models\Customer;
 use App\Models\PaymentSchedule;
 use App\Models\PaymentScheduleItem;
 use App\Models\Product;
@@ -43,7 +43,7 @@ use Throwable;
  * into this controller's generatePdf() helper to render the
  * accepted PDF.
  *
- * Authorisation: gates through CustomerPolicy::viewAny like the
+ * Authorisation: gates through CompanyPolicy::viewAny like the
  * other internal controllers. A Sprint-2 ProposalPolicy can
  * tighten per-row visibility later if the team grows.
  */
@@ -53,7 +53,7 @@ class ProposalController extends Controller
 
     public function index(Request $request): Response
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $proposals = Proposal::query()
             ->with([
@@ -105,7 +105,7 @@ class ProposalController extends Controller
                 'status' => $request->string('status')->toString(),
                 'search' => $request->string('search')->toString(),
             ],
-            'customers' => Customer::whereNull('archived_at')->orderBy('name')->get(['id', 'name']),
+            'customers' => Company::whereNull('archived_at')->orderBy('name')->get(['id', 'name']),
             'billing_entities' => BillingEntity::where('is_active', true)
                 ->get(['id', 'name', 'vat_registered', 'default_vat_rate']),
             'products' => Product::where('is_active', true)
@@ -117,7 +117,7 @@ class ProposalController extends Controller
 
     public function show(int $id): Response
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $proposal = Proposal::with([
             'customer.primaryContact',
@@ -143,7 +143,7 @@ class ProposalController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $data = $request->validate([
             'customer_id' => 'required|integer|exists:customers,id',
@@ -313,7 +313,7 @@ class ProposalController extends Controller
 
     public function destroy(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $proposal = Proposal::findOrFail($id);
 
@@ -337,7 +337,7 @@ class ProposalController extends Controller
      */
     public function send(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $proposal = Proposal::findOrFail($id);
 
@@ -396,7 +396,7 @@ class ProposalController extends Controller
      */
     public function regenerateLink(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $proposal = Proposal::findOrFail($id);
 
@@ -441,7 +441,7 @@ class ProposalController extends Controller
 
     public function downloadPdf(int $id): StreamedResponse|\Illuminate\Http\Response
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $proposal = Proposal::findOrFail($id);
 
@@ -461,7 +461,7 @@ class ProposalController extends Controller
 
     public function downloadAcceptedPdf(int $id): StreamedResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $proposal = Proposal::findOrFail($id);
 
@@ -480,7 +480,7 @@ class ProposalController extends Controller
      */
     public function convertToContract(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $proposal = Proposal::findOrFail($id);
 
@@ -489,7 +489,7 @@ class ProposalController extends Controller
         }
 
         if ($proposal->contract_id !== null) {
-            return redirect('/customers/'.$proposal->customer_id)
+            return redirect('/companies/'.$proposal->customer_id)
                 ->with('success', "Proposal {$proposal->reference} already linked to a contract.");
         }
 
@@ -503,7 +503,7 @@ class ProposalController extends Controller
                 'value' => $proposal->total,
                 'signed_at' => $proposal->accepted_at?->toDateString(),
                 'description' => 'Generated from proposal '.$proposal->reference,
-                'notes' => 'Customer accepted via online acceptance link on '
+                'notes' => 'Company accepted via online acceptance link on '
                     .$proposal->accepted_at?->format('d M Y')
                     .' from IP '.($proposal->accepted_ip ?? 'unknown').'.',
             ]);
@@ -534,7 +534,7 @@ class ProposalController extends Controller
             return $contract;
         });
 
-        return redirect('/customers/'.$proposal->customer_id)
+        return redirect('/companies/'.$proposal->customer_id)
             ->with('success', "Contract created from proposal {$proposal->reference}.");
     }
 

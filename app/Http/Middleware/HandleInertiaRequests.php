@@ -97,7 +97,7 @@ class HandleInertiaRequests extends Middleware
                 'info' => fn () => $request->session()->get('info'),
                 /*
                  * Portal invitation flow flashes a temp password back to staff
-                 * exactly once. The shape lives in CustomerController@inviteToPortal —
+                 * exactly once. The shape lives in CompanyController@inviteToPortal —
                  * {email, password, message}. Surface it here so Customers/Show.vue
                  * can pop a one-time modal without polluting the success channel.
                  */

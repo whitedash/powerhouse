@@ -43,7 +43,7 @@ use Illuminate\Support\Carbon;
  * @property bool $is_pinned
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Customer|null $customer
+ * @property-read Company|null $customer
  * @property-read Lead|null $lead
  * @property-read Project|null $project
  * @property-read Milestone|null $milestone
@@ -122,7 +122,7 @@ class Task extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     public function contact(): BelongsTo
@@ -261,7 +261,7 @@ class Task extends Model
      * Tabler icon name keyed by activity type. Frontend resolves the
      * Vue component from the name so we don't ship an import map server-
      * side. Lives on the model rather than the controller because the
-     * Dashboard list and Customer timeline both need it.
+     * Dashboard list and Company timeline both need it.
      */
     protected function typeIcon(): Attribute
     {

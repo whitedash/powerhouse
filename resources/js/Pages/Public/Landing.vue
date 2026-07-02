@@ -14,7 +14,7 @@ import PublicLayout from '@/Layouts/PublicLayout.vue';
  * by LandingController). Hero + three-door cards + featured-help strip +
  * support CTA.
  *
- * Live now: Customer login (/portal/login), Partner login (/login),
+ * Live now: Company login (/portal/login), Partner login (/login),
  * Knowledge base (/kb) + featured articles. Still "Soon": Submit a ticket
  * (/support, Phase 3) and Become a partner (/apply, referral Phase 2).
  */
@@ -37,7 +37,7 @@ defineProps({
                 </p>
                 <div class="hero-cta">
                     <a href="/portal/login" class="btn btn-primary btn-lg">
-                        Customer login <IconArrowRight :size="16" stroke-width="1.75" />
+                        Company login <IconArrowRight :size="16" stroke-width="1.75" />
                     </a>
                     <a href="/login" class="btn btn-secondary btn-lg">Partner login</a>
                 </div>

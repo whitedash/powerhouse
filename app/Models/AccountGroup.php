@@ -16,7 +16,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $created_by
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Collection<int, Customer> $customers
+ * @property-read Collection<int, Company> $customers
  * @property-read User|null $createdBy
  */
 class AccountGroup extends Model
@@ -31,7 +31,7 @@ class AccountGroup extends Model
     public function customers(): BelongsToMany
     {
         // Pivot table has only created_at — no updated_at — per SCHEMA.md.
-        return $this->belongsToMany(Customer::class, 'customer_group_memberships', 'group_id', 'customer_id')
+        return $this->belongsToMany(Company::class, 'customer_group_memberships', 'group_id', 'customer_id')
             ->withPivot('role', 'created_at');
     }
 

@@ -55,7 +55,7 @@ use Illuminate\Support\Carbon;
  * @property-read float $mrr_contribution
  * @property-read float $arr_contribution
  * @property-read string $interval_label
- * @property-read Customer|null $customer
+ * @property-read Company|null $customer
  * @property-read Product|null $product
  * @property-read ProductPlan|null $productPlan
  * @property-read ProductPlanPrice|null $planPrice
@@ -145,7 +145,7 @@ class CustomerProduct extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     public function product(): BelongsTo

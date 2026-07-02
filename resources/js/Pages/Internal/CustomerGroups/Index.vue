@@ -10,7 +10,7 @@ const props = defineProps({
 });
 
 const breadcrumbs = [
-    { label: 'Customers', href: '/customers' },
+    { label: 'Companies', href: '/companies' },
     { label: 'Groups' },
 ];
 
@@ -87,9 +87,9 @@ function performDelete() {
 </script>
 
 <template>
-    <Head title="Customer groups" />
+    <Head title="Company groups" />
 
-    <InternalLayout title="Customer groups" :breadcrumbs="breadcrumbs" active-nav="customers">
+    <InternalLayout title="Company groups" :breadcrumbs="breadcrumbs" active-nav="customers">
         <template #topbar-actions>
             <button type="button" class="btn btn-primary" @click="openCreate">
                 <IconPlus :size="15" stroke-width="1.75" />

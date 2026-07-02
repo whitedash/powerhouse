@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Product;
 use App\Models\ProductPlan;
@@ -29,9 +29,9 @@ class WebsiteHostingTest extends TestCase
         $this->actingAs($this->user);
     }
 
-    private function customer(): Customer
+    private function customer(): Company
     {
-        return Customer::create(['name' => 'Acme '.uniqid()]);
+        return Company::create(['name' => 'Acme '.uniqid()]);
     }
 
     private function hostingPlan(bool $isDomain = false): ProductPlan

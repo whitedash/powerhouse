@@ -12,12 +12,12 @@ use Tests\TestCase;
  * Section-enforcement sprint, step 10 — read-only access gating batch.
  *
  * Section SHELL/read routes now gate their own .access permission (route
- * middleware), replacing coarse-role / customers.access read-gating:
+ * middleware), replacing coarse-role / companies.access read-gating:
  *  - settings.access  → GET /settings (shell only; sub-pages keep their own gates)
  *  - expenses.access  → GET /expenses, /expenses/{id}/receipt, /suppliers
- *                       (compose with the in-method customers.access viewAny)
+ *                       (compose with the in-method companies.access viewAny)
  *  - referrers.access → GET /referrers, /referrers/{id} (clean), /referrals
- *                       (composes with in-method customers.access viewAny)
+ *                       (composes with in-method companies.access viewAny)
  *
  * proposals.access (step 3) and hosting.access (step 6) were already gated — not
  * retouched here. super_admin bypasses via Gate::before. Mutations + already-gated
@@ -73,25 +73,25 @@ class ReadOnlyAccessGatingTest extends TestCase
         $this->actingAs($this->userWith(['settings.access']))->get('/settings/notifications')->assertForbidden();
     }
 
-    // ─── expenses.access (composes with in-method customers.access viewAny) ───
+    // ─── expenses.access (composes with in-method companies.access viewAny) ───
 
     public function test_expenses_index_403_without_expenses_access(): void
     {
-        // Holds the OLD read gate (customers.access) but not expenses.access → blocked.
-        $this->actingAs($this->userWith(['customers.access']))->get('/expenses')->assertForbidden();
+        // Holds the OLD read gate (companies.access) but not expenses.access → blocked.
+        $this->actingAs($this->userWith(['companies.access']))->get('/expenses')->assertForbidden();
     }
 
     public function test_expenses_reads_succeed_with_expenses_access(): void
     {
-        // Composition: route expenses.access + in-method customers.access (viewAny).
-        $user = $this->userWith(['expenses.access', 'customers.access']);
+        // Composition: route expenses.access + in-method companies.access (viewAny).
+        $user = $this->userWith(['expenses.access', 'companies.access']);
         $this->actingAs($user)->get('/expenses')->assertOk();
         $this->actingAs($user)->get('/suppliers')->assertOk();
     }
 
     public function test_expenses_access_does_not_grant_mutations(): void
     {
-        $user = $this->userWith(['expenses.access', 'customers.access']);
+        $user = $this->userWith(['expenses.access', 'companies.access']);
         $this->actingAs($user)->post('/expenses')->assertForbidden(); // needs expenses.manage
     }
 
@@ -100,16 +100,16 @@ class ReadOnlyAccessGatingTest extends TestCase
     public function test_referrers_reads_403_without_referrers_access(): void
     {
         $this->actingAs($this->userWith([]))->get('/referrers')->assertForbidden();
-        // /referrals: even with the old customers.access gate, the route now needs referrers.access.
-        $this->actingAs($this->userWith(['customers.access']))->get('/referrals')->assertForbidden();
+        // /referrals: even with the old companies.access gate, the route now needs referrers.access.
+        $this->actingAs($this->userWith(['companies.access']))->get('/referrals')->assertForbidden();
     }
 
     public function test_referrers_reads_succeed_with_referrers_access(): void
     {
         // referrers index/show are clean section-only gates.
         $this->actingAs($this->userWith(['referrers.access']))->get('/referrers')->assertOk();
-        // /referrals composes the in-method customers.access viewAny.
-        $this->actingAs($this->userWith(['referrers.access', 'customers.access']))->get('/referrals')->assertOk();
+        // /referrals composes the in-method companies.access viewAny.
+        $this->actingAs($this->userWith(['referrers.access', 'companies.access']))->get('/referrals')->assertOk();
     }
 
     public function test_referrers_access_does_not_grant_mutations(): void

@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BillingEntity;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Expense;
 use App\Models\Form;
 use App\Models\Milestone;
@@ -129,7 +129,7 @@ class IssueADataExposureEnforcementTest extends TestCase
 
     public function test_expense_update_to_approved_403_without_approve(): void
     {
-        $user = $this->userWith(['customers.access']); // reaches update, lacks expenses.approve
+        $user = $this->userWith(['companies.access']); // reaches update, lacks expenses.approve
         $expense = $this->makeExpense('pending');
 
         $this->actingAs($user)
@@ -141,7 +141,7 @@ class IssueADataExposureEnforcementTest extends TestCase
 
     public function test_expense_update_to_paid_403_without_approve(): void
     {
-        $user = $this->userWith(['customers.access']);
+        $user = $this->userWith(['companies.access']);
         $expense = $this->makeExpense('pending');
 
         $this->actingAs($user)
@@ -155,7 +155,7 @@ class IssueADataExposureEnforcementTest extends TestCase
     {
         // Editing details (status unchanged) now requires expenses.manage (sprint
         // step 2) but NOT expenses.approve (no status change).
-        $user = $this->userWith(['customers.access', 'expenses.manage']);
+        $user = $this->userWith(['companies.access', 'expenses.manage']);
         $expense = $this->makeExpense('pending');
 
         $this->actingAs($user)
@@ -168,7 +168,7 @@ class IssueADataExposureEnforcementTest extends TestCase
 
     public function test_expense_update_to_approved_succeeds_with_approve(): void
     {
-        $user = $this->userWith(['customers.access', 'expenses.manage', 'expenses.approve']);
+        $user = $this->userWith(['companies.access', 'expenses.manage', 'expenses.approve']);
         $expense = $this->makeExpense('pending');
 
         $this->actingAs($user)
@@ -193,14 +193,14 @@ class IssueADataExposureEnforcementTest extends TestCase
 
     public function test_project_generate_invoice_403_without_invoices_manage(): void
     {
-        // customers.access passes the first gate; the new create-Invoice gate must block.
-        $user = $this->userWith(['customers.access', 'projects.manage']);
+        // companies.access passes the first gate; the new create-Invoice gate must block.
+        $user = $this->userWith(['companies.access', 'projects.manage']);
         $this->actingAs($user)->post('/projects/1/invoice', [])->assertForbidden();
     }
 
     public function test_project_generate_invoice_authorized_with_invoices_manage(): void
     {
-        $staff = User::factory()->create(); // holds customers.access + invoices.manage + projects scope All
+        $staff = User::factory()->create(); // holds companies.access + invoices.manage + projects scope All
         // Past both gates → findOrFail on a missing project (404), NOT 403. Proves
         // the new invoices.manage gate does not over-block a permitted user.
         $this->actingAs($staff)->post('/projects/999999/invoice', [])->assertNotFound();
@@ -208,7 +208,7 @@ class IssueADataExposureEnforcementTest extends TestCase
 
     public function test_payment_schedule_trigger_403_without_invoices_manage(): void
     {
-        $user = $this->userWith(['customers.access']);
+        $user = $this->userWith(['companies.access']);
         $this->actingAs($user)->post('/payment-schedules/items/1/trigger', [])->assertForbidden();
     }
 
@@ -275,7 +275,7 @@ class IssueADataExposureEnforcementTest extends TestCase
 
     public function test_analytics_403_without_permission(): void
     {
-        $user = $this->userWith(['customers.access']); // lacks analytics.access
+        $user = $this->userWith(['companies.access']); // lacks analytics.access
         $this->actingAs($user)->get('/analytics')->assertForbidden();
     }
 
@@ -287,7 +287,7 @@ class IssueADataExposureEnforcementTest extends TestCase
 
     public function test_provisioning_and_subscriptions_403_without_permission(): void
     {
-        $user = $this->userWith(['customers.access']); // lacks provisioning.access
+        $user = $this->userWith(['companies.access']); // lacks provisioning.access
         $this->actingAs($user)->get('/provisioning')->assertForbidden();
         $this->actingAs($user)->get('/subscriptions')->assertForbidden();
     }
@@ -311,7 +311,7 @@ class IssueADataExposureEnforcementTest extends TestCase
 
     public function test_expense_store_as_approved_403_without_approve(): void
     {
-        $user = $this->userWith(['customers.access']); // can create expenses, lacks expenses.approve
+        $user = $this->userWith(['companies.access']); // can create expenses, lacks expenses.approve
         $this->actingAs($user)
             ->post('/expenses', $this->expensePayload(['status' => 'approved', 'description' => 'Sneak approved']))
             ->assertForbidden();
@@ -322,7 +322,7 @@ class IssueADataExposureEnforcementTest extends TestCase
     {
         // Creating a normal (pending) expense now requires expenses.manage (sprint
         // step 2) but NOT expenses.approve (status pending).
-        $user = $this->userWith(['customers.access', 'expenses.manage']);
+        $user = $this->userWith(['companies.access', 'expenses.manage']);
         $this->actingAs($user)
             ->post('/expenses', $this->expensePayload(['status' => 'pending', 'description' => 'Normal expense']))
             ->assertRedirect();
@@ -331,7 +331,7 @@ class IssueADataExposureEnforcementTest extends TestCase
 
     public function test_expense_store_as_approved_succeeds_with_approve(): void
     {
-        $user = $this->userWith(['customers.access', 'expenses.manage', 'expenses.approve']);
+        $user = $this->userWith(['companies.access', 'expenses.manage', 'expenses.approve']);
         $this->actingAs($user)
             ->post('/expenses', $this->expensePayload(['status' => 'approved', 'description' => 'Legit approved']))
             ->assertRedirect();
@@ -358,7 +358,7 @@ class IssueADataExposureEnforcementTest extends TestCase
         // Precision: completing a milestone with NO billing items needs only
         // projects access, never invoices.manage — the gate must not over-block.
         $user = $this->projectScopedUser(['projects.manage']);
-        $customer = Customer::create(['name' => 'NoBill '.uniqid()]);
+        $customer = Company::create(['name' => 'NoBill '.uniqid()]);
         $project = Project::create(['title' => 'P', 'customer_id' => $customer->id, 'created_by' => User::factory()->create()->id]);
         $milestone = Milestone::create(['project_id' => $project->id, 'title' => 'M', 'status' => 'pending']);
 
@@ -384,11 +384,11 @@ class IssueADataExposureEnforcementTest extends TestCase
         $this->assertSame('completed', $milestone->fresh()->status);
     }
 
-    /** Staff-enum user with projects scope = All plus the given permissions (+ customers.access). */
+    /** Staff-enum user with projects scope = All plus the given permissions (+ companies.access). */
     private function projectScopedUser(array $permissions): User
     {
         $role = Role::create(['name' => 'proj_'.uniqid(), 'guard_name' => 'web']);
-        $role->givePermissionTo(array_merge(['customers.access'], $permissions));
+        $role->givePermissionTo(array_merge(['companies.access'], $permissions));
         RoleScope::create(['role_id' => $role->id, 'area' => 'projects', 'scope' => 'all']);
         $user = User::factory()->create();
         $user->syncRoles([$role->name]);
@@ -400,7 +400,7 @@ class IssueADataExposureEnforcementTest extends TestCase
     private function milestoneWithBillingItem(): Milestone
     {
         $owner = User::factory()->create();
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
         $entity = BillingEntity::create([
             'name' => 'Entity '.uniqid(), 'legal_name' => 'Entity Ltd', 'is_active' => true,
             'postmark_sender_email' => 'billing@example.com', 'postmark_sender_name' => 'Billing',

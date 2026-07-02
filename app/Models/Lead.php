@@ -44,7 +44,7 @@ use Illuminate\Support\Carbon;
  * @property-read User $createdBy
  * @property-read User|null $reviewedBy
  * @property-read Referrer|null $referrer
- * @property-read Customer|null $customer
+ * @property-read Company|null $customer
  * @property-read FormSubmission|null $formSubmission
  * @property-read Collection<int, Task> $tasks
  * @property-read Collection<int, Note> $notes_thread
@@ -120,7 +120,7 @@ class Lead extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     /**
@@ -178,7 +178,7 @@ class Lead extends Model
 
     /**
      * Avatar initials. Same shape as the staff initials helper
-     * in Customer::primaryContact so cards stay visually
+     * in Company::primaryContact so cards stay visually
      * consistent across the app.
      */
     protected function initials(): Attribute

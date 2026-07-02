@@ -42,7 +42,7 @@ use Illuminate\Support\Carbon;
  * @property int $created_by
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Customer $customer
+ * @property-read Company $customer
  * @property-read BillingEntity|null $billingEntity
  * @property-read Project|null $project
  * @property-read Contract|null $contract
@@ -106,7 +106,7 @@ class Proposal extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     public function billingEntity(): BelongsTo

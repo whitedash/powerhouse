@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\SupportTicketCreated;
 use App\Mail\SupportTicketReply;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\SupportMessage;
 use App\Models\SupportTicket;
@@ -105,7 +105,7 @@ class SupportController extends Controller
             'staff' => User::whereIn('role', ['super_admin', 'staff'])
                 ->orderBy('name')
                 ->get(['id', 'name']),
-            'customers' => Customer::whereNull('archived_at')
+            'customers' => Company::whereNull('archived_at')
                 ->orderBy('name')
                 ->get(['id', 'name', 'city']),
             'statuses' => self::STATUSES,
@@ -181,7 +181,7 @@ class SupportController extends Controller
                     'sender_name' => $m->sender
                         ? $m->sender->name
                         : ($m->sender_type === 'customer'
-                            ? ($ticket->customer ? $ticket->customer->name : 'Customer')
+                            ? ($ticket->customer ? $ticket->customer->name : 'Company')
                             : ucfirst($m->sender_type)),
                     'sender_role' => $m->sender?->role,
                     'is_staff' => $m->sender_type === 'staff',
@@ -316,7 +316,7 @@ class SupportController extends Controller
         $this->forgetNavCaches();
 
         // Email the reply with a ticket-tagged Reply-To so the response
-        // threads back in via InboundEmailController. Customer tickets go
+        // threads back in via InboundEmailController. Company tickets go
         // to the primary contact; GUEST tickets (customer_id null) fall
         // back to guest_email — without this, guests heard nothing back.
         $to = $ticket->customer?->primaryContact?->email;

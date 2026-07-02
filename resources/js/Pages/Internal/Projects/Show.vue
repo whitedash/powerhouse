@@ -725,7 +725,7 @@ function actionLabel(action) {
                     <div class="project-title-block">
                         <h1>{{ project.title }}</h1>
                         <div class="project-header-meta">
-                            <Link v-if="project.customer_id" :href="`/customers/${project.customer_id}`" class="meta-link">
+                            <Link v-if="project.customer_id" :href="`/companies/${project.customer_id}`" class="meta-link">
                                 {{ project.customer_name }}
                             </Link>
                             <span v-else class="muted">Internal project</span>
@@ -1592,7 +1592,7 @@ function actionLabel(action) {
                             </select>
                         </div>
                         <div class="form-section">
-                            <label class="form-label">Customer</label>
+                            <label class="form-label">Company</label>
                             <select v-model="editForm.customer_id" class="form-input">
                                 <option :value="null">— Unassigned —</option>
                                 <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</option>

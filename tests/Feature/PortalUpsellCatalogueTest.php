@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\PortalUser;
 use App\Models\Product;
 use App\Models\ProductPlan;
@@ -20,7 +20,7 @@ class PortalUpsellCatalogueTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function portalUser(Customer $customer): PortalUser
+    private function portalUser(Company $customer): PortalUser
     {
         return PortalUser::create([
             'customer_id' => $customer->id,
@@ -32,7 +32,7 @@ class PortalUpsellCatalogueTest extends TestCase
 
     public function test_catalogue_exposes_description_features_and_from_price(): void
     {
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
 
         $product = Product::create([
             'slug' => 'comnicube-'.uniqid(),
@@ -69,7 +69,7 @@ class PortalUpsellCatalogueTest extends TestCase
 
     public function test_zero_plan_product_is_excluded_from_catalogue(): void
     {
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
 
         // Public/active plan but NO active price → not subscribable → product hidden.
         $product = Product::create(['slug' => 'np-'.uniqid(), 'name' => 'NoPrice', 'is_active' => true]);
@@ -84,7 +84,7 @@ class PortalUpsellCatalogueTest extends TestCase
 
     public function test_subscribe_request_still_submits_as_pending(): void
     {
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
         $product = Product::create(['slug' => 'svc-'.uniqid(), 'name' => 'Service', 'is_active' => true]);
         $plan = ProductPlan::create(['product_id' => $product->id, 'name' => 'Std', 'is_active' => true, 'is_public' => true]);
         $price = ProductPlanPrice::create(['plan_id' => $plan->id, 'price' => 30.00, 'interval_count' => 1, 'interval_unit' => 'month', 'is_default' => true, 'is_active' => true, 'sort_order' => 0]);

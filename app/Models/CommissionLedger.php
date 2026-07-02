@@ -26,7 +26,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Referrer|null $referrer
- * @property-read Customer|null $customer
+ * @property-read Company|null $customer
  * @property-read Invoice|null $invoice
  * @property-read CommissionRule|null $rule
  * @property-read Product|null $product
@@ -73,7 +73,7 @@ class CommissionLedger extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     public function invoice(): BelongsTo

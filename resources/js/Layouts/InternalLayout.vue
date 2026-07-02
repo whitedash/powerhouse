@@ -252,7 +252,7 @@ const sections = computed(() => {
                     icon: IconUsers,
                     children: [
                         { key: 'people', label: 'People', href: '/people', icon: IconUser },
-                        { key: 'customers', label: 'Companies', href: '/customers', icon: IconUsers },
+                        { key: 'customers', label: 'Companies', href: '/companies', icon: IconUsers },
                         { key: 'referrers', label: 'Referrers', href: '/referrers', icon: IconUsersGroup },
                         { key: 'referrals', label: 'Referrals', href: '/referrals', icon: IconShare },
                     ],
@@ -415,7 +415,7 @@ function searchIcon(name) {
 }
 
 const SEARCH_TYPE_LABEL = {
-    customer: 'Customer',
+    customer: 'Company',
     invoice: 'Invoice',
     contact: 'Contact',
     ticket: 'Ticket',
@@ -690,7 +690,7 @@ onBeforeUnmount(() => {
                                 id="global-search"
                                 ref="searchInput"
                                 v-model="searchQuery"
-                                placeholder="Search customers, invoices, products…"
+                                placeholder="Search companies, invoices, products…"
                                 autocomplete="off"
                                 @input="onSearch"
                                 @focus="searchQuery.length >= 2 && (showResults = true)"

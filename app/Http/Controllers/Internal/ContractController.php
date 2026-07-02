@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\Company;
 use App\Models\Contract;
-use App\Models\Customer;
 use App\Services\FileUploadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,7 +33,7 @@ class ContractController extends Controller
     {
         $data = $this->validateRow($request, fileRequired: false);
 
-        $customer = Customer::findOrFail($data['customer_id']);
+        $customer = Company::findOrFail($data['customer_id']);
         Gate::authorize('view', $customer);
 
         DB::transaction(function () use ($data, $request, $uploads): void {
@@ -75,7 +75,7 @@ class ContractController extends Controller
     public function update(int $id, Request $request, FileUploadService $uploads): RedirectResponse
     {
         $contract = Contract::findOrFail($id);
-        $customer = Customer::findOrFail($contract->customer_id);
+        $customer = Company::findOrFail($contract->customer_id);
         Gate::authorize('view', $customer);
 
         $data = $this->validateRow($request, fileRequired: false, ignoreId: $id);
@@ -126,7 +126,7 @@ class ContractController extends Controller
     public function destroy(int $id, Request $request, FileUploadService $uploads): RedirectResponse
     {
         $contract = Contract::findOrFail($id);
-        $customer = Customer::findOrFail($contract->customer_id);
+        $customer = Company::findOrFail($contract->customer_id);
         Gate::authorize('view', $customer);
 
         DB::transaction(function () use ($contract, $request, $uploads): void {
@@ -149,13 +149,13 @@ class ContractController extends Controller
 
     /**
      * Stream the stored PDF back to the operator with a friendly
-     * filename. The download is gated through Customer view so a
+     * filename. The download is gated through Company view so a
      * leaked id can't be used to scrape PDFs.
      */
     public function download(int $id, Request $request): BinaryFileResponse|StreamedResponse
     {
         $contract = Contract::findOrFail($id);
-        $customer = Customer::findOrFail($contract->customer_id);
+        $customer = Company::findOrFail($contract->customer_id);
         Gate::authorize('view', $customer);
 
         abort_unless($contract->pdf_path !== null && $contract->pdf_path !== '', 404, 'No file on this contract.');

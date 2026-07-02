@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Portal login activity counters on the Customer record.
+ * Portal login activity counters on the Company record.
  *
  * Why on customers (not portal_users): portal_users already
  * tracks per-user last_login_at. The customer-level fields are

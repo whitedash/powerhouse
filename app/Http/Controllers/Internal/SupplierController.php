@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Supplier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +18,7 @@ use Inertia\Response;
  * Suppliers — the vendor register. CRUD over the suppliers table plus
  * the headline summary strip. Auth mirrors the expenses module: the
  * surrounding route group gates to staff/super_admin, and each method
- * re-checks the Customer viewAny gate so direct API hits can't bypass
+ * re-checks the Company viewAny gate so direct API hits can't bypass
  * the financial-data boundary.
  *
  * The qbo_* fields are read/written here but never synced — a future
@@ -41,7 +41,7 @@ class SupplierController extends Controller
 
     public function index(Request $request): Response
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $suppliers = Supplier::query()
             ->with(['createdBy:id,name'])
@@ -99,7 +99,7 @@ class SupplierController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $data = $this->validateRow($request);
 
@@ -120,7 +120,7 @@ class SupplierController extends Controller
 
     public function update(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $supplier = Supplier::findOrFail($id);
         $data = $this->validateRow($request);
@@ -136,7 +136,7 @@ class SupplierController extends Controller
 
     public function destroy(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $supplier = Supplier::findOrFail($id);
 

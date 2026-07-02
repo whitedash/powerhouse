@@ -31,7 +31,7 @@ class PortalAuditSeeder extends Seeder
             ['email' => 'portal.demo@whitedash.test'],
             [
                 'customer_id' => self::CUSTOMER_ID,
-                'name' => 'Demo Customer',
+                'name' => 'Demo Company',
                 'password' => Hash::make('password'),
                 'email_verified_at' => now(),
             ],

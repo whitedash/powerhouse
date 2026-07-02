@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Domain;
 use App\Models\User;
 use App\Models\Website;
@@ -16,13 +16,13 @@ use Tests\TestCase;
  *
  * Domain READS (index/whois/dns) now require permission:hosting.access; domain
  * and website WRITES require permission:hosting.manage (route middleware). The
- * four domain writes were previously gated only by the in-method customers.access
+ * four domain writes were previously gated only by the in-method companies.access
  * (viewAny) — a WRITE behind a READ perm; hosting.manage closes that. Website
- * writes had no section gate at all, only the per-item CustomerPolicy::update.
+ * writes had no section gate at all, only the per-item CompanyPolicy::update.
  *
  * Composition (both layers must pass) is preserved:
- *  - domains: hosting.* (route) + customers.access (in-method viewAny).
- *  - websites: hosting.manage (route) + customers.manage on the website's
+ *  - domains: hosting.* (route) + companies.access (in-method viewAny).
+ *  - websites: hosting.manage (route) + companies.manage on the website's
  *    customer (in-method Gate::authorize('update', $website->customer) — IDOR).
  * super_admin bypasses via Gate::before. wordpress.bulk_update is untouched.
  */
@@ -58,12 +58,12 @@ class HostingEnforcementTest extends TestCase
         return $admin;
     }
 
-    private function makeCustomer(): Customer
+    private function makeCustomer(): Company
     {
-        return Customer::create(['name' => 'Acme '.uniqid()]);
+        return Company::create(['name' => 'Acme '.uniqid()]);
     }
 
-    private function makeDomain(Customer $customer): Domain
+    private function makeDomain(Company $customer): Domain
     {
         return Domain::create([
             'customer_id' => $customer->id,
@@ -73,7 +73,7 @@ class HostingEnforcementTest extends TestCase
         ]);
     }
 
-    private function makeWebsite(Customer $customer): Website
+    private function makeWebsite(Company $customer): Website
     {
         return Website::create([
             'customer_id' => $customer->id,
@@ -88,21 +88,21 @@ class HostingEnforcementTest extends TestCase
 
     public function test_domain_index_403_without_hosting_access(): void
     {
-        // Holds the OLD gate (customers.access) but not hosting.access.
-        $user = $this->userWith(['customers.access']);
+        // Holds the OLD gate (companies.access) but not hosting.access.
+        $user = $this->userWith(['companies.access']);
         $this->actingAs($user)->get('/domains')->assertForbidden();
     }
 
     public function test_domain_dns_403_without_hosting_access(): void
     {
-        $user = $this->userWith(['customers.access']);
+        $user = $this->userWith(['companies.access']);
         $domain = $this->makeDomain($this->makeCustomer());
         $this->actingAs($user)->getJson("/domains/{$domain->id}/dns")->assertForbidden();
     }
 
     public function test_domain_read_succeeds_with_hosting_access(): void
     {
-        $user = $this->userWith(['hosting.access', 'customers.access']);
+        $user = $this->userWith(['hosting.access', 'companies.access']);
         $domain = $this->makeDomain($this->makeCustomer());
         // dnsRecords short-circuits to JSON when no cloudflare zone — no external call.
         $this->actingAs($user)->getJson("/domains/{$domain->id}/dns")
@@ -113,9 +113,9 @@ class HostingEnforcementTest extends TestCase
 
     public function test_domain_writes_403_without_hosting_manage(): void
     {
-        // hosting.access + customers.access (the OLD read gate) but NOT hosting.manage.
-        // Previously customers.access alone let these writes through.
-        $user = $this->userWith(['hosting.access', 'customers.access']);
+        // hosting.access + companies.access (the OLD read gate) but NOT hosting.manage.
+        // Previously companies.access alone let these writes through.
+        $user = $this->userWith(['hosting.access', 'companies.access']);
         foreach ([['post', '/domains'], ['put', '/domains/1'], ['delete', '/domains/1'], ['post', '/domains/1/check']] as [$verb, $url]) {
             $this->actingAs($user)->{$verb}($url)->assertForbidden();
         }
@@ -123,7 +123,7 @@ class HostingEnforcementTest extends TestCase
 
     public function test_domain_store_succeeds_with_hosting_manage(): void
     {
-        $user = $this->userWith(['hosting.manage', 'hosting.access', 'customers.access']);
+        $user = $this->userWith(['hosting.manage', 'hosting.access', 'companies.access']);
         $customer = $this->makeCustomer();
 
         $this->actingAs($user)->post('/domains', [
@@ -137,8 +137,8 @@ class HostingEnforcementTest extends TestCase
     public function test_domain_write_composition_blocked_without_customers_access(): void
     {
         // hosting.manage passes the route middleware, but the in-method
-        // Gate::authorize('viewAny', Customer) (customers.access) still 403s.
-        $user = $this->userWith(['hosting.manage', 'hosting.access']); // no customers.access
+        // Gate::authorize('viewAny', Company) (companies.access) still 403s.
+        $user = $this->userWith(['hosting.manage', 'hosting.access']); // no companies.access
         $customer = $this->makeCustomer();
 
         $this->actingAs($user)->post('/domains', [
@@ -149,13 +149,13 @@ class HostingEnforcementTest extends TestCase
         $this->assertDatabaseMissing('domains', ['customer_id' => $customer->id]);
     }
 
-    // ─── Website WRITES → hosting.manage + per-item customers.manage ───
+    // ─── Website WRITES → hosting.manage + per-item companies.manage ───
 
     public function test_website_writes_403_without_hosting_manage(): void
     {
-        // customers.manage (would satisfy the per-item gate) but NOT hosting.manage
+        // companies.manage (would satisfy the per-item gate) but NOT hosting.manage
         // → the new route gate blocks before the controller runs.
-        $user = $this->userWith(['customers.manage', 'customers.access']);
+        $user = $this->userWith(['companies.manage', 'companies.access']);
         $routes = [
             ['post', '/websites'],
             ['put', '/websites/1'],
@@ -173,7 +173,7 @@ class HostingEnforcementTest extends TestCase
 
     public function test_website_store_succeeds_with_hosting_manage_and_customers_manage(): void
     {
-        $user = $this->userWith(['hosting.manage', 'customers.manage']);
+        $user = $this->userWith(['hosting.manage', 'companies.manage']);
         $customer = $this->makeCustomer();
 
         $this->actingAs($user)->post('/websites', [
@@ -187,9 +187,9 @@ class HostingEnforcementTest extends TestCase
 
     public function test_website_composition_blocked_without_customers_manage(): void
     {
-        // Holds hosting.manage (passes the route gate) but NOT customers.manage →
+        // Holds hosting.manage (passes the route gate) but NOT companies.manage →
         // the per-item Gate::authorize('update', $website->customer) IDOR guard 403s.
-        $user = $this->userWith(['hosting.manage', 'customers.access']);
+        $user = $this->userWith(['hosting.manage', 'companies.access']);
         $website = $this->makeWebsite($this->makeCustomer());
 
         $this->actingAs($user)->put("/websites/{$website->id}", [
@@ -223,7 +223,7 @@ class HostingEnforcementTest extends TestCase
     public function test_wordpress_bulk_update_still_enforced_and_unaffected(): void
     {
         // hosting.* does NOT grant wordpress.bulk_update — the WP page stays blocked.
-        $hostingUser = $this->userWith(['hosting.manage', 'hosting.access', 'customers.manage', 'customers.access']);
+        $hostingUser = $this->userWith(['hosting.manage', 'hosting.access', 'companies.manage', 'companies.access']);
         $this->actingAs($hostingUser)->get('/wordpress/updates')->assertForbidden();
 
         // super_admin (who holds it via Gate::before) still reaches it — unchanged.

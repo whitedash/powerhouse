@@ -343,7 +343,7 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true }); }
                     <thead>
                         <tr>
                             <th>Domain</th>
-                            <th>Customer</th>
+                            <th>Company</th>
                             <th>Registrar</th>
                             <th>Expiry</th>
                             <th>SSL</th>
@@ -362,7 +362,7 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true }); }
                                 </div>
                             </td>
                             <td>
-                                <Link v-if="d.customer_id" :href="`/customers/${d.customer_id}`" class="dm-cust">{{ d.customer_name }}</Link>
+                                <Link v-if="d.customer_id" :href="`/companies/${d.customer_id}`" class="dm-cust">{{ d.customer_name }}</Link>
                                 <span v-else class="muted">—</span>
                             </td>
                             <td><span class="dm-reg">{{ d.registrar ?? '—' }}</span></td>
@@ -466,7 +466,7 @@ function go(url) { if (url) router.visit(url, { preserveScroll: true }); }
                                     </div>
                                     <div class="form-row single">
                                         <div class="form-field">
-                                            <label>Customer<span class="req">*</span></label>
+                                            <label>Company<span class="req">*</span></label>
                                             <div class="cust-search">
                                                 <IconSearch :size="16" stroke-width="1.75" />
                                                 <input v-model="customerSearch" type="search" placeholder="Search customer…">

@@ -376,7 +376,7 @@ const nextUrl = computed(() => props.customers.next_page_url);
                     </colgroup>
                     <thead>
                         <tr>
-                            <th>Customer</th>
+                            <th>Company</th>
                             <th v-for="p in products" :key="p.id">{{ p.name }}</th>
                             <th>Last changed</th>
                             <th />
@@ -485,7 +485,7 @@ const nextUrl = computed(() => props.customers.next_page_url);
                                     </MenuButton>
                                     <MenuItems class="dd-popover right-align">
                                         <MenuItem v-slot="{ active }">
-                                            <Link :class="['dd-option', { active }]" :href="`/customers/${c.id}`">
+                                            <Link :class="['dd-option', { active }]" :href="`/companies/${c.id}`">
                                                 View customer
                                             </Link>
                                         </MenuItem>
@@ -601,7 +601,7 @@ const nextUrl = computed(() => props.customers.next_page_url);
 
                             <div class="slide-over-body">
                                 <div class="form-section">
-                                    <h3>Customer &amp; product</h3>
+                                    <h3>Company &amp; product</h3>
                                     <div style="display: flex; flex-direction: column; gap: 10px;">
                                         <div style="padding: 10px 14px; background: var(--neutral-bg); border-radius: var(--radius-md); display: flex; align-items: center; gap: 10px;">
                                             <IconUser :size="16" stroke-width="1.75" style="color: var(--text-secondary);" />
@@ -840,7 +840,7 @@ const nextUrl = computed(() => props.customers.next_page_url);
                                             :min="new Date().toISOString().split('T')[0]"
                                             required
                                         >
-                                        <div class="field-help">Customer will be prompted to subscribe when the trial expires.</div>
+                                        <div class="field-help">Company will be prompted to subscribe when the trial expires.</div>
                                         <div v-if="enableForm.errors.trial_ends_at" class="err">{{ enableForm.errors.trial_ends_at }}</div>
                                     </div>
                                 </div>

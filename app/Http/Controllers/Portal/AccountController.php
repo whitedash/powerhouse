@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\PortalUser;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -21,7 +21,7 @@ use Inertia\Response;
 /**
  * Portal account self-management. The portal user can update their
  * own name + email, and change their password (current-password
- * required). Customer-level fields (company name, address) are
+ * required). Company-level fields (company name, address) are
  * staff-managed — the portal exposes them read-only.
  */
 class AccountController extends Controller
@@ -31,7 +31,7 @@ class AccountController extends Controller
         /** @var PortalUser $portalUser */
         $portalUser = Auth::guard('portal')->user();
 
-        $customer = Customer::forPortalUser($portalUser->customer_id)
+        $customer = Company::forPortalUser($portalUser->customer_id)
             ->with('primaryContact:id,customer_id,name,email,phone')
             ->firstOrFail();
 

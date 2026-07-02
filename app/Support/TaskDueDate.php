@@ -10,7 +10,7 @@ use Illuminate\Validation\Rule;
  *
  * The rule is deliberately defined ONCE here and reused by every
  * user-facing creation path (TaskController store/update,
- * SupportController::createTask, CustomerController::storeTask) so the
+ * SupportController::createTask, CompanyController::storeTask) so the
  * three surfaces can never drift apart again.
  *
  * Policy:
@@ -33,7 +33,7 @@ class TaskDueDate
      * Reads the live request so the `type` / `start_at` of the current
      * submission drive the requirement — works identically whether the
      * caller sends a `type` (TaskController, SupportController) or omits
-     * it (CustomerController, which only ever creates an actionable task).
+     * it (CompanyController, which only ever creates an actionable task).
      *
      * @return array<int, mixed>
      */
@@ -92,7 +92,7 @@ class TaskDueDate
     /**
      * True when the type must carry a due date (everything except the
      * exempt note / email logged-activity types). An unknown/blank type
-     * defaults to actionable — CustomerController posts no type and only
+     * defaults to actionable — CompanyController posts no type and only
      * ever creates a real task.
      */
     public static function isActionable(string $type): bool

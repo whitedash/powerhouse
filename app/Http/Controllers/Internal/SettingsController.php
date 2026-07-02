@@ -7,7 +7,7 @@ use App\Jobs\DeliverWebhook;
 use App\Mail\TestEmail;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\ReminderTemplate;
@@ -704,7 +704,7 @@ class SettingsController extends Controller
         // entity types = ~1000 queries worst case if we didn't.
         $bucketIds = $logs->groupBy('entity_type')->map(fn ($g) => $g->pluck('entity_id')->unique()->all());
         $names = [
-            'customer' => $this->lookupNames(Customer::class, $bucketIds['customer'] ?? []),
+            'customer' => $this->lookupNames(Company::class, $bucketIds['customer'] ?? []),
             'invoice' => $this->lookupNames(Invoice::class, $bucketIds['invoice'] ?? [], 'number'),
             'task' => $this->lookupNames(Task::class, $bucketIds['task'] ?? [], 'title'),
             'support_ticket' => $this->lookupNames(SupportTicket::class, $bucketIds['support_ticket'] ?? [], 'subject'),
@@ -818,7 +818,7 @@ class SettingsController extends Controller
         // optionality is whether we know how to link the given
         // entity_type, which is the match() arm's responsibility.
         return match ($log->entity_type) {
-            'customer' => '/customers/'.$log->entity_id,
+            'customer' => '/companies/'.$log->entity_id,
             'invoice' => '/invoices/'.$log->entity_id,
             'task' => '/activities/'.$log->entity_id,
             'support_ticket' => '/helpdesk/'.$log->entity_id,

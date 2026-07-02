@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\PaymentMethod;
 use App\Models\PortalUser;
 use App\Models\StripeCustomer;
@@ -20,7 +20,7 @@ class BillingPaymentMethodsTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function portalUser(Customer $customer): PortalUser
+    private function portalUser(Company $customer): PortalUser
     {
         return PortalUser::create([
             'customer_id' => $customer->id,
@@ -30,7 +30,7 @@ class BillingPaymentMethodsTest extends TestCase
         ]);
     }
 
-    private function card(Customer $c, array $overrides = []): PaymentMethod
+    private function card(Company $c, array $overrides = []): PaymentMethod
     {
         return PaymentMethod::create(array_merge([
             'customer_id' => $c->id,
@@ -47,7 +47,7 @@ class BillingPaymentMethodsTest extends TestCase
 
     public function test_record_payment_method_vaults_safe_meta_and_first_is_default(): void
     {
-        $c = Customer::create(['name' => 'Acme']);
+        $c = Company::create(['name' => 'Acme']);
         $svc = app(StripeService::class);
 
         $first = $svc->recordPaymentMethod($c, 'cus_123', 'pm_a', ['brand' => 'visa', 'last4' => '4242', 'exp_month' => 4, 'exp_year' => 2030]);
@@ -63,8 +63,8 @@ class BillingPaymentMethodsTest extends TestCase
 
     public function test_portal_lists_only_own_cards_with_safe_meta_only(): void
     {
-        $mine = Customer::create(['name' => 'Mine']);
-        $other = Customer::create(['name' => 'Other']);
+        $mine = Company::create(['name' => 'Mine']);
+        $other = Company::create(['name' => 'Other']);
         $myCard = $this->card($mine, ['is_default' => true]);
         $this->card($other); // must never appear
 
@@ -85,10 +85,10 @@ class BillingPaymentMethodsTest extends TestCase
 
     public function test_set_default_flips_and_is_scoped(): void
     {
-        $mine = Customer::create(['name' => 'Mine']);
+        $mine = Company::create(['name' => 'Mine']);
         $a = $this->card($mine, ['is_default' => true]);
         $b = $this->card($mine);
-        $otherCard = $this->card(Customer::create(['name' => 'Other']));
+        $otherCard = $this->card(Company::create(['name' => 'Other']));
 
         $pu = $this->portalUser($mine);
         $this->actingAs($pu, 'portal')->post("/portal/payment-methods/{$b->id}/default")->assertSessionHasNoErrors();
@@ -102,9 +102,9 @@ class BillingPaymentMethodsTest extends TestCase
 
     public function test_remove_marks_removed_and_is_scoped(): void
     {
-        $mine = Customer::create(['name' => 'Mine']);
+        $mine = Company::create(['name' => 'Mine']);
         $card = $this->card($mine, ['is_default' => true]);
-        $otherCard = $this->card(Customer::create(['name' => 'Other']));
+        $otherCard = $this->card(Company::create(['name' => 'Other']));
 
         // Stripe detach is best-effort; stub it so no real call happens.
         $this->mock(StripeService::class, fn ($m) => $m->shouldReceive('detachPaymentMethod')->andReturnNull());
@@ -119,7 +119,7 @@ class BillingPaymentMethodsTest extends TestCase
 
     public function test_store_saves_a_card_via_the_service(): void
     {
-        $mine = Customer::create(['name' => 'Mine']);
+        $mine = Company::create(['name' => 'Mine']);
 
         $this->mock(StripeService::class, function ($m) use ($mine) {
             $m->shouldReceive('recordPaymentMethodFromStripe')
@@ -142,7 +142,7 @@ class BillingPaymentMethodsTest extends TestCase
 
     public function test_resolve_stripe_customer_reuses_existing_mapping(): void
     {
-        $c = Customer::create(['name' => 'Acme']);
+        $c = Company::create(['name' => 'Acme']);
         StripeCustomer::create(['customer_id' => $c->id, 'stripe_customer_id' => 'cus_existing']);
 
         // No Stripe call needed when a mapping exists.

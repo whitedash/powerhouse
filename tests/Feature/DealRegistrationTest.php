@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\ReferralStatus;
+use App\Models\Company;
 use App\Models\Contact;
-use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\Referrer;
 use App\Models\User;
@@ -75,7 +75,7 @@ class DealRegistrationTest extends TestCase
         $referrer = $this->referrer();
 
         // Existing customer contact — the "secret" record we must not leak.
-        $customer = Customer::create(['name' => 'Existing Co']);
+        $customer = Company::create(['name' => 'Existing Co']);
         Contact::create([
             'customer_id' => $customer->id,
             'name' => 'Secret Person',
@@ -156,7 +156,7 @@ class DealRegistrationTest extends TestCase
         $attr = app(AttributionService::class);
 
         foreach ([ReferralStatus::Rejected, ReferralStatus::Expired] as $status) {
-            $customer = Customer::create(['name' => 'Cust '.$status->value]);
+            $customer = Company::create(['name' => 'Cust '.$status->value]);
             $lead = Lead::create([
                 'first_name' => 'X',
                 'email' => 'x'.$status->value.'@t.test',
@@ -172,7 +172,7 @@ class DealRegistrationTest extends TestCase
         }
 
         // Approved still attributes.
-        $customer = Customer::create(['name' => 'Cust approved']);
+        $customer = Company::create(['name' => 'Cust approved']);
         $lead = Lead::create([
             'first_name' => 'Y',
             'email' => 'y@t.test',

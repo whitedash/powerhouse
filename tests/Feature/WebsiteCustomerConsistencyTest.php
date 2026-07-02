@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Domain;
 use App\Models\Product;
@@ -30,12 +30,12 @@ class WebsiteCustomerConsistencyTest extends TestCase
         $this->actingAs($this->user);
     }
 
-    private function customer(): Customer
+    private function customer(): Company
     {
-        return Customer::create(['name' => 'Acme '.uniqid()]);
+        return Company::create(['name' => 'Acme '.uniqid()]);
     }
 
-    private function domainFor(Customer $customer): Domain
+    private function domainFor(Company $customer): Domain
     {
         return Domain::create([
             'customer_id' => $customer->id,
@@ -45,7 +45,7 @@ class WebsiteCustomerConsistencyTest extends TestCase
         ]);
     }
 
-    private function hostingPlanFor(Customer $customer): CustomerProduct
+    private function hostingPlanFor(Company $customer): CustomerProduct
     {
         $product = Product::create(['slug' => 'p-'.uniqid(), 'name' => 'Hosting']);
 
@@ -56,7 +56,7 @@ class WebsiteCustomerConsistencyTest extends TestCase
         ]);
     }
 
-    private function projectFor(Customer $customer): Project
+    private function projectFor(Company $customer): Project
     {
         return Project::create([
             'customer_id' => $customer->id,
@@ -65,7 +65,7 @@ class WebsiteCustomerConsistencyTest extends TestCase
         ]);
     }
 
-    private function websiteFor(Customer $customer, array $overrides = []): Website
+    private function websiteFor(Company $customer, array $overrides = []): Website
     {
         return Website::create(array_merge([
             'customer_id' => $customer->id,
@@ -79,7 +79,7 @@ class WebsiteCustomerConsistencyTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function payload(Customer $customer, array $overrides = []): array
+    private function payload(Company $customer, array $overrides = []): array
     {
         return array_merge([
             'customer_id' => $customer->id,

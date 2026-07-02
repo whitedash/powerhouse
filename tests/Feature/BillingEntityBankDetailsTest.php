@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BillingEntity;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\PortalUser;
 use App\Models\User;
@@ -41,7 +41,7 @@ class BillingEntityBankDetailsTest extends TestCase
 
     private function invoiceFor(BillingEntity $entity, string $status = 'sent'): Invoice
     {
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
 
         return Invoice::create([
             'number' => 'INV-'.random_int(1000, 9999),

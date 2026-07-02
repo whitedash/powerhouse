@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Domain;
 use App\Models\ProductPlan;
 use App\Services\CloudflareService;
@@ -29,7 +29,7 @@ class DomainController extends Controller
 
     public function index(Request $request): Response
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $filters = [
             'search' => trim((string) $request->query('search', '')),
@@ -79,7 +79,7 @@ class DomainController extends Controller
             'statuses' => self::STATUSES,
             // Slim customer list for the add/edit slide-over's
             // searchable picker — active customers only.
-            'customers' => Customer::whereNull('archived_at')
+            'customers' => Company::whereNull('archived_at')
                 ->orderBy('name')
                 ->get(['id', 'name', 'city'])
                 ->all(),
@@ -101,7 +101,7 @@ class DomainController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $data = $this->withDerivedPlan($this->validateRow($request));
 
@@ -131,7 +131,7 @@ class DomainController extends Controller
     public function update(int $id, Request $request): RedirectResponse
     {
         $domain = Domain::findOrFail($id);
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $data = $this->withDerivedPlan($this->validateRow($request, $id));
 
@@ -164,7 +164,7 @@ class DomainController extends Controller
     public function destroy(int $id, Request $request): RedirectResponse
     {
         $domain = Domain::findOrFail($id);
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         DB::transaction(function () use ($domain, $request) {
             $snapshot = [
@@ -188,7 +188,7 @@ class DomainController extends Controller
     public function checkHealth(int $id, Request $request): RedirectResponse
     {
         $domain = Domain::findOrFail($id);
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $this->refreshDomainHealth($domain);
 
@@ -240,7 +240,7 @@ class DomainController extends Controller
      */
     public function whoisLookup(Request $request, WhoisService $whois): JsonResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $data = $request->validate([
             'domain' => 'required|string|max:255|regex:/^([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/',
@@ -269,7 +269,7 @@ class DomainController extends Controller
     public function dnsRecords(int $id): JsonResponse
     {
         $domain = Domain::findOrFail($id);
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         if (empty($domain->cloudflare_zone_id)) {
             return response()->json(['records' => [], 'connected' => false]);

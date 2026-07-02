@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Internal;
 use App\Enums\SlaState;
 use App\Http\Controllers\Controller;
 use App\Models\CommissionLedger;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Product;
 use App\Models\ProductPlan;
@@ -70,7 +70,7 @@ class AnalyticsController extends Controller
         return [
             'total_mrr' => $rr->total,
             'total_arr' => $rr->arr(),
-            'total_customers' => Customer::whereNull('archived_at')->count(),
+            'total_customers' => Company::whereNull('archived_at')->count(),
             'paying_customers' => $payingCustomers,
             'trial_customers' => CustomerProduct::where('status', 'trial')
                 ->distinct()
@@ -170,14 +170,14 @@ class AnalyticsController extends Controller
                 return [
                     'month' => $date->format('M Y'),
                     'month_short' => $date->format('M'),
-                    'new' => Customer::whereYear('created_at', $date->year)
+                    'new' => Company::whereYear('created_at', $date->year)
                         ->whereMonth('created_at', $date->month)
                         ->count(),
-                    'archived' => Customer::whereNotNull('archived_at')
+                    'archived' => Company::whereNotNull('archived_at')
                         ->whereYear('archived_at', $date->year)
                         ->whereMonth('archived_at', $date->month)
                         ->count(),
-                    'cumulative' => Customer::whereNull('archived_at')
+                    'cumulative' => Company::whereNull('archived_at')
                         ->where('created_at', '<=', $monthEnd)
                         ->count(),
                 ];

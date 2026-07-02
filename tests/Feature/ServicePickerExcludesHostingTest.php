@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Product;
 use App\Models\ProductPlan;
@@ -59,10 +59,10 @@ class ServicePickerExcludesHostingTest extends TestCase
 
     public function test_enable_product_rejects_an_is_hosting_plan(): void
     {
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
         [$product, $plan, $price] = $this->planWithPrice('hosting');
 
-        $this->post("/customers/{$customer->id}/products", [
+        $this->post("/companies/{$customer->id}/products", [
             'product_id' => $product->id,
             'plan_id' => $plan->id,
             'plan_price_id' => $price->id,
@@ -74,7 +74,7 @@ class ServicePickerExcludesHostingTest extends TestCase
 
     public function test_provisioning_toggle_rejects_an_is_hosting_plan(): void
     {
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
         [$product, $plan, $price] = $this->planWithPrice('hosting');
 
         $this->post('/provisioning/toggle', [
@@ -91,11 +91,11 @@ class ServicePickerExcludesHostingTest extends TestCase
 
     public function test_available_products_picker_excludes_hosting_plans_but_keeps_services(): void
     {
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
         [, $hostingPlan] = $this->planWithPrice('hosting');
         [, $servicePlan] = $this->planWithPrice('service');
 
-        $this->get("/customers/{$customer->id}")
+        $this->get("/companies/{$customer->id}")
             ->assertInertia(fn ($page) => $page
                 ->component('Internal/Customers/Show')
                 ->where('available_products', function ($products) use ($hostingPlan, $servicePlan): bool {
@@ -109,10 +109,10 @@ class ServicePickerExcludesHostingTest extends TestCase
 
     public function test_a_genuine_service_plan_still_enables(): void
     {
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
         [$product, $plan, $price] = $this->planWithPrice('service');
 
-        $this->post("/customers/{$customer->id}/products", [
+        $this->post("/companies/{$customer->id}/products", [
             'product_id' => $product->id,
             'plan_id' => $plan->id,
             'plan_price_id' => $price->id,

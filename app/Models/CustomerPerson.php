@@ -38,7 +38,7 @@ class CustomerPerson extends Pivot
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     public function person(): BelongsTo

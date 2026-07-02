@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\User;
 use App\Support\PermissionMatrix;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -14,7 +14,7 @@ use Tests\TestCase;
 
 /**
  * Section-enforcement sprint, step 12 (LAST) — drop the two PHANTOM permissions
- * that gated nothing: customers.delete (dead CustomerPolicy::delete; no hard-delete
+ * that gated nothing: customers.delete (dead CompanyPolicy::delete; no hard-delete
  * exists) and analytics.manage (unreferenced by any enforcement). They are removed
  * from the matrix + seeder, and a migration deletes the rows lingering on prod.
  */
@@ -87,17 +87,17 @@ class DropPhantomPermissionsTest extends TestCase
     public function test_archiving_a_customer_still_works_on_customers_manage(): void
     {
         // The removed customers.delete gated nothing; soft-archive stays on
-        // customers.manage — confirm no functional regression.
+        // companies.manage — confirm no functional regression.
         $this->seed(RolesAndPermissionsSeeder::class);
         $role = Role::create(['name' => 'arch_'.uniqid(), 'guard_name' => 'web']);
-        $role->givePermissionTo('customers.manage');
+        $role->givePermissionTo('companies.manage');
         $user = User::factory()->create();
         $user->syncRoles([$role->name]);
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
 
-        // Soft-archive is DELETE /customers/{id}/archive → archive() →
-        // Gate::authorize('update') (customers.manage). No hard-delete route exists.
-        $this->actingAs($user->fresh())->delete("/customers/{$customer->id}/archive")->assertRedirect();
+        // Soft-archive is DELETE /companies/{id}/archive → archive() →
+        // Gate::authorize('update') (companies.manage). No hard-delete route exists.
+        $this->actingAs($user->fresh())->delete("/companies/{$customer->id}/archive")->assertRedirect();
         $this->assertNotNull($customer->fresh()->archived_at); // soft-archived, not hard-deleted
     }
 }

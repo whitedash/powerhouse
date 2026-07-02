@@ -13,7 +13,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Customer-facing READ-ONLY asset view (Stage 4): the customer's Websites
+ * Company-facing READ-ONLY asset view (Stage 4): the customer's Websites
  * (+ hosting), Domains and Services in one place — mirroring the internal
  * Assets grouping but customer-friendly.
  *

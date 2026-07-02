@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Gate;
  * are uniform (403 + message) regardless of which method triggered them.
  *
  * Pattern in controllers:
- *   $customer = Customer::findOrFail($id);
+ *   $customer = Company::findOrFail($id);
  *   $this->authorizeOrFail('view', $customer);
  */
 trait AuthorizesWithPolicy

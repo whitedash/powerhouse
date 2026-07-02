@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Internal;
 use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\Company;
 use App\Models\Contact;
-use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\Milestone;
 use App\Models\Project;
@@ -83,7 +83,7 @@ class TaskController extends Controller
         $this->authorizeScopeItem(ScopeArea::Tasks, $task);
 
         // Authorisation. Tasks attached to a customer ride the
-        // CustomerPolicy::view check; orphan tasks (customer_id null)
+        // CompanyPolicy::view check; orphan tasks (customer_id null)
         // fall back to ownership-or-super_admin so a staffer can't
         // browse another staffer's private TODO list.
         $user = $request->user();
@@ -149,7 +149,7 @@ class TaskController extends Controller
             ->get(['id', 'name', 'avatar_colour'])
             ->all();
 
-        // Customer-scoped contacts feed the inline "create linked task"
+        // Company-scoped contacts feed the inline "create linked task"
         // form's contact picker.
         $contacts = $task->customer_id
             ? Contact::where('customer_id', $task->customer_id)
@@ -369,7 +369,7 @@ class TaskController extends Controller
      */
     public function linkOptions(Request $request): JsonResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $data = $request->validate([
             'type' => ['required', Rule::in(['lead', 'customer'])],
@@ -378,12 +378,12 @@ class TaskController extends Controller
         $q = trim($data['q'] ?? '');
 
         if ($data['type'] === 'customer') {
-            $options = Customer::whereNull('archived_at')
+            $options = Company::whereNull('archived_at')
                 ->when($q !== '', fn ($query) => $query->where('name', 'like', "%{$q}%"))
                 ->orderBy('name')
                 ->take(8)
                 ->get(['id', 'name', 'city'])
-                ->map(fn (Customer $c): array => [
+                ->map(fn (Company $c): array => [
                     'id' => $c->id,
                     'label' => $c->name,
                     'sub' => $c->city,

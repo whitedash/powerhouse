@@ -5,8 +5,8 @@ namespace Tests\Feature;
 use App\Http\Controllers\Webhooks\StripeWebhookController;
 use App\Mail\InvoiceSent;
 use App\Models\BillingEntity;
+use App\Models\Company;
 use App\Models\Contact;
-use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
@@ -48,7 +48,7 @@ class OffSessionCollectionTest extends TestCase
      * A fully chargeable customer: auto_collect on, a Stripe-customer mapping,
      * an active default card, and one sent invoice.
      *
-     * @return array{0: Customer, 1: Invoice}
+     * @return array{0: Company, 1: Invoice}
      */
     private function chargeable(string $status = 'sent', float $total = 100.0, bool $autoCollect = true, bool $withCard = true): array
     {
@@ -56,7 +56,7 @@ class OffSessionCollectionTest extends TestCase
             'name' => 'WD', 'legal_name' => 'Whitedash Ltd',
             'postmark_sender_email' => 'b@wd.test', 'postmark_sender_name' => 'WD',
         ]);
-        $customer = Customer::create(['name' => 'Acme '.uniqid(), 'auto_collect' => $autoCollect]);
+        $customer = Company::create(['name' => 'Acme '.uniqid(), 'auto_collect' => $autoCollect]);
         Contact::create([
             'customer_id' => $customer->id, 'name' => 'Pat', 'email' => 'pat@acme.test', 'is_primary' => true,
         ]);

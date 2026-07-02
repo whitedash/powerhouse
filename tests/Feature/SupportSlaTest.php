@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\SlaState;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\SupportMessage;
 use App\Models\SupportTicket;
 use App\Models\Task;
@@ -22,7 +22,7 @@ class SupportSlaTest extends TestCase
 
     private function ticket(array $overrides = []): SupportTicket
     {
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
 
         return SupportTicket::create(array_merge([
             'customer_id' => $customer->id,

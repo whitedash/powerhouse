@@ -476,7 +476,7 @@ const STATUS = {
                             <table class="wu-sites-table">
                                 <colgroup><col style="width: 35%"><col style="width: 20%"><col style="width: 13%"><col style="width: 4%"><col style="width: 13%"><col style="width: 15%"></colgroup>
                                 <thead>
-                                    <tr><th>Site</th><th>Customer</th><th>Current</th><th></th><th>Latest</th><th>Action</th></tr>
+                                    <tr><th>Site</th><th>Company</th><th>Current</th><th></th><th>Latest</th><th>Action</th></tr>
                                 </thead>
                                 <tbody>
                                     <tr v-for="site in plugin.sites" :key="site.website_id">

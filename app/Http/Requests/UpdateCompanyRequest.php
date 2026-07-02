@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests;
 
-use App\Models\Customer;
+use App\Models\Company;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateCustomerRequest extends FormRequest
+class UpdateCompanyRequest extends FormRequest
 {
     private const PIPELINE_STAGES = ['lead', 'prospect', 'active', 'churned'];
 
@@ -16,7 +16,7 @@ class UpdateCustomerRequest extends FormRequest
     {
         $customer = $this->route('customer') ?? $this->route('id');
 
-        return $this->user()?->can('update', $customer instanceof Customer ? $customer : Customer::class) ?? false;
+        return $this->user()?->can('update', $customer instanceof Company ? $customer : Company::class) ?? false;
     }
 
     public function rules(): array

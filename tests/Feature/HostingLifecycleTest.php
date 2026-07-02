@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BillingEntity;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\ProductPlan;
@@ -42,7 +42,7 @@ class HostingLifecycleTest extends TestCase
         $product = Product::create(['slug' => 'host-'.uniqid(), 'name' => 'Hosting', 'billing_entity_id' => $entity->id, 'is_active' => true]);
         $plan = ProductPlan::create(['product_id' => $product->id, 'name' => 'Pro', 'is_active' => true, 'is_public' => true, 'is_hosting' => true]);
         $price = ProductPlanPrice::create(['plan_id' => $plan->id, 'price' => 20.00, 'interval_count' => 1, 'interval_unit' => 'month', 'is_default' => true, 'is_active' => true, 'sort_order' => 0]);
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
 
         return Website::create(array_merge([
             'customer_id' => $customer->id,

@@ -31,7 +31,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $renewal_invoiced_for
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Customer|null $customer
+ * @property-read Company|null $customer
  * @property-read ProductPlan|null $plan
  */
 class Domain extends Model
@@ -81,7 +81,7 @@ class Domain extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     /**

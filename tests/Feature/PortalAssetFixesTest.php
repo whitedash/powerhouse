@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\PortalUser;
 use App\Models\Product;
@@ -21,7 +21,7 @@ class PortalAssetFixesTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function portalUser(Customer $customer): PortalUser
+    private function portalUser(Company $customer): PortalUser
     {
         return PortalUser::create([
             'customer_id' => $customer->id,
@@ -31,7 +31,7 @@ class PortalAssetFixesTest extends TestCase
         ]);
     }
 
-    private function serviceCp(Customer $c, string $slug): CustomerProduct
+    private function serviceCp(Company $c, string $slug): CustomerProduct
     {
         $product = Product::create(['slug' => $slug, 'name' => ucfirst($slug), 'is_active' => true]);
         $plan = ProductPlan::create(['product_id' => $product->id, 'name' => 'Std', 'is_active' => true, 'is_public' => true]);
@@ -49,7 +49,7 @@ class PortalAssetFixesTest extends TestCase
 
     public function test_non_sso_service_exposes_no_launch_target_so_open_is_hidden(): void
     {
-        $c = Customer::create(['name' => 'Acme']);
+        $c = Company::create(['name' => 'Acme']);
         // 'whitedash' is not an SSO product (getProductConfig knows only
         // maavelus/myorderpad) → no launch target → Open must not render.
         $this->serviceCp($c, 'whitedash');
@@ -65,7 +65,7 @@ class PortalAssetFixesTest extends TestCase
 
     public function test_sso_service_still_exposes_a_launch_target(): void
     {
-        $c = Customer::create(['name' => 'Acme']);
+        $c = Company::create(['name' => 'Acme']);
         $this->serviceCp($c, 'maavelus');
 
         $this->actingAs($this->portalUser($c), 'portal')
@@ -78,7 +78,7 @@ class PortalAssetFixesTest extends TestCase
 
     public function test_catalogue_hides_a_product_with_no_priced_plan(): void
     {
-        $c = Customer::create(['name' => 'Acme']);
+        $c = Company::create(['name' => 'Acme']);
 
         // Subscribable: active+public plan WITH an active price.
         $priced = Product::create(['slug' => 'priced-'.uniqid(), 'name' => 'Priced', 'is_active' => true]);

@@ -38,7 +38,7 @@ class RolesAndPermissionsSeeder extends Seeder
      * @var list<string>
      */
     private const STAFF_PERMISSIONS = [
-        'customers.access', 'customers.manage',
+        'companies.access', 'companies.manage',
         'people.access', 'people.manage',
         'invoices.access', 'invoices.manage',
         'leads.manage',
@@ -65,7 +65,7 @@ class RolesAndPermissionsSeeder extends Seeder
      * @var list<string>
      */
     private const SUPER_ADMIN_ONLY = [
-        'customers.referral.manage', 'customers.exemption',
+        'companies.referral.manage', 'companies.exemption',
         'gdpr.export', 'gdpr.erase',
         'people.delete',
         'invoices.void',

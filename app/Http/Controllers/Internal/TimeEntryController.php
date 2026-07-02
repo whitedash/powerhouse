@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Internal;
 use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\TimeEntry;
@@ -33,7 +33,7 @@ class TimeEntryController extends Controller
 {
     public function store(Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $data = $request->validate([
             'task_id' => 'required|integer|exists:tasks,id',
@@ -76,7 +76,7 @@ class TimeEntryController extends Controller
 
     public function update(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $entry = TimeEntry::findOrFail($id);
         // Scope (phase 3b) governs VISIBILITY and composes with the owner-only
@@ -111,7 +111,7 @@ class TimeEntryController extends Controller
 
     public function destroy(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $entry = TimeEntry::findOrFail($id);
         // Scope (phase 3b) governs VISIBILITY and composes with the owner-only

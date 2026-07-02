@@ -37,7 +37,7 @@ class WebsiteDiskWarning extends Notification
             'type' => 'website_disk_warning',
             'title' => $this->level === 'critical' ? 'Disk space critical' : 'Disk space warning',
             'message' => $this->website->url.' is '.$this->website->disk_percent.'% full',
-            'url' => '/customers/'.$this->website->customer_id,
+            'url' => '/companies/'.$this->website->customer_id,
             'icon' => 'ti-database',
             'colour' => $this->level === 'critical' ? '#EF4444' : '#F59E0B',
             'entity_type' => 'website',

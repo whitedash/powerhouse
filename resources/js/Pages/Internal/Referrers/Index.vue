@@ -426,7 +426,7 @@ const page = usePage();
                     <thead>
                         <tr>
                             <th>Referrer</th>
-                            <th class="num">Customers</th>
+                            <th class="num">Companies</th>
                             <th>Commission model</th>
                             <th class="num">This month</th>
                             <th class="num">Pending</th>
@@ -581,7 +581,7 @@ const page = usePage();
                         <tr>
                             <th>Description</th>
                             <th>Referrer</th>
-                            <th>Customer</th>
+                            <th>Company</th>
                             <th class="num">Amount</th>
                             <th>Status</th>
                             <th>Date</th>

@@ -196,7 +196,7 @@ const COMMISSION_STATUS = {
                                 <thead>
                                     <tr style="background: #FBFCFE; border-bottom: 1px solid var(--border-soft);">
                                         <th style="text-align: left; padding: 8px 10px; font: 500 10px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary);">Referrer</th>
-                                        <th style="text-align: left; padding: 8px 10px; font: 500 10px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary);">Customer</th>
+                                        <th style="text-align: left; padding: 8px 10px; font: 500 10px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary);">Company</th>
                                         <th style="text-align: right; padding: 8px 10px; font: 500 10px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary);">Gross</th>
                                         <th style="text-align: right; padding: 8px 10px; font: 500 10px/1 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .12em; color: var(--text-tertiary);">Commission</th>
                                     </tr>

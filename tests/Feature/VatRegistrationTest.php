@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BillingEntity;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Invoice;
 use App\Models\Product;
@@ -37,7 +37,7 @@ class VatRegistrationTest extends TestCase
         ]);
     }
 
-    private function dueSubscription(BillingEntity $entity, float $price = 50.0): Customer
+    private function dueSubscription(BillingEntity $entity, float $price = 50.0): Company
     {
         $product = Product::create(['slug' => 'p-'.uniqid(), 'name' => 'Svc', 'billing_entity_id' => $entity->id]);
         $plan = ProductPlan::create(['product_id' => $product->id, 'name' => 'Pro', 'is_active' => true, 'is_public' => true]);
@@ -45,7 +45,7 @@ class VatRegistrationTest extends TestCase
             'plan_id' => $plan->id, 'price' => $price, 'interval_count' => 1,
             'interval_unit' => 'month', 'is_default' => true, 'is_active' => true,
         ]);
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
         CustomerProduct::create([
             'customer_id' => $customer->id,
             'product_id' => $product->id,
@@ -127,7 +127,7 @@ class VatRegistrationTest extends TestCase
     {
         $staff = User::factory()->create(['role' => 'super_admin']);
         $entity = $this->entity(false);
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
 
         $this->actingAs($staff)
             ->post('/invoices', [
@@ -156,7 +156,7 @@ class VatRegistrationTest extends TestCase
     {
         $staff = User::factory()->create(['role' => 'super_admin']);
         $entity = $this->entity(true);
-        $customer = Customer::create(['name' => 'Acme']);
+        $customer = Company::create(['name' => 'Acme']);
 
         $this->actingAs($staff)
             ->post('/invoices', [

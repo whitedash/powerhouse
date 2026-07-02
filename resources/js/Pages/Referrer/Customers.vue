@@ -25,18 +25,18 @@ function productStatusLabel(status) {
 </script>
 
 <template>
-    <Head title="My customers · Whitedash Partners" />
-    <ReferrerLayout title="My customers" active-nav="my-customers">
+    <Head title="My companies · Whitedash Partners" />
+    <ReferrerLayout title="My companies" active-nav="my-customers">
         <div class="portal-section-head">
             <div class="col-l">
-                <h2>{{ total_customers }} referred customer{{ total_customers === 1 ? '' : 's' }}</h2>
-                <div class="desc">Customers you've introduced to Whitedash.</div>
+                <h2>{{ total_customers }} referred compan{{ total_customers === 1 ? 'y' : 'ies' }}</h2>
+                <div class="desc">Companies you've introduced to Whitedash.</div>
             </div>
         </div>
 
         <div v-if="total_customers === 0" class="portal-empty">
             <IconUsers :size="32" stroke-width="1.5" />
-            <div class="portal-empty-title">No customers yet</div>
+            <div class="portal-empty-title">No companies yet</div>
             <div class="portal-empty-sub">
                 Share your referral link to start earning commission on every customer who signs up.
             </div>

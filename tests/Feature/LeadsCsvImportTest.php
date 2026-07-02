@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\ActivityLog;
+use App\Models\Company;
 use App\Models\Contact;
-use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\User;
 use App\Services\LeadImportService;
@@ -103,7 +103,7 @@ class LeadsCsvImportTest extends TestCase
 
     public function test_contact_email_match_imports_but_flags(): void
     {
-        $customer = Customer::create(['name' => 'Acme Co', 'pipeline_stage' => 'active']);
+        $customer = Company::create(['name' => 'Acme Co', 'pipeline_stage' => 'active']);
         Contact::create([
             'customer_id' => $customer->id, 'name' => 'Pat Smith',
             'email' => 'pat@acme.test', 'role' => 'owner', 'is_primary' => true,

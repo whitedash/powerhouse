@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Product;
 use App\Models\ProductPlan;
@@ -26,7 +26,7 @@ class ServiceEditTest extends TestCase
         $plan = ProductPlan::create(['product_id' => $product->id, 'name' => 'Pro', 'is_active' => true, 'is_public' => true]);
         $p1 = ProductPlanPrice::create(['plan_id' => $plan->id, 'price' => 20.00, 'interval_count' => 1, 'interval_unit' => 'month', 'is_default' => true, 'is_active' => true]);
         $p2 = ProductPlanPrice::create(['plan_id' => $plan->id, 'price' => 200.00, 'interval_count' => 1, 'interval_unit' => 'year', 'is_default' => false, 'is_active' => true]);
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
         $cp = CustomerProduct::create([
             'customer_id' => $customer->id,
             'product_id' => $product->id,

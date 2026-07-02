@@ -6,7 +6,7 @@ use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Jobs\ScanProjectFile;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Project;
 use App\Models\ProjectFile;
 use App\Services\FileSecurityService;
@@ -25,7 +25,7 @@ class ProjectFileController extends Controller
 {
     public function upload(Request $request, int $projectId): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
         $project = Project::findOrFail($projectId);
         $this->authorizeScopeItem(ScopeArea::Projects, $project);
 
@@ -76,7 +76,7 @@ class ProjectFileController extends Controller
 
     public function download(int $fileId, Request $request): StreamedResponse|RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
         $file = ProjectFile::findOrFail($fileId);
         $this->authorizeScopeItem(ScopeArea::Projects, Project::findOrFail($file->project_id));
 
@@ -104,7 +104,7 @@ class ProjectFileController extends Controller
 
     public function destroy(int $fileId, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
         $file = ProjectFile::findOrFail($fileId);
         $this->authorizeScopeItem(ScopeArea::Projects, Project::findOrFail($file->project_id));
 

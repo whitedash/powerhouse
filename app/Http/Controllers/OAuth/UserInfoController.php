@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\OAuth;
 
 use App\Http\Controllers\Controller;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\PortalUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,7 +18,7 @@ use Illuminate\Support\Carbon;
  * access map so the consumer can decide whether to provision a
  * tenant on first SSO.
  *
- * Guard: 'api' (Passport) → resolves to a PortalUser. Customer is
+ * Guard: 'api' (Passport) → resolves to a PortalUser. Company is
  * looked up via portal_users.customer_id, so this works for every
  * contact under an account without any extra scope handling.
  *
@@ -40,7 +40,7 @@ class UserInfoController extends Controller
             return response()->json(['error' => 'unauthenticated'], 401);
         }
 
-        $customer = Customer::query()
+        $customer = Company::query()
             ->with([
                 'primaryContact:id,customer_id,first_name,last_name,email,phone,is_primary',
                 'customerProducts' => fn ($q) => $q
@@ -111,7 +111,7 @@ class UserInfoController extends Controller
             return response()->json(['error' => 'unauthenticated'], 401);
         }
 
-        $customer = Customer::query()
+        $customer = Company::query()
             ->with([
                 'customerProducts' => fn ($q) => $q
                     ->whereIn('status', ['active', 'trial'])

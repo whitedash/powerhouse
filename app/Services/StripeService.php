@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -221,14 +221,14 @@ class StripeService
      *      no Stripe call at all.
      *   2. On create, a deterministic Stripe idempotency key derived from the
      *      customer id means concurrent/retried creates return the SAME Stripe
-     *      Customer rather than minting duplicates.
+     *      Company rather than minting duplicates.
      *
      * The DB mapping has a UNIQUE(customer_id). If two requests both miss the
      * mapping and race to insert, one wins and the other catches the unique
      * violation and re-reads the winner — so callers always converge on one
      * Stripe Customer even under concurrency.
      */
-    public function resolveStripeCustomer(Customer $customer): string
+    public function resolveStripeCustomer(Company $customer): string
     {
         $existing = StripeCustomer::where('customer_id', $customer->id)->first();
         if ($existing !== null) {
@@ -264,7 +264,7 @@ class StripeService
      * Stripe network. The deterministic idempotency key makes concurrent or
      * retried creates for the same customer return one Stripe Customer.
      */
-    protected function createStripeCustomer(Customer $customer): string
+    protected function createStripeCustomer(Company $customer): string
     {
         $this->configureStripe();
 
@@ -286,7 +286,7 @@ class StripeService
      * collected client-side (Stripe Elements) against this client_secret and
      * attached to the customer's Stripe Customer for off-session reuse.
      */
-    public function createSetupIntent(Customer $customer): string
+    public function createSetupIntent(Company $customer): string
     {
         $this->configureStripe();
 
@@ -306,7 +306,7 @@ class StripeService
      *
      * @param  array{brand?: ?string, last4?: ?string, exp_month?: ?int, exp_year?: ?int}  $card
      */
-    public function recordPaymentMethod(Customer $customer, string $stripeCustomerId, string $stripePaymentMethodId, array $card): PaymentMethod
+    public function recordPaymentMethod(Company $customer, string $stripeCustomerId, string $stripePaymentMethodId, array $card): PaymentMethod
     {
         return DB::transaction(function () use ($customer, $stripeCustomerId, $stripePaymentMethodId, $card): PaymentMethod {
             $hasActive = PaymentMethod::where('customer_id', $customer->id)
@@ -337,7 +337,7 @@ class StripeService
      * crafted pm id can't bind another customer's card). Used by the portal
      * add-a-card flow.
      */
-    public function recordPaymentMethodFromStripe(Customer $customer, string $stripePaymentMethodId): PaymentMethod
+    public function recordPaymentMethodFromStripe(Company $customer, string $stripePaymentMethodId): PaymentMethod
     {
         $this->configureStripe();
 

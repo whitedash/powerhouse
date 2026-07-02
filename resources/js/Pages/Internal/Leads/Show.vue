@@ -223,7 +223,7 @@ function submitConvert() {
                     <button v-if="canConvert" type="button" class="btn btn-primary" @click="openConvert">
                         <IconUserPlus :size="14" stroke-width="2" /> Convert to customer
                     </button>
-                    <Link v-else-if="lead.is_converted && lead.customer" :href="`/customers/${lead.customer.id}`" class="btn btn-ghost">
+                    <Link v-else-if="lead.is_converted && lead.customer" :href="`/companies/${lead.customer.id}`" class="btn btn-ghost">
                         <IconExternalLink :size="14" stroke-width="2" /> View customer
                     </Link>
                 </div>
@@ -494,7 +494,7 @@ function submitConvert() {
                         </ul>
 
                         <div class="form-section">
-                            <label class="form-label">Customer name <span class="req">*</span></label>
+                            <label class="form-label">Company name <span class="req">*</span></label>
                             <input v-model="convertForm.name" type="text" class="form-input lg" required maxlength="255" />
                             <p v-if="convertForm.errors.name" class="form-error">{{ convertForm.errors.name }}</p>
                         </div>

@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Internal;
 use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Note;
 use App\Models\Task;
 use Illuminate\Http\RedirectResponse;
@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Gate;
 
 /**
  * Standalone CRUD for notes used by the activity detail page. The
- * legacy /customers/{id}/notes endpoint on InternalCustomerController
+ * legacy /companies/{id}/notes endpoint on InternalCustomerController
  * still drives the customer page's note panel — keeping both means
  * we don't need to migrate that surface in the same sprint.
  */
@@ -35,7 +35,7 @@ class NoteController extends Controller
 
         // Authorise against the parent customer — staffers without
         // view access to the customer shouldn't be writing notes to it.
-        $customer = Customer::findOrFail($data['customer_id']);
+        $customer = Company::findOrFail($data['customer_id']);
         Gate::authorize('view', $customer);
 
         // If a task_id was supplied, double-check it belongs to the

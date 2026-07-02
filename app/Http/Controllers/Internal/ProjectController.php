@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Internal;
 use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
@@ -37,7 +37,7 @@ use Inertia\Response;
  * "a project, plus a subset of its unbilled entries" — natural fit on
  * the project resource.
  *
- * Authorisation: every method gates through CustomerPolicy::viewAny
+ * Authorisation: every method gates through CompanyPolicy::viewAny
  * (which is what restricts the project surface to super_admin/staff).
  * A future Sprint 2 may add a tighter per-project policy; until then
  * the role middleware on the routes is the primary line of defence.
@@ -50,7 +50,7 @@ class ProjectController extends Controller
 
     public function index(Request $request): Response
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
         // Scope (phase 3b): None → no section access; Assigned → the list is
         // mandatorily filtered to the user's projects; All/super_admin → all.
         $this->authorizeScopeSection(ScopeArea::Projects);
@@ -97,7 +97,7 @@ class ProjectController extends Controller
             'overdue' => $this->scopeList(Project::query()->where('status', 'active')->whereNull('archived_at')->where('due_date', '<', now()), ScopeArea::Projects)->count(),
         ];
 
-        $customers = Customer::whereNull('archived_at')
+        $customers = Company::whereNull('archived_at')
             ->orderBy('name')
             ->get(['id', 'name']);
 
@@ -124,7 +124,7 @@ class ProjectController extends Controller
 
     public function show(int $id, Request $request): Response
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $project = Project::with([
             'customer:id,name,city',
@@ -267,7 +267,7 @@ class ProjectController extends Controller
         // Customers for the edit form's assignment selector — every non-archived
         // customer regardless of pipeline stage, so leads/prospects are
         // selectable too (matches the create form on the Projects index).
-        $customers = Customer::whereNull('archived_at')
+        $customers = Company::whereNull('archived_at')
             ->orderBy('name')
             ->get(['id', 'name']);
 
@@ -394,7 +394,7 @@ class ProjectController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
         // Creating a project requires section access (None → 403).
         $this->authorizeScopeSection(ScopeArea::Projects);
 
@@ -448,7 +448,7 @@ class ProjectController extends Controller
 
     public function update(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $project = Project::findOrFail($id);
         $this->authorizeScopeItem(ScopeArea::Projects, $project);
@@ -508,7 +508,7 @@ class ProjectController extends Controller
      */
     public function destroy(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
 
         $project = Project::findOrFail($id);
         $this->authorizeScopeItem(ScopeArea::Projects, $project);
@@ -532,10 +532,10 @@ class ProjectController extends Controller
      */
     public function generateInvoice(int $id, Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', Customer::class);
+        Gate::authorize('viewAny', Company::class);
         // Generating an invoice from project time is invoice CREATION — it must
         // require invoices.manage, the same gate as the primary invoice store,
-        // not just customers.access. Composes with the Projects scope check below.
+        // not just companies.access. Composes with the Projects scope check below.
         Gate::authorize('create', Invoice::class);
 
         $project = Project::findOrFail($id);

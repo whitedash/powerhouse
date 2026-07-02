@@ -418,10 +418,10 @@ const nextUrl = computed(() => props.tickets.next_page_url);
                             </header>
                             <div class="slide-over-body">
                                 <div class="form-section">
-                                    <h3>Customer</h3>
+                                    <h3>Company</h3>
                                     <div class="form-row single">
                                         <div class="form-field" style="position: relative;">
-                                            <label>Customer<span class="req">*</span></label>
+                                            <label>Company<span class="req">*</span></label>
                                             <div v-if="selectedCustomer" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--neutral-bg); border-radius: var(--radius-md);">
                                                 <div class="avatar avatar-xs" :style="{ background: avatarColour(selectedCustomer.id), color: '#fff' }">{{ initials(selectedCustomer.name) }}</div>
                                                 <div>

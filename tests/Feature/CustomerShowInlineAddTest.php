@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Product;
 use App\Models\ProductPlan;
 use App\Models\User;
@@ -22,7 +22,7 @@ class CustomerShowInlineAddTest extends TestCase
     public function test_show_passes_active_domain_plan_tlds_for_the_add_domain_modal(): void
     {
         $staff = User::factory()->create(['role' => 'staff']);
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
 
         $product = Product::create(['slug' => 'dom-'.uniqid(), 'name' => 'Domains']);
         // Active domain plan → its TLD should surface in domain_tlds.
@@ -45,7 +45,7 @@ class CustomerShowInlineAddTest extends TestCase
         ]);
 
         $this->actingAs($staff)
-            ->get("/customers/{$customer->id}")
+            ->get("/companies/{$customer->id}")
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('Internal/Customers/Show')

@@ -300,7 +300,7 @@ function triggerItem(itemId) {
                         <div class="card-body links-stack">
                             <div>
                                 <span class="muted small">Customer:</span>
-                                <Link :href="`/customers/${proposal.customer.id}`" class="ghost-link inline">
+                                <Link :href="`/companies/${proposal.customer.id}`" class="ghost-link inline">
                                     {{ proposal.customer.name }} <IconExternalLink :size="11" stroke-width="2" />
                                 </Link>
                             </div>

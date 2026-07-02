@@ -67,7 +67,7 @@ function copyLink() {
             <div class="portal-welcome-label">Welcome back</div>
             <div class="portal-welcome-name">{{ firstName }}</div>
             <div class="portal-welcome-sub">
-                {{ summary.customer_count }} referred customer{{ summary.customer_count === 1 ? '' : 's' }}
+                {{ summary.customer_count }} referred compan{{ summary.customer_count === 1 ? 'y' : 'ies' }}
                 <template v-if="summary.all_time_paid > 0">
                     · {{ gbp(summary.all_time_paid) }} paid all-time
                 </template>
@@ -100,7 +100,7 @@ function copyLink() {
                 </div>
                 <div>
                     <div class="metric-value">{{ summary.customer_count }}</div>
-                    <div class="metric-label">Customers referred</div>
+                    <div class="metric-label">Companies referred</div>
                 </div>
             </div>
             <div class="metric-card">
@@ -181,7 +181,7 @@ function copyLink() {
                         <h2>Recently referred</h2>
                         <div class="desc">Your newest 5 customers.</div>
                     </div>
-                    <Link href="/referrer/customers" class="ghost-link">
+                    <Link href="/referrer/companies" class="ghost-link">
                         View all
                         <IconArrowRight :size="14" stroke-width="1.75" />
                     </Link>
@@ -189,7 +189,7 @@ function copyLink() {
 
                 <div class="card">
                     <div v-if="recent_customers.length === 0" class="portal-empty-inline">
-                        <span>No referred customers yet.</span>
+                        <span>No referred companies yet.</span>
                     </div>
                     <template v-else>
                         <div v-for="(r, i) in recent_customers" :key="i" class="referrer-cust-row">

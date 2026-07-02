@@ -26,7 +26,7 @@ class CustomerOnboardingProgress extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Company::class);
     }
 
     public function sequence(): BelongsTo

@@ -27,7 +27,7 @@ use Tests\TestCase;
  *   - assigned_to is a NULLABLE FK, so a lead assigned to NOBODY is NOT "mine":
  *     an Assigned user sees neither other people's leads NOR unassigned ones.
  *   - Per-item: every Lead action method blocks a lead not assigned to the user
- *     by direct ID (the viewAny(Customer)/review(Lead) gates don't check
+ *     by direct ID (the viewAny(Company)/review(Lead) gates don't check
  *     assignment, so this is the only thing stopping IDOR under Assigned).
  *   - None is walled off entirely; super_admin/All are unfiltered.
  */
@@ -42,14 +42,14 @@ class LeadScopeTest extends TestCase
     }
 
     /**
-     * customers.access clears the viewAny(Customer) gate the lead pages ride;
+     * companies.access clears the viewAny(Company) gate the lead pages ride;
      * leads.manage clears the review(Lead) gate (approve/reject) — so the tests
      * isolate the SCOPE behaviour, not those permission gates.
      */
     private function leadsRole(string $name, AccessScope $leads, ?AccessScope $tasks = null): Role
     {
         $role = Role::create(['name' => $name, 'guard_name' => 'web']);
-        $role->givePermissionTo('customers.access');
+        $role->givePermissionTo('companies.access');
         $role->givePermissionTo('leads.manage');
         RoleScope::create(['role_id' => $role->id, 'area' => ScopeArea::Leads->value, 'scope' => $leads->value]);
         // The Tasks↔Leads boundary tests need a Tasks scope too (to clear the

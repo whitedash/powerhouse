@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\ResolvesProductLaunch;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Domain;
 use App\Models\Invoice;
@@ -31,7 +31,7 @@ class DashboardController extends Controller
         /** @var PortalUser $portalUser */
         $portalUser = Auth::guard('portal')->user();
 
-        $customer = Customer::forPortalUser($portalUser->customer_id)
+        $customer = Company::forPortalUser($portalUser->customer_id)
             ->with(['primaryContact:id,customer_id,name,email'])
             ->firstOrFail();
 
@@ -188,7 +188,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * Customer-facing label for a ticket status. awaiting_customer means
+     * Company-facing label for a ticket status. awaiting_customer means
      * the ball is in their court, so it reads "Reply needed".
      */
     private function ticketStatusLabel(string $status): string

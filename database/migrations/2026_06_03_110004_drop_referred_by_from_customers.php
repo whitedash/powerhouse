@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
  * Drops the dead customers.referred_by column. It was created with an
  * index but NO foreign key and was never wired up — the canonical
  * attribution path is the customer_referrals pivot. A codebase grep
- * confirmed the only readers were three references in the Customer model
+ * confirmed the only readers were three references in the Company model
  * (removed in the same change); no controller, service, route, Blade or
  * Vue touched it.
  *

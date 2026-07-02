@@ -56,8 +56,16 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Person> $people
  * @property-read Collection<int, Person> $owners
  */
-class Customer extends Model
+class Company extends Model
 {
+    // Renamed from Customer (2026-07 Customer->Company rename). The DB table
+    // and every customer_id FK column deliberately stay `customers` /
+    // `customer_id` (model/UI/route rename only), so both the table and the
+    // inferred foreign key are pinned explicitly — without these, Eloquent's
+    // convention would look for a non-existent `companies` table and
+    // `company_id` FKs on every relation.
+    protected $table = 'customers';
+
     protected $fillable = [
         'name',
         'trading_name',
@@ -110,6 +118,18 @@ class Customer extends Model
             'erasure_completed_at' => 'datetime',
             'data_export_last_at' => 'datetime',
         ];
+    }
+
+    /**
+     * The FK columns stay `customer_id` after the class rename, so pin the
+     * inferred foreign key. Eloquent derives hasMany/hasOne/belongsToMany
+     * parent keys from this (class_basename would otherwise give company_id),
+     * so this single override keeps every convention-based relation below
+     * (contacts, invoices, people pivot, …) pointing at customer_id.
+     */
+    public function getForeignKey(): string
+    {
+        return 'customer_id';
     }
 
     public function assignedTo(): BelongsTo
@@ -246,7 +266,7 @@ class Customer extends Model
 
     /**
      * Constrain a query to the single customer a portal user belongs to.
-     * Use everywhere portal-side: `Customer::forPortalUser($cid)->firstOrFail()`.
+     * Use everywhere portal-side: `Company::forPortalUser($cid)->firstOrFail()`.
      */
     public function scopeForPortalUser(Builder $query, int $customerId): Builder
     {

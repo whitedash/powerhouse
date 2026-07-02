@@ -101,7 +101,7 @@ function clear() {
 <template>
     <div class="task-link-picker">
         <div v-if="hasSelection" class="tlp-chip">
-            <span class="tlp-type">{{ leadId !== null ? 'Lead' : 'Customer' }}</span>
+            <span class="tlp-type">{{ leadId !== null ? 'Lead' : 'Company' }}</span>
             <span class="tlp-name">{{ selectedLabel || `#${leadId ?? customerId}` }}</span>
             <button type="button" class="tlp-clear" aria-label="Clear link" @click="clear">
                 <IconX :size="14" stroke-width="1.75" />
@@ -110,7 +110,7 @@ function clear() {
         <template v-else>
             <div class="tlp-toggle">
                 <button type="button" :class="{ active: mode === 'lead' }" @click="setMode('lead')">Lead</button>
-                <button type="button" :class="{ active: mode === 'customer' }" @click="setMode('customer')">Customer</button>
+                <button type="button" :class="{ active: mode === 'customer' }" @click="setMode('customer')">Company</button>
             </div>
             <div class="cust-search">
                 <IconSearch :size="16" stroke-width="1.75" />

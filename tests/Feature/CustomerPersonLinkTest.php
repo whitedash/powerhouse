@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
 use App\Models\Contact;
-use App\Models\Customer;
 use App\Models\Person;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -44,7 +44,7 @@ class CustomerPersonLinkTest extends TestCase
         $person = Person::factory()->create(['email' => 'picked@gmail.com', 'name' => 'Picked Person']);
         $before = Person::count();
 
-        $this->actingAs($staff)->post('/customers', $this->payload([
+        $this->actingAs($staff)->post('/companies', $this->payload([
             'person_id' => $person->id,
             'contact_email' => 'whatever@gmail.com', // different email — explicit pick wins
         ]));
@@ -52,7 +52,7 @@ class CustomerPersonLinkTest extends TestCase
         // No new Person minted.
         $this->assertSame($before, Person::count());
 
-        $customer = Customer::where('name', 'Acme Co')->firstOrFail();
+        $customer = Company::where('name', 'Acme Co')->firstOrFail();
         $this->assertDatabaseHas('contacts', [
             'customer_id' => $customer->id,
             'is_primary' => true,
@@ -70,7 +70,7 @@ class CustomerPersonLinkTest extends TestCase
         $staff = $this->staff();
         $before = Person::count();
 
-        $resp = $this->actingAs($staff)->post('/customers', $this->payload([
+        $resp = $this->actingAs($staff)->post('/companies', $this->payload([
             'contact_email' => 'brandnew@gmail.com',
             'contact_name' => 'Brand New',
         ]));
@@ -82,7 +82,7 @@ class CustomerPersonLinkTest extends TestCase
         $person = Person::where('email', 'brandnew@gmail.com')->firstOrFail();
         $this->assertSame('Brand New', $person->name);
 
-        $customer = Customer::where('name', 'Acme Co')->firstOrFail();
+        $customer = Company::where('name', 'Acme Co')->firstOrFail();
         $this->assertDatabaseHas('contacts', [
             'customer_id' => $customer->id,
             'is_primary' => true,
@@ -100,7 +100,7 @@ class CustomerPersonLinkTest extends TestCase
         $existing = Person::factory()->create(['email' => 'dupe@gmail.com', 'name' => 'Existing Human']);
         $before = Person::count();
 
-        $this->actingAs($staff)->post('/customers', $this->payload([
+        $this->actingAs($staff)->post('/companies', $this->payload([
             'contact_email' => 'dupe@gmail.com', // matches existing Person — no person_id sent
             'contact_name' => 'Existing Human (re-typed)',
         ]));
@@ -109,7 +109,7 @@ class CustomerPersonLinkTest extends TestCase
         $this->assertSame($before, Person::count());
         $this->assertSame(1, Person::where('email', 'dupe@gmail.com')->count());
 
-        $customer = Customer::where('name', 'Acme Co')->firstOrFail();
+        $customer = Company::where('name', 'Acme Co')->firstOrFail();
         $this->assertDatabaseHas('contacts', [
             'customer_id' => $customer->id,
             'is_primary' => true,

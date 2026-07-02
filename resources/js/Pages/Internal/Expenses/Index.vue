@@ -409,7 +409,7 @@ function moneyGBP(value) {
                                 </select>
                             </div>
                             <div class="form-section">
-                                <label class="form-label">Customer</label>
+                                <label class="form-label">Company</label>
                                 <select v-model="form.customer_id" class="form-input">
                                     <option :value="null">—</option>
                                     <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</option>

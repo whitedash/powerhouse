@@ -60,7 +60,7 @@ const props = defineProps({
 
 const breadcrumbs = computed(() => [
     props.task.customer
-        ? { label: props.task.customer.name, href: `/customers/${props.task.customer.id}` }
+        ? { label: props.task.customer.name, href: `/companies/${props.task.customer.id}` }
         : { label: 'Activities', href: '/' },
     { label: 'Activity detail' },
 ]);
@@ -72,7 +72,7 @@ const breadcrumbs = computed(() => [
  * avoided: it breaks when the page was opened from a direct link. */
 const backHref = computed(() => {
     if (props.task.project_id) return `/projects/${props.task.project_id}`;
-    if (props.task.customer) return `/customers/${props.task.customer.id}`;
+    if (props.task.customer) return `/companies/${props.task.customer.id}`;
     return '/';
 });
 
@@ -153,7 +153,7 @@ function togglePin() {
 }
 
 /* ─── Edit slide-over ───
- * The old button redirected to /customers/{id}?edit_task=… but nothing on
+ * The old button redirected to /companies/{id}?edit_task=… but nothing on
  * the customer page consumed that param, so Edit was a dead end (and a
  * total no-op for project/orphan tasks with no customer). The slide-over
  * lives here now and PUTs to /tasks/{id}, working for every task type. */
@@ -268,7 +268,7 @@ function performDelete() {
             showDeleteModal.value = false;
         },
         onSuccess: () => {
-            if (props.task.customer) router.visit(`/customers/${props.task.customer.id}`);
+            if (props.task.customer) router.visit(`/companies/${props.task.customer.id}`);
             else router.visit('/');
         },
     });
@@ -483,9 +483,9 @@ const statusLabel = computed(() => {
                                     </div>
                                 </div>
                                 <div v-if="task.customer">
-                                    <div class="act-show-meta-label">Customer</div>
+                                    <div class="act-show-meta-label">Company</div>
                                     <div class="act-show-meta-value">
-                                        <Link :href="`/customers/${task.customer.id}`">{{ task.customer.name }}</Link>
+                                        <Link :href="`/companies/${task.customer.id}`">{{ task.customer.name }}</Link>
                                     </div>
                                 </div>
                                 <div v-if="task.contact">
@@ -753,12 +753,12 @@ const statusLabel = computed(() => {
                         <div class="card-header">
                             <div class="h-icon"><IconUser :size="16" stroke-width="1.75" /></div>
                             <div>
-                                <h3>Customer</h3>
+                                <h3>Company</h3>
                                 <div class="sub">Quick context</div>
                             </div>
                         </div>
                         <div class="act-show-customer-body">
-                            <Link :href="`/customers/${task.customer.id}`" class="act-show-customer-row">
+                            <Link :href="`/companies/${task.customer.id}`" class="act-show-customer-row">
                                 <div class="act-show-customer-name">{{ task.customer.name }}</div>
                                 <div v-if="task.customer.city" class="act-show-customer-sub">{{ task.customer.city }}</div>
                                 <span class="act-show-customer-link">View customer<IconArrowRight :size="13" stroke-width="1.75" /></span>

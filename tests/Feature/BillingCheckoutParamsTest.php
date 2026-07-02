@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\BillingEntity;
+use App\Models\Company;
 use App\Models\Contact;
-use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\StripeCustomer;
 use App\Models\User;
@@ -34,9 +34,9 @@ class BillingCheckoutParamsTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function customerWithEmail(string $email = 'pay@acme.test'): Customer
+    private function customerWithEmail(string $email = 'pay@acme.test'): Company
     {
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
         Contact::create([
             'customer_id' => $customer->id,
             'name' => 'Pat Payer',
@@ -47,7 +47,7 @@ class BillingCheckoutParamsTest extends TestCase
         return $customer;
     }
 
-    private function invoiceFor(Customer $customer): Invoice
+    private function invoiceFor(Company $customer): Invoice
     {
         $entity = BillingEntity::create([
             'name' => 'WD', 'legal_name' => 'Whitedash Ltd',

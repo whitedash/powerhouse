@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Lead;
 use App\Models\Person;
 use App\Models\User;
@@ -13,11 +13,11 @@ use Tests\TestCase;
  * Person-dedup atomicity fix. createOrLinkFromContact now trims + reuses an
  * existing Person by email, and recovers from the people.email UNIQUE race
  * (previously a swallowed exception that left contacts.person_id null). The
- * funnel runs inside CustomerController::store's transaction, and
+ * funnel runs inside CompanyController::store's transaction, and
  * LeadController::convert now routes its primary contact through the same
  * funnel instead of minting an orphaned Contact.
  *
- * Emails use @gmail.com because StoreCustomerRequest validates contact_email
+ * Emails use @gmail.com because StoreCompanyRequest validates contact_email
  * with email:rfc,dns (a live DNS lookup) — .test/.example domains fail it.
  */
 class PersonDedupAtomicityTest extends TestCase
@@ -43,10 +43,10 @@ class PersonDedupAtomicityTest extends TestCase
 
     public function test_store_with_a_brand_new_email_creates_a_person(): void
     {
-        $this->actingAs($this->staff())->post('/customers', $this->customerPayload())->assertRedirect();
+        $this->actingAs($this->staff())->post('/companies', $this->customerPayload())->assertRedirect();
 
         $person = Person::where('email', 'pat.new@gmail.com')->firstOrFail();
-        $customer = Customer::where('name', 'Acme Co')->firstOrFail();
+        $customer = Company::where('name', 'Acme Co')->firstOrFail();
         $this->assertDatabaseHas('contacts', ['customer_id' => $customer->id, 'is_primary' => true, 'person_id' => $person->id]);
         $this->assertDatabaseHas('customer_person', ['customer_id' => $customer->id, 'person_id' => $person->id, 'role' => 'owner']);
     }
@@ -57,12 +57,12 @@ class PersonDedupAtomicityTest extends TestCase
         $before = Person::count();
 
         $this->actingAs($this->staff())
-            ->post('/customers', $this->customerPayload(['contact_email' => 'pat.existing@gmail.com']))
+            ->post('/companies', $this->customerPayload(['contact_email' => 'pat.existing@gmail.com']))
             ->assertRedirect();
 
         // No new Person minted; the contact + pivot point at the existing one.
         $this->assertSame($before, Person::count());
-        $customer = Customer::where('name', 'Acme Co')->firstOrFail();
+        $customer = Company::where('name', 'Acme Co')->firstOrFail();
         $this->assertDatabaseHas('contacts', ['customer_id' => $customer->id, 'person_id' => $existing->id]);
         $this->assertDatabaseHas('customer_person', ['customer_id' => $customer->id, 'person_id' => $existing->id]);
     }
@@ -75,11 +75,11 @@ class PersonDedupAtomicityTest extends TestCase
         $before = Person::count();
 
         $this->actingAs($this->staff())
-            ->post('/customers', $this->customerPayload(['contact_email' => '  pat.pad@gmail.com  ']))
+            ->post('/companies', $this->customerPayload(['contact_email' => '  pat.pad@gmail.com  ']))
             ->assertRedirect();
 
         $this->assertSame($before, Person::count());
-        $customer = Customer::where('name', 'Acme Co')->firstOrFail();
+        $customer = Company::where('name', 'Acme Co')->firstOrFail();
         $this->assertDatabaseHas('contacts', ['customer_id' => $customer->id, 'person_id' => $existing->id]);
     }
 
@@ -116,7 +116,7 @@ class PersonDedupAtomicityTest extends TestCase
 
         // No new Person; the converted lead's contact links to the existing one.
         $this->assertSame($before, Person::count());
-        $customer = Customer::where('name', 'Converted Co')->firstOrFail();
+        $customer = Company::where('name', 'Converted Co')->firstOrFail();
         $this->assertDatabaseHas('contacts', ['customer_id' => $customer->id, 'is_primary' => true, 'person_id' => $existing->id]);
         $this->assertDatabaseHas('customer_person', ['customer_id' => $customer->id, 'person_id' => $existing->id, 'role' => 'owner']);
     }
@@ -128,7 +128,7 @@ class PersonDedupAtomicityTest extends TestCase
         $this->actingAs($this->staff())->post("/leads/{$lead->id}/convert", $this->convertPayload())->assertRedirect();
 
         $person = Person::where('email', 'jo.brandnew@gmail.com')->firstOrFail();
-        $customer = Customer::where('name', 'Converted Co')->firstOrFail();
+        $customer = Company::where('name', 'Converted Co')->firstOrFail();
         $this->assertDatabaseHas('contacts', ['customer_id' => $customer->id, 'is_primary' => true, 'person_id' => $person->id]);
         $this->assertDatabaseHas('customer_person', ['customer_id' => $customer->id, 'person_id' => $person->id]);
     }

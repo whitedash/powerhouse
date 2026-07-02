@@ -20,7 +20,7 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Manual suspend / reinstate of a single customer product. Distinct from
- * CustomerController::suspendProduct (the legacy customer+productId path)
+ * CompanyController::suspendProduct (the legacy customer+productId path)
  * — these act on a CustomerProduct id, capture a reason, fire the product
  * webhook, and record who acted (suspended_by / reinstated_by) so the
  * audit trail separates staff actions from the auto-suspension sweep.

@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\AccessScope;
 use App\Enums\ScopeArea;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Project;
 use App\Models\RoleScope;
 use App\Models\Task;
@@ -43,14 +43,14 @@ class TaskScopeTest extends TestCase
     }
 
     /**
-     * A web role with customers.access (so the user clears the customer-view
+     * A web role with companies.access (so the user clears the customer-view
      * gate that customer-linked tasks ride) plus a Tasks scope row, and
      * optionally a Projects scope row for the board test.
      */
     private function tasksRole(string $name, AccessScope $tasks, ?AccessScope $projects = null): Role
     {
         $role = Role::create(['name' => $name, 'guard_name' => 'web']);
-        $role->givePermissionTo('customers.access');
+        $role->givePermissionTo('companies.access');
         // Step 8: task mutations now require tasks.manage. These tests exercise
         // the Tasks SCOPE layer, so grant tasks.manage to every role — scope
         // denials still 403 (from scope), success paths still pass.
@@ -71,9 +71,9 @@ class TaskScopeTest extends TestCase
         return $user->fresh();
     }
 
-    private function customer(): Customer
+    private function customer(): Company
     {
-        return Customer::create(['name' => 'Acme '.uniqid()]);
+        return Company::create(['name' => 'Acme '.uniqid()]);
     }
 
     /**
@@ -197,7 +197,7 @@ class TaskScopeTest extends TestCase
 
         // Section gate runs before validation, so empty bodies still 403.
         $this->actingAs($user)->post('/tasks', [])->assertForbidden();
-        $this->actingAs($user)->post("/customers/{$task->customer_id}/tasks", [])->assertForbidden();
+        $this->actingAs($user)->post("/companies/{$task->customer_id}/tasks", [])->assertForbidden();
     }
 
     public function test_staff_all_scope_can_create_access_identical(): void
@@ -337,13 +337,13 @@ class TaskScopeTest extends TestCase
         $mine = $this->task(['customer_id' => $customer->id, 'assigned_to' => $user->id, 'created_by' => $other->id]);
         $this->task(['customer_id' => $customer->id, 'assigned_to' => $other->id, 'created_by' => $other->id]);
 
-        $this->actingAs($user)->get("/customers/{$customer->id}")->assertOk()
+        $this->actingAs($user)->get("/companies/{$customer->id}")->assertOk()
             ->assertInertia(fn (Assert $p) => $p
                 ->has('customer.tasks', 1)
                 ->where('customer.tasks.0.id', $mine->id));
 
         $admin = User::factory()->superAdmin()->create();
-        $this->actingAs($admin)->get("/customers/{$customer->id}")->assertOk()
+        $this->actingAs($admin)->get("/companies/{$customer->id}")->assertOk()
             ->assertInertia(fn (Assert $p) => $p->has('customer.tasks', 2));
     }
 }

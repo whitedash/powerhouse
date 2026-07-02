@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Product;
 use App\Models\User;
@@ -16,8 +16,8 @@ use Tests\TestCase;
  *
  * Every provisioning mutation (toggle, subscription update/cancel, customer-
  * product suspend/reinstate/update, and the enableProduct/suspendProduct
- * side-doors on CustomerController) now requires provisioning.manage via route
- * middleware, COMPOSING with the existing per-customer customers.manage check.
+ * side-doors on CompanyController) now requires provisioning.manage via route
+ * middleware, COMPOSING with the existing per-customer companies.manage check.
  * These guards prove BOTH are required (and super_admin bypasses via Gate::before).
  */
 class ProvisioningManageEnforcementTest extends TestCase
@@ -54,7 +54,7 @@ class ProvisioningManageEnforcementTest extends TestCase
 
     private function activeCustomerProduct(): CustomerProduct
     {
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
         $product = Product::create(['name' => 'Service '.uniqid(), 'slug' => 'svc-'.uniqid()]);
 
         return CustomerProduct::create([
@@ -75,15 +75,15 @@ class ProvisioningManageEnforcementTest extends TestCase
             ['post', '/customer-products/1/suspend'],
             ['post', '/customer-products/1/reinstate'],
             ['put', '/customer-products/1'],
-            ['post', '/customers/1/products'],                 // enableProduct side-door
-            ['post', '/customers/1/products/1/suspend'],       // suspendProduct side-door
+            ['post', '/companies/1/products'],                 // enableProduct side-door
+            ['post', '/companies/1/products/1/suspend'],       // suspendProduct side-door
         ];
     }
 
     public function test_all_provisioning_mutations_403_without_provisioning_manage(): void
     {
-        // Has customers.manage (the old, too-permissive gate) but NOT provisioning.manage.
-        $user = $this->userWith(['customers.access', 'customers.manage']);
+        // Has companies.manage (the old, too-permissive gate) but NOT provisioning.manage.
+        $user = $this->userWith(['companies.access', 'companies.manage']);
 
         foreach ($this->mutationRoutes() as [$verb, $url]) {
             $this->actingAs($user)->{$verb}($url)
@@ -93,7 +93,7 @@ class ProvisioningManageEnforcementTest extends TestCase
 
     public function test_customer_product_suspend_succeeds_with_both(): void
     {
-        $user = $this->userWith(['customers.access', 'customers.manage', 'provisioning.manage']);
+        $user = $this->userWith(['companies.access', 'companies.manage', 'provisioning.manage']);
         $cp = $this->activeCustomerProduct();
 
         $this->actingAs($user)
@@ -105,11 +105,11 @@ class ProvisioningManageEnforcementTest extends TestCase
 
     public function test_provisioning_toggle_succeeds_with_both(): void
     {
-        $user = $this->userWith(['customers.access', 'customers.manage', 'provisioning.manage']);
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $user = $this->userWith(['companies.access', 'companies.manage', 'provisioning.manage']);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
         $product = Product::create(['name' => 'Service '.uniqid(), 'slug' => 'svc-'.uniqid()]);
 
-        // Past provisioning.manage (middleware) + customers.manage (in-method):
+        // Past provisioning.manage (middleware) + companies.manage (in-method):
         // the request reaches the toggle body (not a 403). Its full create logic
         // is the toggle feature's own concern; here we prove authz composes.
         $resp = $this->actingAs($user)
@@ -119,12 +119,12 @@ class ProvisioningManageEnforcementTest extends TestCase
 
     public function test_enable_product_side_door_succeeds_with_both(): void
     {
-        $user = $this->userWith(['customers.access', 'customers.manage', 'provisioning.manage']);
-        $customer = Customer::create(['name' => 'Acme '.uniqid()]);
+        $user = $this->userWith(['companies.access', 'companies.manage', 'provisioning.manage']);
+        $customer = Company::create(['name' => 'Acme '.uniqid()]);
         $product = Product::create(['name' => 'Service '.uniqid(), 'slug' => 'svc-'.uniqid()]);
 
         // The enableProduct side-door: past both gates it should NOT 403.
-        $resp = $this->actingAs($user)->post("/customers/{$customer->id}/products", [
+        $resp = $this->actingAs($user)->post("/companies/{$customer->id}/products", [
             'product_id' => $product->id,
         ]);
         $this->assertNotSame(403, $resp->getStatusCode(), 'enableProduct must pass authz for a both-permission user');
@@ -144,7 +144,7 @@ class ProvisioningManageEnforcementTest extends TestCase
     public function test_composition_provisioning_manage_without_customers_manage_is_blocked(): void
     {
         // Holds provisioning.manage (passes the route middleware) but NOT
-        // customers.manage → the in-method Gate::authorize('update', $customer)
+        // companies.manage → the in-method Gate::authorize('update', $customer)
         // must still 403. Proves BOTH checks are required (composition).
         $user = $this->userWith(['provisioning.manage']);
         $cp = $this->activeCustomerProduct();

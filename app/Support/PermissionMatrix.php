@@ -32,10 +32,10 @@ class PermissionMatrix
     {
         return [
             ['key' => 'customers', 'label' => 'Customers & CRM', 'icon' => 'users', 'scoped' => false, 'rows' => [
-                self::row('customers.access', 'Access', 'access', 'Enter and view customers, contacts, contracts and customer groups.'),
-                self::row('customers.manage', 'Manage', 'manage', 'Create/edit customers, contacts, contracts, groups & notes; portal invites; enable/suspend product subs; auto-collect.'),
-                self::row('customers.referral.manage', 'Danger', 'danger', 'Attach or detach a referral on a customer (voids pending commissions).'),
-                self::row('customers.exemption', 'Danger', 'danger', "Toggle a customer's auto-suspension exemption."),
+                self::row('companies.access', 'Access', 'access', 'Enter and view customers, contacts, contracts and customer groups.'),
+                self::row('companies.manage', 'Manage', 'manage', 'Create/edit customers, contacts, contracts, groups & notes; portal invites; enable/suspend product subs; auto-collect.'),
+                self::row('companies.referral.manage', 'Danger', 'danger', 'Attach or detach a referral on a customer (voids pending commissions).'),
+                self::row('companies.exemption', 'Danger', 'danger', "Toggle a customer's auto-suspension exemption."),
                 self::row('gdpr.export', 'PII', 'pii', "Export a customer's full personal data (GDPR Art. 20)."),
                 self::row('gdpr.erase', 'Danger', 'danger', 'Erase a customer under right-to-erasure (GDPR Art. 17 — irreversible).'),
             ]],

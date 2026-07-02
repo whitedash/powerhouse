@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
  * The customer↔person many-to-many: which companies a person owns or is
  * associated with, and in what capacity (`role`). Named `customer_person`
  * to match Laravel's singular-alphabetical pivot convention so the
- * Customer::people() / Person::companies() belongsToMany relations need
+ * Company::people() / Person::companies() belongsToMany relations need
  * no extra wiring.
  *
  * `role` is stored as a plain string, NOT a DB enum — App\Enums\PersonRole

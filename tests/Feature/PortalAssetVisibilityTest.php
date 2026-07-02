@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Domain;
 use App\Models\PortalUser;
@@ -30,7 +30,7 @@ class PortalAssetVisibilityTest extends TestCase
         $this->staff = User::factory()->create(['role' => 'super_admin']);
     }
 
-    private function portalUser(Customer $customer): PortalUser
+    private function portalUser(Company $customer): PortalUser
     {
         return PortalUser::create([
             'customer_id' => $customer->id,
@@ -48,7 +48,7 @@ class PortalAssetVisibilityTest extends TestCase
         return ProductPlanPrice::create(['plan_id' => $plan->id, 'price' => 20.00, 'interval_count' => 1, 'interval_unit' => 'month', 'is_default' => true, 'is_active' => true, 'sort_order' => 0]);
     }
 
-    private function website(Customer $c, ProductPlanPrice $tier): Website
+    private function website(Company $c, ProductPlanPrice $tier): Website
     {
         return Website::create([
             'customer_id' => $c->id,
@@ -69,7 +69,7 @@ class PortalAssetVisibilityTest extends TestCase
         ]);
     }
 
-    private function domain(Customer $c): Domain
+    private function domain(Company $c): Domain
     {
         return Domain::create([
             'customer_id' => $c->id,
@@ -83,7 +83,7 @@ class PortalAssetVisibilityTest extends TestCase
         ]);
     }
 
-    private function serviceCp(Customer $c, string $slug = 'maavelus'): CustomerProduct
+    private function serviceCp(Company $c, string $slug = 'maavelus'): CustomerProduct
     {
         $product = Product::create(['slug' => $slug, 'name' => ucfirst($slug), 'is_active' => true]);
         $plan = ProductPlan::create(['product_id' => $product->id, 'name' => 'Standard', 'is_active' => true, 'is_public' => true]);
@@ -106,8 +106,8 @@ class PortalAssetVisibilityTest extends TestCase
 
     public function test_portal_user_sees_only_their_own_assets(): void
     {
-        $mine = Customer::create(['name' => 'Mine']);
-        $other = Customer::create(['name' => 'Other']);
+        $mine = Company::create(['name' => 'Mine']);
+        $other = Company::create(['name' => 'Other']);
 
         $myWebsite = $this->website($mine, $this->hostingPlanPrice());
         $myDomain = $this->domain($mine);
@@ -129,7 +129,7 @@ class PortalAssetVisibilityTest extends TestCase
 
     public function test_payload_contains_no_internal_fields(): void
     {
-        $mine = Customer::create(['name' => 'Mine']);
+        $mine = Company::create(['name' => 'Mine']);
         $this->website($mine, $this->hostingPlanPrice());
         $this->domain($mine);
         $this->serviceCp($mine);
@@ -150,7 +150,7 @@ class PortalAssetVisibilityTest extends TestCase
 
     public function test_assets_route_is_read_only(): void
     {
-        $mine = Customer::create(['name' => 'Mine']);
+        $mine = Company::create(['name' => 'Mine']);
 
         // No customer-facing mutation route was added for assets.
         $this->actingAs($this->portalUser($mine), 'portal')
@@ -160,7 +160,7 @@ class PortalAssetVisibilityTest extends TestCase
 
     public function test_saas_sso_launch_is_preserved_for_a_service(): void
     {
-        $mine = Customer::create(['name' => 'Mine']);
+        $mine = Company::create(['name' => 'Mine']);
         $this->serviceCp($mine, 'maavelus'); // SSO-capable product
 
         $this->actingAs($this->portalUser($mine), 'portal')
@@ -174,7 +174,7 @@ class PortalAssetVisibilityTest extends TestCase
 
     public function test_hosting_and_domain_plans_are_not_listed_as_services(): void
     {
-        $mine = Customer::create(['name' => 'Mine']);
+        $mine = Company::create(['name' => 'Mine']);
         // A stray is_hosting CP must not appear under Services.
         $hostTier = $this->hostingPlanPrice();
         CustomerProduct::create([

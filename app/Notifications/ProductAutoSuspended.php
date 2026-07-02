@@ -42,7 +42,7 @@ class ProductAutoSuspended extends Notification
             'type' => 'product_auto_suspended',
             'title' => 'Product auto-suspended',
             'message' => "Auto-suspended: {$customerName} {$productName} — {$amount} overdue",
-            'url' => '/customers/'.$cp->customer_id,
+            'url' => '/companies/'.$cp->customer_id,
             'icon' => 'ti-ban',
             'colour' => '#EF4444',
             'entity_type' => 'customer',

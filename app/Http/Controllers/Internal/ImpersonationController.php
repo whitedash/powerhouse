@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
-use App\Models\Customer;
+use App\Models\Company;
 use App\Models\PortalUser;
 use App\Models\Referrer;
 use Illuminate\Http\JsonResponse;
@@ -37,7 +37,7 @@ class ImpersonationController extends Controller
 
     public function portalPreview(int $customerId, Request $request): JsonResponse
     {
-        $customer = Customer::findOrFail($customerId);
+        $customer = Company::findOrFail($customerId);
 
         // Pick the first portal user for this customer — there's
         // typically only one. If we ever need to disambiguate, the UI

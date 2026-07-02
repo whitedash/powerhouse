@@ -34,7 +34,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Referrer|null $referrer
- * @property-read Collection<int, Customer> $assignedCustomers
+ * @property-read Collection<int, Company> $assignedCustomers
  * @property-read Collection<int, SupportTicket> $assignedTickets
  * @property-read Collection<int, Task> $tasks
  */
@@ -109,7 +109,7 @@ class User extends Authenticatable implements OAuthenticatable
 
     public function assignedCustomers(): HasMany
     {
-        return $this->hasMany(Customer::class, 'assigned_to');
+        return $this->hasMany(Company::class, 'assigned_to');
     }
 
     public function assignedTickets(): HasMany

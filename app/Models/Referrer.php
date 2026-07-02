@@ -21,7 +21,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read User|null $user
  * @property-read Collection<int, CustomerReferral> $referrals
- * @property-read Collection<int, Customer> $customers
+ * @property-read Collection<int, Company> $customers
  * @property-read Collection<int, ReferralClick> $clicks
  * @property-read Collection<int, CommissionRule> $commissionRules
  * @property-read Collection<int, CommissionLedger> $ledgerEntries
@@ -68,7 +68,7 @@ class Referrer extends Model
 
     public function customers(): HasManyThrough
     {
-        return $this->hasManyThrough(Customer::class, CustomerReferral::class, 'referrer_id', 'id', 'id', 'customer_id');
+        return $this->hasManyThrough(Company::class, CustomerReferral::class, 'referrer_id', 'id', 'id', 'customer_id');
     }
 
     public function commissionRules(): HasMany
