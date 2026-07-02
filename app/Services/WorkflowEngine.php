@@ -39,6 +39,19 @@ use Illuminate\Support\Facades\Mail;
 class WorkflowEngine
 {
     /**
+     * Valid leads.status values, gating the update_lead_status action.
+     * Mirrors LeadController::STATUSES and the leads.status ENUM
+     * (SCHEMA.md) — there is no shared App\Enums\LeadStatus yet, so this
+     * must be kept in lockstep with the column if the enum ever widens.
+     *
+     * @var list<string>
+     */
+    private const LEAD_STATUSES = [
+        'new', 'contacted', 'qualified', 'proposal',
+        'negotiation', 'won', 'lost', 'unresponsive',
+    ];
+
+    /**
      * Emails queued by send_email actions during a single workflow's run,
      * flushed only AFTER that workflow's transaction commits (see trigger()).
      * Reset per workflow so a rolled-back run never sends.
@@ -79,6 +92,17 @@ class WorkflowEngine
             try {
                 DB::transaction(function () use ($workflow, $payload, $triggerType, $triggerEntityId): void {
                     $context = $payload;
+
+                    // lead_id is an ENGINE-INTERNAL handoff key — only
+                    // actionCreateLead may set it (see its return merge below).
+                    // The public trigger call sites build $payload from the raw
+                    // request body (FormController $request->except(...),
+                    // WebhookController $request->all(), draft data), NOT from
+                    // validated input, so a caller-supplied lead_id must never
+                    // seed context and let a lead-mutating action (update_lead_status,
+                    // create_task) target an unrelated lead. Strip it here; a
+                    // legitimate create_lead re-populates it for downstream actions.
+                    unset($context['lead_id']);
 
                     foreach ($workflow->actions as $action) {
                         try {
@@ -453,12 +477,54 @@ class WorkflowEngine
      */
     private function actionUpdateLeadStatus(array $config, array $context): array
     {
+        // lead_id here is trusted: trigger() strips any caller-supplied value
+        // at the boundary, so it is present only when an earlier create_lead
+        // action in THIS run produced it.
         if (! isset($context['lead_id']) || ! isset($config['status'])) {
             return $context;
         }
 
-        Lead::where('id', $context['lead_id'])
-            ->update(['status' => $config['status']]);
+        $newStatus = $config['status'];
+
+        // Validate against the real leads.status ENUM before the write — the
+        // action config is persisted raw (WorkflowController excludes it from
+        // key validation), so an arbitrary string could otherwise reach the
+        // column. A bad value is a misconfigured (or crafted) workflow: skip
+        // the write and warn rather than void the whole run on a QueryException.
+        if (! in_array($newStatus, self::LEAD_STATUSES, true)) {
+            Log::warning('Workflow update_lead_status skipped: invalid target status', [
+                'lead_id' => $context['lead_id'],
+                'status' => $newStatus,
+            ]);
+
+            return $context;
+        }
+
+        $lead = Lead::find($context['lead_id']);
+        if ($lead === null) {
+            return $context;
+        }
+
+        $oldStatus = $lead->status;
+        if ($oldStatus === $newStatus) {
+            return $context;
+        }
+
+        $lead->update(['status' => $newStatus]);
+
+        // Per-lead audit row, matching LeadController::updateStatus's
+        // lead.status_changed convention (from/to in `after`). Workflow-fired,
+        // so no request user — attributed to the system actor like the
+        // workflow.executed row above.
+        ActivityLog::create([
+            'user_id' => null,
+            'user_role' => 'system',
+            'action' => 'lead.status_changed',
+            'entity_type' => 'lead',
+            'entity_id' => $lead->id,
+            'before' => null,
+            'after' => ['from' => $oldStatus, 'to' => $newStatus, 'via' => 'workflow'],
+        ]);
 
         return $context;
     }
