@@ -19,16 +19,19 @@ class ProposalSent extends Mailable
     use SerializesModels;
     use UsesEntityBranding;
 
-    public function __construct(public Proposal $proposal) {}
+    /**
+     * $rawAcceptToken is the RAW acceptance token (not the hash stored on the
+     * proposal) — the caller mints it and hands it here so the email carries a
+     * working link while storage keeps only hash('sha256', $raw).
+     */
+    public function __construct(public Proposal $proposal, public string $rawAcceptToken) {}
 
     public function build(): self
     {
         $this->proposal->loadMissing(['customer.primaryContact', 'billingEntity']);
 
         $contact = $this->proposal->customer->primaryContact;
-        $acceptUrl = $this->proposal->acceptance_token
-            ? route('proposal.accept.show', $this->proposal->acceptance_token)
-            : null;
+        $acceptUrl = route('proposal.accept.show', $this->rawAcceptToken);
 
         $mail = $this
             ->subject('Proposal '.$this->proposal->reference.($this->proposal->billingEntity ? ' from '.$this->proposal->billingEntity->legal_name : ''))

@@ -8,11 +8,11 @@
  * schedule slide-over.
  */
 import { computed, ref } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     IconX, IconDownload, IconSend, IconCopy, IconCheck,
     IconCircleCheck, IconAlertTriangle, IconPlus, IconFileDescription,
-    IconReceipt, IconExternalLink,
+    IconReceipt, IconExternalLink, IconLink,
 } from '@tabler/icons-vue';
 import InternalLayout from '@/Layouts/InternalLayout.vue';
 
@@ -47,12 +47,26 @@ function downloadAcceptedPdf() { window.open(`/proposals/${props.proposal.id}/ac
 function sendProposal() { router.post(`/proposals/${props.proposal.id}/send`, {}); }
 function convertToContract() { router.post(`/proposals/${props.proposal.id}/convert`, {}); }
 
-/* ─── Copy acceptance link ─── */
+/* ─── Regenerate acceptance link (one-time reveal) ─── */
+// Tokens are hashed at rest, so a live link can't be read back from the
+// proposal record. Regenerating mints a fresh link, rotates the old one dead,
+// and returns the raw URL exactly once via the proposal_link flash — shown
+// here for the clipboard and never persisted.
+const page = usePage();
+const revealedLink = computed(() => page.props.flash?.proposal_link ?? null);
 const linkCopied = ref(false);
-function copyAcceptanceLink() {
-    if (! props.proposal.acceptance_token) return;
-    const url = `${window.location.origin}/proposals/accept/${props.proposal.acceptance_token}`;
-    navigator.clipboard.writeText(url).then(() => {
+const regenerating = ref(false);
+
+function regenerateLink() {
+    router.post(`/proposals/${props.proposal.id}/regenerate-link`, {}, {
+        preserveScroll: true,
+        onStart: () => { regenerating.value = true; linkCopied.value = false; },
+        onFinish: () => { regenerating.value = false; },
+    });
+}
+function copyRevealedLink() {
+    if (! revealedLink.value) return;
+    navigator.clipboard.writeText(revealedLink.value).then(() => {
         linkCopied.value = true;
         setTimeout(() => { linkCopied.value = false; }, 2000);
     });
@@ -215,9 +229,9 @@ function triggerItem(itemId) {
                                 <button type="button" class="btn btn-ghost" @click="downloadPdf">
                                     <IconDownload :size="14" stroke-width="2" /> Download PDF
                                 </button>
-                                <button v-if="proposal.status === 'sent' && proposal.acceptance_token" type="button" class="btn btn-ghost" @click="copyAcceptanceLink">
-                                    <IconCopy :size="14" stroke-width="2" />
-                                    {{ linkCopied ? 'Copied!' : 'Copy acceptance link' }}
+                                <button v-if="proposal.status === 'sent'" type="button" class="btn btn-ghost" :disabled="regenerating" @click="regenerateLink">
+                                    <IconLink :size="14" stroke-width="2" />
+                                    {{ regenerating ? 'Generating…' : 'Generate acceptance link' }}
                                 </button>
                                 <button v-if="proposal.status === 'accepted' && proposal.has_accepted_pdf" type="button" class="btn btn-ghost" @click="downloadAcceptedPdf">
                                     <IconDownload :size="14" stroke-width="2" /> Signed PDF
@@ -225,6 +239,19 @@ function triggerItem(itemId) {
                                 <button v-if="proposal.status === 'accepted' && !proposal.contract" type="button" class="btn btn-primary" @click="convertToContract">
                                     <IconCheck :size="14" stroke-width="2" /> Convert to contract
                                 </button>
+                            </div>
+
+                            <!-- One-time reveal of a freshly generated link.
+                                 Shown once (flash-backed); staff copy it here,
+                                 then it's gone on the next navigation. -->
+                            <div v-if="revealedLink" class="proposal-link-reveal">
+                                <div class="plr-label">New acceptance link — copy it now, it won't be shown again:</div>
+                                <div class="plr-row">
+                                    <input type="text" class="form-input plr-input" :value="revealedLink" readonly @focus="$event.target.select()" />
+                                    <button type="button" class="btn btn-primary btn-sm" @click="copyRevealedLink">
+                                        <IconCopy :size="14" stroke-width="2" /> {{ linkCopied ? 'Copied!' : 'Copy' }}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -365,3 +392,22 @@ function triggerItem(itemId) {
         </Teleport>
     </InternalLayout>
 </template>
+
+<style scoped>
+/* One-time acceptance-link reveal (proposal-link-* namespace). Design tokens
+   only; the card sits inside the actions panel after regeneration. */
+.proposal-link-reveal {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--info-bg);
+    border: 1px solid var(--info);
+    border-radius: var(--radius-md);
+}
+.plr-label {
+    font: 500 12.5px/1.4 'Inter', sans-serif;
+    color: var(--info);
+    margin-bottom: 8px;
+}
+.plr-row { display: flex; gap: 8px; align-items: center; }
+.plr-input { flex: 1; font-family: 'Menlo', monospace; font-size: 12px; }
+</style>

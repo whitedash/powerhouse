@@ -345,11 +345,11 @@ class ProposalController extends Controller
             return back()->with('error', 'Only draft proposals can be sent.');
         }
 
-        DB::transaction(function () use ($proposal, $request) {
-            $token = hash('sha256',
-                $proposal->id.$proposal->reference.Str::random(32).config('app.key')
-            );
+        // The RAW token travels only in the outgoing email; storage keeps
+        // hash('sha256', raw) so a DB read can never disclose a usable link.
+        $rawToken = $this->mintAcceptanceToken($proposal);
 
+        DB::transaction(function () use ($proposal, $rawToken, $request) {
             $pdf = $this->generatePdf($proposal);
             $pdfPath = 'proposals/'.$proposal->reference.'.pdf';
             Storage::disk('private')->put($pdfPath, $pdf->output());
@@ -358,7 +358,7 @@ class ProposalController extends Controller
                 'status' => 'sent',
                 'sent_at' => now(),
                 'pdf_path' => $pdfPath,
-                'acceptance_token' => $token,
+                'acceptance_token' => hash('sha256', $rawToken),
                 // Acceptance link expires with the proposal itself.
                 // If valid_until is blank, default to 30 days from
                 // send time so links don't live forever.
@@ -369,7 +369,7 @@ class ProposalController extends Controller
 
             $this->log($request, 'proposal.sent', $proposal->id, after: [
                 'reference' => $proposal->reference,
-                'token_prefix' => substr($token, 0, 8),
+                'token_prefix' => substr($rawToken, 0, 8),
             ]);
         });
 
@@ -378,12 +378,65 @@ class ProposalController extends Controller
         $proposal->loadMissing('customer.primaryContact');
         $recipient = $proposal->customer->primaryContact?->email;
         if ($recipient) {
-            Mail::to($recipient)->send(new ProposalSent($proposal));
+            Mail::to($recipient)->send(new ProposalSent($proposal, $rawToken));
 
             return back()->with('success', "Proposal sent to {$recipient}.");
         }
 
-        return back()->with('success', 'Proposal sent. Acceptance link generated. No contact email on file — nothing was emailed.');
+        return back()->with('success', 'Proposal sent. No contact email on file — use "Generate acceptance link" to share it.');
+    }
+
+    /**
+     * Rotate a SENT proposal's acceptance link. Mints a fresh raw token,
+     * stores only its hash (the old link dies), and reveals the raw URL ONCE
+     * via a one-shot flash so staff can copy it — the raw value is never
+     * persisted and never returned by any read endpoint. This is the only
+     * way to re-share a sent proposal now that tokens are hashed at rest
+     * (send() is draft-only) and covers customers with no email on file.
+     */
+    public function regenerateLink(int $id, Request $request): RedirectResponse
+    {
+        Gate::authorize('viewAny', Customer::class);
+
+        $proposal = Proposal::findOrFail($id);
+
+        if ($proposal->status !== 'sent') {
+            return back()->with('error', 'Only sent proposals have an acceptance link to regenerate.');
+        }
+
+        $rawToken = $this->mintAcceptanceToken($proposal);
+
+        DB::transaction(function () use ($proposal, $rawToken, $request) {
+            $proposal->update([
+                'acceptance_token' => hash('sha256', $rawToken),
+                'acceptance_token_expires_at' => $proposal->valid_until
+                    ? $proposal->valid_until->endOfDay()
+                    : now()->addDays(30),
+            ]);
+
+            $this->log($request, 'proposal.link_regenerated', $proposal->id, after: [
+                'reference' => $proposal->reference,
+                'token_prefix' => substr($rawToken, 0, 8),
+            ]);
+        });
+
+        // One-shot reveal: the raw URL rides a dedicated flash key (same
+        // show-once semantics as temp_password) so Show.vue can offer it for
+        // the clipboard exactly once. It is never stored.
+        return back()
+            ->with('success', 'New acceptance link generated — the previous link no longer works.')
+            ->with('proposal_link', route('proposal.accept.show', $rawToken));
+    }
+
+    /**
+     * Mint a raw acceptance token (256-bit, 64 hex). The caller stores
+     * hash('sha256', $raw) and hands the raw value to the email / clipboard.
+     */
+    private function mintAcceptanceToken(Proposal $proposal): string
+    {
+        return hash('sha256',
+            $proposal->id.$proposal->reference.Str::random(32).config('app.key')
+        );
     }
 
     public function downloadPdf(int $id): StreamedResponse|\Illuminate\Http\Response
@@ -565,7 +618,9 @@ class ProposalController extends Controller
             'accepted_at' => $p->accepted_at?->format('d M Y H:i'),
             'accepted_by_name' => $p->accepted_by_name,
             'accepted_ip' => $p->accepted_ip,
-            'acceptance_token' => $p->acceptance_token,
+            // acceptance_token is NEVER surfaced: it is a hash at rest, so a
+            // usable raw link cannot be reconstructed from it. Re-sharing goes
+            // through regenerateLink()'s one-shot reveal instead.
             'has_pdf' => $p->pdf_path !== null,
             'has_accepted_pdf' => $p->accepted_pdf_path !== null,
             'notes' => $p->notes,

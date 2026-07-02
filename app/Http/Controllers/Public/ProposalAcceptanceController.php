@@ -194,7 +194,13 @@ class ProposalAcceptanceController extends Controller
      */
     private function loadByToken(string $token): Proposal
     {
-        $proposal = Proposal::where('acceptance_token', $token)
+        // Tokens are hashed at rest: the URL carries the RAW token, storage
+        // holds hash('sha256', raw). Hash the incoming value and match on the
+        // hash so a DB read never discloses a usable link. MySQL SHA2 and PHP
+        // hash('sha256') agree, so links minted either way resolve here.
+        $tokenHash = hash('sha256', $token);
+
+        $proposal = Proposal::where('acceptance_token', $tokenHash)
             ->with([
                 'customer',
                 'billingEntity',
@@ -204,16 +210,14 @@ class ProposalAcceptanceController extends Controller
             ])
             ->first();
 
-        // Constant-time re-verification of the full token. The row was
-        // fetched by an indexed equality match on the UNIQUE token column
-        // (a parameterised WHERE, not a PHP == — so no byte-by-byte timing
-        // oracle today), but we hash_equals the fetched token so the
-        // constant-time guarantee is explicit and survives any future change
-        // that loosens the query (e.g. a prefix/LIKE lookup). A nulled token
-        // (already accepted) is never a match, so a dead bookmark 404s.
+        // Constant-time re-verification of the full hash. The row was fetched
+        // by an indexed equality match (a parameterised WHERE, not a PHP ==),
+        // but hash_equals makes the constant-time guarantee explicit and
+        // survives any future query loosening. A nulled token (already
+        // accepted) never matches, so a dead bookmark 404s.
         if ($proposal === null
             || $proposal->acceptance_token === null
-            || ! hash_equals($proposal->acceptance_token, $token)) {
+            || ! hash_equals($proposal->acceptance_token, $tokenHash)) {
             abort(404, 'Proposal not found.');
         }
 
