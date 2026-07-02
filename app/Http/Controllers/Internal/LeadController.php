@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Internal;
 use App\Enums\ReferralStatus;
 use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ImportLeadsRequest;
 use App\Models\ActivityLog;
 use App\Models\Contact;
 use App\Models\Customer;
@@ -14,6 +15,8 @@ use App\Models\Task;
 use App\Models\User;
 use App\Services\AttributionService;
 use App\Services\DealRegistrationService;
+use App\Services\FileUploadService;
+use App\Services\LeadImportService;
 use App\Services\NotificationService;
 use App\Support\ScopeEnforcer;
 use Illuminate\Http\JsonResponse;
@@ -21,6 +24,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -53,10 +57,14 @@ class LeadController extends Controller
         'negotiation', 'won', 'lost', 'unresponsive',
     ];
 
+    // 'import' is set by LeadImportService, not hand-picked on the create
+    // form (the UI filters it out of the channel pills) — but it MUST stay
+    // in this list: validateRow gates update() too, and editing an
+    // imported lead re-submits source='import'.
     private const SOURCES = [
         'manual', 'landing_page', 'facebook', 'google',
         'referral', 'email', 'phone', 'event',
-        'word_of_mouth', 'other',
+        'word_of_mouth', 'other', 'import',
     ];
 
     public function index(Request $request): Response
@@ -162,6 +170,7 @@ class LeadController extends Controller
             'staff' => $staff,
             'statuses' => self::STATUSES,
             'sources' => self::SOURCES,
+            'import_max_rows' => LeadImportService::MAX_ROWS,
             'filters' => [
                 'status' => $request->string('status')->toString(),
                 'source' => $request->string('source')->toString(),
@@ -233,6 +242,55 @@ class LeadController extends Controller
         app(NotificationService::class)->notifyLeadAssigned($lead, $request->user());
 
         return back()->with('success', 'Lead added.');
+    }
+
+    /**
+     * CSV import — bounded synchronous run, all orchestration in
+     * LeadImportService. The file goes through FileUploadService's
+     * 'import' context (mime/size gate), is parsed, then deleted:
+     * activity_log carries the audit trail and there is no imports
+     * table to reference a kept file from.
+     */
+    public function import(ImportLeadsRequest $request, FileUploadService $uploads, LeadImportService $importer): RedirectResponse
+    {
+        Gate::authorize('viewAny', Customer::class);
+        // None scope (phase 3b-iii): no importing leads it could never see.
+        $this->authorizeScopeSection(ScopeArea::Leads);
+
+        $file = $request->file('file');
+        $path = $uploads->store($file, 'import');
+
+        try {
+            $summary = $importer->import(
+                Storage::disk('private')->path($path),
+                $file->getClientOriginalName(),
+                $request->user(),
+            );
+        } finally {
+            $uploads->delete($path);
+        }
+
+        $problems = count($summary['skipped']) + count($summary['flagged']) + count($summary['failed']);
+        $headline = sprintf(
+            '%d lead%s imported (%d row%s in file).',
+            $summary['created'],
+            $summary['created'] === 1 ? '' : 's',
+            $summary['total_rows'],
+            $summary['total_rows'] === 1 ? '' : 's',
+        );
+
+        if ($problems === 0) {
+            return back()->with('success', $headline);
+        }
+
+        return back()
+            ->with('warning', $headline.sprintf(
+                ' %d skipped as duplicates, %d flagged, %d failed — see the import summary.',
+                count($summary['skipped']),
+                count($summary['flagged']),
+                count($summary['failed']),
+            ))
+            ->with('import_summary', $summary);
     }
 
     public function update(int $id, Request $request): RedirectResponse
@@ -358,6 +416,7 @@ class LeadController extends Controller
                 'manual' => 'other',
                 'phone' => 'other',
                 'facebook' => 'social_media',
+                'import' => 'other',
             ];
             $channel = $channelMap[$lead->source] ?? $lead->source;
 
@@ -532,7 +591,10 @@ class LeadController extends Controller
             'source' => ['required', Rule::in(self::SOURCES)],
             'source_detail' => 'nullable|string|max:255',
             'assigned_to' => 'nullable|integer|exists:users,id',
-            'estimated_value' => 'nullable|numeric|min:0',
+            // max mirrors the DECIMAL(10,2) column (aligned with the CSV
+            // import rules) — oversize values otherwise pass is_numeric
+            // and die as a QueryException under strict mode.
+            'estimated_value' => 'nullable|numeric|min:0|max:99999999.99',
             'notes' => 'nullable|string|max:5000',
         ]);
     }

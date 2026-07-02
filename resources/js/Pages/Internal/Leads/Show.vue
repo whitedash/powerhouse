@@ -34,6 +34,7 @@ const SOURCE_LABEL = {
     facebook: 'Facebook', google: 'Google',
     referral: 'Referral', email: 'Email', phone: 'Phone',
     event: 'Event', word_of_mouth: 'Word of mouth', other: 'Other',
+    import: 'Import',
 };
 
 const STATUS_SEQUENCE = ['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won'];
