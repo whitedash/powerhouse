@@ -75,6 +75,7 @@ use App\Http\Controllers\Public\KnowledgeBaseController as PublicKnowledgeBaseCo
 use App\Http\Controllers\Public\LandingController as PublicLandingController;
 use App\Http\Controllers\Public\LegalController as PublicLegalController;
 use App\Http\Controllers\Public\ProposalAcceptanceController as PublicProposalAcceptanceController;
+use App\Http\Controllers\Public\ProposalRejectionController as PublicProposalRejectionController;
 use App\Http\Controllers\Public\ReferralRedirectController as PublicReferralRedirectController;
 use App\Http\Controllers\Public\SupportTicketController as PublicSupportTicketController;
 use App\Http\Controllers\Public\WebhookController as PublicWebhookController;
@@ -954,6 +955,17 @@ Route::post('/proposals/accept/{token}', [PublicProposalAcceptanceController::cl
     ->where('token', '[a-f0-9]{64}')
     ->middleware('throttle:6,1')
     ->name('proposal.accept.submit');
+
+// Reject mirrors accept: same token (the acceptance link doubles as the reject
+// link), same 64-hex constraint, same throttle tiers (GET 30/min, POST 6/min).
+Route::get('/proposals/reject/{token}', [PublicProposalRejectionController::class, 'show'])
+    ->where('token', '[a-f0-9]{64}')
+    ->middleware('throttle:30,1')
+    ->name('proposal.reject.show');
+Route::post('/proposals/reject/{token}', [PublicProposalRejectionController::class, 'reject'])
+    ->where('token', '[a-f0-9]{64}')
+    ->middleware('throttle:6,1')
+    ->name('proposal.reject.submit');
 
 /*
 |--------------------------------------------------------------------------

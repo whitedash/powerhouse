@@ -12,7 +12,7 @@
  * success page render once the POST returns.
  */
 import { computed, ref } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import { IconCheck, IconX, IconFileDescription } from '@tabler/icons-vue';
 
 const props = defineProps({
@@ -157,6 +157,9 @@ function submit() {
                 <IconCheck :size="16" stroke-width="2" />
                 Accept this proposal
             </button>
+            <Link :href="`/proposals/reject/${token}`" class="pp-decline-link">
+                Decline this proposal
+            </Link>
         </div>
 
         <!-- Accept modal -->
