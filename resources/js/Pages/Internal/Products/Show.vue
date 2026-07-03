@@ -281,7 +281,7 @@ function gotoCustomer(id) {
                                 <div class="plan-dist-top">
                                     <div class="plan-dist-name" style="color: #B45309;">No plan assigned</div>
                                     <div class="plan-dist-right">
-                                        <span class="badge badge-pending badge-sm">{{ no_plan_count }} customer{{ no_plan_count === 1 ? '' : 's' }}</span>
+                                        <span class="badge badge-pending badge-sm">{{ no_plan_count }} compan{{ no_plan_count === 1 ? 'y' : 'ies' }}</span>
                                     </div>
                                 </div>
                             </div>

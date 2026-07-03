@@ -487,7 +487,7 @@ const convertGuard = useDirtyClose(() => convertForm.isDirty, () => { showConver
             <div v-if="showConvert" class="slide-over-overlay" v-overlay-dismiss="convertGuard.attemptClose">
                 <div class="slide-over" style="width: 520px;">
                     <div class="slide-over-head">
-                        <h2>Convert {{ lead.name }} to customer</h2>
+                        <h2>Convert {{ lead.name }} to company</h2>
                         <button type="button" class="icon-btn" @click="convertGuard.attemptClose">
                             <IconX :size="18" stroke-width="2" />
                         </button>
