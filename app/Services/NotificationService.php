@@ -13,6 +13,7 @@ use App\Notifications\LeadAssigned;
 use App\Notifications\MilestoneCompleted;
 use App\Notifications\ProjectOverdue;
 use App\Notifications\ProposalAccepted;
+use App\Notifications\ProposalRejected;
 use App\Notifications\SupportTicketAssigned;
 use App\Notifications\TaskAssigned;
 
@@ -129,5 +130,15 @@ class NotificationService
         }
 
         $creator->notify(new ProposalAccepted($proposal));
+    }
+
+    public function notifyProposalRejected(Proposal $proposal): void
+    {
+        $creator = User::find($proposal->created_by);
+        if (! $creator || ! $creator->wantsNotification('proposal_rejected')) {
+            return;
+        }
+
+        $creator->notify(new ProposalRejected($proposal));
     }
 }
