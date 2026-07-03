@@ -586,7 +586,7 @@ onMounted(() => {
                     <strong style="color: var(--text-primary); font-weight: 600;">{{ pageMeta.from }} – {{ pageMeta.to }}</strong>
                     of
                     <strong style="color: var(--text-primary); font-weight: 600;">{{ pageMeta.total }}</strong>
-                    customers
+                    companies
                 </div>
                 <div class="right">
                     <template v-for="(link, i) in pageMeta.links" :key="i">

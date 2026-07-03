@@ -196,7 +196,7 @@ function planBarWidth(p) {
                         <div class="kpi-value">{{ headline.trial_customers }}</div>
                         <div class="kpi-label">Trial customers</div>
                     </div>
-                    <div class="kpi-foot">{{ headline.total_customers }} total customers on file</div>
+                    <div class="kpi-foot">{{ headline.total_customers }} total companies on file</div>
                 </div>
 
                 <div class="kpi">

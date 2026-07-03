@@ -179,7 +179,7 @@ function copyLink() {
                 <div class="portal-section-head">
                     <div class="col-l">
                         <h2>Recently referred</h2>
-                        <div class="desc">Your newest 5 customers.</div>
+                        <div class="desc">Your newest 5 companies.</div>
                     </div>
                     <Link href="/referrer/companies" class="ghost-link">
                         View all

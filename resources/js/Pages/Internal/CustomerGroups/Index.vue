@@ -122,7 +122,7 @@ function performDelete() {
                     </header>
                     <p v-if="g.description" class="cg-desc">{{ g.description }}</p>
                     <div class="cg-meta">
-                        <span><IconUsers :size="12" stroke-width="1.75" /> {{ g.customer_count }} customer{{ g.customer_count === 1 ? '' : 's' }}</span>
+                        <span><IconUsers :size="12" stroke-width="1.75" /> {{ g.customer_count }} compan{{ g.customer_count === 1 ? 'y' : 'ies' }}</span>
                         <span v-if="g.created_by" class="cg-meta-sep">·</span>
                         <span v-if="g.created_by">by {{ g.created_by }}</span>
                     </div>

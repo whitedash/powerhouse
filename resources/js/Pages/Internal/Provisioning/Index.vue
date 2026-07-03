@@ -503,7 +503,7 @@ const nextUrl = computed(() => props.customers.next_page_url);
 
                 <div class="tbl-foot">
                     <div class="info">
-                        Showing <strong>{{ customers.from || 0 }} – {{ customers.to || 0 }}</strong> of <strong>{{ customers.total }}</strong> customers
+                        Showing <strong>{{ customers.from || 0 }} – {{ customers.to || 0 }}</strong> of <strong>{{ customers.total }}</strong> companies
                     </div>
                     <div class="right">
                         <Link v-if="prevUrl" :href="prevUrl" class="pg-btn" preserve-scroll>
