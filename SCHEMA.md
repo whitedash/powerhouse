@@ -287,7 +287,11 @@ reminder_count INT UNSIGNED DEFAULT 0,
 last_reminder_sent_at nullable,
 next_reminder_at nullable,
 reminders_paused BOOLEAN DEFAULT FALSE,
-created_by BIGINT FK users, created_at, updated_at
+created_by BIGINT FK users nullable (2026_07_06),
+  -- NULL = system-created (Plans-widget webhook provisioning —
+  -- PLANS-WIDGET-DESIGN.md §4). Same convention as payments.created_by
+  -- and activity_log.user_id. All staff paths still record a real user.
+created_at, updated_at
 INDEX (next_reminder_at, reminders_paused, status)
 INDEX (is_recurring, recurring_next_date) invoices_recurring_sweep_idx
 

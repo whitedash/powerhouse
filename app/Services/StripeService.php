@@ -8,6 +8,7 @@ use App\Models\CustomerProduct;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
+use App\Models\ProductPlanPrice;
 use App\Models\StripeCustomer;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -76,6 +77,62 @@ class StripeService
             // Embedded returns the customer here once the form completes;
             // session_id lets the landing page confirm + settle on arrival.
             'return_url' => route('portal.invoices.paid', $invoice->id).'?session_id={CHECKOUT_SESSION_ID}',
+        ]);
+
+        return (string) $session->client_secret;
+    }
+
+    /**
+     * Embedded Checkout session for an anonymous Plans-widget purchase
+     * (PLANS-WIDGET-DESIGN.md §3). No invoice exists yet — provisioning is
+     * webhook-only, so the session metadata carries everything the
+     * checkout.session.completed handler needs to build the records:
+     * plan_price_id + the purchaser's name/email. $grossTotal is computed
+     * server-side by PlanPurchaseService::totals() (price + entity VAT);
+     * the visitor-supplied payload never contains an amount.
+     */
+    public function createPlanCheckoutSession(
+        ProductPlanPrice $price,
+        string $purchaserName,
+        string $purchaserEmail,
+        float $grossTotal,
+        string $productSlug,
+    ): string {
+        $this->configureStripe();
+
+        $unitAmount = (int) round($grossTotal * 100);
+        if ($unitAmount < 1) {
+            throw new \RuntimeException("Plan price {$price->id} resolves to a zero charge — nothing to check out.");
+        }
+
+        $price->loadMissing('plan.product');
+
+        $session = Session::create([
+            'payment_method_types' => ['card'],
+            'mode' => 'payment',
+            'ui_mode' => 'embedded_page',
+            'line_items' => [[
+                'price_data' => [
+                    'currency' => 'gbp',
+                    'unit_amount' => $unitAmount,
+                    'product_data' => [
+                        'name' => $price->plan?->product?->name.' — '.$price->plan?->name,
+                    ],
+                ],
+                'quantity' => 1,
+            ]],
+            'metadata' => [
+                'plan_price_id' => (string) $price->id,
+                // Stripe caps metadata values at 500 chars; the validator
+                // caps these at 255 already, substr is belt-and-braces.
+                'purchaser_name' => substr($purchaserName, 0, 255),
+                'purchaser_email' => substr($purchaserEmail, 0, 255),
+            ],
+            'customer_email' => $purchaserEmail,
+            // The widget lives on a third-party page; the return leg lands
+            // on OUR public thank-you page (no DB writes there — the
+            // webhook is the only provisioner).
+            'return_url' => route('plan.purchased', $productSlug).'?session_id={CHECKOUT_SESSION_ID}',
         ]);
 
         return (string) $session->client_secret;
