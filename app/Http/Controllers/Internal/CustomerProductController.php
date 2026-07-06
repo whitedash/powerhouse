@@ -207,11 +207,9 @@ class CustomerProductController extends Controller
      * webhook provisioning; a human approves it here — the subscription
      * goes live and the withheld PlanPurchaseReceipt finally sends.
      *
-     * Company-scoped route + CompanyPolicy::update (companies.manage),
-     * like the rest of the Company detail actions — deliberately NOT the
-     * provisioning.manage section gate the suspend/reinstate pair above
-     * carries: confirming a purchase is account approval, not external
-     * provisioning.
+     * Double-gated like suspend/reinstate: provisioning.manage at the
+     * route (section gate) composing with CompanyPolicy::update
+     * (companies.manage) here — both must pass.
      */
     public function confirm(int $companyId, int $customerProductId, Request $request): RedirectResponse
     {

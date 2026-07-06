@@ -124,11 +124,13 @@ class PlanPurchaseReviewConfirmTest extends TestCase
         return "/companies/{$company->id}/customer-products/{$cp->id}/confirm";
     }
 
-    public function test_confirm_activates_sends_receipt_and_logs_the_real_actor(): void
+    public function test_confirm_with_both_permissions_activates_sends_receipt_and_logs_the_real_actor(): void
     {
         Mail::fake();
         [$company, $cp] = $this->pendingPurchase();
-        $staff = $this->userWith(['companies.access', 'companies.manage']);
+        // Double gate: provisioning.manage (route middleware) AND
+        // companies.manage (in-method policy) — the happy path holds both.
+        $staff = $this->userWith(['companies.access', 'companies.manage', 'provisioning.manage']);
 
         $this->actingAs($staff)
             ->post($this->confirmUrl($company, $cp))
@@ -150,13 +152,31 @@ class PlanPurchaseReviewConfirmTest extends TestCase
         });
     }
 
-    public function test_confirm_requires_companies_manage(): void
+    public function test_confirm_requires_provisioning_manage_at_the_route(): void
     {
         Mail::fake();
         [$company, $cp] = $this->pendingPurchase();
-        $viewer = $this->userWith(['companies.access']); // read, not manage
+        // companies.manage alone is no longer enough — the route's
+        // provisioning.manage section gate 403s before the controller runs.
+        $staff = $this->userWith(['companies.access', 'companies.manage']);
 
-        $this->actingAs($viewer)
+        $this->actingAs($staff)
+            ->post($this->confirmUrl($company, $cp))
+            ->assertForbidden();
+
+        $this->assertSame('pending', $cp->fresh()->status);
+        Mail::assertNothingSent();
+    }
+
+    public function test_confirm_requires_companies_manage_in_method(): void
+    {
+        Mail::fake();
+        [$company, $cp] = $this->pendingPurchase();
+        // The gates compose: provisioning.manage clears the middleware,
+        // but CompanyPolicy::update (companies.manage) still 403s.
+        $provisioner = $this->userWith(['companies.access', 'provisioning.manage']);
+
+        $this->actingAs($provisioner)
             ->post($this->confirmUrl($company, $cp))
             ->assertForbidden();
 
@@ -168,7 +188,7 @@ class PlanPurchaseReviewConfirmTest extends TestCase
     {
         Mail::fake();
         [$company, $cp] = $this->pendingPurchase(status: 'active');
-        $staff = $this->userWith(['companies.access', 'companies.manage']);
+        $staff = $this->userWith(['companies.access', 'companies.manage', 'provisioning.manage']);
 
         $this->actingAs($staff)
             ->postJson($this->confirmUrl($company, $cp))
@@ -181,7 +201,7 @@ class PlanPurchaseReviewConfirmTest extends TestCase
     public function test_confirming_a_nonexistent_customer_product_404s(): void
     {
         [$company] = $this->pendingPurchase();
-        $staff = $this->userWith(['companies.access', 'companies.manage']);
+        $staff = $this->userWith(['companies.access', 'companies.manage', 'provisioning.manage']);
 
         $this->actingAs($staff)
             ->post("/companies/{$company->id}/customer-products/999999/confirm")
@@ -193,7 +213,7 @@ class PlanPurchaseReviewConfirmTest extends TestCase
         Mail::fake();
         [, $cp] = $this->pendingPurchase();
         $otherCompany = Company::create(['name' => 'Unrelated Co']);
-        $staff = $this->userWith(['companies.access', 'companies.manage']);
+        $staff = $this->userWith(['companies.access', 'companies.manage', 'provisioning.manage']);
 
         // IDOR guard: mismatched company/customer-product pair reads as a
         // wrong id, not a hint that the row exists.
