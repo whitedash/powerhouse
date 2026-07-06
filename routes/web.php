@@ -605,6 +605,16 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::put('/customer-products/{id}', [InternalCustomerProductController::class, 'update'])
         ->whereNumber('id')->middleware('permission:provisioning.manage')->name('internal.customer-products.update');
 
+    // Plans widget review gate: confirm a pending self-serve purchase
+    // (status 'pending' → 'active') and send the receipt withheld at
+    // webhook provisioning. Company-scoped and gated by companies.manage
+    // (CompanyPolicy::update in-method) like the other Company detail
+    // actions — NOT provisioning.manage: this is account approval, not
+    // external provisioning.
+    Route::post('/companies/{company}/customer-products/{customerProduct}/confirm', [InternalCustomerProductController::class, 'confirm'])
+        ->whereNumber('company')->whereNumber('customerProduct')
+        ->name('internal.customer-products.confirm');
+
     // Toggle a customer's auto-suspension exemption (super_admin only).
     Route::post('/companies/{id}/exemption', [InternalCustomerController::class, 'toggleExemption'])
         ->whereNumber('id')->middleware('permission:companies.exemption')->name('internal.companies.exemption');
