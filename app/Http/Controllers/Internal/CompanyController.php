@@ -321,6 +321,14 @@ class CompanyController extends Controller
             ]);
 
         return Inertia::render('Internal/Customers/Show', [
+            // Plans widget review gate: whether the viewer can hit the
+            // confirm endpoint (route: provisioning.manage middleware +
+            // in-method companies.manage policy — both). Server-computed
+            // per-permission prop, same idiom as the analytics.access
+            // redaction on `mrr` below; hides the "Confirm & send receipt"
+            // button from roles that would only 403 on click.
+            'can_confirm_pending' => $request->user()->can('provisioning.manage')
+                && $request->user()->can('companies.manage'),
             'customer' => [
                 'id' => $customer->id,
                 'name' => $customer->name,

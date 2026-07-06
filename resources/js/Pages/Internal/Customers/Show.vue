@@ -70,6 +70,9 @@ dayjs.extend(relativeTime);
 
 const props = defineProps({
     customer: { type: Object, required: true },
+    // Viewer can confirm a pending plan purchase (provisioning.manage +
+    // companies.manage — mirrors the confirm route's double gate).
+    can_confirm_pending: { type: Boolean, default: false },
     users: { type: Array, default: () => [] },
     all_products: { type: Array, default: () => [] },
     available_products: { type: Array, default: () => [] },
@@ -2061,7 +2064,7 @@ function submitProject() {
                                         {{ p.status }}
                                     </span>
                                     <!-- Plans widget review gate: a pending self-serve purchase awaits approval. -->
-                                    <button v-if="p.status === 'pending'" type="button" class="btn btn-primary btn-sm" @click="askConfirmPending(p)">
+                                    <button v-if="p.status === 'pending' && can_confirm_pending" type="button" class="btn btn-primary btn-sm" @click="askConfirmPending(p)">
                                         Confirm &amp; send receipt
                                     </button>
                                     <Menu v-if="['active', 'trial', 'suspended'].includes(p.status)" as="div" class="dd-menu">
@@ -2859,7 +2862,7 @@ function submitProject() {
                                                 <span class="badge badge-sm" :class="{ 'badge-active': p.status === 'active', 'badge-trial': p.status === 'trial', 'badge-pending': p.status === 'pending', 'badge-inactive': ['suspended', 'cancelled'].includes(p.status) }">{{ p.status }}</span>
                                                 <span v-if="p.status === 'suspended' && p.suspended_by_system" class="badge badge-pending badge-sm" title="Auto-suspended for non-payment">Auto</span>
                                                 <!-- Plans widget review gate: a pending self-serve purchase awaits approval. -->
-                                                <button v-if="p.status === 'pending'" type="button" class="btn btn-primary btn-sm" @click="askConfirmPending(p)">
+                                                <button v-if="p.status === 'pending' && can_confirm_pending" type="button" class="btn btn-primary btn-sm" @click="askConfirmPending(p)">
                                                     Confirm &amp; send receipt
                                                 </button>
                                                 <Menu v-if="['active', 'trial', 'suspended'].includes(p.status)" as="div" class="dd-menu">

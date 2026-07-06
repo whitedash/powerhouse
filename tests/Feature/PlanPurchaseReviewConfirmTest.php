@@ -198,6 +198,24 @@ class PlanPurchaseReviewConfirmTest extends TestCase
         Mail::assertNothingSent();
     }
 
+    public function test_show_page_exposes_the_confirm_visibility_prop_by_permission(): void
+    {
+        // No Vue test runner in this repo — the button's v-if is driven by
+        // this server-computed prop, so assert it at the Inertia layer
+        // (the established assertInertia pattern).
+        [$company] = $this->pendingPurchase();
+
+        $both = $this->userWith(['companies.access', 'companies.manage', 'provisioning.manage']);
+        $this->actingAs($both)
+            ->get("/companies/{$company->id}")
+            ->assertInertia(fn ($page) => $page->where('can_confirm_pending', true));
+
+        $companiesOnly = $this->userWith(['companies.access', 'companies.manage']);
+        $this->actingAs($companiesOnly)
+            ->get("/companies/{$company->id}")
+            ->assertInertia(fn ($page) => $page->where('can_confirm_pending', false));
+    }
+
     public function test_confirming_a_nonexistent_customer_product_404s(): void
     {
         [$company] = $this->pendingPurchase();
