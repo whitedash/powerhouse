@@ -104,6 +104,24 @@ class StripeService
     ): Session {
         $this->configureStripe();
 
+        return Session::create($this->planCheckoutSessionParams(
+            $price, $purchaserName, $purchaserEmail, $grossTotal, $productSlug,
+        ));
+    }
+
+    /**
+     * Session params for the plan purchase — public so the Link exclusion
+     * below is directly testable without a live Stripe call.
+     *
+     * @return array<string, mixed>
+     */
+    public function planCheckoutSessionParams(
+        ProductPlanPrice $price,
+        string $purchaserName,
+        string $purchaserEmail,
+        float $grossTotal,
+        string $productSlug,
+    ): array {
         $unitAmount = (int) round($grossTotal * 100);
         if ($unitAmount < 1) {
             throw new \RuntimeException("Plan price {$price->id} resolves to a zero charge — nothing to check out.");
@@ -111,8 +129,19 @@ class StripeService
 
         $price->loadMissing('plan.product');
 
-        $session = Session::create([
+        return [
             'payment_method_types' => ['card'],
+            // Explicit ['card'] alone does NOT suppress Link — on card
+            // sessions Link surfaces as a WALLET over the card form, and
+            // (API 2026-05-27) wallet_options is the session-level control
+            // for it. Every purchaser here is a brand-new anonymous visitor
+            // heading into account auto-provisioning; Link's cross-merchant
+            // "confirm it's you" is the wrong prompt for that. Plans-widget
+            // sessions ONLY — the invoice checkout paths keep Link + card
+            // vaulting exactly as they are.
+            'wallet_options' => [
+                'link' => ['display' => 'never'],
+            ],
             'mode' => 'payment',
             'ui_mode' => 'embedded_page',
             'line_items' => [[
@@ -137,9 +166,7 @@ class StripeService
             // on OUR public thank-you page (no DB writes there — the
             // webhook is the only provisioner).
             'return_url' => route('plan.purchased', $productSlug).'?session_id={CHECKOUT_SESSION_ID}',
-        ]);
-
-        return $session;
+        ];
     }
 
     /**

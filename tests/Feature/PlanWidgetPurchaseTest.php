@@ -191,6 +191,23 @@ class PlanWidgetPurchaseTest extends TestCase
         $this->assertDatabaseCount('invoices', 0);
     }
 
+    public function test_plan_checkout_session_excludes_stripe_link(): void
+    {
+        [, , $price] = $this->catalog();
+
+        // Params inspected directly (no live Stripe call): every plans-
+        // widget purchaser is a brand-new anonymous visitor heading into
+        // auto-provisioning, so Link's cross-merchant recognition must not
+        // appear. card-only types + the wallet-level Link off-switch.
+        $params = app(StripeService::class)->planCheckoutSessionParams(
+            $price, 'Pat Purchaser', 'pat.purchaser@gmail.com', 120.0, 'comnicube',
+        );
+
+        $this->assertSame(['card'], $params['payment_method_types']);
+        $this->assertSame(['link' => ['display' => 'never']], $params['wallet_options']);
+        $this->assertSame(12000, $params['line_items'][0]['price_data']['unit_amount']);
+    }
+
     public function test_checkout_rejects_a_non_public_plan_even_when_requested_directly(): void
     {
         [, , $price] = $this->catalog(['is_public' => false]);
