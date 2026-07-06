@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\StaffLoginController;
+use App\Http\Controllers\Internal\AbandonedCheckoutController as InternalAbandonedCheckoutController;
 use App\Http\Controllers\Internal\AnalyticsController as InternalAnalyticsController;
 use App\Http\Controllers\Internal\BillingEntityController as InternalBillingEntityController;
 use App\Http\Controllers\Internal\CommissionRuleController as InternalCommissionRuleController;
@@ -872,6 +873,11 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
             Route::post('/products/{id}/toggle', [InternalProductController::class, 'toggleActive'])->name('products.toggle');
             Route::post('/products/reorder', [InternalProductController::class, 'updateOrder'])->name('products.reorder');
             Route::get('/products/{id}/plans', [InternalProductController::class, 'plans'])->name('products.plans');
+
+            // Abandoned Plans-widget checkouts — read-only list of attempts
+            // the plans:reconcile-abandoned-checkouts sweep flagged.
+            Route::get('/abandoned-checkouts', [InternalAbandonedCheckoutController::class, 'index'])
+                ->name('abandoned-checkouts.index');
 
             Route::get('/products/{id}/suppliers', [InternalProductSupplierController::class, 'index'])
                 ->whereNumber('id')->name('products.suppliers.index');

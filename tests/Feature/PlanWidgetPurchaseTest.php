@@ -19,6 +19,7 @@ use App\Services\WebhookIdempotencyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Stripe\Checkout\Session;
 use Stripe\Event;
 use Tests\TestCase;
 
@@ -166,7 +167,10 @@ class PlanWidgetPurchaseTest extends TestCase
                     && $email === 'pat.purchaser@gmail.com'
                     // £100 + 20% VAT computed server-side; the client never sent an amount.
                     && abs($total - 120.0) < 0.001)
-                ->andReturn('cs_secret_test');
+                ->andReturn(Session::constructFrom([
+                    'id' => 'cs_init_1',
+                    'client_secret' => 'cs_secret_test',
+                ]));
         });
 
         $this->postJson('/plans/comnicube/checkout', [
@@ -174,6 +178,17 @@ class PlanWidgetPurchaseTest extends TestCase
             'name' => 'Pat Purchaser',
             'email' => 'pat.purchaser@gmail.com',
         ])->assertOk()->assertJson(['client_secret' => 'cs_secret_test']);
+
+        // Checkout-init's ONE deliberate DB write: the tracking row.
+        $this->assertDatabaseHas('plan_checkout_attempts', [
+            'stripe_checkout_session_id' => 'cs_init_1',
+            'plan_price_id' => $price->id,
+            'purchaser_email' => 'pat.purchaser@gmail.com',
+            'status' => 'pending',
+        ]);
+        // And nothing else was provisioned.
+        $this->assertDatabaseCount('customers', 0);
+        $this->assertDatabaseCount('invoices', 0);
     }
 
     public function test_checkout_rejects_a_non_public_plan_even_when_requested_directly(): void

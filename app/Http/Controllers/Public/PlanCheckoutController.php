@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Models\PlanCheckoutAttempt;
 use App\Models\Product;
 use App\Models\ProductPlanPrice;
 use App\Services\PlanPurchaseService;
@@ -94,7 +95,7 @@ class PlanCheckoutController extends Controller
         // webhook uses to build the invoice — charge and ledger can't drift.
         $totals = $plans->totals($price);
 
-        $clientSecret = $stripe->createPlanCheckoutSession(
+        $session = $stripe->createPlanCheckoutSession(
             $price,
             $data['name'],
             $data['email'],
@@ -102,7 +103,22 @@ class PlanCheckoutController extends Controller
             $product->slug,
         );
 
-        return response()->json(['client_secret' => $clientSecret]);
+        // The ONE deliberate DB write at checkout-init: a tracking row so
+        // an attempt that never settles is visible (abandoned-checkout
+        // reconciler) instead of vanishing. Scoped to this purpose-built
+        // table only — Company/Contact/Person/Invoice remain webhook-only.
+        // Sits after the honeypot/rate-limit/Turnstile gates and the
+        // Stripe call, so bots and failed validations write nothing.
+        PlanCheckoutAttempt::create([
+            'plan_price_id' => $price->id,
+            'purchaser_name' => $data['name'],
+            'purchaser_email' => $data['email'],
+            'stripe_checkout_session_id' => (string) $session->id,
+            'status' => 'pending',
+            'started_at' => now(),
+        ]);
+
+        return response()->json(['client_secret' => (string) $session->client_secret]);
     }
 
     /**

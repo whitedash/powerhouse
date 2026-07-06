@@ -90,6 +90,10 @@ class StripeService
      * plan_price_id + the purchaser's name/email. $grossTotal is computed
      * server-side by PlanPurchaseService::totals() (price + entity VAT);
      * the visitor-supplied payload never contains an amount.
+     *
+     * Returns the full Session: the controller needs ->client_secret for
+     * the widget AND ->id to record the plan_checkout_attempts row the
+     * abandoned-checkout reconciler tracks.
      */
     public function createPlanCheckoutSession(
         ProductPlanPrice $price,
@@ -97,7 +101,7 @@ class StripeService
         string $purchaserEmail,
         float $grossTotal,
         string $productSlug,
-    ): string {
+    ): Session {
         $this->configureStripe();
 
         $unitAmount = (int) round($grossTotal * 100);
@@ -135,7 +139,7 @@ class StripeService
             'return_url' => route('plan.purchased', $productSlug).'?session_id={CHECKOUT_SESSION_ID}',
         ]);
 
-        return (string) $session->client_secret;
+        return $session;
     }
 
     /**
