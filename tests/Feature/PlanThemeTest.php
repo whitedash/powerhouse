@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\FormTheme;
 use App\Models\PlanTheme;
 use App\Models\Product;
 use App\Models\ProductPlan;
@@ -121,6 +122,61 @@ class PlanThemeTest extends TestCase
             ])->assertRedirect();
 
         $this->assertArrayNotHasKey('custom_css', PlanTheme::sole()->tokens);
+    }
+
+    public function test_forms_custom_css_permission_does_not_grant_plan_theme_css(): void
+    {
+        // The two embed surfaces are granted independently: holding the
+        // FORMS raw-CSS permission buys nothing here.
+        $role = Role::create(['name' => 'fcss_'.uniqid(), 'guard_name' => 'web']);
+        $role->givePermissionTo(['products.manage', 'forms.custom_css']);
+        $user = User::factory()->create();
+        $user->syncRoles([$role->name]);
+
+        $this->actingAs($user->fresh())
+            ->post('/settings/plan-themes', [
+                'name' => 'Cross-perm theme',
+                'tokens' => ['custom_css' => '.pw-plan{display:none}'],
+            ])->assertRedirect();
+
+        $this->assertArrayNotHasKey('custom_css', PlanTheme::sole()->tokens);
+    }
+
+    public function test_products_custom_css_permission_does_not_grant_form_theme_css(): void
+    {
+        // …and vice versa: the PLANS raw-CSS permission doesn't open forms.
+        $role = Role::create(['name' => 'pcss_'.uniqid(), 'guard_name' => 'web']);
+        $role->givePermissionTo(['forms.access', 'forms.manage', 'products.custom_css']);
+        $user = User::factory()->create();
+        $user->syncRoles([$role->name]);
+
+        $this->actingAs($user->fresh())
+            ->post('/forms/themes', [
+                'name' => 'Cross-perm form theme',
+                'tokens' => ['custom_css' => '.pw-form{display:none}'],
+            ]);
+
+        $formTheme = FormTheme::first();
+        if ($formTheme !== null) {
+            $this->assertArrayNotHasKey('custom_css', $formTheme->tokens ?? []);
+        }
+        $this->assertFalse($user->fresh()->can('manageCustomCss', FormTheme::class));
+    }
+
+    public function test_products_custom_css_holder_can_inject_plan_theme_css(): void
+    {
+        $role = Role::create(['name' => 'pc_'.uniqid(), 'guard_name' => 'web']);
+        $role->givePermissionTo(['products.manage', 'products.custom_css']);
+        $user = User::factory()->create();
+        $user->syncRoles([$role->name]);
+
+        $this->actingAs($user->fresh())
+            ->post('/settings/plan-themes', [
+                'name' => 'Plans CSS theme',
+                'tokens' => ['custom_css' => '.pw-plan{outline:none}'],
+            ])->assertRedirect();
+
+        $this->assertSame('.pw-plan{outline:none}', PlanTheme::sole()->tokens['custom_css']);
     }
 
     public function test_custom_css_is_persisted_for_super_admin(): void

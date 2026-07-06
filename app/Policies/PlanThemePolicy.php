@@ -8,10 +8,9 @@ use App\Models\User;
  * Plan themes are part of the Products area: everything rides
  * products.manage — the only products permission that exists (the whole
  * Products settings area is manage-gated, unlike forms' access/manage
- * split). Raw custom_css deliberately reuses the
- * EXISTING forms.custom_css permission — "may inject raw CSS into public
- * embeds" is one capability, not one per widget, and it avoids a
- * permission-seeder migration. super_admin bypasses via Gate::before.
+ * split). Raw custom_css has its OWN permission, products.custom_css —
+ * deliberately separate from forms.custom_css so the two embed surfaces
+ * can be granted independently. super_admin bypasses via Gate::before.
  */
 class PlanThemePolicy
 {
@@ -42,6 +41,6 @@ class PlanThemePolicy
 
     public function manageCustomCss(User $user): bool
     {
-        return $user->hasPermissionTo('forms.custom_css');
+        return $user->hasPermissionTo('products.custom_css');
     }
 }

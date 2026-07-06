@@ -116,6 +116,7 @@ class PermissionMatrix
                 self::row('impersonate', 'Danger', 'danger', 'Preview the app as a customer (portal) or referrer.'),
                 self::row('billing_entities.manage', 'Danger', 'danger', 'Manage billing entities — the legal entities invoices are issued from.'),
                 self::row('products.manage', 'Danger', 'danger', 'Manage products, plans, plan categories, prices and product suppliers.'),
+                self::row('products.custom_css', 'Danger', 'danger', "Edit the raw custom CSS injected into the Plans widget's shadow root."),
                 self::row('settings.integrations', 'Danger', 'danger', 'Integration credentials & connection tests. Includes webhook-delivery retry.'),
                 self::row('settings.notifications', 'Danger', 'danger', 'Workspace notification & support-automation settings.'),
                 self::row('settings.billing_automation', 'Danger', 'danger', 'Auto-suspension thresholds & billing automation behaviour.'),
