@@ -66,13 +66,13 @@
         ],
         "gate": [
             "Composer\\Config::disableProcessTimeout",
-            "vendor/bin/pint --test",
-            "vendor/bin/phpstan analyse --memory-limit=1G",
+            "vendor/bin/pint --test @no_additional_args",
+            "vendor/bin/phpstan analyse --memory-limit=1G @no_additional_args",
             "@composer audit:sections",
             "@composer audit:validated-keys",
-            "@php artisan config:clear --ansi",
-            "@php artisan test",
-            "npm run build"
+            "@php artisan config:clear --ansi @no_additional_args",
+            "@php artisan test @no_additional_args",
+            "npm run build @no_additional_args"
         ],
         "audit:sections": [
             "bash scripts/audit-sections.sh"
