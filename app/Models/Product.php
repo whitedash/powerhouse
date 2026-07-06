@@ -16,6 +16,7 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string|null $description
  * @property int|null $billing_entity_id
+ * @property int|null $theme_id
  * @property string|null $icon_colour
  * @property bool $is_active
  * @property bool $is_coming_soon

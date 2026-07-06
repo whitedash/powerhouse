@@ -111,6 +111,60 @@ class PlanThemeTest extends TestCase
         $this->assertSame('rounded', $params['branding_settings']['border_style']);
     }
 
+    // ── editor UI page + theme picker (chunk 3) ──────────────────────────
+
+    public function test_editor_page_gates_the_custom_css_flag_by_permission(): void
+    {
+        PlanTheme::create(['name' => 'Existing', 'tokens' => ['custom_css' => '.pw-plan{}'], 'created_by' => $this->admin()->id]);
+
+        // super_admin: flag true, custom_css visible in the listed tokens.
+        $this->actingAs($this->admin())
+            ->get('/settings/plan-themes')
+            ->assertInertia(fn ($page) => $page
+                ->component('Internal/Plans/Themes/Index')
+                ->where('can.manage_custom_css', true)
+                ->where('themes.data.0.tokens.custom_css', '.pw-plan{}')
+                ->has('default_tokens.card_bg'));
+
+        // products.manage without products.custom_css: flag false and the
+        // stored CSS is STRIPPED from the payload (read-gate, not just UI).
+        $this->actingAs($this->staff())
+            ->get('/settings/plan-themes')
+            ->assertInertia(fn ($page) => $page
+                ->where('can.manage_custom_css', false)
+                ->missing('themes.data.0.tokens.custom_css')
+                ->missing('default_tokens.custom_css'));
+    }
+
+    public function test_product_theme_picker_assigns_and_clears_theme_id(): void
+    {
+        $admin = $this->admin();
+        $theme = PlanTheme::create(['name' => 'Ocean', 'tokens' => [], 'created_by' => $admin->id]);
+        $product = Product::create(['slug' => 'comnicube', 'name' => 'ComniCube', 'is_active' => true, 'icon_colour' => '#0D9488']);
+
+        $payload = [
+            'name' => 'ComniCube', 'slug' => 'comnicube', 'icon_colour' => '#0D9488',
+        ];
+
+        $this->actingAs($admin)
+            ->put("/settings/products/{$product->id}", $payload + ['theme_id' => $theme->id])
+            ->assertRedirect();
+        $this->assertSame($theme->id, $product->fresh()->theme_id);
+
+        // Picker sends null = revert to the default look.
+        $this->actingAs($admin)
+            ->put("/settings/products/{$product->id}", $payload + ['theme_id' => null])
+            ->assertRedirect();
+        $this->assertNull($product->fresh()->theme_id);
+
+        // The Products settings page feeds the picker.
+        $this->actingAs($admin)
+            ->get('/settings/products')
+            ->assertInertia(fn ($page) => $page
+                ->where('plan_themes.0.name', 'Ocean')
+                ->where('products.0.theme_id', null));
+    }
+
     // ── shadow-DOM embed rendering ───────────────────────────────────────
 
     public function test_embed_renders_shadow_dom_with_themed_variables_and_custom_css(): void
