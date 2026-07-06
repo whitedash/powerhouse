@@ -122,7 +122,26 @@ icon_colour, is_active BOOLEAN, is_coming_soon BOOLEAN,
 sort_order INT,
 qbo_item_id VARCHAR(100) nullable UNIQUE
   -- QuickBooks Online item id. Populated by a future QBO sync.
+theme_id FK plan_themes nullable (SET NULL) (2026_07_07)
+  -- Plans-widget theme for this product's embeds (both flavours;
+  -- the single-plan embed inherits via plan -> product -> theme).
+  -- NULL = default look (PlanThemeTokens::defaults()).
 created_at, updated_at
+
+## plan_themes (Plans-widget theming — form_themes mirrored)
+id, name VARCHAR(255),
+tokens JSON
+  -- PARTIAL override set of design tokens; effective values =
+  -- App\Support\PlanThemeTokens::defaults() merged with these (theme
+  -- wins; absent/null falls back). Generic keys shared with form_themes
+  -- (font_family, font_size, text, accent, background, surface, border,
+  -- border_width, radius, button_bg, button_bg_hover, button_text,
+  -- error, logo_url, heading, custom_css) + plan-specific (card_bg,
+  -- card_border, card_radius, price_color, feature_check, muted).
+  -- custom_css lives INSIDE tokens (like form_themes) and is gated to
+  -- the manageCustomCss ability. toStripeBranding() bridges the same
+  -- tokens onto Checkout branding_settings (hex-only; non-hex omitted).
+created_by FK users, created_at, updated_at
 
 ## product_plan_categories
 id, product_id FK CASCADE,

@@ -30,6 +30,7 @@ use App\Http\Controllers\Internal\NoteController as InternalNoteController;
 use App\Http\Controllers\Internal\NotificationController as InternalNotificationController;
 use App\Http\Controllers\Internal\PaymentScheduleController as InternalPaymentScheduleController;
 use App\Http\Controllers\Internal\PersonController as InternalPersonController;
+use App\Http\Controllers\Internal\PlanThemeController as InternalPlanThemeController;
 use App\Http\Controllers\Internal\ProductController as InternalProductController;
 use App\Http\Controllers\Internal\ProductOverviewController as InternalProductOverviewController;
 use App\Http\Controllers\Internal\ProductPlanCategoryController as InternalProductPlanCategoryController;
@@ -878,6 +879,17 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
             // the plans:reconcile-abandoned-checkouts sweep flagged.
             Route::get('/abandoned-checkouts', [InternalAbandonedCheckoutController::class, 'index'])
                 ->name('abandoned-checkouts.index');
+
+            // Reusable plan themes (the plans design editor) — the forms
+            // themes CRUD, mirrored onto the Products area.
+            Route::prefix('plan-themes')->name('plan-themes.')->group(function () {
+                Route::get('/', [InternalPlanThemeController::class, 'index'])->name('index');
+                Route::post('/', [InternalPlanThemeController::class, 'store'])->name('store');
+                Route::put('/{id}', [InternalPlanThemeController::class, 'update'])
+                    ->whereNumber('id')->name('update');
+                Route::delete('/{id}', [InternalPlanThemeController::class, 'destroy'])
+                    ->whereNumber('id')->name('destroy');
+            });
 
             Route::get('/products/{id}/suppliers', [InternalProductSupplierController::class, 'index'])
                 ->whereNumber('id')->name('products.suppliers.index');

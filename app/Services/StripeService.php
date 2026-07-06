@@ -10,6 +10,7 @@ use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Models\ProductPlanPrice;
 use App\Models\StripeCustomer;
+use App\Support\PlanThemeTokens;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -127,7 +128,7 @@ class StripeService
             throw new \RuntimeException("Plan price {$price->id} resolves to a zero charge — nothing to check out.");
         }
 
-        $price->loadMissing('plan.product');
+        $price->loadMissing('plan.product.theme');
 
         return [
             'payment_method_types' => ['card'],
@@ -162,6 +163,14 @@ class StripeService
                 'purchaser_email' => substr($purchaserEmail, 0, 255),
             ],
             'customer_email' => $purchaserEmail,
+            // Session-level branding from the product's plan theme so the
+            // Stripe payment step matches the widget's own themed steps —
+            // one token set styles both layers. Empty (no theme + defaults
+            // yield only border_style) still sends the shape; hex-only
+            // values are guaranteed by the bridge.
+            'branding_settings' => PlanThemeTokens::toStripeBranding(
+                PlanThemeTokens::resolve($price->plan?->product?->theme),
+            ),
             // The widget lives on a third-party page; the return leg lands
             // on OUR public thank-you page (no DB writes there — the
             // webhook is the only provisioner).
