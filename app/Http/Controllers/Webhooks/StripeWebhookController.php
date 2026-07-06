@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
+use App\Mail\PlanPurchaseReceipt;
 use App\Mail\ReinstatementNotice;
 use App\Models\CustomerProduct;
 use App\Models\Invoice;
+use App\Services\PlanPurchaseService;
 use App\Services\StripeService;
 use App\Services\WebhookIdempotencyService;
 use Illuminate\Http\JsonResponse;
@@ -63,6 +65,19 @@ class StripeWebhookController extends Controller
     private function handleCheckoutCompleted(StripeObject $session, StripeService $stripe): void
     {
         $invoiceId = $session->metadata->invoice_id ?? $session->client_reference_id ?? null;
+
+        // Plans-widget purchases (PLANS-WIDGET-DESIGN.md §4) carry a
+        // plan_price_id and NO invoice — the session was created by the
+        // public checkout endpoint before any records existed. Everything
+        // below this branch is the pre-existing invoice settlement path,
+        // untouched.
+        $planPriceId = $session->metadata->plan_price_id ?? null;
+        if ($planPriceId !== null && $invoiceId === null) {
+            $this->handlePlanPurchase($session);
+
+            return;
+        }
+
         if (! $invoiceId) {
             return;
         }
@@ -98,6 +113,48 @@ class StripeWebhookController extends Controller
         ]);
 
         $this->notifyReinstated($reinstated);
+    }
+
+    /**
+     * Provision + settle a Plans-widget purchase. The heavy lifting
+     * (Company/Contact/Person via the system-actor funnel, CustomerProduct,
+     * invoice + line, markInvoicePaid) lives in PlanPurchaseService; this
+     * method only unpacks the session and sends the receipt after the
+     * transaction has committed — mirroring how notifyReinstated() mails
+     * outside the settle transaction so a mail hiccup can't roll back the
+     * payment.
+     */
+    private function handlePlanPurchase(StripeObject $session): void
+    {
+        $result = app(PlanPurchaseService::class)->settle(
+            (string) $session->id,
+            (string) ($session->payment_intent ?? ''),
+            (int) ($session->metadata->plan_price_id ?? 0),
+            (string) ($session->metadata->purchaser_name ?? ''),
+            (string) ($session->metadata->purchaser_email ?? ''),
+            // amount_total isn't declared on the base StripeObject; read it
+            // via ArrayAccess so static analysis stays happy.
+            isset($session['amount_total']) ? (int) $session['amount_total'] : null,
+        );
+
+        if ($result === null) {
+            return;
+        }
+
+        Log::info('stripe.plan_purchase_completed', [
+            'session_id' => $session->id,
+            'invoice_id' => $result->invoice->id,
+            'customer_id' => $result->company->id,
+            'customer_product_id' => $result->customerProduct?->id,
+            'status' => $result->customerProduct?->status,
+        ]);
+
+        // Receipt is purchase-specific and withheld while the subscription
+        // sits pending manual review (the confirm action sends it later).
+        if ($result->receiptDue && $result->contactEmail !== null && $result->customerProduct !== null) {
+            Mail::to($result->contactEmail)
+                ->send(new PlanPurchaseReceipt($result->invoice, $result->customerProduct));
+        }
     }
 
     private function handlePaymentSucceeded(StripeObject $intent, StripeService $stripe): void
