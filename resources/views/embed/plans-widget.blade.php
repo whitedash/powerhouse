@@ -1,9 +1,13 @@
 {{-- Plans embed widget (PLANS-WIDGET-DESIGN.md §3a). Output is --}}
 {{-- application/javascript, so this file must be valid JS. Blade --}}
-{{-- interpolates the catalog at the top, then a self-contained IIFE --}}
-{{-- renders plan cards + the purchase flow. Same delivery mechanism --}}
-{{-- as embed/form-widget.blade.php; v1 ships a single static token --}}
-{{-- set rather than the forms theme system (design Q13). --}}
+{{-- interpolates the catalog + resolved theme tokens at the top, then a --}}
+{{-- self-contained IIFE renders plan cards into a SHADOW ROOT (forms' --}}
+{{-- isolation idiom: :host --pw-* variables, custom_css injected AFTER --}}
+{{-- the variable styles) and runs the purchase flow in a body-appended --}}
+{{-- MODAL. The modal is deliberately light-DOM with inline styles: --}}
+{{-- Turnstile and Stripe's embedded-checkout iframes mount unreliably --}}
+{{-- inside shadow roots, and inline styles give the overlay its own --}}
+{{-- isolation on arbitrary host pages. --}}
 {{-- --}}
 {{-- The JSON dump uses JSON_HEX_* so it round-trips safely into the --}}
 {{-- JS context (no </script> escape). --}}
@@ -11,7 +15,7 @@
     /** Rendered for BOTH embed flavours (PlanEmbedController):
      *    product  — /plans/{slug}/embed.js  → $plan_rows = all public plans
      *    single   — /plan/{id}/embed.js     → $plan_rows = one plan
-     *  The IIFE is count-agnostic; only $root_id (the mount div) differs. */
+     *  $tokens = PlanThemeTokens::resolve() output for the product's theme. */
     $plans = $plan_rows->map(fn ($plan) => [
         'id' => $plan->id,
         'name' => $plan->name,
@@ -29,16 +33,15 @@
     $config = [
         'slug' => $product->slug,
         'product_name' => $product->name,
-        // Mount-point id — 'pw-plans-{product slug}' for the full pricing
-        // table, 'pw-plan-{plan id}' for a single-plan embed, so both can
-        // coexist on one host page.
         'root_id' => $root_id,
         'plans' => $plans,
         'checkout_url' => $checkout_url,
-        // Publishable key + site key are public by definition — they ship
-        // to every browser that renders the widget.
         'stripe_key' => $stripe_key,
         'turnstile_site_key' => $turnstile_site_key,
+        // Resolved design tokens (defaults merged with the product's plan
+        // theme). custom_css rides along — it is public CSS by definition
+        // once rendered into the embed.
+        'theme' => $tokens,
     ];
     $json = json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES);
 @endphp
@@ -47,15 +50,20 @@
 
     var CONFIG = {!! $json !!};
     var ROOT_ID = CONFIG.root_id;
-    var rootEl = null;
+    var T = CONFIG.theme || {};
+    var shadow = null;           // the grid's shadow root
+    var overlayEl = null;        // body-appended modal overlay (light DOM)
+    var checkoutInstance = null; // Stripe embedded checkout — ONE per page
     var turnstileWidgetId = null;
     var selectedPrice = null;
+    var prevOverflow = null;
 
     function el(tag, attrs, children) {
         var node = document.createElement(tag);
         if (attrs) {
             Object.keys(attrs).forEach(function (k) {
                 if (k === "class") node.className = attrs[k];
+                else if (k === "style") node.style.cssText = attrs[k];
                 else node.setAttribute(k, attrs[k]);
             });
         }
@@ -66,96 +74,145 @@
         return node;
     }
 
-    // External scripts are loaded lazily, only once a visitor starts a
-    // purchase — a page that merely SHOWS the pricing grid never pulls
-    // Stripe.js or Turnstile.
     var loaded = {};
     function loadScript(src) {
         if (loaded[src]) return loaded[src];
         loaded[src] = new Promise(function (resolve, reject) {
             var s = document.createElement("script");
-            s.src = src;
-            s.async = true;
-            s.onload = resolve;
-            s.onerror = reject;
+            s.src = src; s.async = true;
+            s.onload = resolve; s.onerror = reject;
             document.head.appendChild(s);
         });
         return loaded[src];
     }
 
-    var STYLE = [
-        "#", ROOT_ID, " { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #0f172a; }",
-        "#", ROOT_ID, " .pw-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }",
-        "#", ROOT_ID, " .pw-plan { border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; padding: 22px; display: flex; flex-direction: column; }",
-        "#", ROOT_ID, " .pw-plan h3 { margin: 0 0 6px; font-size: 17px; }",
-        "#", ROOT_ID, " .pw-desc { font-size: 13px; color: #64748b; margin: 0 0 14px; line-height: 1.5; }",
-        "#", ROOT_ID, " .pw-features { list-style: none; margin: 0 0 16px; padding: 0; font-size: 13px; color: #334155; }",
-        "#", ROOT_ID, " .pw-features li { padding: 3px 0 3px 20px; position: relative; }",
-        "#", ROOT_ID, " .pw-features li:before { content: '\\2713'; position: absolute; left: 0; color: #16a34a; }",
-        "#", ROOT_ID, " .pw-price-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 8px 0; border-top: 1px solid #f1f5f9; margin-top: auto; }",
-        "#", ROOT_ID, " .pw-amount { font-size: 18px; font-weight: 700; }",
-        "#", ROOT_ID, " .pw-interval { font-size: 12px; color: #94a3b8; }",
-        "#", ROOT_ID, " .pw-btn { border: 0; border-radius: 8px; background: #0f172a; color: #fff; font-size: 13px; font-weight: 600; padding: 8px 14px; cursor: pointer; }",
-        "#", ROOT_ID, " .pw-btn:disabled { opacity: .55; cursor: default; }",
-        "#", ROOT_ID, " .pw-panel { border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; padding: 22px; max-width: 480px; }",
-        "#", ROOT_ID, " .pw-panel label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 4px; }",
-        "#", ROOT_ID, " .pw-panel input { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; padding: 9px 11px; font-size: 14px; margin: 0 0 14px; }",
-        "#", ROOT_ID, " .pw-error { color: #dc2626; font-size: 13px; margin: 0 0 10px; min-height: 16px; }",
-        "#", ROOT_ID, " .pw-back { background: none; border: 0; color: #64748b; font-size: 13px; cursor: pointer; padding: 0; margin: 0 0 14px; }",
-        "#", ROOT_ID, " .pw-checkout { min-height: 400px; }",
-    ].join("");
+    // ── Shadow-root styles: :host carries the --pw-* variables (forms'
+    //    idiom); rules consume them; custom_css is appended AFTER the
+    //    variable styles so a theme can override anything.
+    function buildStyleEl() {
+        var vars = ":host{"
+            + "--pw-font-family:" + T.font_family + ";"
+            + "--pw-font-size:" + T.font_size + ";"
+            + "--pw-text:" + T.text + ";"
+            + "--pw-accent:" + T.accent + ";"
+            + "--pw-bg:" + T.background + ";"
+            + "--pw-surface:" + T.surface + ";"
+            + "--pw-border:" + T.border + ";"
+            + "--pw-border-width:" + T.border_width + ";"
+            + "--pw-radius:" + T.radius + ";"
+            + "--pw-button-bg:" + T.button_bg + ";"
+            + "--pw-button-bg-hover:" + T.button_bg_hover + ";"
+            + "--pw-button-text:" + T.button_text + ";"
+            + "--pw-error:" + T.error + ";"
+            + "--pw-card-bg:" + T.card_bg + ";"
+            + "--pw-card-border:" + T.card_border + ";"
+            + "--pw-card-radius:" + T.card_radius + ";"
+            + "--pw-price:" + T.price_color + ";"
+            + "--pw-check:" + T.feature_check + ";"
+            + "--pw-muted:" + T.muted + ";"
+            + "}";
+        var rules = [
+            ":host { font-family: var(--pw-font-family); color: var(--pw-text); background: var(--pw-bg); display: block; }",
+            ".pw-heading { font-size: 18px; font-weight: 700; margin: 0 0 14px; }",
+            ".pw-logo { max-height: 40px; margin: 0 0 12px; display: block; }",
+            ".pw-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }",
+            ".pw-plan { border: var(--pw-border-width) solid var(--pw-card-border); border-radius: var(--pw-card-radius); background: var(--pw-card-bg); padding: 22px; display: flex; flex-direction: column; }",
+            ".pw-plan h3 { margin: 0 0 6px; font-size: 17px; }",
+            ".pw-desc { font-size: 13px; color: var(--pw-muted); margin: 0 0 14px; line-height: 1.5; }",
+            ".pw-features { list-style: none; margin: 0 0 16px; padding: 0; font-size: 13px; color: var(--pw-text); }",
+            ".pw-features li { padding: 3px 0 3px 20px; position: relative; }",
+            ".pw-features li:before { content: '\\2713'; position: absolute; left: 0; color: var(--pw-check); }",
+            ".pw-price-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 8px 0; border-top: 1px solid var(--pw-card-border); margin-top: auto; }",
+            ".pw-amount { font-size: 18px; font-weight: 700; color: var(--pw-price); }",
+            ".pw-interval { font-size: 12px; color: #94a3b8; }",
+            ".pw-btn { border: 0; border-radius: var(--pw-radius); background: var(--pw-button-bg); color: var(--pw-button-text); font-size: var(--pw-font-size); font-weight: 600; padding: 8px 14px; cursor: pointer; }",
+            ".pw-btn:hover { background: var(--pw-button-bg-hover); }",
+            ".pw-btn:disabled { opacity: .55; cursor: default; }",
+        ].join("\n");
+        var css = vars + "\n" + rules;
+        if (T.custom_css) css += "\n" + T.custom_css;
+        var style = document.createElement("style");
+        style.textContent = css;
+        return style;
+    }
 
     function renderGrid() {
-        rootEl.innerHTML = "";
-        var grid = el("div", { "class": "pw-grid" });
+        shadow.innerHTML = "";
+        shadow.appendChild(buildStyleEl());
+        if (T.logo_url) shadow.appendChild(el("img", { class: "pw-logo", src: T.logo_url, alt: "" }));
+        if (T.heading) shadow.appendChild(el("p", { class: "pw-heading" }, [T.heading]));
+        var grid = el("div", { class: "pw-grid" });
         CONFIG.plans.forEach(function (plan) {
-            var card = el("div", { "class": "pw-plan" }, [
+            var card = el("div", { class: "pw-plan" }, [
                 el("h3", null, [plan.name]),
-                plan.description ? el("p", { "class": "pw-desc" }, [plan.description]) : null,
+                plan.description ? el("p", { class: "pw-desc" }, [plan.description]) : null,
                 plan.features.length
-                    ? el("ul", { "class": "pw-features" }, plan.features.map(function (f) { return el("li", null, [f]); }))
+                    ? el("ul", { class: "pw-features" }, plan.features.map(function (f) { return el("li", null, [f]); }))
                     : null,
             ]);
             plan.prices.forEach(function (price) {
-                var btn = el("button", { "class": "pw-btn", type: "button" }, ["Choose"]);
-                btn.addEventListener("click", function () { renderPurchase(plan, price); });
-                card.appendChild(el("div", { "class": "pw-price-row" }, [
+                var btn = el("button", { class: "pw-btn", type: "button" }, ["Choose"]);
+                btn.addEventListener("click", function () { openModal(plan, price); });
+                card.appendChild(el("div", { class: "pw-price-row" }, [
                     el("span", null, [
-                        el("span", { "class": "pw-amount" }, [price.amount]),
-                        el("span", { "class": "pw-interval" }, [" " + (price.label || price.interval)]),
+                        el("span", { class: "pw-amount" }, [price.amount]),
+                        el("span", { class: "pw-interval" }, [" " + (price.label || price.interval)]),
                     ]),
                     btn,
                 ]));
             });
             grid.appendChild(card);
         });
-        rootEl.appendChild(grid);
+        shadow.appendChild(grid);
     }
 
-    function renderPurchase(plan, price) {
+    // ── Modal (light DOM + inline styles: Turnstile/Stripe iframes mount
+    //    unreliably in shadow roots; inline styles isolate on any host).
+    function fieldStyle() {
+        return "width:100%;box-sizing:border-box;border:" + T.border_width + " solid " + T.border + ";border-radius:" + T.radius + ";padding:9px 11px;font-size:" + T.font_size + ";margin:0 0 14px;font-family:inherit;background:" + T.surface + ";color:" + T.text + ";";
+    }
+
+    function openModal(plan, price) {
+        if (overlayEl) closeModal(); // never two overlays
         selectedPrice = price;
-        rootEl.innerHTML = "";
 
-        var back = el("button", { "class": "pw-back", type: "button" }, ["← All plans"]);
-        back.addEventListener("click", renderGrid);
+        prevOverflow = document.documentElement.style.overflow;
+        document.documentElement.style.overflow = "hidden";
 
-        var error = el("p", { "class": "pw-error" }, []);
+        var panel = el("div", {
+            role: "dialog", "aria-modal": "true", "aria-label": plan.name,
+            style: "background:" + T.card_bg + ";color:" + T.text + ";font-family:" + T.font_family + ";border-radius:" + T.card_radius + ";max-width:520px;width:calc(100% - 32px);max-height:calc(100vh - 64px);overflow:auto;padding:24px;position:relative;",
+        });
+
+        var close = el("button", { type: "button", "aria-label": "Close", style: "position:absolute;top:12px;right:12px;border:0;background:none;font-size:20px;line-height:1;cursor:pointer;color:" + T.muted + ";" }, ["×"]);
+        close.addEventListener("click", closeModal);
+        panel.appendChild(close);
+
+        panel.appendChild(el("h3", { style: "margin:0 0 16px;font-size:17px;" }, [plan.name + " — " + price.amount + " " + (price.label || price.interval)]));
+
+        var error = el("p", { style: "color:" + T.error + ";font-size:13px;margin:0 0 10px;min-height:16px;" }, []);
         var turnstileHost = el("div", null, []);
-        var submit = el("button", { "class": "pw-btn", type: "button" }, ["Continue to payment — " + price.amount]);
-        var nameInput = el("input", { type: "text", autocomplete: "name" });
-        var emailInput = el("input", { type: "email", autocomplete: "email" });
-        // Honeypot: hidden from humans, tempting to bots.
-        var hp = el("input", { type: "text", tabindex: "-1", autocomplete: "off", "aria-hidden": "true" });
-        hp.style.cssText = "position:absolute;left:-9999px;height:1px;width:1px;opacity:0;";
+        var nameInput = el("input", { type: "text", autocomplete: "name", style: fieldStyle() });
+        var emailInput = el("input", { type: "email", autocomplete: "email", style: fieldStyle() });
+        var hp = el("input", { type: "text", tabindex: "-1", autocomplete: "off", "aria-hidden": "true", style: "position:absolute;left:-9999px;height:1px;width:1px;opacity:0;" });
+        var submit = el("button", { type: "button", style: "border:0;border-radius:" + T.radius + ";background:" + T.button_bg + ";color:" + T.button_text + ";font-size:" + T.font_size + ";font-weight:600;padding:10px 16px;cursor:pointer;" }, ["Continue to payment — " + price.amount]);
 
-        var panel = el("div", { "class": "pw-panel" }, [
-            back,
-            el("h3", null, [plan.name + " — " + price.amount + " " + (price.label || price.interval)]),
-            el("label", null, ["Your name"]), nameInput,
-            el("label", null, ["Email address"]), emailInput,
-            hp, turnstileHost, error, submit,
-        ]);
-        rootEl.appendChild(panel);
+        var labelStyle = "display:block;font-size:13px;font-weight:600;margin:0 0 4px;";
+        panel.appendChild(el("label", { style: labelStyle }, ["Your name"]));
+        panel.appendChild(nameInput);
+        panel.appendChild(el("label", { style: labelStyle }, ["Email address"]));
+        panel.appendChild(emailInput);
+        panel.appendChild(hp);
+        panel.appendChild(turnstileHost);
+        panel.appendChild(error);
+        panel.appendChild(submit);
+
+        overlayEl = el("div", { style: "position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:2147483000;display:flex;align-items:center;justify-content:center;" });
+        overlayEl.addEventListener("click", function (e) { if (e.target === overlayEl) closeModal(); });
+        overlayEl.appendChild(panel);
+        document.body.appendChild(overlayEl);
+        document.addEventListener("keydown", onEsc);
+        nameInput.focus();
 
         if (CONFIG.turnstile_site_key) {
             loadScript("https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit").then(function () {
@@ -185,7 +242,7 @@
                 return resp.json().then(function (json) { return { status: resp.status, json: json }; });
             }).then(function (r) {
                 if (r.json && r.json.client_secret) {
-                    return mountCheckout(r.json.client_secret);
+                    return mountCheckout(panel, r.json.client_secret);
                 }
                 var errs = (r.json && r.json.errors) || {};
                 var first = Object.keys(errs)[0];
@@ -199,24 +256,47 @@
         });
     }
 
-    function mountCheckout(clientSecret) {
+    function mountCheckout(panel, clientSecret) {
         return loadScript("https://js.stripe.com/v3/").then(function () {
-            rootEl.innerHTML = "";
-            var host = el("div", { "class": "pw-checkout" });
-            rootEl.appendChild(host);
+            // Swap the panel to the payment step; keep the close button.
+            while (panel.children.length > 1) panel.removeChild(panel.lastChild);
+            var host = el("div", { style: "min-height:420px;" });
+            panel.appendChild(host);
             var stripe = window.Stripe(CONFIG.stripe_key);
             return stripe.initEmbeddedCheckout({ clientSecret: clientSecret }).then(function (checkout) {
+                // Stripe permits ONE mounted embedded Checkout per page —
+                // hold the handle so closeModal() can destroy() it; a
+                // reopen without destroy would refuse to mount.
+                checkoutInstance = checkout;
                 checkout.mount(host);
             });
         });
     }
 
+    function onEsc(e) {
+        if (e.key === "Escape") closeModal();
+    }
+
+    function closeModal() {
+        if (checkoutInstance) {
+            try { checkoutInstance.destroy(); } catch (e) { /* already gone */ }
+            checkoutInstance = null;
+        }
+        turnstileWidgetId = null; // widget node is removed with the overlay
+        if (overlayEl && overlayEl.parentNode) overlayEl.parentNode.removeChild(overlayEl);
+        overlayEl = null;
+        document.removeEventListener("keydown", onEsc);
+        document.documentElement.style.overflow = prevOverflow || "";
+    }
+
     function init() {
-        rootEl = document.getElementById(ROOT_ID);
-        if (!rootEl) return;
-        var style = document.createElement("style");
-        style.textContent = STYLE;
-        document.head.appendChild(style);
+        var host = document.getElementById(ROOT_ID);
+        if (!host) return;
+        // Forms' isolation idiom: render into an open shadow root so host-
+        // page CSS can't bleed in (fallback: light DOM for ancient engines).
+        shadow = (typeof host.attachShadow === "function")
+            ? (host.shadowRoot || host.attachShadow({ mode: "open" }))
+            : host;
         renderGrid();
     }
 

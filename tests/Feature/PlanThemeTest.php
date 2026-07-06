@@ -111,6 +111,47 @@ class PlanThemeTest extends TestCase
         $this->assertSame('rounded', $params['branding_settings']['border_style']);
     }
 
+    // ── shadow-DOM embed rendering ───────────────────────────────────────
+
+    public function test_embed_renders_shadow_dom_with_themed_variables_and_custom_css(): void
+    {
+        $theme = PlanTheme::create([
+            'name' => 'Dark',
+            'tokens' => ['card_bg' => '#111827', 'custom_css' => '.pw-plan{letter-spacing:.01em}'],
+            'created_by' => $this->admin()->id,
+        ]);
+        $product = Product::create(['slug' => 'comnicube', 'name' => 'ComniCube', 'is_active' => true, 'theme_id' => $theme->id]);
+        $plan = ProductPlan::create(['product_id' => $product->id, 'name' => 'Starter', 'is_active' => true, 'is_public' => true]);
+        ProductPlanPrice::create(['plan_id' => $plan->id, 'price' => 100, 'interval_count' => 1, 'interval_unit' => 'one_time', 'is_active' => true]);
+
+        $body = $this->get('/plans/comnicube/embed.js')->assertOk()->getContent();
+
+        // Shadow-root isolation (forms' idiom) + the theme override + the
+        // super_admin custom_css riding in the config, + the modal
+        // lifecycle guards (destroy-on-close; dialog semantics). The
+        // open/close/reopen behaviour itself is browser JS — no JS test
+        // runner exists in this repo (same finding as every widget
+        // change), so this pins the shipped code paths statically.
+        $this->assertStringContainsString('attachShadow', $body);
+        $this->assertStringContainsString('"card_bg":"#111827"', $body);
+        $this->assertStringContainsString('.pw-plan{letter-spacing:.01em}', $body);
+        $this->assertStringContainsString('checkoutInstance.destroy()', $body);
+        $this->assertStringContainsString('role: "dialog"', $body);
+    }
+
+    public function test_unthemed_embed_ships_the_default_tokens(): void
+    {
+        $product = Product::create(['slug' => 'bare', 'name' => 'Bare', 'is_active' => true]);
+        $plan = ProductPlan::create(['product_id' => $product->id, 'name' => 'Solo', 'is_active' => true, 'is_public' => true]);
+        ProductPlanPrice::create(['plan_id' => $plan->id, 'price' => 10, 'interval_count' => 1, 'interval_unit' => 'one_time', 'is_active' => true]);
+
+        $body = $this->get('/plans/bare/embed.js')->assertOk()->getContent();
+
+        // Pixel-identical guarantee: defaults ship verbatim.
+        $this->assertStringContainsString('"card_bg":"#ffffff"', $body);
+        $this->assertStringContainsString('"button_bg":"#0f172a"', $body);
+    }
+
     // ── CRUD + custom_css gate (FormThemeCrudTest mirror) ────────────────
 
     public function test_custom_css_is_ignored_for_non_super_admin(): void
