@@ -18,6 +18,9 @@ import {
     IconX,
     IconDeviceFloppy,
     IconCheck,
+    IconChevronDown,
+    IconChevronUp,
+    IconCopy,
     IconDots,
     IconPencil,
     IconTrash,
@@ -63,6 +66,20 @@ const visibleUncategorised = computed(() => {
     if (activeFilter.value === 'all' || activeFilter.value === 'uncategorised') return props.uncategorised;
     return [];
 });
+
+/* ─── Embed snippet (public Plans widget) ───
+   Mirrors the forms Integration panel: server-built snippet prop +
+   click-to-copy with a 1.5s "Copied" swap. */
+const showEmbed = ref(false);
+const copiedKey = ref('');
+
+async function copy(text, key) {
+    try {
+        await navigator.clipboard.writeText(text);
+        copiedKey.value = key;
+        setTimeout(() => { if (copiedKey.value === key) copiedKey.value = ''; }, 1500);
+    } catch {}
+}
 
 /* ─── Helpers ─── */
 function gbp(n) {
@@ -455,6 +472,26 @@ function back() {
                         Add category
                     </span>
                 </button>
+
+                <!-- Public Plans widget embed — mirrors the forms cards' Integration toggle. -->
+                <div style="height: 1px; background: var(--border-soft); margin: 4px 0;" />
+                <button type="button" class="plans-embed-toggle" @click="showEmbed = !showEmbed">
+                    <IconChevronDown v-if="!showEmbed" :size="14" stroke-width="2" />
+                    <IconChevronUp v-else :size="14" stroke-width="2" />
+                    Integration
+                </button>
+                <div v-if="showEmbed" class="plans-embed">
+                    <div class="plans-embed-block">
+                        <label>Embed snippet</label>
+                        <pre>{{ product.embed_snippet }}</pre>
+                        <button type="button" class="btn btn-ghost btn-sm" @click="copy(product.embed_snippet, 'embed')">
+                            <IconCheck v-if="copiedKey === 'embed'" :size="14" />
+                            <IconCopy v-else :size="14" />
+                            {{ copiedKey === 'embed' ? 'Copied' : 'Copy snippet' }}
+                        </button>
+                        <small class="plans-embed-hint">Serves this product's public, active plans on any site.</small>
+                    </div>
+                </div>
             </aside>
 
             <!-- RIGHT — main grid -->
