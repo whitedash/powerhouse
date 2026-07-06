@@ -191,6 +191,16 @@ class ProductController extends Controller
     }
 
     /**
+     * Single-plan flavour of the snippet — one card, that plan's prices
+     * only (PlanEmbedController::planScript). Same div+script shape.
+     */
+    private function buildPlanEmbedSnippet(ProductPlan $plan): string
+    {
+        return "<div id=\"pw-plan-{$plan->id}\"></div>\n"
+            .'<script src="'.$plan->embed_url.'" async></script>';
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function mapPlan(ProductPlan $plan, bool $canAnalytics): array
@@ -203,6 +213,12 @@ class ProductController extends Controller
             'category_id' => $plan->category_id,
             'is_active' => $plan->is_active,
             'is_public' => $plan->is_public,
+            // Single-plan embed snippet (per-card "Copy embed code"); null
+            // for plans the public endpoint would 404 anyway, so the UI
+            // can't offer a snippet that serves nothing.
+            'embed_snippet' => ($plan->is_public && $plan->is_active)
+                ? $this->buildPlanEmbedSnippet($plan)
+                : null,
             'is_hosting' => $plan->is_hosting,
             'is_domain' => $plan->is_domain,
             'tld' => $plan->tld,
