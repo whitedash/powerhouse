@@ -214,6 +214,9 @@ class ProductPlanController extends Controller
             'features.*' => ['string', 'max:200'],
             'is_active' => ['boolean'],
             'is_public' => ['boolean'],
+            // Plans-widget review gate: hold new self-serve purchases at
+            // customer_products status='pending' until staff confirm.
+            'requires_manual_review' => ['boolean'],
             // Hosting flag — drives the website hosting-plan selector.
             'is_hosting' => ['boolean'],
             // Domain flag + its TLD (required when is_domain). A domain plan's

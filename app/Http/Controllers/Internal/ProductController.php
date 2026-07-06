@@ -219,6 +219,9 @@ class ProductController extends Controller
             'embed_snippet' => ($plan->is_public && $plan->is_active)
                 ? $this->buildPlanEmbedSnippet($plan)
                 : null,
+            // Plans-widget review gate — surfaced as the fifth Visibility
+            // toggle in the Edit Plan slide-over.
+            'requires_manual_review' => $plan->requires_manual_review,
             'is_hosting' => $plan->is_hosting,
             'is_domain' => $plan->is_domain,
             'tld' => $plan->tld,

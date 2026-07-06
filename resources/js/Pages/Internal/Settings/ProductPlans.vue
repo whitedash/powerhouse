@@ -175,6 +175,7 @@ const PLAN_DEFAULTS = {
     features: [],
     is_active: true,
     is_public: true,
+    requires_manual_review: false,
     is_hosting: false,
     is_domain: false,
     tld: '',
@@ -220,6 +221,7 @@ function openEditPlan(plan) {
         features: Array.isArray(plan.features) ? [...plan.features] : [],
         is_active: !! plan.is_active,
         is_public: !! plan.is_public,
+        requires_manual_review: !! plan.requires_manual_review,
         is_hosting: !! plan.is_hosting,
         is_domain: !! plan.is_domain,
         tld: plan.tld ?? '',
@@ -986,6 +988,13 @@ function back() {
                                                 <div class="sb">Prices a TLD's renewals. Domains matching the TLD auto-renew off this plan.</div>
                                             </div>
                                             <button type="button" class="toggle" :class="{ on: planForm.is_domain }" aria-label="Toggle domain plan" @click="planForm.is_domain = ! planForm.is_domain" />
+                                        </div>
+                                        <div class="set-row">
+                                            <div>
+                                                <div class="nm">Requires manual review</div>
+                                                <div class="sb">Hold new self-serve purchases for staff confirmation before the account goes live.</div>
+                                            </div>
+                                            <button type="button" class="toggle" :class="{ on: planForm.requires_manual_review }" aria-label="Toggle requires manual review" @click="planForm.requires_manual_review = ! planForm.requires_manual_review" />
                                         </div>
                                     </div>
 
