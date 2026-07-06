@@ -63,9 +63,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // is done via:
         //   - form submit: honeypot + per-IP rate limit
         //   - form webhook: HMAC signature (VerifyFormWebhookSignature)
+        //   - plan checkout: honeypot + per-IP rate limit + Turnstile
+        //     (server-verified in PlanCheckoutController)
         $middleware->validateCsrfTokens(except: [
             'forms/*/submit',
             'forms/*/draft*',
+            'plans/*/checkout',
             'webhooks/*',
         ]);
 

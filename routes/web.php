@@ -74,6 +74,8 @@ use App\Http\Controllers\Public\InboundEmailController as PublicInboundEmailCont
 use App\Http\Controllers\Public\KnowledgeBaseController as PublicKnowledgeBaseController;
 use App\Http\Controllers\Public\LandingController as PublicLandingController;
 use App\Http\Controllers\Public\LegalController as PublicLegalController;
+use App\Http\Controllers\Public\PlanCheckoutController as PublicPlanCheckoutController;
+use App\Http\Controllers\Public\PlanEmbedController as PublicPlanEmbedController;
 use App\Http\Controllers\Public\ProposalAcceptanceController as PublicProposalAcceptanceController;
 use App\Http\Controllers\Public\ProposalRejectionController as PublicProposalRejectionController;
 use App\Http\Controllers\Public\ReferralRedirectController as PublicReferralRedirectController;
@@ -1026,6 +1028,44 @@ Route::middleware('forms.cors')->group(function () {
         ->where('slug', '[a-z0-9-]+')
         ->name('form.draft.submit.preflight');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Public Plans widget — NO auth, CSRF excluded in bootstrap/app.php
+|--------------------------------------------------------------------------
+| Same embed mechanism + open CORS posture as the forms widget
+| (PLANS-WIDGET-DESIGN.md §3). {slug} is products.slug:
+|   GET  /plans/{slug}/embed.js   — JavaScript pricing widget for any site
+|   POST /plans/{slug}/checkout   — anonymous checkout init (honeypot +
+|                                   per-IP rate limit + Turnstile); returns
+|                                   an embedded Stripe Checkout secret.
+|                                   NO DB writes — provisioning is
+|                                   webhook-only (/webhooks/stripe).
+|   GET  /plans/{slug}/purchased  — post-payment landing (presentation only)
+*/
+Route::middleware('forms.cors')->group(function () {
+    Route::get('/plans/{slug}/embed.js', [PublicPlanEmbedController::class, 'script'])
+        ->where('slug', '[a-z0-9-]+')
+        ->name('plan.embed.script');
+
+    Route::post('/plans/{slug}/checkout', [PublicPlanCheckoutController::class, 'create'])
+        ->where('slug', '[a-z0-9-]+')
+        ->middleware('throttle:30,1')
+        ->name('plan.checkout');
+
+    // Preflight for the cross-origin checkout POST — same rationale as the
+    // form-submit preflight above.
+    Route::options('/plans/{slug}/checkout', fn () => response('', 204))
+        ->where('slug', '[a-z0-9-]+')
+        ->name('plan.checkout.preflight');
+});
+
+// The embedded-Checkout return leg lands here (first-party page, so no
+// CORS group needed). Throttled like the other public GET surfaces.
+Route::get('/plans/{slug}/purchased', [PublicPlanCheckoutController::class, 'purchased'])
+    ->where('slug', '[a-z0-9-]+')
+    ->middleware('throttle:30,1')
+    ->name('plan.purchased');
 
 // Canonical referral hub link. Public + throttled (writes a click row
 // per hit). {code} is constrained to 8 alphanumerics; the controller
