@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $qbo_item_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read string $embed_url
  * @property-read BillingEntity|null $billingEntity
  * @property-read Collection<int, CustomerProduct> $customerProducts
  * @property-read Collection<int, CommissionRule> $commissionRules
@@ -60,6 +62,19 @@ class Product extends Model
     public function billingEntity(): BelongsTo
     {
         return $this->belongsTo(BillingEntity::class);
+    }
+
+    /**
+     * Public URL of this product's Plans embed widget
+     * (PlanEmbedController::script). Mirrors Form::embedUrl — the
+     * plan-builder's "Copy embed code" block interpolates it into the
+     * div+script snippet.
+     */
+    protected function embedUrl(): Attribute
+    {
+        return Attribute::get(
+            fn (): string => rtrim((string) config('app.url'), '/').'/plans/'.$this->slug.'/embed.js',
+        );
     }
 
     public function customerProducts(): HasMany

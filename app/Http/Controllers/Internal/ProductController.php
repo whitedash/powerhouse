@@ -157,6 +157,10 @@ class ProductController extends Controller
                 'slug' => $product->slug,
                 'icon_colour' => $product->icon_colour,
                 'is_active' => $product->is_active,
+                // Copy-paste snippet for the public Plans widget — built
+                // server-side, same pattern as the forms Integration panel
+                // (FormBuilderController::buildEmbedSnippet).
+                'embed_snippet' => $this->buildEmbedSnippet($product),
             ],
             'categories' => $product->planCategories->map(fn (ProductPlanCategory $cat): array => [
                 'id' => $cat->id,
@@ -173,6 +177,17 @@ class ProductController extends Controller
                 ->values()
                 ->all(),
         ]);
+    }
+
+    /**
+     * The host-page snippet for the public Plans widget: the mount div +
+     * the embed script. Mirrors FormBuilderController::buildEmbedSnippet —
+     * the IIFE (embed/plans-widget.blade.php) looks for #pw-plans-{slug}.
+     */
+    private function buildEmbedSnippet(Product $product): string
+    {
+        return "<div id=\"pw-plans-{$product->slug}\"></div>\n"
+            .'<script src="'.$product->embed_url.'" async></script>';
     }
 
     /**

@@ -5130,6 +5130,53 @@ h3 .opt {
     border-radius: 999px;
 }
 
+/* Sidebar embed-snippet block (public Plans widget) — same recipe as the
+   forms cards' .form-integration panel, namespaced to the plan builder
+   (page-scoped classes, per the namespacing rule). */
+.plans-embed-toggle {
+    font: 600 12px/1.2 'Inter', sans-serif;
+    color: var(--accent);
+    background: none; border: 0; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 9px 14px;
+}
+.plans-embed-toggle:hover { text-decoration: underline; }
+.plans-embed {
+    margin: 0 10px 10px;
+    padding: 12px;
+    background: var(--surface-elevated, #f9fafb);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    display: flex; flex-direction: column; gap: 12px;
+}
+.plans-embed-block label {
+    display: block;
+    font: 600 12px/1.2 'Inter', sans-serif;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+}
+.plans-embed-block pre {
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 10px;
+    font: 400 12px/1.5 'JetBrains Mono', monospace;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 0 0 6px;
+}
+.plans-embed-block .btn { margin-top: 4px; }
+.plans-embed-hint {
+    display: block;
+    margin-top: 6px;
+    font: 400 11px/1.4 'Inter', sans-serif;
+    color: var(--text-tertiary);
+}
+
 /* Main column */
 .plans-main { min-width: 0; }
 
