@@ -176,6 +176,22 @@ sort_order INT DEFAULT 0,
 created_at, updated_at
 INDEXES: (plan_id, is_active, sort_order)
 
+## plan_checkout_attempts (Plans widget — abandoned-checkout tracking)
+id, plan_price_id FK product_plan_prices nullable (SET NULL),
+purchaser_name VARCHAR(255), purchaser_email VARCHAR(255),
+stripe_checkout_session_id VARCHAR(100) UNIQUE,
+status ENUM(pending|completed|abandoned) DEFAULT 'pending',
+started_at TIMESTAMP, completed_at TIMESTAMP nullable,
+abandoned_at TIMESTAMP nullable,
+created_at, updated_at
+INDEX (status, started_at)
+-- The ONLY table the public checkout-init endpoint writes (the
+-- no-Company/Contact/Person/Invoice-at-init guarantee stands). Webhook
+-- settlement marks completed by session id (a late completion overrides
+-- abandoned — sessions stay payable to their 24h Stripe expiry);
+-- plans:reconcile-abandoned-checkouts flips stale pending rows to
+-- abandoned after the window (default 24h) and emails staff once.
+
 ## customer_products
 id, customer_id FK, product_id FK,
 -- External provisioning (2026_06_03): consumer apps Powerhouse creates

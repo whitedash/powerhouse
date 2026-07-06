@@ -175,3 +175,14 @@ Schedule::call(function (): void {
     ->timezone('Europe/London')
     ->name('warm.health.cache')
     ->withoutOverlapping();
+
+// Plans widget: flip checkout attempts still pending past Stripe's own
+// 24h session expiry to abandoned and email staff once per attempt.
+// Hourly is plenty — the window is a day, the sweep is a single
+// indexed query, and the guarded per-row transition makes repeats
+// no-ops.
+Schedule::command('plans:reconcile-abandoned-checkouts')
+    ->hourly()
+    ->timezone('Europe/London')
+    ->withoutOverlapping()
+    ->runInBackground();

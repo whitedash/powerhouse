@@ -7,6 +7,7 @@ use App\Models\BillingEntity;
 use App\Models\CustomerProduct;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
+use App\Models\PlanCheckoutAttempt;
 use App\Models\ProductPlanPrice;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -238,6 +239,8 @@ class PlanPurchaseService
         // behave today.
         $this->stripe->markInvoicePaid($invoice, $sessionId, $paymentIntentId);
 
+        $this->markAttemptCompleted($sessionId);
+
         return new PlanPurchaseResult(
             $invoice->fresh() ?? $invoice,
             $customerProduct,
@@ -263,6 +266,8 @@ class PlanPurchaseService
 
         $this->stripe->markInvoicePaid($invoice, $sessionId, $paymentIntentId);
 
+        $this->markAttemptCompleted($sessionId);
+
         $customerProduct = CustomerProduct::where('customer_id', $invoice->customer_id)
             ->where('plan_price_id', $price->id)
             ->latest('id')
@@ -283,6 +288,20 @@ class PlanPurchaseService
             $company->primaryContact?->email,
             receiptDue: ! $wasPaid && $customerProduct?->status === 'active',
         );
+    }
+
+    /**
+     * Close the abandoned-checkout tracking loop: the attempt row written
+     * at checkout-init flips to completed on settlement. UNCONDITIONAL on
+     * prior status — a session stays payable up to Stripe's 24h expiry,
+     * so a purchase completing after the reconciler marked the attempt
+     * abandoned must still end up completed (the truth wins over the
+     * earlier staff alert).
+     */
+    private function markAttemptCompleted(string $sessionId): void
+    {
+        PlanCheckoutAttempt::where('stripe_checkout_session_id', $sessionId)
+            ->update(['status' => 'completed', 'completed_at' => now()]);
     }
 
     /**
