@@ -139,6 +139,11 @@ name VARCHAR(100), description TEXT nullable,
 features JSON nullable,
 is_active BOOLEAN DEFAULT true,
 is_public BOOLEAN DEFAULT true,
+requires_manual_review BOOLEAN NOT NULL DEFAULT false,
+  -- Plans widget (PLANS-WIDGET-DESIGN.md): when true, a self-serve
+  -- purchase provisions in a held "pending" state (customer_products
+  -- status='pending', receipt withheld) until staff confirm; false =
+  -- purchase goes live immediately on webhook settlement.
 is_hosting BOOLEAN DEFAULT false,
   -- hosting plan (drives the Websites hosting selector)
 is_domain BOOLEAN DEFAULT false,

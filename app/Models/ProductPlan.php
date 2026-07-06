@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property array<int, string>|null $features
  * @property bool $is_active
  * @property bool $is_public
+ * @property bool $requires_manual_review
  * @property bool $is_hosting
  * @property bool $is_domain
  * @property string|null $tld
@@ -48,6 +49,9 @@ class ProductPlan extends Model
         'features',
         'is_active',
         'is_public',
+        // Plans widget: gates self-serve purchases into a held "pending"
+        // state until staff confirm (PLANS-WIDGET-DESIGN.md).
+        'requires_manual_review',
         // Flags the plan as a website hosting plan — drives the hosting
         // plan selector on the customer Websites tab.
         'is_hosting',
@@ -70,6 +74,7 @@ class ProductPlan extends Model
             'features' => 'array',
             'is_active' => 'boolean',
             'is_public' => 'boolean',
+            'requires_manual_review' => 'boolean',
             'is_hosting' => 'boolean',
             'is_domain' => 'boolean',
             'sort_order' => 'integer',
