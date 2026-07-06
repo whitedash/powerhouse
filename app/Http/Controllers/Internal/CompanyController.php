@@ -34,7 +34,7 @@ use App\Models\Referrer;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Website;
-use App\Services\PersonService;
+use App\Services\CompanyProvisioningService;
 use App\Support\RecurringRevenue;
 use App\Support\ScopeEnforcer;
 use App\Support\TaskDueDate;
@@ -873,36 +873,46 @@ class CompanyController extends Controller
         ]);
     }
 
-    public function store(StoreCompanyRequest $request): RedirectResponse
+    public function store(StoreCompanyRequest $request, CompanyProvisioningService $provisioner): RedirectResponse
     {
         $data = $request->validated();
 
-        $customer = DB::transaction(function () use ($data, $request) {
-            $customer = Company::create([
-                'name' => $data['name'],
-                'trading_name' => $data['trading_name'] ?? null,
-                'company_number' => $data['company_number'] ?? null,
-                'vat_number' => $data['vat_number'] ?? null,
-                'type' => $data['type'],
-                'address_line1' => $data['address_line1'],
-                'address_line2' => $data['address_line2'] ?? null,
-                'city' => $data['city'],
-                'postcode' => $data['postcode'],
-                'country' => $data['country'] ?? 'GB',
-                'pipeline_stage' => $data['pipeline_stage'] ?? 'lead',
-                'acquisition_channel' => $data['acquisition_channel'] ?? null,
-                'channel_detail' => $data['channel_detail'] ?? null,
-                'assigned_to' => $data['assigned_to'] ?? null,
-            ]);
-
-            $contact = Contact::create([
-                'customer_id' => $customer->id,
-                'name' => $data['contact_name'],
-                'email' => $data['contact_email'],
-                'phone' => $data['contact_phone'] ?? null,
-                'role' => $data['contact_role'] ?? 'owner',
-                'is_primary' => true,
-            ]);
+        $customer = DB::transaction(function () use ($data, $request, $provisioner) {
+            // Company + primary Contact + the people-layer link (Layer 1:
+            // Person dedupe by email + customer_person pivot) are assembled
+            // by CompanyProvisioningService — the same funnel
+            // LeadController::convert routes through. Runs inside this
+            // transaction: the Person resolve recovers from the
+            // people.email UNIQUE race internally, so a throw here is a
+            // genuine error that SHOULD roll the whole create back rather
+            // than being silently swallowed into an unlinked contact.
+            // Comms still read customer->primaryContact.
+            $customer = $provisioner->provision(
+                [
+                    'name' => $data['name'],
+                    'trading_name' => $data['trading_name'] ?? null,
+                    'company_number' => $data['company_number'] ?? null,
+                    'vat_number' => $data['vat_number'] ?? null,
+                    'type' => $data['type'],
+                    'address_line1' => $data['address_line1'],
+                    'address_line2' => $data['address_line2'] ?? null,
+                    'city' => $data['city'],
+                    'postcode' => $data['postcode'],
+                    'country' => $data['country'] ?? 'GB',
+                    'pipeline_stage' => $data['pipeline_stage'] ?? 'lead',
+                    'acquisition_channel' => $data['acquisition_channel'] ?? null,
+                    'channel_detail' => $data['channel_detail'] ?? null,
+                    'assigned_to' => $data['assigned_to'] ?? null,
+                ],
+                [
+                    'name' => $data['contact_name'],
+                    'email' => $data['contact_email'],
+                    'phone' => $data['contact_phone'] ?? null,
+                    'role' => $data['contact_role'] ?? 'owner',
+                    'person_id' => $data['person_id'] ?? null,
+                ],
+                $request->user(),
+            )->company;
 
             // Referral attribution — when the operator picked a
             // referrer at create time, write the pivot now so the
@@ -917,30 +927,6 @@ class CompanyController extends Controller
             }
 
             $this->logActivity($request, 'customer.created', $customer, after: ['name' => $customer->name]);
-
-            // People-layer link (Layer 1): dedupe the human by email and tie
-            // the primary contact to a Person + a customer_person pivot row.
-            // NOW inside the transaction (was best-effort after-commit): the
-            // Person resolve recovers from the people.email UNIQUE race
-            // internally (see PersonService::createOrLinkFromContact), so a
-            // throw here is a genuine error that SHOULD roll the whole create
-            // back rather than being silently swallowed into an unlinked
-            // contact. Comms still read customer->primaryContact.
-            $people = app(PersonService::class);
-            $person = $people->createOrLinkFromContact(
-                $data['person_id'] ?? null,
-                $data['contact_name'],
-                $data['contact_email'],
-                $request->user(),
-            );
-            $contact->update(['person_id' => $person->id]);
-            $people->attachCompany(
-                $person,
-                $customer,
-                PersonRole::tryFrom($data['contact_role'] ?? 'owner') ?? PersonRole::Owner,
-                $contact->job_title,
-                $request->user(),
-            );
 
             return $customer;
         });

@@ -17,18 +17,25 @@ use Illuminate\Support\Facades\DB;
  *
  * Authorisation is the controller's job (policy + FormRequest); this
  * service assumes the caller is already allowed to act.
+ *
+ * The creation/link funnel (create, createOrLinkFromContact,
+ * attachCompany) accepts a null $actor for unauthenticated system paths
+ * (e.g. webhook-driven provisioning — PLANS-WIDGET-DESIGN.md §2); null is
+ * recorded as user_id=null / user_role='system', the same convention as
+ * StripeService::markInvoicePaid(). Operator-only mutations (update,
+ * delete, detachCompany, setRole) still require a real User.
  */
 class PersonService
 {
     /**
      * @param  array{name: string, email?: string|null, phone?: string|null, notes?: string|null}  $data
      */
-    public function create(array $data, User $actor): Person
+    public function create(array $data, ?User $actor): Person
     {
         return DB::transaction(function () use ($data, $actor): Person {
             $person = Person::create([
                 ...$data,
-                'created_by' => $actor->id,
+                'created_by' => $actor?->id,
             ]);
 
             $this->log($actor, 'person.created', $person->id, after: [
@@ -84,7 +91,7 @@ class PersonService
      * The caller links the contact (contacts.person_id) and the company
      * (attachCompany) — this method only owns Person resolution.
      */
-    public function createOrLinkFromContact(?int $personId, string $name, ?string $email, User $actor): Person
+    public function createOrLinkFromContact(?int $personId, string $name, ?string $email, ?User $actor): Person
     {
         if ($personId !== null) {
             $existing = Person::find($personId);
@@ -136,7 +143,7 @@ class PersonService
         Company $customer,
         PersonRole $role,
         ?string $jobTitle,
-        User $actor,
+        ?User $actor,
     ): void {
         DB::transaction(function () use ($person, $customer, $role, $jobTitle, $actor): void {
             // syncWithoutDetaching is idempotent: re-attaching the same
@@ -197,11 +204,11 @@ class PersonService
      * @param  array<string, mixed>|null  $before
      * @param  array<string, mixed>|null  $after
      */
-    private function log(User $actor, string $action, int $personId, ?array $before = null, ?array $after = null): void
+    private function log(?User $actor, string $action, int $personId, ?array $before = null, ?array $after = null): void
     {
         ActivityLog::create([
-            'user_id' => $actor->id,
-            'user_role' => $actor->role,
+            'user_id' => $actor?->id,
+            'user_role' => $actor->role ?? 'system',
             'action' => $action,
             'entity_type' => Person::class,
             'entity_id' => $personId,

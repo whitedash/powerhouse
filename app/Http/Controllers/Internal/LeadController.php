@@ -2,24 +2,22 @@
 
 namespace App\Http\Controllers\Internal;
 
-use App\Enums\PersonRole;
 use App\Enums\ReferralStatus;
 use App\Enums\ScopeArea;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ImportLeadsRequest;
 use App\Models\ActivityLog;
 use App\Models\Company;
-use App\Models\Contact;
 use App\Models\Lead;
 use App\Models\Note;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\AttributionService;
+use App\Services\CompanyProvisioningService;
 use App\Services\DealRegistrationService;
 use App\Services\FileUploadService;
 use App\Services\LeadImportService;
 use App\Services\NotificationService;
-use App\Services\PersonService;
 use App\Support\ScopeEnforcer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -407,7 +405,7 @@ class LeadController extends Controller
      * subsequent attempts surface "already converted" rather than
      * silently mint a second customer.
      */
-    public function convert(int $id, Request $request): RedirectResponse
+    public function convert(int $id, Request $request, CompanyProvisioningService $provisioner): RedirectResponse
     {
         Gate::authorize('viewAny', Company::class);
 
@@ -442,7 +440,7 @@ class LeadController extends Controller
             'assigned_to' => 'nullable|integer|exists:users,id',
         ]);
 
-        $customer = DB::transaction(function () use ($lead, $data, $request) {
+        $customer = DB::transaction(function () use ($lead, $data, $request, $provisioner) {
             // Map lead source → customer acquisition_channel.
             // Most enum values are shared verbatim; we coerce the
             // odd ones onto the closest customer-side bucket.
@@ -454,59 +452,45 @@ class LeadController extends Controller
             ];
             $channel = $channelMap[$lead->source] ?? $lead->source;
 
-            $customer = Company::create([
-                'name' => $data['name'],
-                'trading_name' => $data['trading_name'] ?? null,
-                'company_number' => $data['company_number'] ?? null,
-                'vat_number' => $data['vat_number'] ?? null,
-                'type' => $data['type'],
-                'address_line1' => $data['address_line1'],
-                'address_line2' => $data['address_line2'] ?? null,
-                'city' => $data['city'],
-                'postcode' => $data['postcode'],
-                'country' => $data['country'] ?? 'GB',
-                'pipeline_stage' => 'prospect',
-                'acquisition_channel' => $channel,
-                'channel_detail' => $lead->source_detail,
-                'assigned_to' => $data['assigned_to'] ?? $lead->assigned_to,
-            ]);
-
             // Primary contact carries the lead's identity bits.
             // We require one of email/phone before creating a
             // contact — name alone is too thin for a contact row
-            // (we still need *some* way to reach them).
-            if ($lead->email !== null || $lead->phone !== null) {
-                $contact = Contact::create([
-                    'customer_id' => $customer->id,
+            // (we still need *some* way to reach them). When present,
+            // CompanyProvisioningService routes it through the same
+            // people-layer funnel as CompanyController::store (Person
+            // dedupe by email + customer_person pivot, role 'owner' —
+            // no operator-picked person on the convert form), so a
+            // converted lead's owner is visible to Company::people.
+            $contactData = ($lead->email !== null || $lead->phone !== null)
+                ? [
                     'name' => $lead->name,
                     'email' => $lead->email,
                     'phone' => $lead->phone,
                     'job_title' => $lead->job_title,
-                    'role' => 'owner',
-                    'is_primary' => true,
-                ]);
+                    'role' => 'owner', // the primary contact is always 'owner' here
+                ]
+                : null;
 
-                // Same people-layer funnel as CompanyController::store: dedupe
-                // the human by email and link the Person + customer_person
-                // pivot. Previously convert() created this Contact with
-                // person_id null — orphaned from the cross-company identity,
-                // so a converted lead's owner was invisible to Company::people.
-                $people = app(PersonService::class);
-                $person = $people->createOrLinkFromContact(
-                    null, // no operator-picked person on the convert form
-                    $lead->name,
-                    $lead->email,
-                    $request->user(),
-                );
-                $contact->update(['person_id' => $person->id]);
-                $people->attachCompany(
-                    $person,
-                    $customer,
-                    PersonRole::Owner, // the primary contact is always 'owner' here
-                    $lead->job_title,
-                    $request->user(),
-                );
-            }
+            $customer = $provisioner->provision(
+                [
+                    'name' => $data['name'],
+                    'trading_name' => $data['trading_name'] ?? null,
+                    'company_number' => $data['company_number'] ?? null,
+                    'vat_number' => $data['vat_number'] ?? null,
+                    'type' => $data['type'],
+                    'address_line1' => $data['address_line1'],
+                    'address_line2' => $data['address_line2'] ?? null,
+                    'city' => $data['city'],
+                    'postcode' => $data['postcode'],
+                    'country' => $data['country'] ?? 'GB',
+                    'pipeline_stage' => 'prospect',
+                    'acquisition_channel' => $channel,
+                    'channel_detail' => $lead->source_detail,
+                    'assigned_to' => $data['assigned_to'] ?? $lead->assigned_to,
+                ],
+                $contactData,
+                $request->user(),
+            )->company;
 
             // Migrate any tasks + notes that hung off the lead.
             // Setting lead_id to null preserves the audit (the
