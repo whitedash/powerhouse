@@ -70,6 +70,9 @@ dayjs.extend(relativeTime);
 
 const props = defineProps({
     customer: { type: Object, required: true },
+    // Viewer can confirm a pending plan purchase (provisioning.manage +
+    // companies.manage — mirrors the confirm route's double gate).
+    can_confirm_pending: { type: Boolean, default: false },
     users: { type: Array, default: () => [] },
     all_products: { type: Array, default: () => [] },
     available_products: { type: Array, default: () => [] },
@@ -1262,6 +1265,34 @@ function reinstateProduct(p) {
     router.post(`/customer-products/${p.id}/reinstate`, {}, { preserveScroll: true });
 }
 
+/* ─── Confirm pending plan purchase (Plans widget review gate) ───
+   A requires_manual_review plan lands here as status='pending' with its
+   receipt withheld; confirming activates the subscription and sends it. */
+const showConfirmPendingModal = ref(false);
+const confirmPendingTarget = ref(null);
+
+function askConfirmPending(p) {
+    confirmPendingTarget.value = p;
+    showConfirmPendingModal.value = true;
+}
+
+function handleConfirmPending() {
+    const p = confirmPendingTarget.value;
+    if (! p) return;
+    router.post(`/companies/${props.customer.id}/customer-products/${p.id}/confirm`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showConfirmPendingModal.value = false;
+            confirmPendingTarget.value = null;
+        },
+    });
+}
+
+const confirmPendingMessage = computed(() => {
+    if (! confirmPendingTarget.value) return '';
+    return `This will activate ${confirmPendingTarget.value.name} for ${props.customer.name} and email the receipt that was withheld pending review.`;
+});
+
 /* ─── Auto-suspension exemption (super_admin) ─── */
 const showExemptModal = ref(false);
 const exemptForm = useForm({ exempt: true, reason: '' });
@@ -2029,9 +2060,13 @@ function submitProject() {
                                     </div>
                                 </div>
                                 <div class="prod-actions">
-                                    <span class="badge" :class="{ 'badge-active': p.status === 'active', 'badge-trial': p.status === 'trial', 'badge-inactive': ['suspended', 'cancelled'].includes(p.status) }">
+                                    <span class="badge" :class="{ 'badge-active': p.status === 'active', 'badge-trial': p.status === 'trial', 'badge-pending': p.status === 'pending', 'badge-inactive': ['suspended', 'cancelled'].includes(p.status) }">
                                         {{ p.status }}
                                     </span>
+                                    <!-- Plans widget review gate: a pending self-serve purchase awaits approval. -->
+                                    <button v-if="p.status === 'pending' && can_confirm_pending" type="button" class="btn btn-primary btn-sm" @click="askConfirmPending(p)">
+                                        Confirm &amp; send receipt
+                                    </button>
                                     <Menu v-if="['active', 'trial', 'suspended'].includes(p.status)" as="div" class="dd-menu">
                                         <MenuButton class="icon-btn" aria-label="Product actions">
                                             <IconDots :size="16" stroke-width="1.75" />
@@ -2824,8 +2859,12 @@ function submitProject() {
                                         </td>
                                         <td class="cw-col-actions">
                                             <div class="cw-tbl-row-actions">
-                                                <span class="badge badge-sm" :class="{ 'badge-active': p.status === 'active', 'badge-trial': p.status === 'trial', 'badge-inactive': ['suspended', 'cancelled'].includes(p.status) }">{{ p.status }}</span>
+                                                <span class="badge badge-sm" :class="{ 'badge-active': p.status === 'active', 'badge-trial': p.status === 'trial', 'badge-pending': p.status === 'pending', 'badge-inactive': ['suspended', 'cancelled'].includes(p.status) }">{{ p.status }}</span>
                                                 <span v-if="p.status === 'suspended' && p.suspended_by_system" class="badge badge-pending badge-sm" title="Auto-suspended for non-payment">Auto</span>
+                                                <!-- Plans widget review gate: a pending self-serve purchase awaits approval. -->
+                                                <button v-if="p.status === 'pending' && can_confirm_pending" type="button" class="btn btn-primary btn-sm" @click="askConfirmPending(p)">
+                                                    Confirm &amp; send receipt
+                                                </button>
                                                 <Menu v-if="['active', 'trial', 'suspended'].includes(p.status)" as="div" class="dd-menu">
                                                     <MenuButton class="icon-btn" aria-label="Product actions">
                                                         <IconDots :size="16" stroke-width="1.75" />
@@ -4081,6 +4120,16 @@ function submitProject() {
                 <p v-if="suspendForm.errors.reason" class="field-err">{{ suspendForm.errors.reason }}</p>
             </div>
         </ConfirmModal>
+
+        <!-- Confirm pending plan purchase (Plans widget review gate) -->
+        <ConfirmModal
+            v-model:show="showConfirmPendingModal"
+            :title="confirmPendingTarget ? `Confirm ${confirmPendingTarget.name}?` : 'Confirm purchase?'"
+            :message="confirmPendingMessage"
+            confirm-label="Confirm &amp; send receipt"
+            variant="primary"
+            @confirm="handleConfirmPending"
+        />
 
         <!-- Auto-suspension exemption reason modal -->
         <ConfirmModal

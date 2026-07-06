@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
+use App\Mail\PlanPurchaseReceipt;
 use App\Mail\ReinstatementNotice;
 use App\Models\ActivityLog;
+use App\Models\Company;
 use App\Models\CustomerProduct;
+use App\Models\Invoice;
 use App\Models\ProductPlan;
 use App\Models\ProductPlanPrice;
 use App\Services\WebhookDispatcher;
@@ -195,6 +198,80 @@ class CustomerProductController extends Controller
         Cache::forget('dash.total_customers');
 
         return back()->with('success', 'Service updated.');
+    }
+
+    /**
+     * Confirm a pending self-serve plan purchase (Plans widget review
+     * gate, PLANS-WIDGET-DESIGN.md §4). requires_manual_review held the
+     * subscription at status='pending' and withheld the receipt at
+     * webhook provisioning; a human approves it here — the subscription
+     * goes live and the withheld PlanPurchaseReceipt finally sends.
+     *
+     * Double-gated like suspend/reinstate: provisioning.manage at the
+     * route (section gate) composing with CompanyPolicy::update
+     * (companies.manage) here — both must pass.
+     */
+    public function confirm(int $companyId, int $customerProductId, Request $request): RedirectResponse
+    {
+        $company = Company::findOrFail($companyId);
+        $cp = CustomerProduct::with(['product', 'productPlan'])->findOrFail($customerProductId);
+
+        // The route carries both ids — never trust the pair (IDOR rule):
+        // a customer-product that belongs to a different company is a 404,
+        // indistinguishable from a wrong id.
+        if ($cp->customer_id !== $company->id) {
+            abort(404);
+        }
+
+        Gate::authorize('update', $company);
+
+        // Idempotence guard: only a pending row can be confirmed, so a
+        // double-click or a stale tab can't re-fire the receipt.
+        if ($cp->status !== 'pending') {
+            throw ValidationException::withMessages([
+                'status' => 'Only a pending subscription can be confirmed.',
+            ]);
+        }
+
+        DB::transaction(function () use ($cp, $company, $request): void {
+            $cp->update(['status' => 'active']);
+
+            $this->log($request, 'customer_product.review_confirmed', $company->id, ['status' => 'pending'], [
+                'customer_product_id' => $cp->id,
+                'product' => $cp->product?->name,
+                'plan' => $cp->productPlan?->name,
+                'status' => 'active',
+            ]);
+        });
+
+        // The receipt withheld at provisioning — sent AFTER commit so a
+        // mail hiccup can't roll back the confirm, guarded like the
+        // proposal-accept mails. The invoice is the paid plan-purchase
+        // invoice: its line carries this subscription's plan_id.
+        $sent = false;
+
+        try {
+            $company->loadMissing('primaryContact');
+            $email = $company->primaryContact?->email;
+            $invoice = Invoice::where('customer_id', $company->id)
+                ->where('status', 'paid')
+                ->whereHas('lines', fn ($q) => $q->where('plan_id', $cp->plan_id))
+                ->latest('id')
+                ->first();
+
+            if ($email !== null && $invoice !== null) {
+                Mail::to($email)->send(new PlanPurchaseReceipt($invoice, $cp));
+                $sent = true;
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        $productName = $cp->product->name ?? 'Subscription';
+
+        return back()->with('success', $sent
+            ? $productName.' confirmed — receipt sent to the primary contact.'
+            : $productName.' confirmed. No receipt was sent (no paid plan invoice or no contact email).');
     }
 
     /**

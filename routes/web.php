@@ -605,6 +605,16 @@ Route::middleware(['auth', 'block_referrer', 'role:super_admin,staff'])->group(f
     Route::put('/customer-products/{id}', [InternalCustomerProductController::class, 'update'])
         ->whereNumber('id')->middleware('permission:provisioning.manage')->name('internal.customer-products.update');
 
+    // Plans widget review gate: confirm a pending self-serve purchase
+    // (status 'pending' → 'active') and send the receipt withheld at
+    // webhook provisioning. Double-gated like the suspend/reinstate pair
+    // above: provisioning.manage (section gate, route middleware)
+    // composing with the per-company companies.manage check in-method
+    // (CompanyPolicy::update) — both must pass.
+    Route::post('/companies/{company}/customer-products/{customerProduct}/confirm', [InternalCustomerProductController::class, 'confirm'])
+        ->whereNumber('company')->whereNumber('customerProduct')->middleware('permission:provisioning.manage')
+        ->name('internal.customer-products.confirm');
+
     // Toggle a customer's auto-suspension exemption (super_admin only).
     Route::post('/companies/{id}/exemption', [InternalCustomerController::class, 'toggleExemption'])
         ->whereNumber('id')->middleware('permission:companies.exemption')->name('internal.companies.exemption');
