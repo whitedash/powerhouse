@@ -533,6 +533,18 @@ function back() {
                                 <div style="display: flex; align-items: center; gap: 6px;">
                                     <span class="badge badge-sm" :class="plan.is_active ? 'badge-active' : 'badge-inactive'">{{ plan.is_active ? 'Active' : 'Inactive' }}</span>
                                     <span class="badge badge-sm" :class="plan.is_public ? 'badge-info' : 'badge-inactive'">{{ plan.is_public ? 'Public' : 'Private' }}</span>
+                                    <!-- Single-plan embed: copy this card's own snippet (null for
+                                         private/inactive plans the public endpoint would 404). -->
+                                    <button
+                                        v-if="plan.embed_snippet"
+                                        type="button"
+                                        class="icon-btn"
+                                        :title="copiedKey === `plan-${plan.id}` ? 'Copied' : 'Copy embed code'"
+                                        @click="copy(plan.embed_snippet, `plan-${plan.id}`)"
+                                    >
+                                        <IconCheck v-if="copiedKey === `plan-${plan.id}`" :size="16" stroke-width="1.75" />
+                                        <IconCopy v-else :size="16" stroke-width="1.75" />
+                                    </button>
                                     <Menu as="div" class="dd-menu">
                                         <MenuButton class="icon-btn" aria-label="Plan actions">
                                             <IconDots :size="16" stroke-width="1.75" />
@@ -639,6 +651,18 @@ function back() {
                                 <div style="display: flex; align-items: center; gap: 6px;">
                                     <span class="badge badge-sm" :class="plan.is_active ? 'badge-active' : 'badge-inactive'">{{ plan.is_active ? 'Active' : 'Inactive' }}</span>
                                     <span class="badge badge-sm" :class="plan.is_public ? 'badge-info' : 'badge-inactive'">{{ plan.is_public ? 'Public' : 'Private' }}</span>
+                                    <!-- Single-plan embed: copy this card's own snippet (null for
+                                         private/inactive plans the public endpoint would 404). -->
+                                    <button
+                                        v-if="plan.embed_snippet"
+                                        type="button"
+                                        class="icon-btn"
+                                        :title="copiedKey === `plan-${plan.id}` ? 'Copied' : 'Copy embed code'"
+                                        @click="copy(plan.embed_snippet, `plan-${plan.id}`)"
+                                    >
+                                        <IconCheck v-if="copiedKey === `plan-${plan.id}`" :size="16" stroke-width="1.75" />
+                                        <IconCopy v-else :size="16" stroke-width="1.75" />
+                                    </button>
                                     <Menu as="div" class="dd-menu">
                                         <MenuButton class="icon-btn" aria-label="Plan actions">
                                             <IconDots :size="16" stroke-width="1.75" />

@@ -4,22 +4,28 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\ProductPlan;
+use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Returns the JavaScript embed widget for a product's pricing plans
- * (PLANS-WIDGET-DESIGN.md §3a). Mirrors EmbedController::script() for
- * forms: same delivery (application/javascript IIFE), same 5-minute
- * public cache, same open CORS — the widget is meant for arbitrary
- * third-party marketing sites.
+ * Returns the JavaScript embed widget for pricing plans
+ * (PLANS-WIDGET-DESIGN.md §3a), in two flavours sharing one Blade IIFE:
  *
- *   <div id="pw-plans-{slug}"></div>
- *   <script src="https://hub.whitedash.com/plans/{slug}/embed.js"></script>
+ *   GET /plans/{slug}/embed.js — a product's full pricing table
+ *       <div id="pw-plans-{slug}"></div>
+ *   GET /plan/{id}/embed.js    — ONE plan on its own (e.g. just "Pro"),
+ *       all of that plan's active prices, none of its siblings
+ *       <div id="pw-plan-{id}"></div>
  *
- * Only is_public + is_active plans (with active prices) ever reach the
- * payload — the public-IDOR stance the KB and forms take. The checkout
- * endpoint re-verifies the same flags server-side, so the 5-minute cache
- * can never sell a just-unpublished plan.
+ * Mirrors EmbedController::script() for forms: application/javascript,
+ * 5-minute public cache, open CORS — meant for arbitrary third-party
+ * marketing sites. Only is_public + is_active plans of active products
+ * ever reach a payload (public-IDOR stance: an invalid, private, or
+ * retired id is an indistinguishable 404). Plan ids are already public
+ * in the widget config, so the numeric single-plan URL exposes nothing
+ * new. The checkout endpoint re-verifies all flags server-side, so the
+ * cache can never sell a just-unpublished plan.
  */
 class PlanEmbedController extends Controller
 {
@@ -35,8 +41,38 @@ class PlanEmbedController extends Controller
             ])
             ->firstOrFail();
 
+        return $this->respond($product, $product->plans, 'pw-plans-'.$product->slug);
+    }
+
+    public function planScript(int $id): Response
+    {
+        // One scoped query: a plan that is non-public, inactive, on an
+        // inactive product, or nonexistent 404s identically.
+        $plan = ProductPlan::whereKey($id)
+            ->where('is_public', true)
+            ->where('is_active', true)
+            ->whereHas('product', fn ($q) => $q->where('is_active', true))
+            ->with(['activePrices', 'product'])
+            ->firstOrFail();
+
+        /** @var Product $product */
+        $product = $plan->product;
+
+        return $this->respond($product, new Collection([$plan]), 'pw-plan-'.$plan->id);
+    }
+
+    /**
+     * @param  Collection<int, ProductPlan>  $planRows
+     */
+    private function respond(Product $product, Collection $planRows, string $rootId): Response
+    {
         $js = view('embed.plans-widget', [
             'product' => $product,
+            'plan_rows' => $planRows,
+            'root_id' => $rootId,
+            // Both flavours check out through the product-scoped endpoint —
+            // it validates the plan_price_id against the live catalog, so
+            // it never needs to know which embed type initiated it.
             'checkout_url' => rtrim((string) config('app.url'), '/').'/plans/'.$product->slug.'/checkout',
             'stripe_key' => (string) config('services.stripe.key'),
             'turnstile_site_key' => (string) config('services.turnstile.site_key'),

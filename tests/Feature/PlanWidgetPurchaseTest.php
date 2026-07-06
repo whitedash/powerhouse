@@ -136,9 +136,9 @@ class PlanWidgetPurchaseTest extends TestCase
             ->assertHeader('Cache-Control', 'max-age=300, public');
         $body = $response->getContent();
         $this->assertStringContainsString('Starter', $body);
-        // ROOT_ID is assembled at runtime ("pw-plans-" + CONFIG.slug), so
-        // assert the two halves the IIFE composes it from.
-        $this->assertStringContainsString('"pw-plans-"', $body);
+        // The mount id ships in the config since the single-plan embed
+        // parameterised it (root_id replaces the old slug concatenation).
+        $this->assertStringContainsString('"root_id":"pw-plans-comnicube"', $body);
         $this->assertStringContainsString('"slug":"comnicube"', $body);
         $this->assertStringNotContainsString('Hidden internal plan', $body);
         $this->assertStringNotContainsString('Retired plan', $body);

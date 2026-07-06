@@ -30,6 +30,7 @@ use Illuminate\Support\Carbon;
  * @property int $active_count
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read string $embed_url
  * @property-read float $mrr_contribution
  * @property-read ProductPlanPrice|null $default_price
  * @property-read Product|null $product
@@ -87,6 +88,19 @@ class ProductPlan extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Public URL of this plan's SINGLE-plan embed widget
+     * (PlanEmbedController::planScript). Mirrors Product::embedUrl (the
+     * full pricing-table flavour); the plan id is already public in the
+     * widget's JSON config, so the numeric URL exposes nothing new.
+     */
+    protected function embedUrl(): Attribute
+    {
+        return Attribute::get(
+            fn (): string => rtrim((string) config('app.url'), '/').'/plan/'.$this->id.'/embed.js',
+        );
     }
 
     public function category(): BelongsTo

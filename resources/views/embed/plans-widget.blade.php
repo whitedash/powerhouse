@@ -8,7 +8,11 @@
 {{-- The JSON dump uses JSON_HEX_* so it round-trips safely into the --}}
 {{-- JS context (no </script> escape). --}}
 @php
-    $plans = $product->plans->map(fn ($plan) => [
+    /** Rendered for BOTH embed flavours (PlanEmbedController):
+     *    product  — /plans/{slug}/embed.js  → $plan_rows = all public plans
+     *    single   — /plan/{id}/embed.js     → $plan_rows = one plan
+     *  The IIFE is count-agnostic; only $root_id (the mount div) differs. */
+    $plans = $plan_rows->map(fn ($plan) => [
         'id' => $plan->id,
         'name' => $plan->name,
         'description' => $plan->description,
@@ -25,6 +29,10 @@
     $config = [
         'slug' => $product->slug,
         'product_name' => $product->name,
+        // Mount-point id — 'pw-plans-{product slug}' for the full pricing
+        // table, 'pw-plan-{plan id}' for a single-plan embed, so both can
+        // coexist on one host page.
+        'root_id' => $root_id,
         'plans' => $plans,
         'checkout_url' => $checkout_url,
         // Publishable key + site key are public by definition — they ship
@@ -38,7 +46,7 @@
     "use strict";
 
     var CONFIG = {!! $json !!};
-    var ROOT_ID = "pw-plans-" + CONFIG.slug;
+    var ROOT_ID = CONFIG.root_id;
     var rootEl = null;
     var turnstileWidgetId = null;
     var selectedPrice = null;

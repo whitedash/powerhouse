@@ -1046,17 +1046,26 @@ Route::middleware('forms.cors')->group(function () {
 | Same embed mechanism + open CORS posture as the forms widget
 | (PLANS-WIDGET-DESIGN.md §3). {slug} is products.slug:
 |   GET  /plans/{slug}/embed.js   — JavaScript pricing widget for any site
+|   GET  /plan/{id}/embed.js      — SINGLE-plan widget (one card, all of
+|                                   that plan's prices). Singular /plan/
+|                                   prefix so a numeric id can't be
+|                                   swallowed by the {slug} regex above.
 |   POST /plans/{slug}/checkout   — anonymous checkout init (honeypot +
 |                                   per-IP rate limit + Turnstile); returns
 |                                   an embedded Stripe Checkout secret.
 |                                   NO DB writes — provisioning is
 |                                   webhook-only (/webhooks/stripe).
+|                                   Serves BOTH embed flavours.
 |   GET  /plans/{slug}/purchased  — post-payment landing (presentation only)
 */
 Route::middleware('forms.cors')->group(function () {
     Route::get('/plans/{slug}/embed.js', [PublicPlanEmbedController::class, 'script'])
         ->where('slug', '[a-z0-9-]+')
         ->name('plan.embed.script');
+
+    Route::get('/plan/{plan}/embed.js', [PublicPlanEmbedController::class, 'planScript'])
+        ->whereNumber('plan')
+        ->name('plan.single.embed.script');
 
     Route::post('/plans/{slug}/checkout', [PublicPlanCheckoutController::class, 'create'])
         ->where('slug', '[a-z0-9-]+')
