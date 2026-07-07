@@ -28,6 +28,8 @@ class AbandonedCheckoutController extends Controller
                 'plan' => $a->planPrice?->plan?->name,
                 'purchaser_name' => $a->purchaser_name,
                 'purchaser_email' => $a->purchaser_email,
+                'purchaser_company' => $a->purchaser_company,
+                'purchaser_phone' => $a->purchaser_phone,
                 'started_at' => $a->started_at->toIso8601String(),
                 'abandoned_at' => $a->abandoned_at?->toIso8601String(),
             ]);

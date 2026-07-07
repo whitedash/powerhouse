@@ -92,6 +92,8 @@ class PlanPurchaseService
         string $purchaserName,
         string $purchaserEmail,
         ?int $amountTotalPence,
+        ?string $companyName = null,
+        ?string $phone = null,
     ): ?PlanPurchaseResult {
         $price = ProductPlanPrice::with('plan.product.billingEntity')->find($planPriceId);
         $plan = $price?->plan;
@@ -134,17 +136,17 @@ class PlanPurchaseService
 
         /** @var array{0: Invoice, 1: CustomerProduct, 2: CompanyProvisionResult} $created */
         $created = DB::transaction(function () use (
-            $price, $plan, $product, $entity, $totals, $pending, $sessionId, $purchaserName, $purchaserEmail
+            $price, $plan, $product, $entity, $totals, $pending, $sessionId, $purchaserName, $purchaserEmail, $companyName, $phone
         ): array {
             // Same funnel as internal customer creation / lead conversion,
             // with the system actor. Person dedupe by email is unchanged —
             // a returning purchaser links to their existing Person. The
-            // company itself is always freshly minted (design Q6: no
-            // company name is collected in v1, so the purchaser's name is
-            // the company name).
+            // company is always freshly minted, named after the optional
+            // step-1 company field when given, else the purchaser (the
+            // original design-Q6 fallback, unchanged when blank).
             $provision = $this->provisioner->provision(
                 [
-                    'name' => $purchaserName,
+                    'name' => ($companyName !== null && $companyName !== '') ? $companyName : $purchaserName,
                     'type' => 'other',
                     'country' => 'GB',
                     'pipeline_stage' => 'active',
@@ -154,6 +156,9 @@ class PlanPurchaseService
                 [
                     'name' => $purchaserName,
                     'email' => $purchaserEmail,
+                    // Optional step-1 phone lands on the primary Contact —
+                    // the same field internal creation/conversion populate.
+                    'phone' => ($phone !== null && $phone !== '') ? $phone : null,
                     'role' => 'owner',
                 ],
                 null,

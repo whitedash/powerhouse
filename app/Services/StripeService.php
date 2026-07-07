@@ -102,11 +102,13 @@ class StripeService
         string $purchaserEmail,
         float $grossTotal,
         string $productSlug,
+        ?string $companyName = null,
+        ?string $phone = null,
     ): Session {
         $this->configureStripe();
 
         return Session::create($this->planCheckoutSessionParams(
-            $price, $purchaserName, $purchaserEmail, $grossTotal, $productSlug,
+            $price, $purchaserName, $purchaserEmail, $grossTotal, $productSlug, $companyName, $phone,
         ));
     }
 
@@ -122,6 +124,8 @@ class StripeService
         string $purchaserEmail,
         float $grossTotal,
         string $productSlug,
+        ?string $companyName = null,
+        ?string $phone = null,
     ): array {
         $unitAmount = (int) round($grossTotal * 100);
         if ($unitAmount < 1) {
@@ -155,13 +159,18 @@ class StripeService
                 ],
                 'quantity' => 1,
             ]],
-            'metadata' => [
+            // Optional step-1 extras ride the metadata only when present —
+            // the webhook provisioner reads them back. array_filter drops
+            // the empty ones so the payload stays clean.
+            'metadata' => array_filter([
                 'plan_price_id' => (string) $price->id,
                 // Stripe caps metadata values at 500 chars; the validator
                 // caps these at 255 already, substr is belt-and-braces.
                 'purchaser_name' => substr($purchaserName, 0, 255),
                 'purchaser_email' => substr($purchaserEmail, 0, 255),
-            ],
+                'purchaser_company' => $companyName !== null ? substr($companyName, 0, 255) : null,
+                'purchaser_phone' => $phone !== null ? substr($phone, 0, 50) : null,
+            ], fn ($v) => $v !== null && $v !== ''),
             'customer_email' => $purchaserEmail,
             // Session-level branding through the per-plan override chain
             // (plan theme → product theme → defaults) so the payment step

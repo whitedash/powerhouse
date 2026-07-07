@@ -135,6 +135,10 @@ class StripeWebhookController extends Controller
             // amount_total isn't declared on the base StripeObject; read it
             // via ArrayAccess so static analysis stays happy.
             isset($session['amount_total']) ? (int) $session['amount_total'] : null,
+            // Optional step-1 extras — absent from metadata when the
+            // visitor left them blank.
+            isset($session->metadata->purchaser_company) ? (string) $session->metadata->purchaser_company : null,
+            isset($session->metadata->purchaser_phone) ? (string) $session->metadata->purchaser_phone : null,
         );
 
         if ($result === null) {
