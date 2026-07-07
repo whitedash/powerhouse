@@ -68,6 +68,13 @@ class PlanCheckoutController extends Controller
             'plan_price_id' => ['required', 'integer'],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email:rfc', 'max:255'],
+            // Optional step-1 extras. Deliberately loose: company is any
+            // bounded string; phone is NOT strict-E.164 — over-validation
+            // here would reject legitimate input over a nicety. Both sit
+            // behind the same honeypot/rate-limit/Turnstile gates as the
+            // rest of the payload.
+            'company' => ['nullable', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
         ]);
 
         // Re-verify the catalog flags on the LIVE rows — the embed script
@@ -101,6 +108,8 @@ class PlanCheckoutController extends Controller
             $data['email'],
             $totals['total'],
             $product->slug,
+            $data['company'] ?? null,
+            $data['phone'] ?? null,
         );
 
         // The ONE deliberate DB write at checkout-init: a tracking row so
@@ -113,6 +122,8 @@ class PlanCheckoutController extends Controller
             'plan_price_id' => $price->id,
             'purchaser_name' => $data['name'],
             'purchaser_email' => $data['email'],
+            'purchaser_company' => $data['company'] ?? null,
+            'purchaser_phone' => $data['phone'] ?? null,
             'stripe_checkout_session_id' => (string) $session->id,
             'status' => 'pending',
             'started_at' => now(),

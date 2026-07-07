@@ -21,6 +21,8 @@ use Illuminate\Support\Carbon;
  * @property int|null $plan_price_id
  * @property string $purchaser_name
  * @property string $purchaser_email
+ * @property string|null $purchaser_company
+ * @property string|null $purchaser_phone
  * @property string $stripe_checkout_session_id
  * @property string $status
  * @property Carbon $started_at
@@ -36,6 +38,8 @@ class PlanCheckoutAttempt extends Model
         'plan_price_id',
         'purchaser_name',
         'purchaser_email',
+        'purchaser_company',
+        'purchaser_phone',
         'stripe_checkout_session_id',
         'status',
         'started_at',

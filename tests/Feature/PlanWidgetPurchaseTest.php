@@ -349,6 +349,78 @@ class PlanWidgetPurchaseTest extends TestCase
         Mail::assertNotSent(PlanPurchaseReceipt::class);
     }
 
+    // ── optional company + phone (step-1 extras) ─────────────────────────
+
+    public function test_checkout_captures_optional_company_and_phone_on_the_attempt_row(): void
+    {
+        [, , $price] = $this->catalog();
+
+        $this->mock(StripeService::class, function ($m) {
+            $m->shouldReceive('createPlanCheckoutSession')
+                ->once()
+                ->withArgs(function (ProductPlanPrice $p, string $name, string $email, float $total, string $slug, ?string $company, ?string $phone): bool {
+                    // The extras thread into the session-creation call…
+                    return $company === 'Acme Ltd' && $phone === '+44 7700 900123';
+                })
+                ->andReturn(Session::constructFrom(['id' => 'cs_extras_1', 'client_secret' => 'cs_secret_x']));
+        });
+
+        $this->postJson('/plans/comnicube/checkout', [
+            'plan_price_id' => $price->id,
+            'name' => 'Pat Purchaser',
+            'email' => 'pat.purchaser@gmail.com',
+            'company' => 'Acme Ltd',
+            'phone' => '+44 7700 900123',
+        ])->assertOk();
+
+        // …and onto the tracking row for abandoned-checkout follow-up.
+        $this->assertDatabaseHas('plan_checkout_attempts', [
+            'stripe_checkout_session_id' => 'cs_extras_1',
+            'purchaser_company' => 'Acme Ltd',
+            'purchaser_phone' => '+44 7700 900123',
+        ]);
+    }
+
+    public function test_webhook_uses_company_name_and_contact_phone_when_provided(): void
+    {
+        Mail::fake();
+        [, , $price] = $this->catalog();
+
+        $event = Event::constructFrom([
+            'id' => 'evt_extras',
+            'type' => 'checkout.session.completed',
+            'data' => ['object' => [
+                'id' => 'cs_extras_wh',
+                'payment_intent' => 'pi_extras',
+                'amount_total' => 12000,
+                'metadata' => [
+                    'plan_price_id' => (string) $price->id,
+                    'purchaser_name' => 'Pat Purchaser',
+                    'purchaser_email' => 'pat.purchaser@gmail.com',
+                    'purchaser_company' => 'Acme Ltd',
+                    'purchaser_phone' => '+44 7700 900123',
+                ],
+            ]],
+        ]);
+        $request = Request::create('/webhooks/stripe', 'POST');
+        $request->attributes->set('stripeEvent', $event);
+        app(StripeWebhookController::class)->receive(
+            $request, app(StripeService::class), app(WebhookIdempotencyService::class),
+        );
+
+        // Company named after the org, not the person…
+        $this->assertDatabaseHas('customers', ['name' => 'Acme Ltd']);
+        $this->assertDatabaseMissing('customers', ['name' => 'Pat Purchaser']);
+        // …the person keeps their own name, and the phone lands on the
+        // primary Contact (the field internal flows populate).
+        $this->assertDatabaseHas('contacts', [
+            'name' => 'Pat Purchaser',
+            'email' => 'pat.purchaser@gmail.com',
+            'phone' => '+44 7700 900123',
+            'is_primary' => true,
+        ]);
+    }
+
     // ── dedup + replay ───────────────────────────────────────────────────
 
     public function test_webhook_purchase_links_to_an_existing_person_by_email(): void

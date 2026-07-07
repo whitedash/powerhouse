@@ -213,6 +213,8 @@
         var turnstileHost = el("div", null, []);
         var nameInput = el("input", { type: "text", autocomplete: "name", style: fieldStyle() });
         var emailInput = el("input", { type: "email", autocomplete: "email", style: fieldStyle() });
+        var companyInput = el("input", { type: "text", autocomplete: "organization", style: fieldStyle() });
+        var phoneInput = el("input", { type: "tel", autocomplete: "tel", style: fieldStyle() });
         var hp = el("input", { type: "text", tabindex: "-1", autocomplete: "off", "aria-hidden": "true", style: "position:absolute;left:-9999px;height:1px;width:1px;opacity:0;" });
         var submit = el("button", { type: "button", style: "border:0;border-radius:" + AT.radius + ";background:" + AT.button_bg + ";color:" + AT.button_text + ";font-size:" + AT.font_size + ";font-weight:600;padding:10px 16px;cursor:pointer;" }, ["Continue to payment — " + price.amount]);
 
@@ -221,6 +223,10 @@
         panel.appendChild(nameInput);
         panel.appendChild(el("label", { style: labelStyle }, ["Email address"]));
         panel.appendChild(emailInput);
+        panel.appendChild(el("label", { style: labelStyle }, ["Company / organisation (optional)"]));
+        panel.appendChild(companyInput);
+        panel.appendChild(el("label", { style: labelStyle }, ["Phone number (optional)"]));
+        panel.appendChild(phoneInput);
         panel.appendChild(hp);
         panel.appendChild(turnstileHost);
         panel.appendChild(error);
@@ -247,6 +253,8 @@
             body.append("plan_price_id", String(selectedPrice.id));
             body.append("name", nameInput.value);
             body.append("email", emailInput.value);
+            if (companyInput.value) body.append("company", companyInput.value);
+            if (phoneInput.value) body.append("phone", phoneInput.value);
             body.append("_hp", hp.value);
             if (turnstileWidgetId !== null && window.turnstile) {
                 body.append("cf-turnstile-response", window.turnstile.getResponse(turnstileWidgetId) || "");

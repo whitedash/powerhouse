@@ -6,6 +6,12 @@
 
 <table style="width:100%;border-collapse:collapse;">
     <tr><td style="padding:8px 0;font-size:14px;color:#94a3b8;width:35%;border-bottom:1px solid #f8fafc;">Visitor</td><td style="padding:8px 0;font-size:14px;color:#334155;border-bottom:1px solid #f8fafc;">{{ $attempt->purchaser_name }} &lt;{{ $attempt->purchaser_email }}&gt;</td></tr>
+    @if($attempt->purchaser_company)
+    <tr><td style="padding:8px 0;font-size:14px;color:#94a3b8;border-bottom:1px solid #f8fafc;">Company</td><td style="padding:8px 0;font-size:14px;color:#334155;border-bottom:1px solid #f8fafc;">{{ $attempt->purchaser_company }}</td></tr>
+    @endif
+    @if($attempt->purchaser_phone)
+    <tr><td style="padding:8px 0;font-size:14px;color:#94a3b8;border-bottom:1px solid #f8fafc;">Phone</td><td style="padding:8px 0;font-size:14px;color:#334155;border-bottom:1px solid #f8fafc;">{{ $attempt->purchaser_phone }}</td></tr>
+    @endif
     <tr><td style="padding:8px 0;font-size:14px;color:#94a3b8;border-bottom:1px solid #f8fafc;">Plan</td><td style="padding:8px 0;font-size:14px;color:#334155;border-bottom:1px solid #f8fafc;">{{ $productName ?? '—' }} / {{ $planName ?? '—' }}</td></tr>
     <tr><td style="padding:8px 0;font-size:14px;color:#94a3b8;border-bottom:1px solid #f8fafc;">Started</td><td style="padding:8px 0;font-size:14px;color:#334155;border-bottom:1px solid #f8fafc;">{{ $attempt->started_at->format('d M Y H:i') }}</td></tr>
 </table>

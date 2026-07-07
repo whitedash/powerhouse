@@ -203,6 +203,9 @@ INDEXES: (plan_id, is_active, sort_order)
 ## plan_checkout_attempts (Plans widget — abandoned-checkout tracking)
 id, plan_price_id FK product_plan_prices nullable (SET NULL),
 purchaser_name VARCHAR(255), purchaser_email VARCHAR(255),
+purchaser_company VARCHAR(255) nullable (2026_07_08),
+purchaser_phone VARCHAR(50) nullable (2026_07_08),
+  -- Optional step-1 fields, captured for abandoned-checkout follow-up.
 stripe_checkout_session_id VARCHAR(100) UNIQUE,
 status ENUM(pending|completed|abandoned) DEFAULT 'pending',
 started_at TIMESTAMP, completed_at TIMESTAMP nullable,

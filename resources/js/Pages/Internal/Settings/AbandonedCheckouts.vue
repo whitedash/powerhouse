@@ -41,6 +41,11 @@ function goTo(url) {
                         <td>
                             {{ a.purchaser_name }}
                             <span style="color: var(--text-tertiary);">&lt;{{ a.purchaser_email }}&gt;</span>
+                            <div v-if="a.purchaser_company || a.purchaser_phone" style="font-size: 12px; color: var(--text-tertiary); margin-top: 2px;">
+                                <span v-if="a.purchaser_company">{{ a.purchaser_company }}</span>
+                                <span v-if="a.purchaser_company && a.purchaser_phone"> · </span>
+                                <span v-if="a.purchaser_phone">{{ a.purchaser_phone }}</span>
+                            </div>
                         </td>
                         <td>{{ formatDate(a.started_at) }}</td>
                         <td>{{ formatDate(a.abandoned_at) }}</td>
