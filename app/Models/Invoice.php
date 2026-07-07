@@ -179,9 +179,25 @@ class Invoice extends Model
      */
     public static function generateNextNumber(): string
     {
+        // Derive the next number from the highest STRICTLY numeric-suffixed
+        // invoice (INV- followed by digits, nothing else), NOT the latest
+        // row by id. A manually-created or imported non-numeric number
+        // (e.g. INV-DEMO-OVERDUE) must never become the anchor: under the
+        // old orderByDesc('id') it fell through the digit parse to 1 and
+        // returned INV-0001, colliding with the real first invoice and
+        // aborting the whole transaction — and a webhook path (plan
+        // settlement) would then retry into the same collision forever.
+        //
+        // REGEXP + SUBSTRING are MySQL-specific; the suite + prod both run
+        // MySQL (see SCHEMA.md's plan-price UPDATE…JOIN note). lockForUpdate
+        // on the selected row preserves the original serialisation: a
+        // concurrent generator waits, then its current-read sees the newly
+        // inserted higher number. The number column's UNIQUE index is the
+        // final backstop for the (pre-existing, unchanged) empty-table
+        // first-invoice race.
         $last = self::query()
-            ->where('number', 'like', 'INV-%')
-            ->orderByDesc('id')
+            ->whereRaw("number REGEXP '^INV-[0-9]+$'")
+            ->orderByRaw('CAST(SUBSTRING(number, 5) AS UNSIGNED) DESC')
             ->lockForUpdate()
             ->value('number');
 
@@ -189,9 +205,8 @@ class Invoice extends Model
             return 'INV-0001';
         }
 
-        // Extract the trailing run of digits. The match() check is
-        // defensive — a typo'd number would fall back to 1 rather
-        // than crash the whole sweep.
+        // The REGEXP guarantees a trailing digit run; the isset() stays as
+        // defence in depth.
         preg_match('/(\d+)$/', $last, $matches);
         $next = isset($matches[1]) ? ((int) $matches[1]) + 1 : 1;
 
