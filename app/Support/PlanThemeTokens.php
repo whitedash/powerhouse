@@ -107,14 +107,61 @@ class PlanThemeTokens
             default => 'rounded',
         };
 
-        if (! empty($tokens['font_family']) && is_string($tokens['font_family'])) {
-            $branding['font_family'] = $tokens['font_family'];
+        // font_family on branding_settings is an ENUM of named fonts, NOT
+        // a CSS string — sending the raw stack 400s the session creation
+        // (and 500'd every plan checkout until v4 verification caught it).
+        // Map the first recognisable family in the stack onto the enum;
+        // no match → OMIT, same graceful posture as the hex-only colours.
+        // A cosmetic mismatch must never again be able to fail a purchase.
+        $stripeFont = self::stripeFontFor($tokens['font_family'] ?? null);
+        if ($stripeFont !== null) {
+            $branding['font_family'] = $stripeFont;
         }
+
         if (! empty($tokens['logo_url']) && is_string($tokens['logo_url'])) {
             $branding['logo'] = ['type' => 'url', 'url' => $tokens['logo_url']];
         }
 
         return $branding;
+    }
+
+    /**
+     * The complete branding_settings.font_family enum for the pinned API
+     * (2026-05-27.dahlia) — taken VERBATIM from the live API's own
+     * invalid-value error during v4 verification and cross-checked against
+     * the API reference. Normalised names ("Open Sans" → open_sans) match
+     * these keys directly.
+     */
+    private const STRIPE_FONTS = [
+        'default', 'be_vietnam_pro', 'bitter', 'chakra_petch', 'hahmlet',
+        'inconsolata', 'inter', 'lato', 'lora', 'm_plus_1_code',
+        'montserrat', 'noto_sans_jp', 'noto_sans', 'noto_serif', 'nunito',
+        'open_sans', 'pridi', 'pt_sans', 'pt_serif', 'raleway', 'roboto',
+        'roboto_slab', 'source_sans_pro', 'titillium_web', 'ubuntu_mono',
+        'zen_maru_gothic',
+    ];
+
+    /**
+     * First family in a CSS font stack that maps onto Stripe's named-font
+     * enum, or null (→ omit). Families are matched in stack order, so
+     * "Inter, sans-serif" → inter and the widget's default system stack
+     * ("-apple-system,…,Roboto,sans-serif") → roboto via its fallback.
+     */
+    private static function stripeFontFor(mixed $stack): ?string
+    {
+        if (! is_string($stack) || trim($stack) === '') {
+            return null;
+        }
+
+        foreach (explode(',', $stack) as $family) {
+            $key = strtolower(trim($family, " \t\"'"));
+            $key = trim((string) preg_replace('/[^a-z0-9]+/', '_', $key), '_');
+            if (in_array($key, self::STRIPE_FONTS, true)) {
+                return $key;
+            }
+        }
+
+        return null;
     }
 
     private static function isHex(mixed $value): bool
