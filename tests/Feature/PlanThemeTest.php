@@ -96,6 +96,35 @@ class PlanThemeTest extends TestCase
         $this->assertSame('rectangular', $branding['border_style']);
     }
 
+    public function test_branding_bridge_maps_font_stacks_onto_stripes_named_font_enum(): void
+    {
+        // branding_settings.font_family is an ENUM, not a CSS string —
+        // sending the raw stack 400s the session (the v4-blocking bug).
+        $font = fn (string $stack): array => PlanThemeTokens::toStripeBranding(
+            PlanThemeTokens::resolve(new PlanTheme(['tokens' => ['font_family' => $stack]])),
+        );
+
+        // Exact match, first family wins.
+        $this->assertSame('inter', $font('Inter, sans-serif')['font_family']);
+        // Multi-word names normalise onto the enum keys.
+        $this->assertSame('open_sans', $font("'Open Sans', Arial, sans-serif")['font_family']);
+        // The widget's DEFAULT system stack maps via its Roboto fallback —
+        // an unthemed product now brands the payment step as roboto
+        // instead of 500ing the purchase.
+        $this->assertSame('roboto', PlanThemeTokens::toStripeBranding(PlanThemeTokens::resolve(null))['font_family']);
+    }
+
+    public function test_branding_bridge_omits_unrecognised_fonts_instead_of_failing(): void
+    {
+        $branding = PlanThemeTokens::toStripeBranding(PlanThemeTokens::resolve(new PlanTheme(['tokens' => [
+            'font_family' => "'Comic Sans MS', cursive",
+        ]])));
+
+        // No clean enum match → OMIT (never send garbage): Stripe falls
+        // back to the account's dashboard branding.
+        $this->assertArrayNotHasKey('font_family', $branding);
+    }
+
     public function test_checkout_session_params_carry_the_products_theme_branding(): void
     {
         $theme = PlanTheme::create(['name' => 'Violet', 'tokens' => ['button_bg' => '#7c3aed'], 'created_by' => $this->admin()->id]);
