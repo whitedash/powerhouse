@@ -165,6 +165,109 @@ class PlanThemeTest extends TestCase
                 ->missing('default_tokens.custom_css'));
     }
 
+    // ── per-plan theme override (plan → product → defaults) ──────────────
+
+    /** @return array{0: Product, 1: ProductPlan, 2: ProductPlan, 3: PlanTheme, 4: PlanTheme} */
+    private function overrideCatalog(): array
+    {
+        $admin = $this->admin();
+        $productTheme = PlanTheme::create(['name' => 'Product Blue', 'tokens' => ['card_bg' => '#0c4a6e', 'button_bg' => '#0284c7'], 'created_by' => $admin->id]);
+        $planTheme = PlanTheme::create(['name' => 'Plan Amber', 'tokens' => ['card_bg' => '#78350f', 'button_bg' => '#f59e0b'], 'created_by' => $admin->id]);
+        $product = Product::create(['slug' => 'comnicube', 'name' => 'ComniCube', 'is_active' => true, 'theme_id' => $productTheme->id]);
+        $overridden = ProductPlan::create(['product_id' => $product->id, 'name' => 'Amber Plan', 'is_active' => true, 'is_public' => true, 'theme_id' => $planTheme->id]);
+        $inherited = ProductPlan::create(['product_id' => $product->id, 'name' => 'Blue Plan', 'is_active' => true, 'is_public' => true]);
+        foreach ([$overridden, $inherited] as $plan) {
+            ProductPlanPrice::create(['plan_id' => $plan->id, 'price' => 100, 'interval_count' => 1, 'interval_unit' => 'one_time', 'is_active' => true]);
+        }
+
+        return [$product, $overridden, $inherited, $productTheme, $planTheme];
+    }
+
+    public function test_resolve_for_plan_walks_the_override_chain(): void
+    {
+        [, $overridden, $inherited] = $this->overrideCatalog();
+
+        // Plan's own theme wins…
+        $this->assertSame('#78350f', PlanThemeTokens::resolveForPlan($overridden->fresh())['card_bg']);
+        // …a theme-less plan inherits the product's…
+        $this->assertSame('#0c4a6e', PlanThemeTokens::resolveForPlan($inherited->fresh())['card_bg']);
+        // …and no theme anywhere = the defaults.
+        $bare = ProductPlan::create([
+            'product_id' => Product::create(['slug' => 'bare', 'name' => 'Bare', 'is_active' => true])->id,
+            'name' => 'Bare plan', 'is_active' => true, 'is_public' => true,
+        ]);
+        $this->assertSame('#ffffff', PlanThemeTokens::resolveForPlan($bare->fresh())['card_bg']);
+    }
+
+    public function test_product_table_embed_carries_per_card_overrides(): void
+    {
+        $this->overrideCatalog();
+
+        $body = $this->get('/plans/comnicube/embed.js')->assertOk()->getContent();
+
+        // Root (:host) theme = the PRODUCT's.
+        $this->assertStringContainsString('"card_bg":"#0c4a6e"', $body);
+        // The overridden plan ships its own resolved tokens per-card…
+        $this->assertStringContainsString('"card_bg":"#78350f"', $body);
+        // …and the inheriting plan ships theme:null (inherits :host).
+        $this->assertStringContainsString('"theme":null', $body);
+    }
+
+    public function test_single_plan_embed_roots_on_the_plans_resolved_chain(): void
+    {
+        [, $overridden, $inherited] = $this->overrideCatalog();
+
+        // Overridden plan: the whole widget roots on ITS theme.
+        $body = $this->get("/plan/{$overridden->id}/embed.js")->assertOk()->getContent();
+        $this->assertStringContainsString('"root_id":"pw-plan-'.$overridden->id.'"', $body);
+        $this->assertStringContainsString('--pw-card-bg', $body);
+        $this->assertStringContainsString('"card_bg":"#78350f"', $body);
+
+        // Inheriting plan: roots on the product's theme.
+        $body2 = $this->get("/plan/{$inherited->id}/embed.js")->assertOk()->getContent();
+        $this->assertStringContainsString('"card_bg":"#0c4a6e"', $body2);
+    }
+
+    public function test_branding_settings_follow_the_per_plan_chain(): void
+    {
+        [, $overridden, $inherited] = $this->overrideCatalog();
+        $service = app(StripeService::class);
+
+        $params = $service->planCheckoutSessionParams(
+            $overridden->fresh()->activePrices->first(), 'Pat', 'pat@gmail.com', 120.0, 'comnicube',
+        );
+        $this->assertSame('#f59e0b', $params['branding_settings']['button_color']);
+
+        $params2 = $service->planCheckoutSessionParams(
+            $inherited->fresh()->activePrices->first(), 'Pat', 'pat@gmail.com', 120.0, 'comnicube',
+        );
+        $this->assertSame('#0284c7', $params2['branding_settings']['button_color']);
+    }
+
+    public function test_plan_theme_picker_assigns_and_clears_the_override(): void
+    {
+        [, , $inherited, , $planTheme] = $this->overrideCatalog();
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->put("/settings/plans/{$inherited->id}", [
+            'name' => 'Blue Plan', 'theme_id' => $planTheme->id,
+        ])->assertRedirect();
+        $this->assertSame($planTheme->id, $inherited->fresh()->theme_id);
+
+        // "Use product theme" = null reverts the override.
+        $this->actingAs($admin)->put("/settings/plans/{$inherited->id}", [
+            'name' => 'Blue Plan', 'theme_id' => null,
+        ])->assertRedirect();
+        $this->assertNull($inherited->fresh()->theme_id);
+
+        // The plan builder feeds the picker + per-plan theme_id.
+        $this->actingAs($admin)
+            ->get('/settings/products/'.$inherited->fresh()->product_id.'/plans')
+            ->assertInertia(fn ($page) => $page
+                ->has('plan_themes.1.name')
+                ->where('uncategorised.0.theme_id', fn ($v) => $v !== false));
+    }
+
     public function test_product_theme_picker_assigns_and_clears_theme_id(): void
     {
         $admin = $this->admin();

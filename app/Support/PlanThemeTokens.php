@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\PlanTheme;
+use App\Models\ProductPlan;
 
 /**
  * Single source of truth for the Plans widget's design tokens — the
@@ -57,6 +58,19 @@ class PlanThemeTokens
             'heading' => null,
             'custom_css' => null,
         ];
+    }
+
+    /**
+     * Resolve a PLAN's effective tokens through the override chain:
+     * the plan's own theme, else its product's theme, else defaults.
+     * Callers must have theme + product.theme loaded (or accept the
+     * lazy-load cost).
+     *
+     * @return array<string, mixed>
+     */
+    public static function resolveForPlan(ProductPlan $plan): array
+    {
+        return self::resolve($plan->theme ?? $plan->product?->theme);
     }
 
     /** @return array<string, mixed> */

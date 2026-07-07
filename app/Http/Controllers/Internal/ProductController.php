@@ -182,6 +182,9 @@ class ProductController extends Controller
                 ->map(fn (ProductPlan $p): array => $this->mapPlan($p, $canAnalytics))
                 ->values()
                 ->all(),
+            // Themes for the per-plan override picker on the Edit Plan
+            // slide-over ("Use product theme" = null).
+            'plan_themes' => PlanTheme::orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -228,6 +231,8 @@ class ProductController extends Controller
             // Plans-widget review gate — surfaced as the fifth Visibility
             // toggle in the Edit Plan slide-over.
             'requires_manual_review' => $plan->requires_manual_review,
+            // Per-plan widget-theme override (null = product's theme).
+            'theme_id' => $plan->theme_id,
             'is_hosting' => $plan->is_hosting,
             'is_domain' => $plan->is_domain,
             'tld' => $plan->tld,

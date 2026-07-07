@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $product_id
  * @property int|null $category_id
+ * @property int|null $theme_id
  * @property string $name
  * @property string|null $description
  * @property array<int, string>|null $features
@@ -35,6 +36,7 @@ use Illuminate\Support\Carbon;
  * @property-read ProductPlanPrice|null $default_price
  * @property-read Product|null $product
  * @property-read ProductPlanCategory|null $category
+ * @property-read PlanTheme|null $theme
  * @property-read Collection<int, CustomerProduct> $customerProducts
  * @property-read Collection<int, ProductPlanPrice> $prices
  * @property-read Collection<int, ProductPlanPrice> $activePrices
@@ -45,6 +47,8 @@ class ProductPlan extends Model
     protected $fillable = [
         'product_id',
         'category_id',
+        // Per-plan widget-theme override (null = product's theme).
+        'theme_id',
         'name',
         'description',
         'features',
@@ -106,6 +110,15 @@ class ProductPlan extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(ProductPlanCategory::class, 'category_id');
+    }
+
+    /**
+     * Per-plan widget-theme override — null falls back to the product's
+     * theme (PlanThemeTokens::resolveForPlan owns the chain).
+     */
+    public function theme(): BelongsTo
+    {
+        return $this->belongsTo(PlanTheme::class, 'theme_id');
     }
 
     public function customerProducts(): HasMany
