@@ -154,6 +154,11 @@ INDEXES: UNIQUE(product_id, name), (product_id, sort_order)
 ## product_plans
 id, product_id FK CASCADE,
 category_id FK product_plan_categories nullable ON DELETE SET NULL,
+theme_id FK plan_themes nullable (SET NULL) (2026_07_08)
+  -- Per-plan widget-theme OVERRIDE. Resolution chain
+  -- (PlanThemeTokens::resolveForPlan): plan.theme_id, else the
+  -- product's theme_id, else the default look. Drives both the
+  -- rendered card and that plan's Stripe branding_settings.
 name VARCHAR(100), description TEXT nullable,
 features JSON nullable,
 is_active BOOLEAN DEFAULT true,

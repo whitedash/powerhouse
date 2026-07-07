@@ -128,7 +128,7 @@ class StripeService
             throw new \RuntimeException("Plan price {$price->id} resolves to a zero charge — nothing to check out.");
         }
 
-        $price->loadMissing('plan.product.theme');
+        $price->loadMissing('plan.theme', 'plan.product.theme');
 
         return [
             'payment_method_types' => ['card'],
@@ -163,13 +163,14 @@ class StripeService
                 'purchaser_email' => substr($purchaserEmail, 0, 255),
             ],
             'customer_email' => $purchaserEmail,
-            // Session-level branding from the product's plan theme so the
-            // Stripe payment step matches the widget's own themed steps —
-            // one token set styles both layers. Empty (no theme + defaults
-            // yield only border_style) still sends the shape; hex-only
-            // values are guaranteed by the bridge.
+            // Session-level branding through the per-plan override chain
+            // (plan theme → product theme → defaults) so the payment step
+            // matches THIS plan's rendered card, not just its product's
+            // look. Hex-only + enum-mapped values guaranteed by the bridge.
             'branding_settings' => PlanThemeTokens::toStripeBranding(
-                PlanThemeTokens::resolve($price->plan?->product?->theme),
+                $price->plan !== null
+                    ? PlanThemeTokens::resolveForPlan($price->plan)
+                    : PlanThemeTokens::resolve(null),
             ),
             // The widget lives on a third-party page; the return leg lands
             // on OUR public thank-you page (no DB writes there — the

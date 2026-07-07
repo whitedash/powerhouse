@@ -21,6 +21,13 @@
         'name' => $plan->name,
         'description' => $plan->description,
         'features' => array_values(array_filter((array) ($plan->features ?? []), 'is_string')),
+        // Per-plan theme OVERRIDE: resolved tokens when the plan carries
+        // its own theme_id, null = inherit the root (:host) theme. The
+        // IIFE applies these as per-card CSS variables (they cascade over
+        // :host for that card) and the checkout modal adopts them.
+        'theme' => $plan->theme_id !== null
+            ? \App\Support\PlanThemeTokens::resolve($plan->theme)
+            : null,
         'prices' => $plan->activePrices->map(fn ($price) => [
             'id' => $price->id,
             'label' => $price->label,
@@ -150,6 +157,13 @@
                     ? el("ul", { class: "pw-features" }, plan.features.map(function (f) { return el("li", null, [f]); }))
                     : null,
             ]);
+            // Per-plan theme override: set the card-scoped CSS variables on
+            // the card itself — they cascade over :host for this card only,
+            // so one table renders differently-themed plans side by side.
+            if (plan.theme) {
+                var o = plan.theme;
+                card.style.cssText = "--pw-card-bg:" + o.card_bg + ";--pw-card-border:" + o.card_border + ";--pw-card-radius:" + o.card_radius + ";--pw-price:" + o.price_color + ";--pw-check:" + o.feature_check + ";--pw-muted:" + o.muted + ";--pw-button-bg:" + o.button_bg + ";--pw-button-bg-hover:" + o.button_bg_hover + ";--pw-button-text:" + o.button_text + ";--pw-text:" + o.text + ";--pw-radius:" + o.radius + ";--pw-border-width:" + o.border_width + ";";
+            }
             plan.prices.forEach(function (price) {
                 var btn = el("button", { class: "pw-btn", type: "button" }, ["Choose"]);
                 btn.addEventListener("click", function () { openModal(plan, price); });
@@ -168,34 +182,39 @@
 
     // ── Modal (light DOM + inline styles: Turnstile/Stripe iframes mount
     //    unreliably in shadow roots; inline styles isolate on any host).
+    //    AT = the ACTIVE theme: the selected plan's override, else the
+    //    root theme — so a themed plan's purchase panel matches its card.
+    var AT = T;
+
     function fieldStyle() {
-        return "width:100%;box-sizing:border-box;border:" + T.border_width + " solid " + T.border + ";border-radius:" + T.radius + ";padding:9px 11px;font-size:" + T.font_size + ";margin:0 0 14px;font-family:inherit;background:" + T.surface + ";color:" + T.text + ";";
+        return "width:100%;box-sizing:border-box;border:" + AT.border_width + " solid " + AT.border + ";border-radius:" + AT.radius + ";padding:9px 11px;font-size:" + AT.font_size + ";margin:0 0 14px;font-family:inherit;background:" + AT.surface + ";color:" + AT.text + ";";
     }
 
     function openModal(plan, price) {
         if (overlayEl) closeModal(); // never two overlays
         selectedPrice = price;
+        AT = plan.theme || T;
 
         prevOverflow = document.documentElement.style.overflow;
         document.documentElement.style.overflow = "hidden";
 
         var panel = el("div", {
             role: "dialog", "aria-modal": "true", "aria-label": plan.name,
-            style: "background:" + T.card_bg + ";color:" + T.text + ";font-family:" + T.font_family + ";border-radius:" + T.card_radius + ";max-width:520px;width:calc(100% - 32px);max-height:calc(100vh - 64px);overflow:auto;padding:24px;position:relative;",
+            style: "background:" + AT.card_bg + ";color:" + AT.text + ";font-family:" + AT.font_family + ";border-radius:" + AT.card_radius + ";max-width:520px;width:calc(100% - 32px);max-height:calc(100vh - 64px);overflow:auto;padding:24px;position:relative;",
         });
 
-        var close = el("button", { type: "button", "aria-label": "Close", style: "position:absolute;top:12px;right:12px;border:0;background:none;font-size:20px;line-height:1;cursor:pointer;color:" + T.muted + ";" }, ["×"]);
+        var close = el("button", { type: "button", "aria-label": "Close", style: "position:absolute;top:12px;right:12px;border:0;background:none;font-size:20px;line-height:1;cursor:pointer;color:" + AT.muted + ";" }, ["×"]);
         close.addEventListener("click", closeModal);
         panel.appendChild(close);
 
         panel.appendChild(el("h3", { style: "margin:0 0 16px;font-size:17px;" }, [plan.name + " — " + price.amount + " " + (price.label || price.interval)]));
 
-        var error = el("p", { style: "color:" + T.error + ";font-size:13px;margin:0 0 10px;min-height:16px;" }, []);
+        var error = el("p", { style: "color:" + AT.error + ";font-size:13px;margin:0 0 10px;min-height:16px;" }, []);
         var turnstileHost = el("div", null, []);
         var nameInput = el("input", { type: "text", autocomplete: "name", style: fieldStyle() });
         var emailInput = el("input", { type: "email", autocomplete: "email", style: fieldStyle() });
         var hp = el("input", { type: "text", tabindex: "-1", autocomplete: "off", "aria-hidden": "true", style: "position:absolute;left:-9999px;height:1px;width:1px;opacity:0;" });
-        var submit = el("button", { type: "button", style: "border:0;border-radius:" + T.radius + ";background:" + T.button_bg + ";color:" + T.button_text + ";font-size:" + T.font_size + ";font-weight:600;padding:10px 16px;cursor:pointer;" }, ["Continue to payment — " + price.amount]);
+        var submit = el("button", { type: "button", style: "border:0;border-radius:" + AT.radius + ";background:" + AT.button_bg + ";color:" + AT.button_text + ";font-size:" + AT.font_size + ";font-weight:600;padding:10px 16px;cursor:pointer;" }, ["Continue to payment — " + price.amount]);
 
         var labelStyle = "display:block;font-size:13px;font-weight:600;margin:0 0 4px;";
         panel.appendChild(el("label", { style: labelStyle }, ["Your name"]));

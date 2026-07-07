@@ -39,6 +39,7 @@ class PlanEmbedController extends Controller
                     ->where('is_active', true)
                     ->orderBy('sort_order'),
                 'plans.activePrices',
+                'plans.theme',
             ])
             ->firstOrFail();
 
@@ -53,19 +54,31 @@ class PlanEmbedController extends Controller
             ->where('is_public', true)
             ->where('is_active', true)
             ->whereHas('product', fn ($q) => $q->where('is_active', true))
-            ->with(['activePrices', 'product'])
+            ->with(['activePrices', 'product.theme', 'theme'])
             ->firstOrFail();
 
         /** @var Product $product */
         $product = $plan->product;
 
-        return $this->respond($product, new Collection([$plan]), 'pw-plan-'.$plan->id);
+        // Single-plan flavour: the ROOT tokens are the plan's own resolved
+        // chain (plan theme → product theme → defaults) — the whole widget
+        // IS this plan, so its override themes everything.
+        return $this->respond(
+            $product,
+            new Collection([$plan]),
+            'pw-plan-'.$plan->id,
+            PlanThemeTokens::resolveForPlan($plan),
+        );
     }
 
     /**
+     * $rootTokens overrides the :host token set (the single-plan flavour
+     * passes the plan's resolved chain); null = the product's theme.
+     *
      * @param  Collection<int, ProductPlan>  $planRows
+     * @param  array<string, mixed>|null  $rootTokens
      */
-    private function respond(Product $product, Collection $planRows, string $rootId): Response
+    private function respond(Product $product, Collection $planRows, string $rootId, ?array $rootTokens = null): Response
     {
         $product->loadMissing('theme');
 
@@ -73,11 +86,11 @@ class PlanEmbedController extends Controller
             'product' => $product,
             'plan_rows' => $planRows,
             'root_id' => $rootId,
-            // Resolved design tokens: the product's plan theme merged over
-            // the defaults (un-themed = the widget's original look). The
-            // same tokens feed the checkout session's branding_settings, so
-            // widget steps and the Stripe payment step stay coherent.
-            'tokens' => PlanThemeTokens::resolve($product->theme),
+            // Root design tokens (:host variables). Per-plan overrides ride
+            // per-card in the blade (plans[].theme) so a themed plan renders
+            // its own look inside a differently-themed product table. The
+            // same per-plan chain feeds Stripe's branding_settings.
+            'tokens' => $rootTokens ?? PlanThemeTokens::resolve($product->theme),
             // Both flavours check out through the product-scoped endpoint —
             // it validates the plan_price_id against the live catalog, so
             // it never needs to know which embed type initiated it.

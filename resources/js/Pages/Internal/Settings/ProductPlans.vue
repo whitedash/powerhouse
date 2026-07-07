@@ -36,6 +36,8 @@ const props = defineProps({
     product: { type: Object, required: true },
     categories: { type: Array, default: () => [] },
     uncategorised: { type: Array, default: () => [] },
+    // Themes for the per-plan override picker (null = product's theme).
+    plan_themes: { type: Array, default: () => [] },
 });
 
 const breadcrumbs = computed(() => [
@@ -176,6 +178,7 @@ const PLAN_DEFAULTS = {
     is_active: true,
     is_public: true,
     requires_manual_review: false,
+    theme_id: null,
     is_hosting: false,
     is_domain: false,
     tld: '',
@@ -222,6 +225,7 @@ function openEditPlan(plan) {
         is_active: !! plan.is_active,
         is_public: !! plan.is_public,
         requires_manual_review: !! plan.requires_manual_review,
+        theme_id: plan.theme_id ?? null,
         is_hosting: !! plan.is_hosting,
         is_domain: !! plan.is_domain,
         tld: plan.tld ?? '',
@@ -995,6 +999,16 @@ function back() {
                                                 <div class="sb">Hold new self-serve purchases for staff confirmation before the account goes live.</div>
                                             </div>
                                             <button type="button" class="toggle" :class="{ on: planForm.requires_manual_review }" aria-label="Toggle requires manual review" @click="planForm.requires_manual_review = ! planForm.requires_manual_review" />
+                                        </div>
+                                        <div class="set-row">
+                                            <div>
+                                                <div class="nm">Widget theme</div>
+                                                <div class="sb">Override the product's theme for this plan's card and its Stripe payment step.</div>
+                                            </div>
+                                            <select v-model="planForm.theme_id" style="max-width: 200px;">
+                                                <option :value="null">Use product theme</option>
+                                                <option v-for="t in plan_themes" :key="t.id" :value="t.id">{{ t.name }}</option>
+                                            </select>
                                         </div>
                                     </div>
 
