@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductPlan;
+use App\Support\PlanThemeTokens;
 use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -66,10 +67,17 @@ class PlanEmbedController extends Controller
      */
     private function respond(Product $product, Collection $planRows, string $rootId): Response
     {
+        $product->loadMissing('theme');
+
         $js = view('embed.plans-widget', [
             'product' => $product,
             'plan_rows' => $planRows,
             'root_id' => $rootId,
+            // Resolved design tokens: the product's plan theme merged over
+            // the defaults (un-themed = the widget's original look). The
+            // same tokens feed the checkout session's branding_settings, so
+            // widget steps and the Stripe payment step stay coherent.
+            'tokens' => PlanThemeTokens::resolve($product->theme),
             // Both flavours check out through the product-scoped endpoint —
             // it validates the plan_price_id against the live catalog, so
             // it never needs to know which embed type initiated it.

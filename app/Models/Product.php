@@ -16,6 +16,7 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string|null $description
  * @property int|null $billing_entity_id
+ * @property int|null $theme_id
  * @property string|null $icon_colour
  * @property bool $is_active
  * @property bool $is_coming_soon
@@ -24,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read string $embed_url
+ * @property-read PlanTheme|null $theme
  * @property-read BillingEntity|null $billingEntity
  * @property-read Collection<int, CustomerProduct> $customerProducts
  * @property-read Collection<int, CommissionRule> $commissionRules
@@ -48,6 +50,8 @@ class Product extends Model
         'is_coming_soon',
         'sort_order',
         'qbo_item_id',
+        // Plans-widget theme (plan_themes) — null = default look.
+        'theme_id',
     ];
 
     protected function casts(): array
@@ -62,6 +66,11 @@ class Product extends Model
     public function billingEntity(): BelongsTo
     {
         return $this->belongsTo(BillingEntity::class);
+    }
+
+    public function theme(): BelongsTo
+    {
+        return $this->belongsTo(PlanTheme::class, 'theme_id');
     }
 
     /**

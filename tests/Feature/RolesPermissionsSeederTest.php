@@ -97,7 +97,9 @@ class RolesPermissionsSeederTest extends TestCase
             $superAdmin->permissions->count(),
         );
         // Step 12: customers.delete + analytics.manage dropped (phantoms) → 53 (was 55).
-        $this->assertSame(53, Permission::where('guard_name', 'web')->count());
+        // Plans theming: + products.custom_css (raw CSS into the Plans
+        // widget's shadow root, separate from forms.custom_css) → 54.
+        $this->assertSame(54, Permission::where('guard_name', 'web')->count());
         $this->assertSame(4, RoleScope::where('role_id', $superAdmin->id)->count());
     }
 

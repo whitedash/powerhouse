@@ -70,6 +70,7 @@ class RolesAndPermissionsSeeder extends Seeder
         'people.delete',
         'invoices.void',
         'forms.custom_css',
+        'products.custom_css',
         'wordpress.bulk_update',
         'expenses.approve',
         'referrers.manage', 'commission.approve', 'commission.config',

@@ -129,6 +129,7 @@ class RoleEnforcementTest extends TestCase
     {
         // Guards the bridge: all boolean permissions exist on the web guard.
         // Step 12: 53 (was 55) — customers.delete + analytics.manage dropped (phantoms).
-        $this->assertSame(53, Permission::where('guard_name', 'web')->count());
+        // Plans theming: + products.custom_css → 54.
+        $this->assertSame(54, Permission::where('guard_name', 'web')->count());
     }
 }

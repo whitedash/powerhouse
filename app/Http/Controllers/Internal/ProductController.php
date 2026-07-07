@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
 use App\Models\CustomerProduct;
+use App\Models\PlanTheme;
 use App\Models\Product;
 use App\Models\ProductPlan;
 use App\Models\ProductPlanCategory;
@@ -48,6 +49,9 @@ class ProductController extends Controller
                 // a default is added to a line item.
                 'billing_entity_id' => $p->billing_entity_id,
                 'billing_entity_name' => $p->billingEntity?->name,
+                // Plans-widget theme (null = default look) — feeds the
+                // detail form's theme picker.
+                'theme_id' => $p->theme_id,
                 'icon_colour' => $p->icon_colour,
                 'is_active' => $p->is_active,
                 'is_coming_soon' => $p->is_coming_soon,
@@ -123,6 +127,8 @@ class ProductController extends Controller
             'products' => $products,
             'billing_entities' => $billingEntities,
             'suppliers' => $suppliers,
+            // Plan themes for the widget-theme picker on the detail form.
+            'plan_themes' => PlanTheme::orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -309,6 +315,9 @@ class ProductController extends Controller
                 'slug' => $data['slug'],
                 'description' => $data['description'] ?? null,
                 'icon_colour' => $data['icon_colour'],
+                // Widget theme — the picker always sends the field;
+                // null reverts to the default look.
+                'theme_id' => $data['theme_id'] ?? null,
                 'is_active' => $data['is_active'] ?? $product->is_active,
                 'is_coming_soon' => $data['is_coming_soon'] ?? $product->is_coming_soon,
                 'sort_order' => $data['sort_order'] ?? $product->sort_order,
@@ -393,6 +402,9 @@ class ProductController extends Controller
             // Optional default billing entity. Null = universal product
             // (the operator picks an entity per invoice).
             'billing_entity_id' => ['nullable', 'integer', 'exists:billing_entities,id'],
+            // Plans-widget theme. Null = the default look
+            // (PlanThemeTokens::defaults()).
+            'theme_id' => ['nullable', 'integer', 'exists:plan_themes,id'],
             'is_active' => ['sometimes', 'boolean'],
             'is_coming_soon' => ['sometimes', 'boolean'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],

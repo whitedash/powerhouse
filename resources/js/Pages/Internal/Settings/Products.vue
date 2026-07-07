@@ -27,6 +27,8 @@ import { useDirtyClose } from '@/Composables/useDirtyClose';
 const props = defineProps({
     products: { type: Array, default: () => [] },
     suppliers: { type: Array, default: () => [] },
+    // Plan themes for the Plans-widget theme picker (null = default look).
+    plan_themes: { type: Array, default: () => [] },
 });
 
 /* ─── Colour palette presets ─── */
@@ -59,6 +61,7 @@ function buildDefaults(p) {
         is_active: p?.is_active ?? true,
         is_coming_soon: p?.is_coming_soon ?? false,
         sort_order: p?.sort_order ?? 0,
+        theme_id: p?.theme_id ?? null,
     };
 }
 
@@ -403,6 +406,15 @@ const supplierGuard = useDirtyClose(() => supplierForm.isDirty, () => { showSupp
                                 placeholder="Brief description visible to staff and on dashboards"
                             />
                             <div v-if="form.errors.description" class="field-err">{{ form.errors.description }}</div>
+                        </div>
+                        <div class="field full">
+                            <label class="field-label">Plans widget theme</label>
+                            <select v-model="form.theme_id" class="field-input">
+                                <option :value="null">Default look</option>
+                                <option v-for="t in plan_themes" :key="t.id" :value="t.id">{{ t.name }}</option>
+                            </select>
+                            <small class="muted">Styles this product's embedded pricing widget and its Stripe payment step. Manage themes under Settings → Plan themes.</small>
+                            <div v-if="form.errors.theme_id" class="field-err">{{ form.errors.theme_id }}</div>
                         </div>
                     </div>
 
