@@ -207,7 +207,12 @@
         close.addEventListener("click", closeModal);
         panel.appendChild(close);
 
-        panel.appendChild(el("h3", { style: "margin:0 0 16px;font-size:17px;" }, [plan.name + " — " + price.amount + " " + (price.label || price.interval)]));
+        // All step content lives in this wrapper (the close button stays
+        // outside it) so swapping steps can animate ONE element's height.
+        var stepWrap = el("div", null, []);
+        panel.appendChild(stepWrap);
+
+        stepWrap.appendChild(el("h3", { style: "margin:0 0 16px;font-size:17px;" }, [plan.name + " — " + price.amount + " " + (price.label || price.interval)]));
 
         var error = el("p", { style: "color:" + AT.error + ";font-size:13px;margin:0 0 10px;min-height:16px;" }, []);
         var turnstileHost = el("div", null, []);
@@ -219,18 +224,18 @@
         var submit = el("button", { type: "button", style: "border:0;border-radius:" + AT.radius + ";background:" + AT.button_bg + ";color:" + AT.button_text + ";font-size:" + AT.font_size + ";font-weight:600;padding:10px 16px;cursor:pointer;" }, ["Continue to payment — " + price.amount]);
 
         var labelStyle = "display:block;font-size:13px;font-weight:600;margin:0 0 4px;";
-        panel.appendChild(el("label", { style: labelStyle }, ["Your name"]));
-        panel.appendChild(nameInput);
-        panel.appendChild(el("label", { style: labelStyle }, ["Email address"]));
-        panel.appendChild(emailInput);
-        panel.appendChild(el("label", { style: labelStyle }, ["Company / organisation (optional)"]));
-        panel.appendChild(companyInput);
-        panel.appendChild(el("label", { style: labelStyle }, ["Phone number (optional)"]));
-        panel.appendChild(phoneInput);
-        panel.appendChild(hp);
-        panel.appendChild(turnstileHost);
-        panel.appendChild(error);
-        panel.appendChild(submit);
+        stepWrap.appendChild(el("label", { style: labelStyle }, ["Your name"]));
+        stepWrap.appendChild(nameInput);
+        stepWrap.appendChild(el("label", { style: labelStyle }, ["Email address"]));
+        stepWrap.appendChild(emailInput);
+        stepWrap.appendChild(el("label", { style: labelStyle }, ["Company / organisation (optional)"]));
+        stepWrap.appendChild(companyInput);
+        stepWrap.appendChild(el("label", { style: labelStyle }, ["Phone number (optional)"]));
+        stepWrap.appendChild(phoneInput);
+        stepWrap.appendChild(hp);
+        stepWrap.appendChild(turnstileHost);
+        stepWrap.appendChild(error);
+        stepWrap.appendChild(submit);
 
         overlayEl = el("div", { style: "position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:2147483000;display:flex;align-items:center;justify-content:center;" });
         overlayEl.addEventListener("click", function (e) { if (e.target === overlayEl) closeModal(); });
@@ -269,7 +274,7 @@
                 return resp.json().then(function (json) { return { status: resp.status, json: json }; });
             }).then(function (r) {
                 if (r.json && r.json.client_secret) {
-                    return mountCheckout(panel, r.json.client_secret);
+                    return mountCheckout(stepWrap, r.json.client_secret);
                 }
                 var errs = (r.json && r.json.errors) || {};
                 var first = Object.keys(errs)[0];
@@ -283,12 +288,41 @@
         });
     }
 
-    function mountCheckout(panel, clientSecret) {
+    // Animated step swap: fix the wrapper at its current height, replace
+    // the content, then transition to the incoming content's natural
+    // height. overflow:hidden during the run prevents any flash of
+    // clipped/zero-height content; on transitionend the height is
+    // RELEASED to auto so later content growth — Stripe's embedded
+    // Checkout resizes its own iframe for validation errors etc. — flows
+    // naturally instead of fighting a pinned container.
+    function swapStep(wrap, nodes) {
+        var from = wrap.offsetHeight;
+        wrap.style.height = from + "px";
+        wrap.style.overflow = "hidden";
+        wrap.style.transition = "height .3s ease";
+        void wrap.offsetHeight; // commit the fixed start height
+        wrap.innerHTML = "";
+        nodes.forEach(function (n) { wrap.appendChild(n); });
+        var to = wrap.scrollHeight;
+        requestAnimationFrame(function () {
+            wrap.style.height = to + "px";
+        });
+        wrap.addEventListener("transitionend", function done(e) {
+            if (e.propertyName !== "height") return;
+            wrap.removeEventListener("transitionend", done);
+            wrap.style.height = "auto";
+            wrap.style.overflow = "";
+            wrap.style.transition = "";
+        });
+    }
+
+    function mountCheckout(stepWrap, clientSecret) {
         return loadScript("https://js.stripe.com/v3/").then(function () {
-            // Swap the panel to the payment step; keep the close button.
-            while (panel.children.length > 1) panel.removeChild(panel.lastChild);
+            // Animate the panel from the form's height to the payment
+            // step's placeholder height; the close button lives outside
+            // the wrapper and is untouched.
             var host = el("div", { style: "min-height:420px;" });
-            panel.appendChild(host);
+            swapStep(stepWrap, [host]);
             var stripe = window.Stripe(CONFIG.stripe_key);
             return stripe.initEmbeddedCheckout({ clientSecret: clientSecret }).then(function (checkout) {
                 // Stripe permits ONE mounted embedded Checkout per page —

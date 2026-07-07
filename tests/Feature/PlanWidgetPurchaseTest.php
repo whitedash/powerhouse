@@ -153,6 +153,23 @@ class PlanWidgetPurchaseTest extends TestCase
         $this->get('/plans/comnicube/embed.js')->assertNotFound();
     }
 
+    public function test_embed_ships_the_animated_step_swap(): void
+    {
+        $this->catalog();
+
+        $body = $this->get('/plans/comnicube/embed.js')->assertOk()->getContent();
+
+        // Static pins for the modal's animated step transition — the
+        // visual smoothness itself is browser behaviour (no JS test
+        // runner; manually verified): the step wrapper exists, the swap
+        // animates height, and the height is RELEASED to auto on
+        // transitionend so Stripe's self-resizing iframe isn't fought.
+        $this->assertStringContainsString('function swapStep(wrap, nodes)', $body);
+        $this->assertStringContainsString('height .3s ease', $body);
+        $this->assertStringContainsString('wrap.style.height = "auto"', $body);
+        $this->assertStringContainsString('mountCheckout(stepWrap,', $body);
+    }
+
     // ── checkout initiation ──────────────────────────────────────────────
 
     public function test_checkout_returns_a_client_secret_for_a_live_public_price(): void
