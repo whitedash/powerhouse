@@ -29,6 +29,18 @@ Schedule::command('invoices:generate-recurring')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Plans widget intro-price expiry: flip subscriptions off their intro price
+// onto the full price when the intro window ends. MUST run BEFORE the
+// subscription sweep below — provisioning set next_billing_date == the swap
+// date, so once this flips plan_price_id the same-morning sweep bills the full
+// price on the swap date rather than a day late. Idempotent (clears the
+// schedule fields per row).
+Schedule::command('plans:apply-intro-price-swaps')
+    ->dailyAt('07:15')
+    ->timezone('Europe/London')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Auto-generate draft invoices for active subscriptions whose
 // next_billing_date has come due. Runs 30 minutes after the
 // recurring-invoice generator so the two sweeps don't compete for

@@ -31,6 +31,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $trial_ends_at
  * @property Carbon|null $started_at
  * @property Carbon|null $next_billing_date
+ * @property Carbon|null $intro_swap_at
+ * @property int|null $intro_swap_price_id
  * @property bool $auto_invoice
  * @property int|null $auto_invoice_entity_id
  * @property Carbon|null $last_invoiced_at
@@ -59,6 +61,7 @@ use Illuminate\Support\Carbon;
  * @property-read Product|null $product
  * @property-read ProductPlan|null $productPlan
  * @property-read ProductPlanPrice|null $planPrice
+ * @property-read ProductPlanPrice|null $introSwapPrice
  * @property-read BillingEntity|null $billingEntity
  * @property-read BillingEntity|null $autoInvoiceEntity
  */
@@ -86,6 +89,8 @@ class CustomerProduct extends Model
         'trial_ends_at',
         'started_at',
         'next_billing_date',
+        'intro_swap_at',
+        'intro_swap_price_id',
         'auto_invoice',
         'auto_invoice_entity_id',
         'last_invoiced_at',
@@ -114,6 +119,7 @@ class CustomerProduct extends Model
             'trial_ends_at' => 'datetime',
             'started_at' => 'datetime',
             'next_billing_date' => 'date',
+            'intro_swap_at' => 'date',
             'auto_invoice' => 'boolean',
             'last_invoiced_at' => 'date',
             'discount_expires_at' => 'date',
@@ -176,6 +182,16 @@ class CustomerProduct extends Model
     public function planPrice(): BelongsTo
     {
         return $this->belongsTo(ProductPlanPrice::class, 'plan_price_id');
+    }
+
+    /**
+     * The full price this subscription's intro price is scheduled to swap to
+     * (snapshotted at purchase). Non-null only while an intro swap is pending;
+     * plans:apply-intro-price-swaps clears it once the swap lands.
+     */
+    public function introSwapPrice(): BelongsTo
+    {
+        return $this->belongsTo(ProductPlanPrice::class, 'intro_swap_price_id');
     }
 
     /**

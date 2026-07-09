@@ -198,6 +198,16 @@ setup_fee DECIMAL(10,2) nullable (2026_07_09)
   -- behaviour (one-off charge of `price`, non-recurring). "one_time
   -- prices may not carry a setup_fee" is controller-enforced (like the
   -- one-active-domain-plan-per-TLD rule), not a DB CHECK.
+intro_swap_price_id FK product_plan_prices nullable (SET NULL) (2026_07_09)
+intro_duration_days SMALLINT UNSIGNED nullable (2026_07_09)
+  -- Plans widget "intro price then full price": when BOTH set, this is an
+  -- INTRO price — a plan purchase charges it now (often £0) and provisions an
+  -- auto_invoice=true customer_product whose plan_price_id swaps to
+  -- intro_swap_price_id after intro_duration_days (plans:apply-intro-price-swaps),
+  -- after which the subscription sweep bills the full price on cadence with
+  -- zero changes. NULL = ordinary price. Both set together; mutually exclusive
+  -- with setup_fee; target must be a recurring, same-plan, non-intro price —
+  -- all controller-enforced (like the setup_fee / one_time rule), not a DB CHECK.
 interval_count TINYINT UNSIGNED DEFAULT 1,
 interval_unit ENUM(day|week|month|year|one_time) DEFAULT 'month',
 stripe_price_id VARCHAR(100) nullable,
@@ -252,6 +262,15 @@ status ENUM(active|trial|suspended|cancelled|pending),
 -- approval from the internal Provisioning page.
 trial_ends_at nullable, started_at nullable,
 next_billing_date DATE nullable,
+intro_swap_at DATE nullable (2026_07_09),
+intro_swap_price_id FK product_plan_prices nullable (SET NULL) (2026_07_09),
+  -- Plans widget intro-price schedule: computed at purchase
+  -- (now + product_plan_prices.intro_duration_days) plus the snapshotted
+  -- target full price. plans:apply-intro-price-swaps flips plan_price_id →
+  -- intro_swap_price_id when intro_swap_at <= today, syncs interval_*, and
+  -- clears both fields. next_billing_date == intro_swap_at at purchase, so the
+  -- subscription sweep bills the (by then full) price from the swap day.
+  -- INDEX (intro_swap_at) customer_products_intro_swap_idx.
 auto_invoice BOOLEAN DEFAULT false,
 auto_invoice_entity_id FK billing_entities nullable (SET NULL),
 last_invoiced_at DATE nullable,
