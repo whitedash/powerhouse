@@ -107,9 +107,48 @@ class StripeService
     ): Session {
         $this->configureStripe();
 
+        // Vault the card for future off-session billing. Unlike the invoice
+        // path (Company-anchored resolveStripeCustomer), NO Powerhouse
+        // Company exists yet — provisioning is webhook-only — so create the
+        // Stripe Customer from the purchaser's email/name directly. Its id
+        // rides the session's `customer` param (which setup_future_usage
+        // needs to attach the saved card to) AND the session metadata, so
+        // PlanPurchaseService::settle can vault the card onto the freshly
+        // provisioned Company. A best-effort failure here must never block
+        // checkout — fall back to an email-only, non-vaulting session.
+        $stripeCustomerId = null;
+
+        try {
+            $stripeCustomerId = $this->createPlanStripeCustomer($purchaserName, $purchaserEmail);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         return Session::create($this->planCheckoutSessionParams(
-            $price, $purchaserName, $purchaserEmail, $grossTotal, $productSlug, $companyName, $phone,
+            $price, $purchaserName, $purchaserEmail, $grossTotal, $productSlug, $companyName, $phone, $stripeCustomerId,
         ));
+    }
+
+    /**
+     * Create a Stripe Customer for an anonymous plan purchaser from just an
+     * email + name — deliberately NOT resolveStripeCustomer/createStripeCustomer,
+     * which are typed Company and derive identity from a customer_id that
+     * doesn't exist until the webhook provisions the account. No idempotency
+     * key: each checkout-init is a distinct purchase attempt and wants its
+     * own Customer; an abandoned session's orphaned Customer is harmless (only
+     * the completed session's card is ever vaulted).
+     */
+    protected function createPlanStripeCustomer(string $name, string $email): string
+    {
+        $this->configureStripe();
+
+        $stripeCustomer = StripeCustomerApi::create([
+            'name' => $name,
+            'email' => $email,
+            'metadata' => ['source' => 'plans-widget'],
+        ]);
+
+        return (string) $stripeCustomer->id;
     }
 
     /**
@@ -126,6 +165,7 @@ class StripeService
         string $productSlug,
         ?string $companyName = null,
         ?string $phone = null,
+        ?string $stripeCustomerId = null,
     ): array {
         $unitAmount = (int) round($grossTotal * 100);
         if ($unitAmount < 1) {
@@ -170,8 +210,23 @@ class StripeService
                 'purchaser_email' => substr($purchaserEmail, 0, 255),
                 'purchaser_company' => $companyName !== null ? substr($companyName, 0, 255) : null,
                 'purchaser_phone' => $phone !== null ? substr($phone, 0, 50) : null,
+                // Carried so the webhook can vault the card onto the
+                // provisioned Company (belt-and-braces; the settle vault
+                // step reads session->customer as the authoritative target).
+                'stripe_customer_id' => $stripeCustomerId,
             ], fn ($v) => $v !== null && $v !== ''),
-            'customer_email' => $purchaserEmail,
+            // Customer identity: EITHER a Stripe Customer + card vaulting
+            // (setup_future_usage), OR an email-only session — never both
+            // (Stripe rejects customer + customer_email together, the same
+            // conflict the invoice path's checkoutCustomerParams avoids). A
+            // vaulting session omits customer_email; the Customer already
+            // carries it.
+            ...($stripeCustomerId !== null
+                ? [
+                    'customer' => $stripeCustomerId,
+                    'payment_intent_data' => ['setup_future_usage' => 'off_session'],
+                ]
+                : ['customer_email' => $purchaserEmail]),
             // Session-level branding through the per-plan override chain
             // (plan theme → product theme → defaults) so the payment step
             // matches THIS plan's rendered card, not just its product's
@@ -597,6 +652,48 @@ class StripeService
             'exp_month' => $pm->card->exp_month ?? null,
             'exp_year' => $pm->card->exp_year ?? null,
         ]);
+    }
+
+    /**
+     * Vault a plan purchase's card onto its freshly-provisioned Company.
+     * The Company-anchored twin of vaultCardFromSession: the plan path has
+     * no Invoice at session-creation time, so this is keyed on the Company
+     * settle() just minted. Reads the Stripe Customer + payment method off
+     * the completed session (the setup_future_usage session attached the
+     * card there) and writes the SAME stripe_customers + payment_methods
+     * rows the invoice path writes — so the off-session collection sweep
+     * and dunning can't tell a plan-vaulted card from an invoice-vaulted
+     * one. Returns true if a card was vaulted (for the caller's audit).
+     */
+    public function vaultPlanCardFromSession(Company $company, string $sessionId): bool
+    {
+        $this->configureStripe();
+
+        $session = Session::retrieve(['id' => $sessionId, 'expand' => ['payment_intent']]);
+        $stripeCustomerId = $session->customer ? (string) $session->customer : null;
+        $pi = $session->payment_intent;
+        $paymentMethodId = is_object($pi) ? ($pi->payment_method ?? null) : null;
+
+        // No Stripe Customer / no saved PM = an email-only (non-vaulting)
+        // session — nothing to vault, not an error.
+        if ($stripeCustomerId === null || $paymentMethodId === null) {
+            return false;
+        }
+
+        StripeCustomer::firstOrCreate(
+            ['customer_id' => $company->id],
+            ['stripe_customer_id' => $stripeCustomerId],
+        );
+
+        $pm = StripePaymentMethodApi::retrieve((string) $paymentMethodId);
+        $this->recordPaymentMethod($company, $stripeCustomerId, (string) $pm->id, [
+            'brand' => $pm->card->brand ?? null,
+            'last4' => $pm->card->last4 ?? null,
+            'exp_month' => $pm->card->exp_month ?? null,
+            'exp_year' => $pm->card->exp_year ?? null,
+        ]);
+
+        return true;
     }
 
     /**
