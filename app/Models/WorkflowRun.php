@@ -13,7 +13,7 @@ use Illuminate\Support\Carbon;
  * transaction, so status=failed rows survive a run whose actions rolled back.
  *
  * @property int $id
- * @property int $workflow_id
+ * @property int|null $workflow_id Null once the workflow is hard-deleted (nullOnDelete) — the run row is kept as an orphaned audit record.
  * @property string $trigger_type
  * @property int|null $trigger_entity_id
  * @property string $status succeeded|failed|skipped

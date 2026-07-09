@@ -169,6 +169,48 @@ class WorkflowRunAuditTest extends TestCase
         $this->assertNull($skip->actions, 'a workflow-level skip records no per-action outcomes');
         $this->assertNull($skip->duration_ms);
     }
+
+    public function test_a_deleted_workflow_orphans_but_keeps_its_run_rows(): void
+    {
+        // An audit trail must outlive the entity it audits: hard-deleting a
+        // workflow nulls workflow_id on its runs (nullOnDelete) rather than
+        // deleting them, and the model reads the orphaned row without crashing.
+        $admin = $this->admin();
+        $w = $this->makeWorkflow($admin->id, [
+            ['action_type' => 'create_lead', 'config' => ['first_name_field' => 'first_name']],
+        ]);
+
+        (new WorkflowEngine())->trigger('form_submitted', ['first_name' => 'Dana', 'form_id' => 7]);
+        $run = WorkflowRun::where('workflow_id', $w->id)->sole();
+
+        $w->delete(); // workflow_actions cascade; workflow_runs.workflow_id → NULL
+
+        $orphan = WorkflowRun::find($run->id);
+        $this->assertNotNull($orphan, 'the run row outlives the workflow');
+        $this->assertNull($orphan->workflow_id, 'workflow_id is nulled, the row is not deleted');
+        $this->assertSame('succeeded', $orphan->status, 'the audit content is intact');
+        $this->assertNull($orphan->workflow, 'the belongsTo resolves to null without crashing');
+    }
+
+    public function test_the_column_accepts_a_null_workflow_id_directly(): void
+    {
+        // Model-level guard for any future workflow_runs consumer: the orphaned
+        // state (workflow_id NULL) round-trips through the model cleanly.
+        $run = WorkflowRun::create([
+            'workflow_id' => null,
+            'trigger_type' => 'form_submitted',
+            'trigger_entity_id' => null,
+            'status' => 'succeeded',
+            'error' => null,
+            'duration_ms' => 0,
+            'context_summary' => null,
+            'actions' => null,
+            'created_at' => now(),
+        ]);
+
+        $this->assertNull($run->fresh()->workflow_id);
+        $this->assertNull($run->workflow);
+    }
 }
 
 /**

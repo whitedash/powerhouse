@@ -16,8 +16,10 @@ use Illuminate\Support\Facades\Schema;
  *
  * Shape mirrors webhook_deliveries (status-bearing, structured, append-only).
  * Append-only like activity_log: created_at only, no updated_at, no soft
- * deletes. workflow_id cascades like workflow_actions — purging a workflow
- * (a deliberate hard delete) takes its run history with it.
+ * deletes. workflow_id is nullOnDelete: purging a workflow (a deliberate hard
+ * delete) leaves its run history behind as ORPHANED audit rows (workflow_id
+ * NULL) rather than deleting the record of what fired — an audit trail should
+ * outlive the entity it audits.
  */
 return new class() extends Migration
 {
@@ -25,7 +27,9 @@ return new class() extends Migration
     {
         Schema::create('workflow_runs', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('workflow_id')->constrained('workflows')->cascadeOnDelete();
+            // Nullable + nullOnDelete: a hard-deleted workflow orphans (does not
+            // delete) its run history — the audit trail survives the workflow.
+            $table->foreignId('workflow_id')->nullable()->constrained('workflows')->nullOnDelete();
             // Stored as a string, not the workflows.trigger_type ENUM: the set
             // of trigger types is widening (four internal points incoming) and
             // the ledger should not need a migration to record a new one.

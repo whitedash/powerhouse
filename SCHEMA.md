@@ -1320,7 +1320,9 @@ sort_order INT DEFAULT 0, created_at, updated_at
 -- later actions consume (create_task reads lead_id).
 
 ## workflow_runs (Workflow audit sprint, 2026_07_09)
-id, workflow_id FK workflows CASCADE,
+id, workflow_id FK workflows nullable nullOnDelete
+  -- Hard-deleting a workflow ORPHANS its run rows (workflow_id → NULL)
+  -- rather than deleting them: the audit trail outlives the workflow.
 trigger_type VARCHAR(50)
   -- Stored as a string, NOT the workflows.trigger_type ENUM — the trigger
   -- set is widening and the ledger must record a new one without a migration.

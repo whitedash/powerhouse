@@ -313,6 +313,20 @@ class WorkflowEngine
                 // write lands in the caller's OUTER transaction (or autocommits
                 // when there is none) rather than being rolled back with the run.
                 // This is the core fix — failed runs now leave a durable record.
+                //
+                // DURABILITY SCOPE (deliberate, not a bug): this row is durable
+                // against the WORKFLOW'S OWN transaction/savepoint rolling back
+                // (what the failed-run test proves). It is NOT durable against
+                // the CALLER'S outer transaction. Today's callers (FormController,
+                // WebhookController, FormService) wrap the whole request —
+                // trigger() included — in a DB::transaction, so the inner
+                // per-workflow transaction is a savepoint. This write escapes the
+                // savepoint but still sits inside the caller's outer transaction:
+                // if the caller's own logic throws AFTER trigger() returns, the
+                // outer transaction rolls back and takes these rows with it. That
+                // is acceptable — if the whole request is voided, "nothing
+                // happened" is the correct record. Do not assume workflow_runs
+                // survives a caller-level failure; it survives a workflow-level one.
                 $this->recordRun(
                     $workflow,
                     $triggerType,
