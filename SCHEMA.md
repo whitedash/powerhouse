@@ -190,6 +190,14 @@ INDEXES: (product_id, is_active, sort_order)
 ## product_plan_prices
 id, plan_id FK product_plans CASCADE,
 price DECIMAL(10,2) DEFAULT 0,
+setup_fee DECIMAL(10,2) nullable (2026_07_09)
+  -- Plans widget "setup fee + recurring": when set on a RECURRING
+  -- (non-one_time) price, a plan purchase charges this fee immediately
+  -- and provisions an auto_invoice=true customer_product that the
+  -- subscription sweep bills at `price` on cadence. NULL/0 = today's
+  -- behaviour (one-off charge of `price`, non-recurring). "one_time
+  -- prices may not carry a setup_fee" is controller-enforced (like the
+  -- one-active-domain-plan-per-TLD rule), not a DB CHECK.
 interval_count TINYINT UNSIGNED DEFAULT 1,
 interval_unit ENUM(day|week|month|year|one_time) DEFAULT 'month',
 stripe_price_id VARCHAR(100) nullable,

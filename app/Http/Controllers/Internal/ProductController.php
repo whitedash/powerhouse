@@ -252,6 +252,9 @@ class ProductController extends Controller
             'prices' => $plan->activePrices->map(fn (ProductPlanPrice $pp): array => [
                 'id' => $pp->id,
                 'price' => (float) $pp->price,
+                // Optional one-off setup fee on a recurring price; null when
+                // absent (the edit form shows the field for recurring only).
+                'setup_fee' => $pp->setup_fee !== null ? (float) $pp->setup_fee : null,
                 'interval_count' => $pp->interval_count,
                 'interval_unit' => $pp->interval_unit,
                 'interval_label' => $pp->interval_label,

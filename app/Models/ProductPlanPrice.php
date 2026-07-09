@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $plan_id
  * @property string $price
+ * @property string|null $setup_fee
  * @property int $interval_count
  * @property string $interval_unit
  * @property string|null $stripe_price_id
@@ -36,6 +37,8 @@ class ProductPlanPrice extends Model
     protected $fillable = [
         'plan_id',
         'price',
+        // Optional one-off setup fee on a recurring price (Plans widget).
+        'setup_fee',
         'interval_count',
         'interval_unit',
         'stripe_price_id',
@@ -49,6 +52,7 @@ class ProductPlanPrice extends Model
     {
         return [
             'price' => 'decimal:2',
+            'setup_fee' => 'decimal:2',
             'interval_count' => 'integer',
             'is_default' => 'boolean',
             'is_active' => 'boolean',

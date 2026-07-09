@@ -33,6 +33,11 @@
             'label' => $price->label,
             'amount' => '£'.number_format((float) $price->price, 2),
             'interval' => $price->interval_label,
+            // Setup fee (recurring "fee now, then price per interval"):
+            // the formatted immediate fee, or null for a plain price.
+            'setup_fee' => ($price->setup_fee !== null && (float) $price->setup_fee > 0)
+                ? '£'.number_format((float) $price->setup_fee, 2)
+                : null,
             'is_default' => (bool) $price->is_default,
         ])->values()->all(),
     ])->filter(fn (array $plan) => $plan['prices'] !== [])->values()->all();
@@ -212,7 +217,17 @@
         var stepWrap = el("div", null, []);
         panel.appendChild(stepWrap);
 
-        stepWrap.appendChild(el("h3", { style: "margin:0 0 16px;font-size:17px;" }, [plan.name + " — " + price.amount + " " + (price.label || price.interval)]));
+        // A setup-fee price charges the FEE now and recurs at price.amount,
+        // so the header can't just show one number. Title = plan name; a
+        // distinct pricing line spells out both amounts. A plain price keeps
+        // the original single-amount header.
+        if (price.setup_fee) {
+            stepWrap.appendChild(el("h3", { style: "margin:0 0 6px;font-size:17px;" }, [plan.name]));
+            stepWrap.appendChild(el("p", { style: "margin:0 0 16px;font-size:14px;font-weight:600;color:" + AT.price + ";" },
+                [price.setup_fee + " now, then " + price.amount + " " + price.interval]));
+        } else {
+            stepWrap.appendChild(el("h3", { style: "margin:0 0 16px;font-size:17px;" }, [plan.name + " — " + price.amount + " " + (price.label || price.interval)]));
+        }
 
         var error = el("p", { style: "color:" + AT.error + ";font-size:13px;margin:0 0 10px;min-height:16px;" }, []);
         var turnstileHost = el("div", null, []);
@@ -221,7 +236,10 @@
         var companyInput = el("input", { type: "text", autocomplete: "organization", style: fieldStyle() });
         var phoneInput = el("input", { type: "tel", autocomplete: "tel", style: fieldStyle() });
         var hp = el("input", { type: "text", tabindex: "-1", autocomplete: "off", "aria-hidden": "true", style: "position:absolute;left:-9999px;height:1px;width:1px;opacity:0;" });
-        var submit = el("button", { type: "button", style: "border:0;border-radius:" + AT.radius + ";background:" + AT.button_bg + ";color:" + AT.button_text + ";font-size:" + AT.font_size + ";font-weight:600;padding:10px 16px;cursor:pointer;" }, ["Continue to payment — " + price.amount]);
+        // The button shows the IMMEDIATE charge — the fee when there is one,
+        // else the price (unchanged).
+        var payNow = price.setup_fee || price.amount;
+        var submit = el("button", { type: "button", style: "border:0;border-radius:" + AT.radius + ";background:" + AT.button_bg + ";color:" + AT.button_text + ";font-size:" + AT.font_size + ";font-weight:600;padding:10px 16px;cursor:pointer;" }, ["Continue to payment — " + payNow]);
 
         var labelStyle = "display:block;font-size:13px;font-weight:600;margin:0 0 4px;";
         stepWrap.appendChild(el("label", { style: labelStyle }, ["Your name"]));

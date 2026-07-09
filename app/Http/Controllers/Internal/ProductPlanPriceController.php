@@ -19,6 +19,10 @@ class ProductPlanPriceController extends Controller
         $data = $request->validate([
             'plan_id' => ['required', 'integer', 'exists:product_plans,id'],
             'price' => ['required', 'numeric', 'min:0'],
+            // Optional one-off setup fee — recurring prices only; a
+            // one_time price charging a "fee then recurring" is nonsense,
+            // so prohibit it there (validation-layer, per SCHEMA.md).
+            'setup_fee' => ['nullable', 'numeric', 'min:0', 'prohibited_if:interval_unit,one_time'],
             'interval_count' => ['required', 'integer', 'min:1', 'max:365'],
             'interval_unit' => ['required', 'in:day,week,month,year,one_time'],
             'stripe_price_id' => ['nullable', 'string', 'max:100'],
@@ -26,7 +30,7 @@ class ProductPlanPriceController extends Controller
             'is_default' => ['boolean'],
             'is_active' => ['boolean'],
             'sort_order' => ['nullable', 'integer'],
-        ]);
+        ], ['setup_fee.prohibited_if' => 'A one-time price cannot carry a setup fee — setup fees apply to recurring prices only.']);
 
         // A domain plan may carry only ONE active price tier.
         $this->assertDomainSingleTier(
@@ -65,6 +69,7 @@ class ProductPlanPriceController extends Controller
         // orphan any subs that picked it).
         $data = $request->validate([
             'price' => ['required', 'numeric', 'min:0'],
+            'setup_fee' => ['nullable', 'numeric', 'min:0', 'prohibited_if:interval_unit,one_time'],
             'interval_count' => ['required', 'integer', 'min:1', 'max:365'],
             'interval_unit' => ['required', 'in:day,week,month,year,one_time'],
             'stripe_price_id' => ['nullable', 'string', 'max:100'],
@@ -72,7 +77,7 @@ class ProductPlanPriceController extends Controller
             'is_default' => ['boolean'],
             'is_active' => ['boolean'],
             'sort_order' => ['nullable', 'integer'],
-        ]);
+        ], ['setup_fee.prohibited_if' => 'A one-time price cannot carry a setup fee — setup fees apply to recurring prices only.']);
 
         // Activating this tier must not give a domain plan a second active one.
         $this->assertDomainSingleTier(

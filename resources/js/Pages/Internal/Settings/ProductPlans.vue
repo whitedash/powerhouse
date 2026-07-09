@@ -327,6 +327,7 @@ const deletePlanMessage = computed(() => deletePlanTarget.value
 const PRICE_DEFAULTS = {
     plan_id: null,
     price: 0,
+    setup_fee: null,
     interval_count: 1,
     interval_unit: 'month',
     stripe_price_id: '',
@@ -345,6 +346,9 @@ const priceInterval = computed({
     set: (v) => {
         priceForm.interval_count = v.count;
         priceForm.interval_unit = v.unit;
+        // A one-time price can't carry a setup fee — drop it so switching
+        // to one_time can't submit a now-prohibited value.
+        if (v.unit === 'one_time') priceForm.setup_fee = null;
     },
 });
 
@@ -366,6 +370,7 @@ function openEditPrice(plan, price) {
         ...PRICE_DEFAULTS,
         plan_id: plan.id,
         price: Number(price.price ?? 0),
+        setup_fee: price.setup_fee != null ? Number(price.setup_fee) : null,
         interval_count: Number(price.interval_count ?? 1),
         interval_unit: price.interval_unit ?? 'month',
         stripe_price_id: price.stripe_price_id ?? '',
@@ -1091,6 +1096,17 @@ function back() {
                                             <IntervalPicker v-model="priceInterval" />
                                             <div v-if="priceForm.errors.interval_count" class="err">{{ priceForm.errors.interval_count }}</div>
                                             <div v-if="priceForm.errors.interval_unit" class="err">{{ priceForm.errors.interval_unit }}</div>
+                                        </div>
+                                    </div>
+                                    <!-- Setup fee: recurring prices only. A one-time price
+                                         has no "then recur" phase, so the field is hidden
+                                         (and the server prohibits it) for one_time. -->
+                                    <div v-if="priceForm.interval_unit !== 'one_time'" class="form-row single" style="margin-top: 12px;">
+                                        <div class="form-field">
+                                            <label>Setup fee (£)</label>
+                                            <input v-model.number="priceForm.setup_fee" type="number" min="0" step="0.01" placeholder="Optional — charged once at purchase">
+                                            <small class="muted">A one-off fee charged immediately; the price above then recurs each interval. Leave blank for a plain one-off purchase.</small>
+                                            <div v-if="priceForm.errors.setup_fee" class="err">{{ priceForm.errors.setup_fee }}</div>
                                         </div>
                                     </div>
                                 </div>
