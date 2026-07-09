@@ -118,6 +118,22 @@ class PlanWidgetPurchaseTest extends TestCase
         );
     }
 
+    /** Fire a completed session with an explicit amount_total + session id. */
+    private function firePlanCheckoutCompletedWithAmount(ProductPlanPrice $price, string $sessionId, int $amountTotal): void
+    {
+        $event = Event::constructFrom([
+            'id' => 'evt_'.uniqid(),
+            'type' => 'checkout.session.completed',
+            'data' => ['object' => [
+                'id' => $sessionId, 'payment_intent' => 'pi_'.$sessionId, 'amount_total' => $amountTotal,
+                'metadata' => ['plan_price_id' => (string) $price->id, 'purchaser_name' => 'Pat Purchaser', 'purchaser_email' => 'pat.purchaser@gmail.com'],
+            ]],
+        ]);
+        $request = Request::create('/webhooks/stripe', 'POST');
+        $request->attributes->set('stripeEvent', $event);
+        app(StripeWebhookController::class)->receive($request, app(StripeService::class), app(WebhookIdempotencyService::class));
+    }
+
     // ── embed.js ─────────────────────────────────────────────────────────
 
     public function test_embed_js_serves_only_public_active_plans_with_open_cors(): void
@@ -154,6 +170,33 @@ class PlanWidgetPurchaseTest extends TestCase
         Product::where('slug', 'comnicube')->update(['is_active' => false]);
 
         $this->get('/plans/comnicube/embed.js')->assertNotFound();
+    }
+
+    public function test_embed_renders_both_amounts_for_a_setup_fee_price_and_one_for_a_plain_price(): void
+    {
+        [$product, $plan] = $this->catalog(priceOverrides: [
+            'price' => 49.00, 'setup_fee' => 10.00, 'interval_unit' => 'month',
+        ]);
+
+        $feeBody = $this->get('/plans/comnicube/embed.js')->assertOk()->getContent();
+        // The fee price ships BOTH amounts in the config — the recurring
+        // `amount` and the one-off `setup_fee` — so the widget's fee-aware
+        // branch can render "£X now, then £Y / interval". The card-vaulting
+        // consent line stays distinct and present. (£ is unicode-escaped by
+        // json_encode, so build each needle with the same encoder, not the
+        // raw glyph. The "now, then" copy is STATIC JS in the IIFE — present
+        // in every response — so it can't discriminate; the setup_fee VALUE
+        // does.)
+        $this->assertStringContainsString('"amount":'.json_encode('£49.00'), $feeBody);
+        $this->assertStringContainsString('"setup_fee":'.json_encode('£10.00'), $feeBody);
+        $this->assertStringContainsString('securely stored', $feeBody);
+
+        // A plain price ships setup_fee:null → the widget shows the single
+        // recurring amount and the fee branch never fires client-side.
+        ProductPlanPrice::query()->update(['setup_fee' => null]);
+        $plainBody = $this->get('/plans/comnicube/embed.js')->assertOk()->getContent();
+        $this->assertStringContainsString('"amount":'.json_encode('£49.00'), $plainBody);
+        $this->assertStringContainsString('"setup_fee":null', $plainBody);
     }
 
     public function test_embed_ships_the_animated_step_swap(): void
@@ -439,6 +482,98 @@ class PlanWidgetPurchaseTest extends TestCase
             'phone' => '+44 7700 900123',
             'is_primary' => true,
         ]);
+    }
+
+    // ── setup fee + recurring (feat/plans-setup-fee-recurring) ───────────
+
+    public function test_setup_fee_purchase_charges_the_fee_and_provisions_a_recurring_subscription(): void
+    {
+        Mail::fake();
+        // £10 setup fee, £49/month recurring.
+        [, , $price] = $this->catalog(priceOverrides: [
+            'price' => 49.00, 'setup_fee' => 10.00, 'interval_unit' => 'month', 'interval_count' => 1,
+        ]);
+
+        // amount_total reflects the FEE (£10 + 20% VAT = £12), what Stripe charged.
+        $event = Event::constructFrom([
+            'id' => 'evt_fee', 'type' => 'checkout.session.completed',
+            'data' => ['object' => [
+                'id' => 'cs_fee', 'payment_intent' => 'pi_fee', 'amount_total' => 1200,
+                'metadata' => ['plan_price_id' => (string) $price->id, 'purchaser_name' => 'Pat Purchaser', 'purchaser_email' => 'pat.purchaser@gmail.com'],
+            ]],
+        ]);
+        $request = Request::create('/webhooks/stripe', 'POST');
+        $request->attributes->set('stripeEvent', $event);
+        app(StripeWebhookController::class)->receive($request, app(StripeService::class), app(WebhookIdempotencyService::class));
+
+        // The immediate invoice charges the FEE, not the recurring price.
+        $invoice = Invoice::sole();
+        $this->assertSame('paid', $invoice->status);
+        $this->assertEqualsWithDelta(10.00, (float) $invoice->subtotal, 0.001);
+        $this->assertDatabaseHas('invoice_lines', [
+            'invoice_id' => $invoice->id, 'amount' => 10.00, 'description' => 'ComniCube — Starter (setup fee)',
+        ]);
+
+        // The customer_product is set up for recurring: auto_invoice=true,
+        // next_billing_date one interval out, plan_price_id → the SAME row.
+        $cp = CustomerProduct::sole();
+        $this->assertTrue((bool) $cp->auto_invoice);
+        $this->assertSame($price->id, $cp->plan_price_id);
+        $this->assertSame(now()->addMonthNoOverflow()->toDateString(), $cp->next_billing_date->toDateString());
+    }
+
+    public function test_a_fee_less_purchase_is_byte_identical_to_the_pre_feature_behaviour(): void
+    {
+        Mail::fake();
+        // Explicit regression: no setup_fee → nothing recurring, invoice
+        // charges the price, description unchanged.
+        [, , $price] = $this->catalog(); // price 100, no setup_fee
+
+        $this->firePlanCheckoutCompleted($price);
+
+        $invoice = Invoice::sole();
+        $this->assertEqualsWithDelta(100.00, (float) $invoice->subtotal, 0.001);
+        $this->assertDatabaseHas('invoice_lines', [
+            'invoice_id' => $invoice->id, 'description' => 'ComniCube — Starter',
+        ]);
+        $cp = CustomerProduct::sole();
+        $this->assertFalse((bool) $cp->auto_invoice);
+        $this->assertNull($cp->next_billing_date);
+    }
+
+    public function test_the_subscription_sweep_bills_the_recurring_price_on_a_fee_provisioned_customer_product(): void
+    {
+        // THE HIGH-RISK SEAM: a customer_product created by settle() for a
+        // setup-fee purchase must be picked up by the REAL
+        // invoices:generate-subscriptions sweep and billed at the RECURRING
+        // price (not the fee) on its next_billing_date. Cross-system, not a
+        // settle() unit test.
+        Mail::fake();
+        // The sweep attributes system invoices' created_by to a super_admin
+        // (the plan path itself creates none — it uses created_by=null).
+        User::factory()->create(['role' => 'super_admin']);
+        [, , $price] = $this->catalog(priceOverrides: [
+            'price' => 49.00, 'setup_fee' => 10.00, 'interval_unit' => 'month', 'interval_count' => 1,
+        ]);
+
+        $this->firePlanCheckoutCompletedWithAmount($price, 'cs_sweep', 1200);
+        $cp = CustomerProduct::sole();
+
+        // Fast-forward: make the recurring charge due.
+        $cp->update(['next_billing_date' => now()->subDay()->toDateString()]);
+
+        // The fee invoice already exists; run the sweep and confirm it drafts
+        // a SECOND invoice at the recurring £49 (VAT applied by the sweep).
+        $this->artisan('invoices:generate-subscriptions')->assertExitCode(0);
+
+        $recurring = Invoice::where('customer_id', $cp->customer_id)
+            ->where('id', '!=', Invoice::where('stripe_checkout_session_id', 'cs_sweep')->value('id'))
+            ->sole();
+        $this->assertSame('subscription', $recurring->type);
+        $this->assertEqualsWithDelta(49.00, (float) $recurring->subtotal, 0.001);
+
+        // And it advanced the cadence forward (didn't re-bill immediately).
+        $this->assertTrue($cp->fresh()->next_billing_date->isFuture());
     }
 
     // ── card vaulting (feat/plans-checkout-card-vaulting) ────────────────

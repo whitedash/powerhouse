@@ -10,6 +10,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\PlanCheckoutAttempt;
 use App\Models\ProductPlanPrice;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -51,19 +52,23 @@ class PlanPurchaseService
     }
 
     /**
-     * Gross charge breakdown for a price: VAT at the billing entity's
-     * effective rate (a non-registered entity forces 0 via
-     * effective_vat_rate), mirroring the proposal schedule generator.
+     * Gross breakdown of the IMMEDIATE charge for a price: VAT at the
+     * billing entity's effective rate (a non-registered entity forces 0).
      * Used by BOTH the checkout-initiation endpoint (the amount Stripe
-     * charges) and the webhook settle (the invoice values), so the two
-     * can never disagree by construction.
+     * charges) and the webhook settle (the immediate invoice's values), so
+     * the two can never disagree by construction.
+     *
+     * The immediate subtotal is the SETUP FEE when the price carries one
+     * (recurring "fee now, then price on cadence"), else the price itself
+     * (today's one-off behaviour). A fee-less price is byte-identical to
+     * before this feature.
      *
      * @return array{subtotal: float, vat_rate: float, vat_amount: float, total: float}
      */
     public function totals(ProductPlanPrice $price): array
     {
         $entity = $this->resolveEntity($price);
-        $subtotal = (float) $price->price;
+        $subtotal = $this->hasSetupFee($price) ? (float) $price->setup_fee : (float) $price->price;
         $vatRate = $entity !== null ? (float) $entity->effective_vat_rate : 20.0;
         $vatAmount = round($subtotal * ($vatRate / 100), 2);
 
@@ -73,6 +78,34 @@ class PlanPurchaseService
             'vat_amount' => $vatAmount,
             'total' => round($subtotal + $vatAmount, 2),
         ];
+    }
+
+    /**
+     * A price provisions a RECURRING subscription (fee charged now, `price`
+     * billed on cadence) iff it carries a positive setup_fee. Null/0 =
+     * today's one-off purchase — the byte-identical path.
+     */
+    private function hasSetupFee(ProductPlanPrice $price): bool
+    {
+        return $price->setup_fee !== null && (float) $price->setup_fee > 0;
+    }
+
+    /**
+     * The first recurring charge date for a setup-fee purchase: now advanced
+     * by one interval, so the fee period runs before the sweep bills `price`.
+     * Only reached for recurring (non-one_time) prices — one_time + setup_fee
+     * is validation-blocked — so month is the safe default.
+     */
+    private function nextBillingDate(ProductPlanPrice $price): Carbon
+    {
+        $count = max(1, (int) $price->interval_count);
+
+        return match ($price->interval_unit) {
+            'day' => now()->addDays($count),
+            'week' => now()->addWeeks($count),
+            'year' => now()->addYearsNoOverflow($count),
+            default => now()->addMonthsNoOverflow($count),
+        };
     }
 
     /**
@@ -171,6 +204,14 @@ class PlanPurchaseService
                 'via' => 'plans-widget',
             ]);
 
+            // Setup-fee prices provision a RECURRING subscription: the fee
+            // is charged now (the invoice below), and the sweep bills `price`
+            // starting one interval out. A fee-less price stays exactly as
+            // before — auto_invoice=false, no next_billing_date. The
+            // plan_price_id points at the SAME row either way; the sweep
+            // reads planPrice->price (unchanged by setup_fee) for the
+            // recurring amount, so nothing there needs to know about fees.
+            $hasFee = $this->hasSetupFee($price);
             $customerProduct = CustomerProduct::create([
                 'customer_id' => $company->id,
                 'product_id' => $product->id,
@@ -186,7 +227,8 @@ class PlanPurchaseService
                 // the ledger must say so.
                 'status' => $pending ? 'pending' : 'active',
                 'started_at' => now(),
-                'auto_invoice' => false,
+                'auto_invoice' => $hasFee,
+                'next_billing_date' => $hasFee ? $this->nextBillingDate($price)->toDateString() : null,
             ]);
 
             $this->logSystem('customer_product.purchased', 'customer_product', $customerProduct->id, [
@@ -220,7 +262,12 @@ class PlanPurchaseService
                 'invoice_id' => $invoice->id,
                 'product_id' => $product->id,
                 'plan_id' => $plan->id,
-                'description' => $product->name.' — '.$plan->name,
+                // Fee purchases label the line as a setup fee (the amount is
+                // already the fee via totals()); a fee-less purchase keeps
+                // the exact original description — byte-identical.
+                'description' => $hasFee
+                    ? $product->name.' — '.$plan->name.' (setup fee)'
+                    : $product->name.' — '.$plan->name,
                 'quantity' => 1,
                 'unit_price' => $totals['subtotal'],
                 'amount' => $totals['subtotal'],
