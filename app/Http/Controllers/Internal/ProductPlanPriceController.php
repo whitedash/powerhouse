@@ -30,6 +30,7 @@ class ProductPlanPriceController extends Controller
             'is_default' => ['boolean'],
             'is_active' => ['boolean'],
             'sort_order' => ['nullable', 'integer'],
+            ...$this->introRules($request->filled('plan_id') ? (int) $request->input('plan_id') : null, null),
         ], ['setup_fee.prohibited_if' => 'A one-time price cannot carry a setup fee — setup fees apply to recurring prices only.']);
 
         // A domain plan may carry only ONE active price tier.
@@ -77,6 +78,7 @@ class ProductPlanPriceController extends Controller
             'is_default' => ['boolean'],
             'is_active' => ['boolean'],
             'sort_order' => ['nullable', 'integer'],
+            ...$this->introRules($price->plan_id, $price->id),
         ], ['setup_fee.prohibited_if' => 'A one-time price cannot carry a setup fee — setup fees apply to recurring prices only.']);
 
         // Activating this tier must not give a domain plan a second active one.
@@ -143,6 +145,64 @@ class ProductPlanPriceController extends Controller
         });
 
         return back()->with('success', 'Pricing option deleted.');
+    }
+
+    /**
+     * Validation for the intro-price schedule (Plans widget). The two fields
+     * are set together or not at all; when set, the price becomes an intro
+     * price that swaps to intro_swap_price_id after intro_duration_days.
+     *
+     * Invariants (validation-layer, like the setup_fee / one_time rule):
+     *  - both-or-neither (mutual required_with);
+     *  - the target must exist, live in the SAME plan, not be the price itself,
+     *    not be one_time (nothing recurring to swap to), and not itself be an
+     *    intro price (no chains);
+     *  - mutually exclusive with setup_fee (two different recurring models).
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function introRules(?int $planId, ?int $selfId): array
+    {
+        return [
+            'intro_duration_days' => ['nullable', 'integer', 'min:1', 'max:3650', 'required_with:intro_swap_price_id'],
+            'intro_swap_price_id' => [
+                'nullable', 'integer', 'required_with:intro_duration_days',
+                function (string $attribute, mixed $value, \Closure $fail) use ($planId, $selfId): void {
+                    if ($value === null) {
+                        return;
+                    }
+                    if (request()->filled('setup_fee')) {
+                        $fail('An intro price cannot also carry a setup fee — they are different recurring models.');
+
+                        return;
+                    }
+                    if ($selfId !== null && (int) $value === $selfId) {
+                        $fail('An intro price cannot transition to itself.');
+
+                        return;
+                    }
+                    $target = ProductPlanPrice::find($value);
+                    if ($target === null) {
+                        $fail('The selected swap-target price does not exist.');
+
+                        return;
+                    }
+                    if ($planId !== null && $target->plan_id !== $planId) {
+                        $fail('The swap-target price must belong to the same plan.');
+
+                        return;
+                    }
+                    if ($target->interval_unit === 'one_time') {
+                        $fail('The swap-target price must be a recurring price, not one-time.');
+
+                        return;
+                    }
+                    if ($target->isIntroPrice()) {
+                        $fail('The swap-target price cannot itself be an intro price.');
+                    }
+                },
+            ],
+        ];
     }
 
     /**

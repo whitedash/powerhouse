@@ -204,14 +204,35 @@ class PlanPurchaseService
                 'via' => 'plans-widget',
             ]);
 
-            // Setup-fee prices provision a RECURRING subscription: the fee
-            // is charged now (the invoice below), and the sweep bills `price`
-            // starting one interval out. A fee-less price stays exactly as
-            // before — auto_invoice=false, no next_billing_date. The
-            // plan_price_id points at the SAME row either way; the sweep
-            // reads planPrice->price (unchanged by setup_fee) for the
-            // recurring amount, so nothing there needs to know about fees.
+            // A setup-fee OR intro price provisions a RECURRING subscription
+            // the existing sweep bills later; a plain price stays one-off
+            // (auto_invoice=false, no next_billing_date) — byte-identical.
+            //
+            //  setup fee: fee charged now (invoice below), sweep bills `price`
+            //             one interval out.
+            //  intro:     intro price charged now (the invoice below, possibly
+            //             £0); the CP keeps the intro plan_price_id until
+            //             plans:apply-intro-price-swaps flips it to the full
+            //             price on the swap date. next_billing_date IS the swap
+            //             date, so once the swap has run the sweep bills the
+            //             (now full) price from that day. auto_invoice=true even
+            //             for a £0 intro — the vaulted card is what makes the
+            //             later full charge collectable.
+            //
+            // Either way plan_price_id points at the purchased row and the sweep
+            // reads planPrice->{price,interval_*}, so it needs no knowledge of
+            // fees or intros.
             $hasFee = $this->hasSetupFee($price);
+            $isIntro = $price->isIntroPrice();
+            $swapAt = $isIntro
+                ? now()->addDays(max(1, (int) $price->intro_duration_days))
+                : null;
+            $nextBillingDate = match (true) {
+                $isIntro => $swapAt,                        // first full charge = swap date
+                $hasFee => $this->nextBillingDate($price),  // fee period, then price
+                default => null,
+            };
+
             $customerProduct = CustomerProduct::create([
                 'customer_id' => $company->id,
                 'product_id' => $product->id,
@@ -227,8 +248,12 @@ class PlanPurchaseService
                 // the ledger must say so.
                 'status' => $pending ? 'pending' : 'active',
                 'started_at' => now(),
-                'auto_invoice' => $hasFee,
-                'next_billing_date' => $hasFee ? $this->nextBillingDate($price)->toDateString() : null,
+                'auto_invoice' => $hasFee || $isIntro,
+                'next_billing_date' => $nextBillingDate?->toDateString(),
+                // Intro schedule: the swap command reads these; the target is
+                // snapshotted so a later catalog edit can't change what was sold.
+                'intro_swap_at' => $swapAt?->toDateString(),
+                'intro_swap_price_id' => $isIntro ? $price->intro_swap_price_id : null,
             ]);
 
             $this->logSystem('customer_product.purchased', 'customer_product', $customerProduct->id, [
@@ -262,12 +287,15 @@ class PlanPurchaseService
                 'invoice_id' => $invoice->id,
                 'product_id' => $product->id,
                 'plan_id' => $plan->id,
-                // Fee purchases label the line as a setup fee (the amount is
-                // already the fee via totals()); a fee-less purchase keeps
-                // the exact original description — byte-identical.
-                'description' => $hasFee
-                    ? $product->name.' — '.$plan->name.' (setup fee)'
-                    : $product->name.' — '.$plan->name,
+                // The line names what was charged now: the setup fee, the intro
+                // price, or (fee-less/intro-less) the exact original
+                // description — byte-identical. The amount is already correct
+                // via totals() (fee, intro price, or full price respectively).
+                'description' => match (true) {
+                    $hasFee => $product->name.' — '.$plan->name.' (setup fee)',
+                    $isIntro => $product->name.' — '.$plan->name.' (intro price)',
+                    default => $product->name.' — '.$plan->name,
+                },
                 'quantity' => 1,
                 'unit_price' => $totals['subtotal'],
                 'amount' => $totals['subtotal'],

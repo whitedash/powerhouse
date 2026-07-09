@@ -14,6 +14,8 @@ use Illuminate\Support\Carbon;
  * @property int $plan_id
  * @property string $price
  * @property string|null $setup_fee
+ * @property int|null $intro_swap_price_id When set, this is an intro price that transitions to price #intro_swap_price_id after intro_duration_days.
+ * @property int|null $intro_duration_days
  * @property int $interval_count
  * @property string $interval_unit
  * @property string|null $stripe_price_id
@@ -28,6 +30,7 @@ use Illuminate\Support\Carbon;
  * @property-read float $arr_contribution
  * @property-read string $display_label
  * @property-read ProductPlan|null $plan
+ * @property-read ProductPlanPrice|null $introSwapPrice
  * @property-read Collection<int, CustomerProduct> $customerProducts
  */
 class ProductPlanPrice extends Model
@@ -39,6 +42,10 @@ class ProductPlanPrice extends Model
         'price',
         // Optional one-off setup fee on a recurring price (Plans widget).
         'setup_fee',
+        // Intro-price schedule (Plans widget): this price transitions to
+        // price #intro_swap_price_id after intro_duration_days.
+        'intro_swap_price_id',
+        'intro_duration_days',
         'interval_count',
         'interval_unit',
         'stripe_price_id',
@@ -53,6 +60,7 @@ class ProductPlanPrice extends Model
         return [
             'price' => 'decimal:2',
             'setup_fee' => 'decimal:2',
+            'intro_duration_days' => 'integer',
             'interval_count' => 'integer',
             'is_default' => 'boolean',
             'is_active' => 'boolean',
@@ -68,6 +76,25 @@ class ProductPlanPrice extends Model
     public function customerProducts(): HasMany
     {
         return $this->hasMany(CustomerProduct::class, 'plan_price_id');
+    }
+
+    /**
+     * The full price this intro price transitions to (null for an ordinary
+     * price). Self-referential — an intro row points at a sibling full row.
+     */
+    public function introSwapPrice(): BelongsTo
+    {
+        return $this->belongsTo(ProductPlanPrice::class, 'intro_swap_price_id');
+    }
+
+    /**
+     * True when this row is an intro price scheduled to become another price
+     * after a fixed window — both catalog fields present. Kept in lockstep
+     * with the controller validation that sets them together.
+     */
+    public function isIntroPrice(): bool
+    {
+        return $this->intro_swap_price_id !== null && $this->intro_duration_days !== null;
     }
 
     /**
