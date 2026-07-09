@@ -52,6 +52,34 @@ class WorkflowEngine
     ];
 
     /**
+     * Runaway-cascade backstop. A workflow action re-entering trigger()
+     * (none does today) can only recurse this many levels before the engine
+     * aborts rather than descending further. The id-set below already blocks
+     * the realistic A→B→A loop at first re-entry; this cap catches a
+     * pathological chain of DISTINCT workflows that the id-set wouldn't.
+     */
+    private const MAX_TRIGGER_DEPTH = 10;
+
+    /**
+     * Loop guard. Ids of workflows already fired within the CURRENT top-level
+     * triggering event — a workflow appears at most once, so an action that
+     * (in future) re-triggers a workflow already run in this event is skipped
+     * instead of looping. Seeded empty on the outermost trigger() call and
+     * left intact through any nested calls, so sequential top-level triggers
+     * each start clean while a nested trigger shares the outer event's set.
+     *
+     * @var array<int, true>
+     */
+    private array $firedWorkflowIds = [];
+
+    /**
+     * Re-entrancy depth for trigger(). 0 = not currently triggering; the
+     * outermost call runs at depth 1. Drives both the id-set reset (only at
+     * depth 0) and the MAX_TRIGGER_DEPTH backstop.
+     */
+    private int $triggerDepth = 0;
+
+    /**
      * Emails queued by send_email actions during a single workflow's run,
      * flushed only AFTER that workflow's transaction commits (see trigger()).
      * Reset per workflow so a rolled-back run never sends.
@@ -66,6 +94,52 @@ class WorkflowEngine
      * @param  array<string, mixed>  $payload
      */
     public function trigger(string $triggerType, array $payload, ?int $triggerEntityId = null): void
+    {
+        // Loop guard (in-memory, per triggering event). The id-set is seeded
+        // ONLY on the outermost entry so it resets between sequential top-level
+        // triggers while any future nested trigger() shares the outer set.
+        if ($this->triggerDepth === 0) {
+            $this->firedWorkflowIds = [];
+        }
+
+        // Backstop before descending: a depth already at the cap means a
+        // runaway re-entry chain — log/report and abort rather than recurse.
+        // Unreachable today (no action re-enters the engine); the guard is
+        // here so the four incoming internal trigger points can't regress it.
+        if ($this->triggerDepth >= self::MAX_TRIGGER_DEPTH) {
+            $error = new \RuntimeException(sprintf(
+                'WorkflowEngine max trigger depth (%d) exceeded for trigger "%s" — aborting to prevent a runaway cascade.',
+                self::MAX_TRIGGER_DEPTH,
+                $triggerType,
+            ));
+            Log::error('Workflow trigger depth cap exceeded', [
+                'trigger' => $triggerType,
+                'depth' => $this->triggerDepth,
+            ]);
+            report($error);
+
+            return;
+        }
+
+        $this->triggerDepth++;
+
+        // finally so the depth (and, at the outer level, the guard's lifetime)
+        // unwinds correctly even if a workflow's own error escapes the loop.
+        try {
+            $this->dispatch($triggerType, $payload, $triggerEntityId);
+        } finally {
+            $this->triggerDepth--;
+        }
+    }
+
+    /**
+     * Resolve and run every workflow matching ($triggerType, $payload). Split
+     * out of trigger() so the loop-guard bookkeeping (depth in/out, id-set
+     * seeding) wraps this body without indenting it further.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function dispatch(string $triggerType, array $payload, ?int $triggerEntityId): void
     {
         $workflows = Workflow::query()
             ->where('trigger_type', $triggerType)
@@ -84,6 +158,22 @@ class WorkflowEngine
             if (! $this->matchesConditions($workflow, $payload)) {
                 continue;
             }
+
+            // Loop guard: a workflow fires at most once per triggering event.
+            // Already fired in this event (only possible once an action can
+            // re-enter trigger()) => skip, breaking any A→B→A cascade at the
+            // first re-entry. Marked BEFORE running so re-entry mid-run is
+            // caught too. No-op for today's two external-inbound triggers,
+            // whose actions never re-enter the engine.
+            if (isset($this->firedWorkflowIds[$workflow->id])) {
+                Log::warning('Workflow skipped: already fired in this triggering event', [
+                    'workflow_id' => $workflow->id,
+                    'trigger' => $triggerType,
+                ]);
+
+                continue;
+            }
+            $this->firedWorkflowIds[$workflow->id] = true;
 
             // Reset per workflow: send_email actions push onto this list; it is
             // flushed only on a clean commit below, so a throwing run sends nothing.
@@ -212,10 +302,16 @@ class WorkflowEngine
      * the (possibly extended) context which is fed to the next
      * action.
      *
+     * protected (not private) purely as a test seam: no production action
+     * re-enters trigger(), so the loop guard's re-entry path is exercised by
+     * a test double that overrides this to call $this->trigger() — the only
+     * way to drive a genuine same-instance re-entry, since the guard is
+     * per-instance state and app() would hand back a fresh engine.
+     *
      * @param  array<string, mixed>  $context
      * @return array<string, mixed>
      */
-    private function executeAction(WorkflowAction $action, array $context): array
+    protected function executeAction(WorkflowAction $action, array $context): array
     {
         return match ($action->action_type) {
             'create_lead' => $this->actionCreateLead($action->config, $context),
