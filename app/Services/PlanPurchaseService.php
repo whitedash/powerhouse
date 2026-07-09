@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ActivityLog;
 use App\Models\BillingEntity;
+use App\Models\Company;
 use App\Models\CustomerProduct;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
@@ -246,6 +247,16 @@ class PlanPurchaseService
 
         $this->markAttemptCompleted($sessionId);
 
+        // Vault the purchaser's card onto the now-provisioned Company, so
+        // it's usable by the off-session collection sweep for future
+        // recurring/one-off charges. GRACEFUL DEGRADATION (design §5): a
+        // vault failure must NEVER undo a paid purchase — the money has
+        // settled — so it's guarded and post-commit, exactly like the
+        // receipt send. A customer whose card didn't vault simply can't be
+        // auto-billed later (the same position as every purchase before
+        // this feature); no half-provisioned state, no staff flag needed.
+        $this->vaultCard($provision->company, $sessionId);
+
         return new PlanPurchaseResult(
             $invoice->fresh() ?? $invoice,
             $customerProduct,
@@ -253,6 +264,22 @@ class PlanPurchaseService
             $provision->contact?->email,
             receiptDue: $customerProduct->status === 'active',
         );
+    }
+
+    private function vaultCard(Company $company, string $sessionId): void
+    {
+        try {
+            $vaulted = $this->stripe->vaultPlanCardFromSession($company, $sessionId);
+            if ($vaulted) {
+                $this->logSystem('customer.card_vaulted', 'customer', $company->id, [
+                    'via' => 'plans-widget',
+                ]);
+            }
+        } catch (\Throwable $e) {
+            // Card absent → customer just isn't auto-billable yet; the
+            // purchase and provisioning stand.
+            report($e);
+        }
     }
 
     /**
@@ -285,6 +312,12 @@ class PlanPurchaseService
             // was deleted between provisioning and this retry.
             throw new \RuntimeException("Invoice {$invoice->id} has no customer to settle a plan purchase against.");
         }
+
+        // Vault on the replay too: covers a crash landing between
+        // provisioning and the first vault attempt. recordPaymentMethod is
+        // idempotent on the pm id, so a re-vault of an already-saved card is
+        // a harmless no-op.
+        $this->vaultCard($company, $sessionId);
 
         return new PlanPurchaseResult(
             $invoice->fresh() ?? $invoice,

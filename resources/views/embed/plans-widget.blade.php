@@ -236,6 +236,12 @@
         stepWrap.appendChild(turnstileHost);
         stepWrap.appendChild(error);
         stepWrap.appendChild(submit);
+        // Card-vaulting consent (design §3): stated inline, BEFORE the
+        // visitor reaches Stripe's payment fields on the next step — no
+        // separate checkbox, lighter friction. Muted so it reads as a
+        // reassurance, not a warning.
+        stepWrap.appendChild(el("p", { style: "font-size:12px;line-height:1.5;color:" + AT.muted + ";margin:10px 0 0;" },
+            ["Your card is securely stored by our payment provider for future billing on this plan. You can remove it any time."]));
 
         overlayEl = el("div", { style: "position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:2147483000;display:flex;align-items:center;justify-content:center;" });
         overlayEl.addEventListener("click", function (e) { if (e.target === overlayEl) closeModal(); });

@@ -6,6 +6,7 @@ use App\Http\Controllers\Webhooks\StripeWebhookController;
 use App\Mail\PlanPurchaseReceipt;
 use App\Models\BillingEntity;
 use App\Models\Company;
+use App\Models\Contact;
 use App\Models\CustomerProduct;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -13,7 +14,9 @@ use App\Models\Person;
 use App\Models\Product;
 use App\Models\ProductPlan;
 use App\Models\ProductPlanPrice;
+use App\Models\StripeCustomer;
 use App\Models\User;
+use App\Services\OffSessionCollector;
 use App\Services\StripeService;
 use App\Services\WebhookIdempotencyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -436,6 +439,130 @@ class PlanWidgetPurchaseTest extends TestCase
             'phone' => '+44 7700 900123',
             'is_primary' => true,
         ]);
+    }
+
+    // ── card vaulting (feat/plans-checkout-card-vaulting) ────────────────
+
+    public function test_settlement_vaults_the_card_onto_the_provisioned_company(): void
+    {
+        Mail::fake();
+        [, , $price] = $this->catalog();
+
+        // The vault step retrieves the session + payment method from Stripe
+        // (a live call), so partial-mock ONLY that seam: have it perform the
+        // real DB writes recordPaymentMethod would, proving settle() calls
+        // it with the provisioned Company.
+        $this->partialMock(StripeService::class, function ($m) {
+            $m->shouldReceive('vaultPlanCardFromSession')
+                ->once()
+                ->andReturnUsing(function (Company $company, string $sessionId) {
+                    app(StripeService::class)->recordPaymentMethod($company, 'cus_plan_123', 'pm_plan_123', [
+                        'brand' => 'visa', 'last4' => '4242', 'exp_month' => 4, 'exp_year' => 2030,
+                    ]);
+                    StripeCustomer::firstOrCreate(
+                        ['customer_id' => $company->id],
+                        ['stripe_customer_id' => 'cus_plan_123'],
+                    );
+
+                    return true;
+                });
+        });
+
+        $this->firePlanCheckoutCompleted($price);
+
+        $company = Company::where('name', 'Pat Purchaser')->firstOrFail();
+        $this->assertDatabaseHas('stripe_customers', [
+            'customer_id' => $company->id, 'stripe_customer_id' => 'cus_plan_123',
+        ]);
+        $this->assertDatabaseHas('payment_methods', [
+            'customer_id' => $company->id,
+            'stripe_payment_method_id' => 'pm_plan_123',
+            'is_default' => true, 'status' => 'active', 'brand' => 'visa', 'last4' => '4242',
+        ]);
+        $this->assertDatabaseHas('activity_log', [
+            'action' => 'customer.card_vaulted', 'entity_id' => $company->id, 'user_role' => 'system',
+        ]);
+    }
+
+    public function test_a_plan_vaulted_card_is_chargeable_by_the_off_session_sweep(): void
+    {
+        // Cross-compatibility: a card vaulted by the plan path must be
+        // indistinguishable to the collection sweep from an invoice-vaulted
+        // one. Vault via the SAME write shape, then run the real
+        // OffSessionCollector (Stripe charge stubbed) and confirm it selects
+        // the plan-vaulted card and charges it.
+        $entity = $this->entity();
+        $company = Company::create(['name' => 'Vaulted Co', 'auto_collect' => true]);
+        Contact::create(['customer_id' => $company->id, 'name' => 'Pat', 'email' => 'p@vaulted.test', 'is_primary' => true]);
+
+        // Written exactly as the plan vault step writes it.
+        app(StripeService::class)->recordPaymentMethod($company, 'cus_plan_999', 'pm_plan_999', [
+            'brand' => 'visa', 'last4' => '4242', 'exp_month' => 4, 'exp_year' => 2030,
+        ]);
+        StripeCustomer::create(['customer_id' => $company->id, 'stripe_customer_id' => 'cus_plan_999']);
+
+        $invoice = Invoice::create([
+            'number' => 'INV-'.random_int(1000, 9999), 'customer_id' => $company->id,
+            'billing_entity_id' => $entity->id, 'type' => 'subscription', 'status' => 'sent',
+            'subtotal' => 50, 'vat_rate' => 0, 'vat_amount' => 0, 'total' => 50, 'amount_paid' => 0,
+            'issue_date' => now()->toDateString(), 'due_date' => now()->toDateString(),
+            'created_by' => User::factory()->create(['role' => 'super_admin'])->id,
+        ]);
+
+        // Stub the actual charge; assert it fires against the plan-vaulted PM.
+        $this->partialMock(StripeService::class, function ($m) {
+            $m->shouldReceive('chargeOffSession')
+                ->once()
+                ->withArgs(fn (string $cus, string $pm, int $pence, array $meta, string $key): bool => $cus === 'cus_plan_999' && $pm === 'pm_plan_999')
+                ->andReturn(['status' => 'succeeded', 'payment_intent_id' => 'pi_ok', 'failure_reason' => null]);
+        });
+
+        app(OffSessionCollector::class)->run(false);
+
+        $this->assertSame('paid', $invoice->fresh()->status);
+    }
+
+    public function test_vault_failure_does_not_block_settlement(): void
+    {
+        Mail::fake();
+        [, , $price] = $this->catalog();
+
+        // Vault throws (e.g. Stripe unreachable) — the paid purchase and its
+        // provisioning must still stand; the customer just isn't auto-billable.
+        $this->partialMock(StripeService::class, function ($m) {
+            $m->shouldReceive('vaultPlanCardFromSession')
+                ->once()
+                ->andThrow(new \RuntimeException('stripe down'));
+        });
+
+        $this->firePlanCheckoutCompleted($price);
+
+        $company = Company::where('name', 'Pat Purchaser')->firstOrFail();
+        $this->assertSame('paid', Invoice::sole()->status);
+        $this->assertSame('active', CustomerProduct::sole()->status);
+        // No card, no vault-success log — graceful degradation.
+        $this->assertDatabaseMissing('payment_methods', ['customer_id' => $company->id]);
+        $this->assertDatabaseMissing('activity_log', ['action' => 'customer.card_vaulted']);
+    }
+
+    public function test_session_params_add_customer_and_setup_future_usage_when_vaulting(): void
+    {
+        [, , $price] = $this->catalog();
+        $service = app(StripeService::class);
+
+        // With a Stripe Customer id → vaulting session: customer +
+        // setup_future_usage, and NO customer_email (Stripe rejects both).
+        $vaulting = $service->planCheckoutSessionParams($price, 'Pat', 'pat@gmail.com', 120.0, 'comnicube', null, null, 'cus_abc');
+        $this->assertSame('cus_abc', $vaulting['customer']);
+        $this->assertSame(['setup_future_usage' => 'off_session'], $vaulting['payment_intent_data']);
+        $this->assertArrayNotHasKey('customer_email', $vaulting);
+        $this->assertSame('cus_abc', $vaulting['metadata']['stripe_customer_id']);
+
+        // Without one (the fallback) → email-only, no customer/setup.
+        $emailOnly = $service->planCheckoutSessionParams($price, 'Pat', 'pat@gmail.com', 120.0, 'comnicube');
+        $this->assertArrayNotHasKey('customer', $emailOnly);
+        $this->assertArrayNotHasKey('payment_intent_data', $emailOnly);
+        $this->assertSame('pat@gmail.com', $emailOnly['customer_email']);
     }
 
     // ── dedup + replay ───────────────────────────────────────────────────
