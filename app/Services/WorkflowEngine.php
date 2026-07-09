@@ -11,6 +11,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\Workflow;
 use App\Models\WorkflowAction;
+use App\Models\WorkflowRun;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -87,6 +88,15 @@ class WorkflowEngine
      * @var list<array{to: string, subject: string, body: string}>
      */
     private array $pendingEmails = [];
+
+    /**
+     * Set by an action handler at each silent no-op (no resolvable actor, no
+     * customer_id, invalid status, blank recipient, …) to name WHY it skipped.
+     * Reset to null before every executeAction() call; the run loop reads it
+     * afterwards to record the action's outcome as skipped-with-reason instead
+     * of letting the no-op vanish. Null after a handler that actually acted.
+     */
+    private ?string $actionSkipReason = null;
 
     /**
      * Fire every active workflow that matches ($triggerType, $payload).
@@ -171,6 +181,20 @@ class WorkflowEngine
                     'trigger' => $triggerType,
                 ]);
 
+                // Record the guard's decision as a workflow-level skipped run so
+                // the cascade that WAS prevented is visible in the ledger, not
+                // only in the framework log. No actions were run → actions null.
+                $this->recordRun(
+                    $workflow,
+                    $triggerType,
+                    $triggerEntityId,
+                    status: 'skipped',
+                    error: 'Loop guard: workflow already fired in this triggering event',
+                    durationMs: null,
+                    contextSummary: null,
+                    actions: null,
+                );
+
                 continue;
             }
             $this->firedWorkflowIds[$workflow->id] = true;
@@ -179,8 +203,17 @@ class WorkflowEngine
             // flushed only on a clean commit below, so a throwing run sends nothing.
             $this->pendingEmails = [];
 
+            // Audit accumulators. These are plain PHP variables (memory), so
+            // they SURVIVE the inner transaction's rollback — the failed run's
+            // per-action outcomes are still available to record afterwards.
+            $runStartedAt = microtime(true);
+            $actionOutcomes = [];
+            $contextSummary = null;
+            $status = 'succeeded';
+            $runError = null;
+
             try {
-                DB::transaction(function () use ($workflow, $payload, $triggerType, $triggerEntityId): void {
+                DB::transaction(function () use ($workflow, $payload, $triggerType, $triggerEntityId, &$actionOutcomes, &$contextSummary): void {
                     $context = $payload;
 
                     // lead_id is an ENGINE-INTERNAL handoff key — only
@@ -195,9 +228,27 @@ class WorkflowEngine
                     unset($context['lead_id']);
 
                     foreach ($workflow->actions as $action) {
+                        $actionStartedAt = microtime(true);
+                        // Cleared before each handler; a handler that no-ops sets
+                        // it (see markSkip) so we can record WHY it skipped.
+                        $this->resetActionSkip();
+
                         try {
                             $context = $this->executeAction($action, $context);
+                            $skipReason = $this->actionSkipReason;
+                            $actionOutcomes[] = $this->actionOutcome(
+                                $action,
+                                $actionStartedAt,
+                                $skipReason !== null ? 'skipped' : 'ran',
+                                skipReason: $skipReason,
+                            );
                         } catch (\Throwable $e) {
+                            $actionOutcomes[] = $this->actionOutcome(
+                                $action,
+                                $actionStartedAt,
+                                'failed',
+                                error: $e->getMessage(),
+                            );
                             // Make the swallowed failure observable with the culprit
                             // action's identity, then re-throw so the whole-workflow
                             // rollback still applies (one bad action voids its run —
@@ -235,6 +286,8 @@ class WorkflowEngine
                             'lead_id' => $context['lead_id'] ?? null,
                         ],
                     ]);
+
+                    $contextSummary = $this->contextSummary($context);
                 });
 
                 // Side-effecting sends fire ONLY after the transaction above
@@ -242,6 +295,9 @@ class WorkflowEngine
                 // never go out (mirrors TicketIntakeService's after-commit send).
                 $this->flushPendingEmails($workflow);
             } catch (\Throwable $e) {
+                $status = 'failed';
+                $runError = $e->getMessage();
+
                 Log::error('Workflow failed', [
                     'workflow_id' => $workflow->id,
                     'trigger' => $triggerType,
@@ -251,8 +307,107 @@ class WorkflowEngine
                 // throw here silently drops the lead/ticket the workflow would
                 // have created.
                 report($e);
+            } finally {
+                // Written OUTSIDE the per-workflow transaction above: on a failed
+                // run that transaction has already rolled back, so this ledger
+                // write lands in the caller's OUTER transaction (or autocommits
+                // when there is none) rather than being rolled back with the run.
+                // This is the core fix — failed runs now leave a durable record.
+                $this->recordRun(
+                    $workflow,
+                    $triggerType,
+                    $triggerEntityId,
+                    status: $status,
+                    error: $runError,
+                    durationMs: (int) round((microtime(true) - $runStartedAt) * 1000),
+                    contextSummary: $contextSummary,
+                    actions: $actionOutcomes,
+                );
             }
         }
+    }
+
+    /**
+     * Record one action's outcome for the workflow_runs.actions ledger.
+     *
+     * @return array{action_id: int, action_type: string, sort_order: int, outcome: string, skip_reason: string|null, error: string|null, duration_ms: int}
+     */
+    private function actionOutcome(WorkflowAction $action, float $startedAt, string $outcome, ?string $skipReason = null, ?string $error = null): array
+    {
+        return [
+            'action_id' => $action->id,
+            'action_type' => $action->action_type,
+            'sort_order' => $action->sort_order,
+            'outcome' => $outcome, // ran | skipped | failed
+            'skip_reason' => $skipReason,
+            'error' => $error,
+            'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+        ];
+    }
+
+    /**
+     * Called by an action handler at a silent no-op to name the skip. The run
+     * loop reads $this->actionSkipReason after each handler and records the
+     * action as skipped-with-reason instead of letting the no-op vanish.
+     */
+    private function markSkip(string $reason): void
+    {
+        $this->actionSkipReason = $reason;
+    }
+
+    /**
+     * Clear the skip marker before running an action. A method (not an inline
+     * $this->actionSkipReason = null) so static analysis doesn't narrow the
+     * property to a constant null across the executeAction() call that follows.
+     */
+    private function resetActionSkip(): void
+    {
+        $this->actionSkipReason = null;
+    }
+
+    /**
+     * The forensically useful ids a run resolved, for workflow_runs.context_summary.
+     * Null when the run produced none (so the column stays empty rather than {}).
+     *
+     * @param  array<string, mixed>  $context
+     * @return array<string, mixed>|null
+     */
+    private function contextSummary(array $context): ?array
+    {
+        $summary = array_filter(
+            [
+                'lead_id' => $context['lead_id'] ?? null,
+                'ticket_id' => $context['ticket_id'] ?? null,
+                'customer_id' => $context['customer_id'] ?? null,
+                'submission_id' => $context['submission_id'] ?? null,
+            ],
+            static fn ($v): bool => $v !== null,
+        );
+
+        return $summary === [] ? null : $summary;
+    }
+
+    /**
+     * Append one workflow_runs row. ALWAYS called outside the per-workflow
+     * transaction (from the run loop's finally, or the loop-guard skip), so a
+     * failed/rolled-back run still leaves a durable record.
+     *
+     * @param  array<string, mixed>|null  $contextSummary
+     * @param  list<array<string, mixed>>|null  $actions
+     */
+    private function recordRun(Workflow $workflow, string $triggerType, ?int $triggerEntityId, string $status, ?string $error, ?int $durationMs, ?array $contextSummary, ?array $actions): void
+    {
+        WorkflowRun::create([
+            'workflow_id' => $workflow->id,
+            'trigger_type' => $triggerType,
+            'trigger_entity_id' => $triggerEntityId,
+            'status' => $status,
+            'error' => $error,
+            'duration_ms' => $durationMs,
+            'context_summary' => $contextSummary,
+            'actions' => $actions,
+            'created_at' => now(),
+        ]);
     }
 
     /**
@@ -355,6 +510,7 @@ class WorkflowEngine
             Log::warning('Workflow create_lead skipped: no default creator could be resolved', [
                 'action_type' => 'create_lead',
             ]);
+            $this->markSkip('no_default_creator');
 
             return $context;
         }
@@ -437,6 +593,8 @@ class WorkflowEngine
         $message = $this->resolveField($config['message_field'] ?? 'message', $context);
 
         if ($message === null || trim($message) === '') {
+            $this->markSkip('no_message');
+
             return $context;
         }
 
@@ -494,6 +652,7 @@ class WorkflowEngine
             Log::warning('Workflow create_task skipped: no default assignee could be resolved', [
                 'action_type' => 'create_task',
             ]);
+            $this->markSkip('no_default_assignee');
 
             return $context;
         }
@@ -526,6 +685,8 @@ class WorkflowEngine
         );
 
         if ($body === '') {
+            $this->markSkip('empty_body');
+
             return $context;
         }
 
@@ -537,6 +698,8 @@ class WorkflowEngine
         // skipped — the form_submission record still holds the
         // raw payload for forensic recovery.
         if (! isset($context['customer_id'])) {
+            $this->markSkip('no_customer');
+
             return $context;
         }
 
@@ -551,6 +714,7 @@ class WorkflowEngine
             Log::warning('Workflow add_note skipped: no default creator could be resolved', [
                 'action_type' => 'add_note',
             ]);
+            $this->markSkip('no_default_creator');
 
             return $context;
         }
@@ -577,6 +741,8 @@ class WorkflowEngine
         // at the boundary, so it is present only when an earlier create_lead
         // action in THIS run produced it.
         if (! isset($context['lead_id']) || ! isset($config['status'])) {
+            $this->markSkip('no_lead_or_status');
+
             return $context;
         }
 
@@ -592,17 +758,22 @@ class WorkflowEngine
                 'lead_id' => $context['lead_id'],
                 'status' => $newStatus,
             ]);
+            $this->markSkip('invalid_status');
 
             return $context;
         }
 
         $lead = Lead::find($context['lead_id']);
         if ($lead === null) {
+            $this->markSkip('lead_not_found');
+
             return $context;
         }
 
         $oldStatus = $lead->status;
         if ($oldStatus === $newStatus) {
+            $this->markSkip('status_unchanged');
+
             return $context;
         }
 
@@ -633,6 +804,8 @@ class WorkflowEngine
     private function actionAssignToUser(array $config, array $context): array
     {
         if (! isset($context['lead_id']) || ! isset($config['user_id'])) {
+            $this->markSkip('no_lead_or_user');
+
             return $context;
         }
 
@@ -701,9 +874,11 @@ class WorkflowEngine
                 : ($config['to_address'] ?? config('support.notify_email'));
         }
 
-        // No deliverable address → skip silently (same defensive no-op as the
-        // other actions). The run still commits; nothing is queued.
+        // No deliverable address → skip (same defensive no-op as the other
+        // actions, now recorded). The run still commits; nothing is queued.
         if ($recipient === null || trim((string) $recipient) === '') {
+            $this->markSkip('no_recipient');
+
             return $context;
         }
 

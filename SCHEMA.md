@@ -1319,6 +1319,32 @@ sort_order INT DEFAULT 0, created_at, updated_at
 -- accumulate context (e.g. create_lead writes lead_id) that
 -- later actions consume (create_task reads lead_id).
 
+## workflow_runs (Workflow audit sprint, 2026_07_09)
+id, workflow_id FK workflows CASCADE,
+trigger_type VARCHAR(50)
+  -- Stored as a string, NOT the workflows.trigger_type ENUM — the trigger
+  -- set is widening and the ledger must record a new one without a migration.
+trigger_entity_id BIGINT UNSIGNED nullable,
+status ENUM(succeeded|failed|skipped),
+error TEXT nullable
+  -- throwing action's message on failed; guard/skip reason on skipped.
+duration_ms INT UNSIGNED nullable,
+context_summary JSON nullable
+  -- resolved ids only: {lead_id, ticket_id, customer_id, submission_id}.
+actions JSON nullable
+  -- per-action: [{action_id, action_type, sort_order, outcome
+  --   (ran|skipped|failed), skip_reason, error, duration_ms}]. NULL for a
+  --   workflow-level skip (loop guard) where no actions were considered.
+created_at
+-- Append-only. No updated_at. No soft deletes (activity_log's convention).
+-- INDEX (workflow_id, created_at) workflow_runs_workflow_created_idx
+-- ONE row per workflow FIRING, written by WorkflowEngine OUTSIDE the
+-- per-workflow transaction (run loop's finally / loop-guard skip), so a
+-- failed run whose transaction rolled back STILL leaves a status=failed
+-- record — the gap the old in-transaction workflow.executed row could not
+-- fill. On a failed run, per-action entries marked outcome=ran executed
+-- without error but were rolled back with the run (status=failed signals it).
+
 ---
 
 ## Roles & permissions (Spatie laravel-permission + scope table)
